@@ -67,7 +67,9 @@ export const HUB_LINE: Partial<Record<HubKey, string>> = {
   realestate: 'Your perfect space, found for you.',
   fitness: 'Your body. Your goals. Your journey.',
   beauty: 'Your look, your way.',
-  social: 'Your people. Your communities. Your world.',
+  // "Your communities" came off (owner, 4 Sep): there is no community model,
+  // route or page yet, and a door does not promise a room that is not built.
+  social: 'Your people. Your city. Your moments.',
   astrology: 'Your stars. Your journey. Your timing.',
   pets: 'Everything your pet needs. All in one place.',
   ecommerce: 'Your shopping, personalized or wide open.',

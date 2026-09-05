@@ -34,6 +34,13 @@ export const WS = {
   CONNECTIONS_CHANGED: 'connections:changed',
   NOTIFICATION_NEW: 'notification:new',
   NOTIFICATION_COUNT: 'notification:count',
+  /* Social Life (server: social/social.events.ts). Fanned out to audience-
+     scoped per-user rooms; built on 30 Aug, listened to by nobody until the
+     4 Sep audit — features/social/live.ts is the listener. */
+  SOCIAL_POST_NEW: 'post:new',
+  SOCIAL_COMMENT_NEW: 'comment:new',
+  SOCIAL_LIKE_CHANGED: 'like:changed',
+  SOCIAL_POST_DELETED: 'post:deleted',
 } as const;
 
 export type WsEvent = (typeof WS)[keyof typeof WS];

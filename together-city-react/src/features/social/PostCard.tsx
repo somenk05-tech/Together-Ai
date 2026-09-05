@@ -5,10 +5,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { ShareModal } from '@/features/chat/share';
 import type { ShareCard } from '@/types';
 import { setMuted, playWithSharedSound, releasePlayback, knownRatio, rememberRatio } from '@/lib/mediaState';
+import { useQueryClient } from '@tanstack/react-query';
+import { onStaleMedia } from '@/lib/remint';
 import { HeartIcon, CommentIcon, SendIcon, SaveIcon, ShareIcon, PlaceIcon } from './marks';
 import { ReportMenu } from './report';
+import { Confirm } from './Confirm';
 import {
-  useAddComment, useComments, useDeleteComment, useDeletePost, useUpdatePost, useRepost, useToggleLike,
+  useAddComment, useComments, useDeleteComment, useDeletePost, useUpdatePost, useRepost, useToggleBookmark, useToggleLike,
   type Post, type PostComment, type PostMedia,
 } from './api';
 
@@ -55,89 +58,19 @@ export function Avatar({ name, src }: { name: string; src?: string | null }) {
 const AUD_ICON: Record<string, IconName> = { friends: 'people', family: 'connection', private: 'shield' };
 
 /**
- * 🔖 Saved posts — local bookmarks, and they belong to an ACCOUNT.
+ * SAVED POSTS LEFT THE DEVICE (4 Sep audit).
  *
- * The key was `tc-saved-posts` for the whole device (30 Aug audit). Two people
- * sharing a tablet shared their bookmarks: one saves a friends-only post with a
- * check-in on it, the other logs in and reads it — text, author, place,
- * coordinates — because the store was keyed to the browser rather than to
- * whoever was signed in. It is per-account now, and `SAVED_ROOT` is what a
- * sign-out can clear without touching anybody else's.
- *
- * The old device-wide key is read ONCE and migrated into the current account's
- * store, so nobody loses the bookmarks they already had. That is a deliberate
- * one-way door: after it runs, the shared key is gone and the leak with it.
+ * The bookmark store that lived here — per-account localStorage keys, a
+ * one-time migration off the device-wide key, a quota rollback so "Saved"
+ * was never a lie — was careful code solving the wrong problem. A snapshot
+ * of a post carries its signed media URL, which expires in an hour, so every
+ * saved photograph was broken by the time anybody came back for it; and the
+ * list stayed on the one device it was made on. A bookmark is a row on the
+ * account now (`useToggleBookmark`), and the Saved page re-reads each post
+ * through the feed's own gates. `Saved.tsx` still reads the old keys ONCE,
+ * to carry a device's bookmarks onto the account, and then clears them.
  */
-const SAVED_ROOT = 'tc-saved-posts';
-let savedOwner = '';
-/** Called by the card and the Saved page; the id comes from the auth store. */
-export function setSavedOwner(userId: string | undefined): void {
-  savedOwner = userId ?? '';
-  migrateDeviceSaves();
-}
-const savedKey = () => (savedOwner ? `${SAVED_ROOT}:${savedOwner}` : SAVED_ROOT);
-const dataKey = () => `${savedKey()}-data`;
-/** Where the bookmarks live, for the Saved page — one definition, not two. */
-export function savedStoreKeys(): { ids: string; data: string } {
-  return { ids: savedKey(), data: dataKey() };
-}
-function migrateDeviceSaves(): void {
-  if (!savedOwner) return;
-  try {
-    const ids = localStorage.getItem(SAVED_ROOT);
-    if (ids === null) return;
-    // Only if this account has nothing yet — otherwise a second person's
-    // bookmarks would be merged into the first's, which is the bug again.
-    if (localStorage.getItem(savedKey()) === null) {
-      localStorage.setItem(savedKey(), ids);
-      const data = localStorage.getItem(`${SAVED_ROOT}-data`);
-      if (data !== null) localStorage.setItem(dataKey(), data);
-    }
-    localStorage.removeItem(SAVED_ROOT);
-    localStorage.removeItem(`${SAVED_ROOT}-data`);
-  } catch { /* private mode — nothing to migrate and nothing to lose */ }
-}
-export function savedIds(): Set<string> {
-  try { return new Set(JSON.parse(localStorage.getItem(savedKey()) ?? '[]') as string[]); } catch { return new Set(); }
-}
-/**
- * THE BUTTON SAID "SAVED" WHEN NOTHING HAD BEEN SAVED (30 Aug audit).
- *
- * Two writes, and only the second one is big enough to fail: the id list is a
- * few bytes and always succeeds, the snapshot carries the whole post — which,
- * while photos are inline data URLs, is megabytes. So on a full store the id
- * landed, the body did not, `catch { }` ate the quota error, and the function
- * returned `true` anyway. The citizen saw "Saved", opened the Saved page, and
- * the post was not there — because that page drops ids with no snapshot.
- *
- * It now rolls the id back and returns the state that is actually on disk. A
- * save that did not happen reads as "Save", which is the truth and is also the
- * only way the citizen finds out.
- */
-export function toggleSaved(post: Post): boolean {
-  const ids = savedIds();
-  const on = !ids.has(post.id);
-  if (on) ids.add(post.id); else ids.delete(post.id);
-  try {
-    localStorage.setItem(savedKey(), JSON.stringify([...ids]));
-  } catch {
-    return !on; // the list itself would not write — nothing changed
-  }
-  try {
-    const snaps = JSON.parse(localStorage.getItem(dataKey()) ?? '{}') as Record<string, unknown>;
-    if (on) snaps[post.id] = post; else delete snaps[post.id];
-    localStorage.setItem(dataKey(), JSON.stringify(snaps));
-  } catch {
-    // The body did not fit. Undo the id so the two halves agree, and report the
-    // state the store is really in.
-    if (on) {
-      ids.delete(post.id);
-      try { localStorage.setItem(savedKey(), JSON.stringify([...ids])); } catch { /* nothing more to try */ }
-      return false;
-    }
-  }
-  return on;
-}
+export const LEGACY_SAVED_ROOT = 'tc-saved-posts';
 
 /**
  * ONE COMMENT, AND THE TWO THINGS YOU CAN DO ABOUT IT.
@@ -235,9 +168,11 @@ function ImgCell({ url, adaptive, overlay, alt }: { url: string; adaptive: boole
   // arrive, instead of re-playing the 16:9 → real-shape layout jump.
   const [ar, setAr] = useState(() => (adaptive && knownRatio(url)) || 16 / 9); // width / height
   const shown = adaptive ? ar : 16 / 9;
+  const qc = useQueryClient();
   return (
     <div style={{ position: 'relative', aspectRatio: String(shown), maxHeight: adaptive ? 720 : undefined, background: 'var(--media-bg)' }}>
       <img src={url} alt={alt} loading="lazy" decoding="async"
+        onError={() => onStaleMedia(qc, ['social'])}
         onLoad={(e) => {
           const r = e.currentTarget.naturalWidth / Math.max(1, e.currentTarget.naturalHeight);
           rememberRatio(url, r);
@@ -253,6 +188,7 @@ function ImgCell({ url, adaptive, overlay, alt }: { url: string; adaptive: boole
  *  reachable (no more +N cutoff), with dot indicators and a counter. */
 function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName: string }) {
   const [idx, setIdx] = useState(0);
+  const qc = useQueryClient();
   // true shape from the first image (any ratio); remembered by URL so a
   // remounted carousel opens at the right height with no layout jump.
   const [ar, setAr] = useState(() => knownRatio(images[0]?.url ?? '') ?? 16 / 9);
@@ -266,13 +202,28 @@ function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName
   };
   return (
     <div style={{ position: 'relative', marginTop: 12 }}>
-      <div ref={ref} onScroll={onScroll} className="tc-hscroll"
+      {/* A KEYBOARD CAN TURN THE PAGE (4 Sep audit). The strip scrolled by
+          touch and wheel only; the dots were decorative; nothing was focusable.
+          The strip is the one focusable thing, named as a carousel, and the
+          arrows move it a slide at a time. */}
+      <div ref={ref} onScroll={onScroll} className="tc-hscroll" tabIndex={0}
+        role="group" aria-roledescription="carousel" aria-label={`${images.length} photos shared by ${authorName}, photo ${idx + 1}`}
+        onKeyDown={(e) => {
+          const el = ref.current;
+          if (!el) return;
+          const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+          if (!step) return;
+          e.preventDefault();
+          const next = Math.min(images.length - 1, Math.max(0, idx + step));
+          el.scrollTo({ left: next * el.clientWidth });
+        }}
         style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', borderRadius: 'var(--r-2)', scrollbarWidth: 'none', aspectRatio: String(shown), maxHeight: 640, background: 'var(--media-bg)' }}>
         {images.map((m, i) => (
           <div key={m.id} style={{ flex: '0 0 100%', scrollSnapAlign: 'center', height: '100%' }}>
             {/* contain, so portrait photos are never cropped (letterboxed if the
                 slide's shape differs) */}
             <img src={m.url} alt={`Photo shared by ${authorName}`} loading="lazy" decoding="async"
+              onError={() => onStaleMedia(qc, ['social'])}
               onLoad={i === 0 ? (e) => { const r = e.currentTarget.naturalWidth / Math.max(1, e.currentTarget.naturalHeight); rememberRatio(m.url, r); setAr(r); } : undefined}
               style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
           </div>
@@ -293,7 +244,7 @@ function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName
 /** A feed video framed 16:9 (landscape) or 9:16 (vertical) by its real dimensions.
  *  `autoInView` makes it autoplay (muted) while scrolled into view and pause when
  *  it leaves — used by the "Videos" feed section. */
-function VideoFrame({ url, poster, isNew, vref, autoInView }: { url: string; poster?: string | null; isNew: boolean; vref?: Ref<HTMLVideoElement>; autoInView?: boolean }) {
+function VideoFrame({ url, poster, isNew, vref, autoInView, onEnded }: { url: string; poster?: string | null; isNew: boolean; vref?: Ref<HTMLVideoElement>; autoInView?: boolean; onEnded?: () => void }) {
   // Real width / height — remembered by URL, so scrolling back to a video (or
   // a pagination remount) frames it correctly before metadata arrives.
   const [ar, setAr] = useState(() => knownRatio(url) ?? 16 / 9);
@@ -441,7 +392,11 @@ function VideoFrame({ url, poster, isNew, vref, autoInView }: { url: string; pos
       <video ref={setRefs} src={near ? url : undefined}
         poster={poster ?? undefined}
         preload={!near ? 'none' : (isNew || playing || ctl) ? 'auto' : 'metadata'}
-        controls={ctl} playsInline autoPlay={isNew} muted={isNew || autoInView} loop={isNew || autoInView}
+        /* THE LOOP IS OFF EXACTLY WHERE SOMETHING IS WAITING FOR THE END (4 Sep).
+           A looping video never fires `ended`, so an auto-advance wired to it
+           would be dead code that typechecked. The Videos feed keeps its loop. */
+        controls={ctl} playsInline autoPlay={isNew} muted={isNew || autoInView} loop={!onEnded && (isNew || autoInView)}
+        onEnded={onEnded}
         onClick={() => {
           // First tap: play a paused video, and hand over the native controls.
           if (ctl) return;
@@ -459,7 +414,7 @@ function VideoFrame({ url, poster, isNew, vref, autoInView }: { url: string; pos
         style={{ width: '100%', aspectRatio: String(ar), maxHeight: 720, objectFit: 'contain', background: 'var(--media-bg)', display: 'block' }} />
       {/* The one affordance a bare paused video still owes: a play glyph.
           pointer-events: none — the tap lands on the video underneath. */}
-      {!ctl && !playing && <span className="vf-play" aria-hidden>▶</span>}
+      {!ctl && !playing && <span className="vf-play" aria-hidden><Icon name="play" size={22} /></span>}
     </div>
   );
 }
@@ -469,9 +424,11 @@ function VideoFrame({ url, poster, isNew, vref, autoInView }: { url: string; pos
  *  `manage` shows the author's Edit/Delete menu (used on the profile, not the feed).
  *  `onOpenAuthor` opens the author's profile (the parent owns the modal, so this
  *  component has no dependency on the profile page — avoids a circular import). */
-export const PostCard = memo(function PostCard({ post, isNew = false, manage = false, onOpenAuthor, onSetCover, coverBusy = false, autoplayVideo = false }: {
+export const PostCard = memo(function PostCard({ post, isNew = false, manage = false, onOpenAuthor, onSetCover, coverBusy = false, autoplayVideo = false, onVideoEnded }: {
   post: Post; isNew?: boolean; manage?: boolean; onOpenAuthor?: (handle: string) => void;
   onSetCover?: (timeSec: number) => void; coverBusy?: boolean; autoplayVideo?: boolean;
+  /** The reader's auto-advance: fires when the card's FIRST video ends. */
+  onVideoEnded?: () => void;
 }) {
   const like = useToggleLike();
   const del = useDeletePost();
@@ -491,8 +448,11 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
   useEffect(() => {
     if (!menuOpen) return;
     const close = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false); };
+    // Escape closes it too — a menu a keyboard can open but not leave is a trap.
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
     document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    document.addEventListener('keydown', key);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', key); };
   }, [menuOpen]);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(post.text ?? '');
@@ -507,11 +467,10 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
    * they cannot decide to do that if nothing told them.
    */
   const [actionErr, setActionErr] = useState<string | null>(null);
-  // The store is keyed to whoever is signed in; this is where the card learns
-  // that. Cheap and idempotent, and it runs before the first read below.
-  setSavedOwner(user?.id);
-  const [saved, setSaved] = useState(() => savedIds().has(post.id));
+  const bookmark = useToggleBookmark();
+  const saved = Boolean(post.savedByMe);
   const [shareOpen, setShareOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const images = post.media.filter((m) => m.kind === 'image');
   const videos = post.media.filter((m) => m.kind === 'video');
@@ -521,7 +480,7 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
     kind: 'post',
     hub: 'Social',
     title: post.text?.trim() ? (post.text.length > 90 ? post.text.slice(0, 90) + '…' : post.text) : `${post.author.name}'s post`,
-    subtitle: `by ${post.author.name}${post.placeName ? ` · 📍 ${post.placeName}` : ''}`,
+    subtitle: `by ${post.author.name}${post.placeName ? ` · ${post.placeName}` : ''}`,
     /**
      * NO PICTURE ON THE CARD, AND THAT IS DELIBERATE (31 Aug audit).
      *
@@ -564,13 +523,15 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
         </div>
       )}
       {images.length > 1 && <ImageCarousel images={images} authorName={post.author.name} />}
-      {videos.map((m, i) => <VideoFrame key={m.id} url={m.url} poster={m.thumbUrl} isNew={isNew} vref={i === 0 ? vidRef : undefined} autoInView={autoplayVideo} />)}
+      {/* Only the first video of a card reports its end — a carousel of clips
+          would otherwise advance the column three times. */}
+      {videos.map((m, i) => <VideoFrame key={m.id} url={m.url} poster={m.thumbUrl} isNew={isNew} vref={i === 0 ? vidRef : undefined} autoInView={autoplayVideo} onEnded={i === 0 ? onVideoEnded : undefined} />)}
 
       {manage && isMine && videos.length > 0 && onSetCover && (
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <button type="button" className="btn btn-line btn-sm" disabled={coverBusy}
             onClick={() => onSetCover(vidRef.current?.currentTime ?? 0)}>
-            {coverBusy ? 'Setting cover…' : '🖼 Set current frame as cover'}
+            {coverBusy ? 'Setting cover…' : <><Icon name="image" size={14} /> Set current frame as cover</>}
           </button>
           <span className="muted" style={{ fontSize: 11.5 }}>Pause the video on the frame you want, then set it — it’s pinned for good.</span>
         </div>
@@ -635,7 +596,7 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
             {!isMine && <ReportMenu targetType="post" targetId={post.id} />}
             {isMine && (
               <span ref={menuRef} style={{ position: 'relative', display: 'inline-flex' }}>
-                <button type="button" aria-label="Post options" onClick={() => setMenuOpen((o) => !o)}
+                <button type="button" aria-label="Post options" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', lineHeight: 0, color: 'var(--muted)', padding: '4px 2px', minHeight: 44 }}>
                   <Icon name="more" size={19} />
                 </button>
@@ -644,12 +605,7 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
                     <button type="button" onClick={() => { setDraft(post.text ?? ''); setEditing(true); setMenuOpen(false); }}
                       style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--ink)' }}><Icon name="edit" size={14} /> Edit post</button>
                     <button type="button" disabled={del.isPending}
-                      onClick={() => {
-                      setMenuOpen(false); setActionErr(null);
-                      if (window.confirm('Delete this post? This cannot be undone.')) {
-                        del.mutate(post.id, { onError: () => setActionErr('That post wasn’t deleted — it is still here. Try again.') });
-                      }
-                    }}
+                      onClick={() => { setMenuOpen(false); setActionErr(null); setConfirmDelete(true); }}
                       style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--danger-ink)' }}><Icon name="close" size={14} /> Delete post</button>
                   </div>
                 )}
@@ -690,7 +646,7 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
         </button>
         <button type="button" className="sl-act sl-mk-save"
           aria-pressed={saved} aria-label={saved ? 'Saved to your bookmarks' : 'Save this post'}
-          onClick={() => setSaved(toggleSaved(post))}>
+          onClick={() => { setActionErr(null); bookmark.mutate(post.id, { onError: () => setActionErr(saved ? 'That post is still saved — try again.' : 'That save didn’t register — try again.') }); }}>
           <span className="sl-mark"><SaveIcon filled={saved} /></span><span>{saved ? 'Saved' : 'Save'}</span>
         </button>
         <button type="button" className="sl-act sl-mk-share" disabled={repost.isPending || reposted}
@@ -703,6 +659,15 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
 
       {showComments && <CommentsPanel postId={post.id} canModerate={isMine} />}
       {shareOpen && <ShareModal item={shareCard} onClose={() => setShareOpen(false)} />}
+      <Confirm open={confirmDelete} title="Delete this post?" body="It comes off the city feed and your profile, and its photographs leave the bucket. This cannot be undone."
+        confirmLabel={del.isPending ? 'Deleting…' : 'Delete post'} danger busy={del.isPending}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={() => {
+          del.mutate(post.id, {
+            onSuccess: () => setConfirmDelete(false),
+            onError: () => { setConfirmDelete(false); setActionErr('That post wasn’t deleted — it is still here. Try again.'); },
+          });
+        }} />
     </article>
   );
 });

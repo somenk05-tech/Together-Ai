@@ -6,6 +6,7 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 import { useAuth } from '@/hooks/useAuth';
 import { useDialog } from '@/hooks/useDialog';
 import { Avatar } from '../PostCard';
+import { Confirm } from '../Confirm';
 import { useCreatePost } from '../api';
 import { MUSIC_LIBRARY, type Track } from '../musicLibrary';
 
@@ -56,9 +57,15 @@ function genPoster(file: File): Promise<File | null> {
 }
 
 /** Photo editor — Filters (one-tap looks) + Adjust (colour grading sliders).
- *  Applies via the canvas `filter` and bakes the result into a new JPEG data
- *  URL that replaces the image before posting. */
-function ImageEditor({ src, onClose, onApply }: { src: string; onClose: () => void; onApply: (dataUrl: string) => void }) {
+ *  Applies via the canvas `filter` and bakes the result into a new JPEG that
+ *  replaces the image before posting.
+ *
+ *  A FILE, NOT A DATA URL (4 Sep audit). It handed back a data URL, the
+ *  composer wrote it into `src` — the preview — and the upload sent `file`,
+ *  which was still the untouched original. Every filter and every slider was
+ *  shown to the citizen and never reached the server. The edit is a File now,
+ *  and the item's upload key is dropped so the edited picture is what goes. */
+function ImageEditor({ src, onClose, onApply }: { src: string; onClose: () => void; onApply: (edited: { src: string; file: File }) => void }) {
   const [pane, setPane] = useState<'filters' | 'adjust'>('filters');
   const [extra, setExtra] = useState('');
   const [b, setB] = useState(1);
@@ -92,7 +99,11 @@ function ImageEditor({ src, onClose, onApply }: { src: string; onClose: () => vo
         if (!ctx) { onClose(); return; }
         (ctx as CanvasRenderingContext2D & { filter: string }).filter = filter;
         ctx.drawImage(img, 0, 0);
-        onApply(canvas.toDataURL('image/jpeg', 0.9));
+        canvas.toBlob((blob) => {
+          if (!blob) { onClose(); return; }
+          const file = new File([blob], `edited-${Date.now()}.jpg`, { type: 'image/jpeg' });
+          onApply({ src: URL.createObjectURL(file), file });
+        }, 'image/jpeg', 0.9);
       } catch { onClose(); }
     };
     img.onerror = () => onClose();
@@ -484,6 +495,7 @@ export function CreatePost() {
    */
   const [text, setText] = useState(() => savedDraft()?.text ?? '');
   const [media, setMedia] = useState<MediaItem[]>([]);
+  const [leaving, setLeaving] = useState(false);
   /* Whether there WAS one when this page opened — so the notice can say so
      once, and say plainly that the pictures did not come back with it. */
   const [restored, setRestored] = useState(() => Boolean(savedDraft()?.text?.trim()));
@@ -885,7 +897,24 @@ export function CreatePost() {
 
         {editPick !== null && media[editPick]?.type === 'image' && (
           <ImageEditor src={media[editPick].src} onClose={() => setEditPick(null)}
-            onApply={(dataUrl) => { setMedia((prev) => prev.map((m, j) => (j === editPick ? { ...m, src: dataUrl } : m))); setEditPick(null); }} />
+            onApply={({ src, file }) => {
+              const at = editPick;
+              setMedia((prev) => prev.map((m, j) => {
+                if (j !== at) return m;
+                // The old preview URL is released; the upload key is dropped so
+                // the retry-safe uploader sends the edited file, not the original.
+                // AND THE POSTER GOES WITH IT (5 Sep): `poster` was the grid thumb
+                // of the ORIGINAL, uploaded as thumbUrl — so the grid showed the
+                // unedited photo and the opened post the edited one. It is
+                // dropped here and re-cut from the edited file below.
+                if (m.src.startsWith('blob:')) URL.revokeObjectURL(m.src);
+                return { ...m, src, file, key: undefined, poster: undefined, posterKey: undefined };
+              }));
+              void compressImage(file).then(({ thumb }) => {
+                setMedia((prev) => prev.map((m, j) => (j === at && m.file === file ? { ...m, poster: thumb } : m)));
+              }).catch(() => undefined);
+              setEditPick(null);
+            }} />
         )}
 
         {hashtags.length > 0 && (
@@ -1105,10 +1134,12 @@ export function CreatePost() {
           <button type="button" className="btn btn-line sl-half"
             onClick={() => {
               const written = Boolean(text.trim() || media.length || placeName.trim() || hashtags.length || tagged.length);
-              if (written && !window.confirm('Leave this post? Your words are kept as a draft, but the photos and video are not.')) return;
-              nav('/social/feed');
+              if (written) setLeaving(true); else nav('/social/feed');
             }}>Cancel</button>
         )}
+        <Confirm open={leaving} title="Leave this post?"
+          body="Your words are kept as a draft, but the photos and video are not."
+          confirmLabel="Leave" danger onClose={() => setLeaving(false)} onConfirm={() => nav('/social/feed')} />
         <button type="button" onClick={() => void share()} disabled={busy || !canShare}
           className="btn btn-accent"
           style={{

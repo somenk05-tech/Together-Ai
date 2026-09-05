@@ -26,6 +26,9 @@ export interface Post {
   likes: number;
   comments: number;
   likedByMe: boolean;
+  /** A bookmark on the account — a row, not a device snapshot (4 Sep). Absent
+   *  from a server older than this field, which reads as "not saved". */
+  savedByMe?: boolean;
   createdAt: string;
   /** Attached royalty-free soundtrack (library track) played over reels. */
   musicUrl?: string | null;
@@ -118,9 +121,18 @@ export const socialApi = {
     api.patch<{ ok: boolean; thumbUrl: string }>(`/social/posts/${postId}/cover`, { time }).then((r) => r.data),
   repost: (postId: string) =>
     api.post<{ reposted: boolean }>(`/social/posts/${postId}/repost`, {}).then((r) => r.data),
+  // Saved posts live on the account now. `postId` in the answer is the post
+  // that RENDERS — a save on a repost row bookmarks the original.
+  bookmark: (postId: string) =>
+    api.post<{ postId: string; saved: boolean }>(`/social/posts/${postId}/bookmark`, {}).then((r) => r.data),
+  bookmarks: (cursor?: string) =>
+    api.get<Page<Post> | Post[]>('/social/bookmarks', { params: { cursor, limit: 30 } }).then((r) => asPage(r.data)),
+  syncBookmarks: (postIds: string[]) =>
+    api.post<{ saved: number }>('/social/bookmarks/sync', { postIds }).then((r) => r.data),
 };
 
 const FEED_KEY = ['social', 'feed'] as const;
+const BOOKMARKS_KEY = ['social', 'bookmarks'] as const;
 
 /** React Query's infinite-query cache shape for a feed. */
 type FeedInfinite = { pages: FeedPage[]; pageParams: unknown[] };
@@ -231,6 +243,8 @@ export function useDeletePost() {
     onSuccess: (_r, postId) => {
       qc.setQueriesData<FeedInfinite>({ queryKey: FEED_KEY }, (data) =>
         mapFeedPosts(data, (items) => items.filter((p) => p.id !== postId)));
+      qc.setQueriesData<FeedInfinite>({ queryKey: BOOKMARKS_KEY }, (data) =>
+        mapFeedPosts(data, (items) => items.filter((p) => p.id !== postId)));
       void qc.invalidateQueries({ queryKey: ['social', 'map'] });
       void qc.invalidateQueries({ queryKey: ['profile', 'me'] });
       // Keep the profile grid in sync — a delete from either place removes it here too.
@@ -260,19 +274,103 @@ export function useSetPostCategory() {
     },
   });
 }
+/**
+ * Patch one post wherever it is cached — every feed lens, the Saved page and
+ * the permalink — so a heart or a bookmark reads the same on all of them.
+ */
+function patchPost(qc: ReturnType<typeof useQueryClient>, postId: string, fn: (p: Post) => Post) {
+  const over = (items: Post[]) => items.map((p) => (p.id === postId ? fn(p) : p));
+  qc.setQueriesData<FeedInfinite>({ queryKey: FEED_KEY }, (data) => mapFeedPosts(data, over));
+  qc.setQueriesData<FeedInfinite>({ queryKey: BOOKMARKS_KEY }, (data) => mapFeedPosts(data, over));
+  qc.setQueriesData<Post>({ queryKey: ['social', 'post', postId] }, (p) => (p ? fn(p) : p));
+  /* AND THE PROFILE GRIDS (4 Sep). They hold ProfilePost rows, a narrower
+     shape the reader maps into Post; the two flags a tap changes are the same
+     names in both, so the patch is applied to the fields they share and the
+     grid's Save and heart agree with the feed's without a refetch. */
+  const overProfile = (items: ProfilePostLike[]) => items.map((p) => {
+    if (p.id !== postId) return p;
+    const next = fn({ ...(p as unknown as Post), likes: p.likeCount, comments: p.commentCount });
+    return { ...p, likedByMe: next.likedByMe, savedByMe: next.savedByMe, likeCount: next.likes, commentCount: next.comments };
+  });
+  for (const key of [['profile', 'posts'], ['profile', 'user-posts']]) {
+    qc.setQueriesData<ProfileInfinite>({ queryKey: key }, (data) =>
+      data ? { ...data, pages: data.pages.map((pg) => ({ ...pg, items: overProfile(pg.items) })) } : data);
+  }
+}
+type ProfilePostLike = { id: string; likeCount: number; commentCount: number; likedByMe?: boolean; savedByMe?: boolean };
+type ProfileInfinite = { pages: Array<{ items: ProfilePostLike[]; nextCursor: string | null }>; pageParams: unknown[] };
+
+/** What the caches held for a post before an optimistic write, for the rollback. */
+function snapshotPost(qc: ReturnType<typeof useQueryClient>, postId: string): Post | undefined {
+  for (const [, data] of qc.getQueriesData<FeedInfinite>({ queryKey: FEED_KEY })) {
+    const hit = data?.pages.flatMap((pg) => pg.items).find((p) => p.id === postId);
+    if (hit) return hit;
+  }
+  return qc.getQueryData<Post>(['social', 'post', postId]);
+}
+
 export function useToggleLike() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (postId: string) => socialApi.like(postId),
+    /**
+     * THE HEART FILLS ON THE TAP (4 Sep audit). It waited for the round trip,
+     * which on a phone on a train is the half-second in which a citizen taps
+     * again. The cache is patched before the request and put back if the
+     * request fails; the server's answer is then the truth for both fields.
+     */
+    onMutate: (postId) => {
+      const before = snapshotPost(qc, postId);
+      patchPost(qc, postId, (p) => ({ ...p, likedByMe: !p.likedByMe, likes: Math.max(0, p.likes + (p.likedByMe ? -1 : 1)) }));
+      return { before };
+    },
+    onError: (_e, postId, ctx) => {
+      const before = ctx?.before;
+      if (before) patchPost(qc, postId, (p) => ({ ...p, likedByMe: before.likedByMe, likes: before.likes }));
+    },
     onSuccess: (res) => {
       // Was setQueryData(FEED_KEY) — the exact key ['social','feed'], which no
       // component subscribes to (the live key is ['social','feed',filter]). Use
       // setQueriesData (partial match) over the infinite cache so the heart and
       // count actually update.
-      qc.setQueriesData<FeedInfinite>({ queryKey: FEED_KEY }, (data) =>
-        mapFeedPosts(data, (items) =>
-          items.map((p) => (p.id === res.postId ? { ...p, likedByMe: res.liked, likes: res.likes } : p))));
+      patchPost(qc, res.postId, (p) => ({ ...p, likedByMe: res.liked, likes: res.likes }));
       void qc.invalidateQueries({ queryKey: ['profile', 'posts'] });
+    },
+  });
+}
+
+/** The Saved page — bookmarks on the account, newest first, a page at a time. */
+export function useBookmarks() {
+  return useInfiniteQuery({
+    queryKey: BOOKMARKS_KEY,
+    queryFn: ({ pageParam }) => socialApi.bookmarks(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * Save or unsave, optimistically, everywhere the post is cached. The Saved
+ * list itself is re-read afterwards rather than patched: an unsave removes a
+ * row, a save adds one at the top, and both are the server's to order.
+ */
+export function useToggleBookmark() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (postId: string) => socialApi.bookmark(postId),
+    onMutate: (postId) => {
+      const before = snapshotPost(qc, postId);
+      patchPost(qc, postId, (p) => ({ ...p, savedByMe: !p.savedByMe }));
+      return { before };
+    },
+    onError: (_e, postId, ctx) => {
+      const before = ctx?.before;
+      if (before) patchPost(qc, postId, (p) => ({ ...p, savedByMe: before.savedByMe ?? false }));
+    },
+    onSuccess: (res) => {
+      patchPost(qc, res.postId, (p) => ({ ...p, savedByMe: res.saved }));
+      void qc.invalidateQueries({ queryKey: BOOKMARKS_KEY });
     },
   });
 }

@@ -92,11 +92,22 @@ describe('the friction list takes a class', () => {
     // classes; the ceiling follows the reading, as it says to on every run.
     // And 2 Sep, evening, one lower: the wallet page stopped drawing a button
     // that minted a card (launch blocker 2) and lost a style object with it.
-    expect(s).toMatch(/inlineStyleBlocks: 6678,/);
-    expect(s).toMatch(/rawSpacing: 3605,/);
+    // And 4 Sep, with Social Life's first fix pass: the Saved page came off
+    // its hand-styled localStorage list onto the server, the dead `wall-open`
+    // branch went, and the reorder chip took a token radius. 6678 → 6547,
+    // 3605 → 3541, 317 → 315 — each the reading the script printed that
+    // morning, none of them chosen.
+    // And 4 Sep, the launch gate's third reading: the Medical supplement page
+    // stopped drawing an inline "add a panel" link inside a plan it no longer
+    // shows without one (no blood test, no plan). 6547 → 6546.
+    // And again the same evening: the unverified-email banner's style was
+    // hoisted so the socket's reconnect strip could wear it. 6546 → 6545,
+    // 3541 → 3540.
+    expect(s).toMatch(/inlineStyleBlocks: 6545,/);
+    expect(s).toMatch(/rawSpacing: 3540,/);
     // The two the script prints beside them, pinned for the same reason: a
     // number nothing reads is a number that drifts back up.
     expect(s).toMatch(/distinctFontSizes: 35,/);
-    expect(s).toMatch(/rawRadii: 317,/);
+    expect(s).toMatch(/rawRadii: 315,/);
   });
 });

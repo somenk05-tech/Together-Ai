@@ -11,7 +11,7 @@ import { SocialService } from './social.service';
 import {
   CreateCommentSchema, type CreateCommentDto,
   CreatePostSchema, type CreatePostDto,
-  FeedQuerySchema, ListQuerySchema,
+  FeedQuerySchema, ListQuerySchema, BookmarkSyncSchema,
 } from './dto/social.dto';
 
 /* THE SOCIAL HUB HAD NO CEILING OF ITS OWN (30 Aug audit).
@@ -132,6 +132,26 @@ export class SocialController {
   @Post('posts/:id/repost')
   repost(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.social.repost(user.sub, id);
+  }
+
+  // ─────────────── saved posts ───────────────
+  /** Save or unsave a post — a row on the account, not a snapshot on the device. */
+  @Post('posts/:id/bookmark')
+  bookmark(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.social.toggleBookmark(user.sub, id);
+  }
+
+  /** The Saved page, newest first. Each post is re-read through the feed's gates. */
+  @Get('bookmarks')
+  bookmarks(@CurrentUser() user: JwtUser, @Query() query: Record<string, unknown>) {
+    return this.social.bookmarks(user.sub, parseOrThrow(ListQuerySchema, query));
+  }
+
+  /** One-time: the ids a device had saved in localStorage, onto the account. */
+  @Post('bookmarks/sync')
+  syncBookmarks(@CurrentUser() user: JwtUser, @Body() body: unknown) {
+    const { postIds } = parseOrThrow(BookmarkSyncSchema, body);
+    return this.social.syncBookmarks(user.sub, postIds);
   }
 
   // Pin a video post's cover frame (server-side ffmpeg extraction at `time`).

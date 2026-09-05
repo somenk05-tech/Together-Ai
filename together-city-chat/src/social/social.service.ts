@@ -1,4 +1,4 @@
-import { swallowed } from '../shared/swallow';
+import { swallow, swallowed } from '../shared/swallow';
 import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, Logger, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { spawn } from 'child_process';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -19,6 +19,24 @@ import { shownName } from '../dating/matching';
 import type { CreateCommentDto, CreatePostDto, FeedQueryDto } from './dto/social.dto';
 
 const AUTHOR_SELECT = { id: true, handle: true, name: true, profileImage: true } as const;
+
+/** What a feed row carries: the post, its author and media, live counts, the
+ *  viewer's own like, and the original a repost renders — the same for every
+ *  list read, so the Saved page and the feed cannot shape a post differently. */
+const POST_INCLUDE = (userId: string) => ({
+  author: { select: AUTHOR_SELECT },
+  media: true,
+  _count: { select: { likes: true, comments: true } },
+  likes: { where: { userId }, select: { id: true } },
+  repostOf: {
+    include: {
+      author: { select: AUTHOR_SELECT },
+      media: true,
+      _count: { select: { likes: true, comments: true } },
+      likes: { where: { userId }, select: { id: true } },
+    },
+  },
+} as const);
 
 /**
  * The dating profile a moderator is shown alongside a report about a citizen.
@@ -1092,7 +1110,90 @@ export class SocialService {
      * are FOR; these two are lenses on the same city For You shows.
      */
     const cityWide = filter === 'videos' || filter === 'foryou' || filter === 'photos' || filter === 'thoughts';
-    const blockedSet = [...graph.blocked];
+    /* The two gates are a value shared with the Saved page's read — see
+       `viewerGates` for the rules and their history. */
+    const { blockedSet, audienceGate, repostWhere } = this.viewerGates(userId, circle, familySet, graph.blocked);
+    // Ignore a stale/deleted cursor instead of 500-ing on it.
+    let cursorClause: { cursor: { id: string }; skip: number } | object = {};
+    if (cursor) {
+      const exists = await this.prisma.post.findUnique({ where: { id: cursor }, select: { id: true } });
+      if (exists) cursorClause = { cursor: { id: cursor }, skip: 1 };
+    }
+    const posts = await this.prisma.post.findMany({
+      where: {
+        ...VISIBLE_ONLY,
+        // City-wide videos aren't bounded to your network; every other lens is.
+        // ONE `authorId` KEY, NOT TWO SPREADS. Written as two conditional
+        // spreads the second silently replaces the first — which is how the
+        // block filter would have been dropped on every bounded lens, the exact
+        // shape of bug this change exists to close. The blocked filter now
+        // applies to BOTH branches: `networkIds` removed blocked authors for
+        // most lenses, but Following replaces that set wholesale, so the
+        // guarantee is stated here rather than inherited from whichever helper
+        // built the list.
+        authorId: {
+          ...(blockedSet.length ? { notIn: blockedSet } : {}),
+          ...(cityWide ? {} : { in: network }),
+        },
+        // AND THE AUTHOR MUST STILL BE REACHABLE. A suspension was a login
+        // block and nothing else, so the posts of an account closed for
+        // harassment carried on being served to the whole city. See
+        // admin/account-reach.ts — the same predicate the dating pool uses.
+        author: REACHABLE_USER,
+        // Photos / Videos sections: only posts carrying that media kind.
+        ...(filter === 'photos' ? { media: { some: { kind: 'image' } } } : {}),
+        ...(filter === 'videos' ? { media: { some: { kind: 'video' } } } : {}),
+        // Thoughts: Twitter-style text-only posts — no media, real caption,
+        // and not a repost.
+        ...(filter === 'thoughts' ? { media: { none: {} }, text: { not: null }, repostOfId: null } : {}),
+        // Two ORs cannot share one object literal — the second would replace
+        // the first — so the audience gate and the repost gate are ANDed by name.
+        AND: [audienceGate, repostWhere],
+      },
+      take: limit + 1,
+      ...cursorClause,
+      /**
+       * ONE ORDER, AND IT IS A KEYSET (30 Aug audit).
+       *
+       * `trending` ordered by `likes: { _count: 'desc' }` — a LEFT JOIN onto
+       * Like, a GROUP BY over a week of posts, and a Sort over the lot, before
+       * the LIMIT. No index can serve it, no citizen could reach it (it is in
+       * no tab), and any authenticated request could ask for it: the cheapest
+       * denial of service in the application. Combined with `cursor`/`skip` it
+       * was not even correct — the counts move between pages, so posts were
+       * skipped and duplicated at every boundary.
+       *
+       * `nearby` went with it. It was `{ lat: { not: null } }`: no radius, no
+       * longitude, no viewer coordinates, no distance ordering — "any post
+       * anywhere on Earth that has a latitude, newest first". A lens named for
+       * something it does not do, on an unindexed nullable column.
+       *
+       * Neither is in the client. Both are gone from the DTO, so the API stops
+       * offering a ranking and a proximity search it does not have.
+       */
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      include: POST_INCLUDE(userId),
+    });
+    const hasMore = posts.length > limit;
+    const page = hasMore ? posts.slice(0, limit) : posts;
+    const [signed, saved] = await Promise.all([this.signMediaOf(page), this.savedSetFor(userId, page)]);
+    return {
+      items: page.map((p) => this.shapeFeedRow(p, signed, saved)),
+      nextCursor: hasMore ? page[page.length - 1].id : null,
+    };
+  }
+
+  /**
+   * THE TWO GATES EVERY LIST READ OF SOMEBODY ELSE'S POSTS APPLIES.
+   *
+   * They were inline in `feed()` until the Saved page needed the same rules
+   * (4 Sep): a bookmark is a pointer at a post, and the post it points at is
+   * read through exactly what the feed reads through — a second spelling of
+   * "who may see this" is how the repost leak below happened the first time.
+   * Pure: the graph is read once by the caller and handed in.
+   */
+  private viewerGates(userId: string, circle: string[], familySet: string[], blocked: Set<string>) {
+    const blockedSet = [...blocked];
     /**
      * FRIENDS MEANS THE CIRCLE, ON BOTH BRANCHES (30 Aug audit, blocker 1).
      *
@@ -1180,113 +1281,183 @@ export class SocialService {
               ...VISIBLE_ONLY,
               ...audienceGate,
               ...(blockedSet.length ? { authorId: { notIn: blockedSet } } : {}),
+              /* AND THE ORIGINAL'S AUTHOR IS STILL HERE (launch gate, third
+                 reading, 4 Sep). The feed's own rows carry
+                 `author: REACHABLE_USER`, and `account-reach.ts` exists so a
+                 suspended or deleted account's posts leave the city at once.
+                 This gate checked the original's visibility, audience and
+                 blocks and not its author — so a share row kept serving a
+                 suspended account's post, in every feed and at the share's
+                 permalink, for as long as anybody had shared it. */
+              author: REACHABLE_USER,
             },
           },
         },
       ],
     };
-    // Ignore a stale/deleted cursor instead of 500-ing on it.
-    let cursorClause: { cursor: { id: string }; skip: number } | object = {};
-    if (cursor) {
-      const exists = await this.prisma.post.findUnique({ where: { id: cursor }, select: { id: true } });
-      if (exists) cursorClause = { cursor: { id: cursor }, skip: 1 };
-    }
+    return { blockedSet, audienceGate, repostWhere };
+  }
+
+  /**
+   * ── SAVED POSTS ARE ROWS, AND THEY FOLLOW THE CITIZEN (4 Sep audit) ────────
+   *
+   * They were a localStorage snapshot of the whole post, on one device, with
+   * a signed media URL inside that expires in an hour. So a saved photograph
+   * was broken by the time anybody came back for it, and a post its author
+   * had since deleted — or a moderator removed, or whose audience had been
+   * narrowed — rendered forever from the copy. A bookmark is a POINTER, and
+   * the post it points at is re-read here through the feed's own gates, so
+   * whatever stops being visible stops appearing.
+   *
+   * The Bookmark model is read through a cast, the way Notification is, for
+   * the deploy window in which this code runs against the previous generated
+   * client. `savedSetFor` swallows a missing delegate — a feed that cannot
+   * tell you what you saved is a feed; a feed that 500s is not.
+   */
+  private get bookmarkTable() {
+    return (this.prisma as unknown as {
+      bookmark?: {
+        findMany: (a: unknown) => Promise<Array<{ id: string; postId: string; createdAt: Date }>>;
+        createMany: (a: unknown) => Promise<{ count: number }>;
+        deleteMany: (a: unknown) => Promise<{ count: number }>;
+      };
+    }).bookmark ?? null;
+  }
+
+  /** Which of these page rows (or the originals they repost) the viewer has saved. */
+  private async savedSetFor(userId: string, rows: unknown[]): Promise<Set<string>> {
+    const table = this.bookmarkTable;
+    if (!table || !rows.length) return new Set();
+    const ids = [...new Set(rows.map((row) => {
+      const r = row as { id: string; repostOfId?: string | null };
+      return r.repostOfId ?? r.id;
+    }))];
+    const found = await table.findMany({ where: { userId, postId: { in: ids } }, select: { postId: true }, take: ids.length })
+      .catch(swallowed('social.bookmarks.savedSet', [] as Array<{ id: string; postId: string; createdAt: Date }>));
+    return new Set(found.map((b) => b.postId));
+  }
+
+  /** Save or unsave. Idempotent, and gated exactly like a like: you can only
+   *  bookmark what you can see. */
+  async toggleBookmark(userId: string, postId: string) {
+    const table = this.bookmarkTable;
+    if (!table) throw new ServiceUnavailableException('Saving is not available right now.');
+    const post = await this.assertPost(postId);
+    await this.assertCanView(userId, post);
+    // A bookmark on a repost row points at the ORIGINAL — the card renders the
+    // original and a save is a save of what was read, not of who passed it on.
+    const target = await this.prisma.post.findUnique({ where: { id: postId }, select: { repostOfId: true } });
+    const targetId = target?.repostOfId ?? postId;
+    const removed = await table.deleteMany({ where: { userId, postId: targetId } });
+    if (removed.count > 0) return { postId: targetId, saved: false };
+    await table.createMany({ data: [{ userId, postId: targetId }], skipDuplicates: true });
+    return { postId: targetId, saved: true };
+  }
+
+  /**
+   * The one-time move of a device's localStorage bookmarks onto the account.
+   * Bounded, idempotent, and silent about ids that no longer resolve — those
+   * were the snapshots of deleted posts the old page rendered forever.
+   */
+  async syncBookmarks(userId: string, postIds: string[]) {
+    const table = this.bookmarkTable;
+    if (!table) throw new ServiceUnavailableException('Saving is not available right now.');
+    const ids = [...new Set(postIds)].slice(0, 200);
+    if (!ids.length) return { saved: 0 };
+    const graph = await this.graphOf(userId);
+    const { circle, family: familySet } = this.fromGraph(userId, graph);
+    const { blockedSet, audienceGate, repostWhere } = this.viewerGates(userId, circle, familySet, graph.blocked);
+    const visible = await this.prisma.post.findMany({
+      where: {
+        ...VISIBLE_ONLY,
+        id: { in: ids },
+        ...(blockedSet.length ? { authorId: { notIn: blockedSet } } : {}),
+        author: REACHABLE_USER,
+        AND: [audienceGate, repostWhere],
+      },
+      select: { id: true, repostOfId: true },
+      take: ids.length,
+    });
+    const targets = [...new Set(visible.map((p) => p.repostOfId ?? p.id))];
+    if (!targets.length) return { saved: 0 };
+    const { count } = await table.createMany({ data: targets.map((postId) => ({ userId, postId })), skipDuplicates: true });
+    return { saved: count };
+  }
+
+  /** The Saved page: newest bookmark first, by keyset, each post re-read
+   *  through the feed's gates. */
+  async bookmarks(userId: string, page: ListQueryDto = { limit: 30 }) {
+    const table = this.bookmarkTable;
+    if (!table) return { items: [], nextCursor: null };
+    const after = page.cursor ? this.decodeKeysetCursor(page.cursor) : null;
+    const rows = await table.findMany({
+      where: {
+        userId,
+        ...(after
+          ? { OR: [{ createdAt: { lt: after.createdAt } }, { createdAt: after.createdAt, id: { lt: after.id } }] }
+          : {}),
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: page.limit + 1,
+      select: { id: true, postId: true, createdAt: true },
+    });
+    const more = rows.length > page.limit;
+    const window = more ? rows.slice(0, page.limit) : rows;
+    const last = window[window.length - 1];
+    const nextCursor = more && last ? `${last.createdAt.getTime()}_${last.id}` : null;
+    if (!window.length) return { items: [], nextCursor };
+
+    const graph = await this.graphOf(userId);
+    const { circle, family: familySet } = this.fromGraph(userId, graph);
+    const { blockedSet, audienceGate, repostWhere } = this.viewerGates(userId, circle, familySet, graph.blocked);
+    const ids = window.map((b) => b.postId);
     const posts = await this.prisma.post.findMany({
       where: {
         ...VISIBLE_ONLY,
-        // City-wide videos aren't bounded to your network; every other lens is.
-        // ONE `authorId` KEY, NOT TWO SPREADS. Written as two conditional
-        // spreads the second silently replaces the first — which is how the
-        // block filter would have been dropped on every bounded lens, the exact
-        // shape of bug this change exists to close. The blocked filter now
-        // applies to BOTH branches: `networkIds` removed blocked authors for
-        // most lenses, but Following replaces that set wholesale, so the
-        // guarantee is stated here rather than inherited from whichever helper
-        // built the list.
-        authorId: {
-          ...(blockedSet.length ? { notIn: blockedSet } : {}),
-          ...(cityWide ? {} : { in: network }),
-        },
-        // AND THE AUTHOR MUST STILL BE REACHABLE. A suspension was a login
-        // block and nothing else, so the posts of an account closed for
-        // harassment carried on being served to the whole city. See
-        // admin/account-reach.ts — the same predicate the dating pool uses.
+        id: { in: ids },
+        ...(blockedSet.length ? { authorId: { notIn: blockedSet } } : {}),
         author: REACHABLE_USER,
-        // Photos / Videos sections: only posts carrying that media kind.
-        ...(filter === 'photos' ? { media: { some: { kind: 'image' } } } : {}),
-        ...(filter === 'videos' ? { media: { some: { kind: 'video' } } } : {}),
-        // Thoughts: Twitter-style text-only posts — no media, real caption,
-        // and not a repost.
-        ...(filter === 'thoughts' ? { media: { none: {} }, text: { not: null }, repostOfId: null } : {}),
-        // Two ORs cannot share one object literal — the second would replace
-        // the first — so the audience gate and the repost gate are ANDed by name.
         AND: [audienceGate, repostWhere],
       },
-      take: limit + 1,
-      ...cursorClause,
-      /**
-       * ONE ORDER, AND IT IS A KEYSET (30 Aug audit).
-       *
-       * `trending` ordered by `likes: { _count: 'desc' }` — a LEFT JOIN onto
-       * Like, a GROUP BY over a week of posts, and a Sort over the lot, before
-       * the LIMIT. No index can serve it, no citizen could reach it (it is in
-       * no tab), and any authenticated request could ask for it: the cheapest
-       * denial of service in the application. Combined with `cursor`/`skip` it
-       * was not even correct — the counts move between pages, so posts were
-       * skipped and duplicated at every boundary.
-       *
-       * `nearby` went with it. It was `{ lat: { not: null } }`: no radius, no
-       * longitude, no viewer coordinates, no distance ordering — "any post
-       * anywhere on Earth that has a latitude, newest first". A lens named for
-       * something it does not do, on an unindexed nullable column.
-       *
-       * Neither is in the client. Both are gone from the DTO, so the API stops
-       * offering a ranking and a proximity search it does not have.
-       */
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      include: {
-        author: { select: AUTHOR_SELECT },
-        media: true,
-        _count: { select: { likes: true, comments: true } },
-        likes: { where: { userId }, select: { id: true } },
-        repostOf: {
-          include: {
-            author: { select: AUTHOR_SELECT },
-            media: true,
-            _count: { select: { likes: true, comments: true } },
-            likes: { where: { userId }, select: { id: true } },
-          },
-        },
-      },
+      take: ids.length,
+      include: POST_INCLUDE(userId),
     });
-    const hasMore = posts.length > limit;
-    const page = hasMore ? posts.slice(0, limit) : posts;
-    return {
-      items: (await (async () => {
-        const signed = await this.signMediaOf(page);
-        return page.map((p) => this.shapeFeedRow(p, signed));
-      })()),
-      nextCursor: hasMore ? page[page.length - 1].id : null,
-    };
+    // Bookmark order, not query order; a pointer that no longer resolves is
+    // simply absent — that is the whole point of a pointer.
+    const byId = new Map(posts.map((p) => [p.id, p]));
+    const ordered = ids.map((id) => byId.get(id)).filter((p): p is NonNullable<typeof p> => Boolean(p));
+    const signed = await this.signMediaOf(ordered);
+    const saved = new Set(ids);
+    return { items: ordered.map((p) => this.shapeFeedRow(p, signed, saved)), nextCursor };
+  }
+
+  /** `<ms>_<id>`, the shape `followers` mints; anything else is no cursor. */
+  private decodeKeysetCursor(raw: string): { createdAt: Date; id: string } | null {
+    const at = raw.indexOf('_');
+    if (at <= 0) return null;
+    const ms = Number(raw.slice(0, at));
+    const id = raw.slice(at + 1);
+    return Number.isFinite(ms) && id ? { createdAt: new Date(ms), id } : null;
   }
 
   /** Shape a feed row, unwrapping reposts: a repost renders the ORIGINAL post's
    *  content (so like/comment target the original) with a `repostedBy` label and
-   *  a `key` unique to this feed entry, dated at the share time. */
-  private shapeFeedRow(row: unknown, signed?: Map<string, string>) {
+   *  a `key` unique to this feed entry, dated at the share time. `saved` is the
+   *  viewer's bookmark set for this page, keyed by the post that RENDERS. */
+  private shapeFeedRow(row: unknown, signed?: Map<string, string>, saved?: Set<string>) {
     const r = row as {
       id: string; createdAt: Date; repostOfId?: string | null;
       author: { name: string; handle: string };
       _count: { likes: number; comments: number }; likes: unknown[];
-      repostOf?: { _count: { likes: number; comments: number }; likes: unknown[] } | null;
+      repostOf?: { id: string; _count: { likes: number; comments: number }; likes: unknown[] } | null;
     };
     if (r.repostOfId && r.repostOf) {
       const o = r.repostOf;
       const shaped = this.shapePost(o as never, o._count, (o.likes?.length ?? 0) > 0, signed);
-      return { ...shaped, key: r.id, createdAt: r.createdAt.toISOString(), repostedBy: { name: r.author.name, handle: r.author.handle } };
+      return { ...shaped, savedByMe: saved?.has(o.id) ?? false, key: r.id, createdAt: r.createdAt.toISOString(), repostedBy: { name: r.author.name, handle: r.author.handle } };
     }
     const shaped = this.shapePost(row as never, r._count, (r.likes?.length ?? 0) > 0, signed);
-    return { ...shaped, key: r.id, repostedBy: null };
+    return { ...shaped, savedByMe: saved?.has(r.id) ?? false, key: r.id, repostedBy: null };
   }
 
   /**
@@ -1331,21 +1502,10 @@ export class SocialService {
        post is gone from the feed, and a permalink that still served it would be
        the hole the feed filter was written to close. */
     const row = await this.prisma.post.findFirst({
-      where: { id: postId, author: REACHABLE_USER },
-      include: {
-        author: { select: AUTHOR_SELECT },
-        media: true,
-        _count: { select: { likes: true, comments: true } },
-        likes: { where: { userId }, select: { id: true } },
-        repostOf: {
-          include: {
-            author: { select: AUTHOR_SELECT },
-            media: true,
-            _count: { select: { likes: true, comments: true } },
-            likes: { where: { userId }, select: { id: true } },
-          },
-        },
-      },
+      // …and a share whose ORIGINAL author has gone is gone with them (4 Sep),
+      // the same clause the feed's `repostWhere` carries.
+      where: { id: postId, author: REACHABLE_USER, OR: [{ repostOfId: null }, { repostOf: { is: { author: REACHABLE_USER } } }] },
+      include: POST_INCLUDE(userId),
     });
     if (!row) throw new NotFoundException('post not found');
     const removed = (row.moderation ?? VISIBLE) !== VISIBLE;
@@ -1357,7 +1517,8 @@ export class SocialService {
       if ((orig.moderation ?? VISIBLE) !== VISIBLE && orig.authorId !== userId) throw new NotFoundException('post not found');
       await this.assertCanView(userId, orig);
     }
-    return this.shapeFeedRow(row, await this.signMediaOf([row]));
+    const [signed, saved] = await Promise.all([this.signMediaOf([row]), this.savedSetFor(userId, [row])]);
+    return this.shapeFeedRow(row, signed, saved);
   }
 
   /** Repost (share to feed) another citizen's post. Idempotent per user+post.
@@ -1630,14 +1791,40 @@ export class SocialService {
     const result = { postId, liked: !wasLiked, likes };
     this.broadcast(post.authorId, post.audience, (r) => this.gateway.likeChanged(result, r));
     // Notify the author when a NEW like lands (not on unlike).
-    if (!wasLiked) {
-      void this.actorName(userId).then((name) =>
-        this.notifications.create({
+    /* ── ONCE PER PERSON PER POST (4 Sep audit) ──────────────────────────────
+       Every transition to liked wrote a notification, and the hub throttle
+       (40/min) was the only thing between a citizen and forty rows — forty
+       pushes — from one person toggling one heart. The controller's own
+       comment called it "a harassment tool at the speed of a script" and
+       left the ceiling as the answer. A like is news once. The lookup is
+       bounded by the notification index [userId, kind, entityId, read] and
+       runs off the request path, like the write it guards. */
+    if (!wasLiked && post.authorId !== userId) {
+      void this.likeAlreadyTold(post.authorId, userId, postId).then(async (told) => {
+        if (told) return;
+        const name = await this.actorName(userId);
+        await this.notifications.create({
           userId: post.authorId, actorId: userId, kind: 'like',
           title: `${name} liked your post`, href: `/social/p/${postId}`, entityId: postId,
-        })).catch(swallowed('social.notify.like', undefined));
+        });
+      }).catch(swallowed('social.notify.like', undefined));
     }
     return result;
+  }
+
+  /** Has this actor's like on this post already been announced to its author?
+   *  Fails OPEN — an unreadable table means one extra notification, not a
+   *  silent heart. */
+  private async likeAlreadyTold(recipientId: string, actorId: string, postId: string): Promise<boolean> {
+    const table = (this.prisma as unknown as {
+      notification?: { findFirst: (a: unknown) => Promise<{ id: string } | null> };
+    }).notification;
+    if (!table) return false;
+    const row = await table.findFirst({
+      where: { userId: recipientId, kind: 'like', entityId: postId, actorId },
+      select: { id: true },
+    }).catch(swallowed('social.notify.likeAlreadyTold', null));
+    return Boolean(row);
   }
 
   // ─────────────── blocking & reporting (safety) ───────────────
@@ -2294,6 +2481,19 @@ export class SocialService {
         before: { status: 'open' }, after: { status: 'dismissed' },
       }, close)
       : await close();
+    /* A CARD HELD BY REPORTS COMES BACK WHEN THE REPORTS ARE DISMISSED (5 Sep).
+       Matchmaking takes a profile out of Browse from the third distinct open
+       report (DatingService.holdIfReported); "dismiss" is the moderator saying
+       those reports do not stand, so the hold they caused ends with them. A
+       moderator who wants the card kept out warns or suspends instead. */
+    if (decision === 'dismiss' && targetType === 'user' && reportsClosed > 0) {
+      const dating = (this.prisma as unknown as { datingProfile?: { updateMany(a: unknown): Promise<{ count: number }> } }).datingProfile;
+      if (dating) {
+        await swallow(dating.updateMany({
+          where: { userId: targetId, moderation: 'review' }, data: { moderation: 'approved' },
+        }), 'moderation: release a report-held dating card', { targetId });
+      }
+    }
     return { decided: decision, reportsClosed };
   }
 
@@ -2375,17 +2575,24 @@ export class SocialService {
       // human-sized in a way a follower list is not.
       this.prisma.connection.findMany({
         where: { status: 'ACCEPTED', OR: [{ userOneId: authorId }, { userTwoId: authorId }] },
-        select: { userOneId: true, userTwoId: true, relationship: true },
+        select: { userOneId: true, userTwoId: true, relationship: true, modulesJson: true },
         take: SocialService.FANOUT_MAX + 1,
       }),
       this.blockedWith(authorId),
     ]);
     const other = (r: { userOneId: string; userTwoId: string }) => (r.userOneId === authorId ? r.userTwoId : r.userOneId);
+    /* THE SOCKET ASKS THE SAME QUESTION THE FEED DOES (5 Sep). `fromGraph` and
+       `circleIds` admit a connection to the feed only when the Social module
+       is granted on it — "three callers, one rule" — and this, the fourth,
+       selected no `modulesJson` and told everybody. A connection who unticked
+       Social was out of the HTTP feed and still received post:new for every
+       friends-audience post over the socket. Same rule here. */
+    const granted = conns.filter((c) => connectionGrants(c, 'social'));
     if (aud === 'family') {
-      for (const r of conns) if ((r.relationship ?? '') === 'family') ids.add(other(r));
+      for (const r of granted) if ((r.relationship ?? '') === 'family') ids.add(other(r));
     } else {
-      // friends & public: accepted connections
-      for (const r of conns) ids.add(other(r));
+      // friends & public: accepted connections that grant Social
+      for (const r of granted) ids.add(other(r));
       if (aud === 'public' && ids.size < SocialService.FANOUT_MAX) {
         const followers = await this.prisma.follow.findMany({
           where: { followeeId: authorId },

@@ -31,6 +31,9 @@ export interface ProfilePost {
   placeName?: string | null;
   tagged?: Array<{ id: string; name: string; handle: string }>;
   likedByMe?: boolean;
+  /** Whether the VIEWER has saved it — the feed sends this on every card and
+   *  the grids did not, so Save toggled blind (4 Sep). */
+  savedByMe?: boolean;
   category?: string | null; // 'work' | 'personal'
 }
 export interface ProfilePostsPage { items: ProfilePost[]; nextCursor: string | null }

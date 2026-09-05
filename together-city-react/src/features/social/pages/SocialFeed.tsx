@@ -4,13 +4,47 @@ import { useBackToClose } from '@/hooks/useBackToClose';
 import { informalName } from '@/lib/salutation';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, EmptyState, Spinner } from '@/components/ui';
+import { EmptyState, Spinner } from '@/components/ui';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { useAuth } from '@/hooks/useAuth';
 import { Avatar, PostCard } from '../PostCard';
 import { Poster } from '../Poster';
 import { ReelsView } from '../ReelsView';
 import { useFeed } from '../api';
+import { useFreshPosts, useSocialLive } from '../live';
+import { Tablist } from '../Tablist';
+
+/**
+ * A PHONE READS ONE POST AT A TIME; A DESKTOP READS A WALL.
+ *
+ * The question used to be asked once, at mount (4 Sep audit) — so a tablet
+ * turned from portrait to landscape kept the phone layout, and a desktop
+ * window dragged narrow kept the wall, until a full reload. The same
+ * matchMedia, subscribed to. Rendering both and hiding one in CSS would load
+ * every photograph twice, which is why it is a hook and not a media query.
+ */
+function usePhone(): boolean {
+  const query = '(max-width: 899px)';
+  const [phone, setPhone] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setPhone(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return phone;
+}
+
+/** Six posters' worth of the wall, drawn before the first page arrives, so
+ *  the page has its shape at once rather than a spinner and then a jump. */
+function WallSkeleton({ phone }: { phone: boolean }) {
+  const n = phone ? 2 : 6;
+  return (
+    <div className={phone ? 'sl-skel-col' : 'wall'} aria-hidden>
+      {Array.from({ length: n }, (_, i) => <div key={i} className="sl-skel" />)}
+    </div>
+  );
+}
 
 
 /* The icon is a NAME, not a picture, and never an emoji. Icon.tsx's own rule:
@@ -49,26 +83,21 @@ export function SocialFeed() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<string>('foryou');
   const feed = useFeed(filter);
-  const showFilter = (key: string) => { setOpenKey(null); setFilter(key); };
+  const showFilter = (key: string) => setFilter(key);
   const items = feed.data?.pages.flatMap((p) => p.items) ?? [];
   // Stable, so the memoised PostCards don't all re-render when this page does.
   const openAuthor = useCallback((h: string) => navigate(`/social/u/${encodeURIComponent(h)}`), [navigate]);
-  /**
-   * A PHONE READS ONE POST AT A TIME; A DESKTOP READS A WALL.
-   *
-   * Mount-time matchMedia at the app's own phone breakpoint, the same way
-   * Chats, Home and the reels player each decide the question. Rendering both
-   * and hiding one in CSS would load every photograph twice.
-   */
-  const phone = typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches;
+  const phone = usePhone();
+  /* The live layer: counts patched in place, arrivals counted rather than
+     inserted — see live.ts. "Read them" is a refetch of the lens being read
+     and a jump to the top, which is the tap that asked for it. */
+  useSocialLive();
+  const { fresh, clear } = useFreshPosts();
+  const readFresh = () => { clear(); window.scrollTo(0, 0); void feed.refetch(); };
 
   // Post-share landing: highlight the new post, scroll to top, flash a toast.
   const navState = location.state as { newPostId?: string; justShared?: boolean } | null;
   const [newPostId, setNewPostId] = useState<string | null>(null);
-  // Which poster is open, by FEED KEY rather than post id — a repost and its
-  // original are two entries carrying the same post, and keying on the id would
-  // open both.
-  const [openKey, setOpenKey] = useState<string | null>(null);
   /**
    * SCROLL MODE, OPENED WHERE THEY TAPPED.
    *
@@ -243,17 +272,18 @@ export function SocialFeed() {
       {/* The rail says which of the five real feeds you are reading. It is the
           filter the API actually takes — no tab here is a name with nothing
           behind it. */}
-      <div className="sl-tabs" role="tablist" aria-label="City feed">
-        {FILTERS.map((f) => (
-          <button key={f.key} type="button" role="tab" onClick={() => showFilter(f.key)}
-            className={`sl-tab${filter === f.key ? ' on' : ''}`}
-            aria-selected={filter === f.key}>
-            {f.icon && <Icon name={f.icon} size={15} />}{f.label}
-          </button>
-        ))}
-      </div>
+      <Tablist label="City feed" value={filter} onChange={showFilter} panelId="city-feed-panel"
+        tabs={FILTERS.map((f) => ({ key: f.key, label: <>{f.icon && <Icon name={f.icon} size={15} />}{f.label}</> }))} />
 
-      {feed.isLoading && <Spinner label="Loading the city feed…" />}
+      {/* "3 new posts" — counted, never inserted under the reader's thumb. */}
+      {fresh > 0 && (
+        <button type="button" className="sl-fresh" onClick={readFresh}>
+          <Icon name="sparkles" size={14} /> {fresh === 1 ? '1 new post' : `${fresh} new posts`}
+        </button>
+      )}
+
+      <div id="city-feed-panel" role="tabpanel" aria-label={FILTERS.find((f) => f.key === filter)?.label}>
+      {feed.isLoading && <WallSkeleton phone={phone} />}
       {/* No emoji in Social Life's chrome — relief.spec guards that, and it is
           right: the default mark plus a real retry says more than a warning
           sign does. */}
@@ -293,22 +323,16 @@ export function SocialFeed() {
               <PostCard key={p.key ?? p.id} post={p} isNew={p.id === newPostId} onOpenAuthor={openAuthor} autoplayVideo />
             ))
           ) : (
-            /* THE WALL. An opened poster takes the full width in the place it
-               already occupied and shows the post whole — caption, likes,
-               comments, share, save — so nothing is lost by making the tile
-               small, and closing it puts you back exactly where you were
-               without restoring a scroll position. */
+            /* THE WALL. A poster is a thumbnail of the whole post; tapping it
+               opens scroll mode on that post (see `reelAt`), and closing that
+               puts you back exactly where you were, because the wall was never
+               unmounted. The in-place `wall-open` branch that used to live here
+               had no way to open — nothing ever set its key (4 Sep audit) — and
+               a branch that cannot run is a second design nobody chose. */
             <div className="wall">
               {items.map((p) => {
                 const key = p.key ?? p.id;
-                return key === openKey ? (
-                  <div className="wall-open" key={key}>
-                    <PostCard post={p} isNew={p.id === newPostId} onOpenAuthor={openAuthor} />
-                    <div style={{ display: 'grid', placeItems: 'center', margin: '-4px 0 4px' }}>
-                      <Button variant="line" size="sm" onClick={() => setOpenKey(null)}>Close</Button>
-                    </div>
-                  </div>
-                ) : (
+                return (
                   <Poster key={key} post={p} isNew={p.id === newPostId}
                     onOpen={() => setReelAt(items.findIndex((x) => (x.key ?? x.id) === key))} />
                 );
@@ -328,6 +352,7 @@ export function SocialFeed() {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

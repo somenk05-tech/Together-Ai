@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-var-requires */
 import { SocialService } from './social.service';
 
 /**
@@ -188,6 +188,28 @@ describe('a share is served on the ORIGINAL author’s terms', () => {
     const where = await whereForCarol([BLOCKED]);
     expect(matches(where, sharedByBob(post('p11', ALICE, 'public', 'removed')))).toBe(false);
     expect(matches(where, sharedByBob(post('p12', BLOCKED, 'public')))).toBe(false);
+  });
+
+  /**
+   * AND THE ORIGINAL'S AUTHOR IS STILL HERE (launch gate, third reading,
+   * 4 Sep). The feed's own rows carry `author: REACHABLE_USER`; the share
+   * gate checked visibility, audience and blocks and not the author, so a
+   * suspended account's post kept being served through anybody's share.
+   */
+  it('does not serve a share of a suspended or deleted author’s post', async () => {
+    const where = await whereForCarol();
+    const suspended = { ...post('p13', ALICE, 'public'), author: { suspendedAt: '2026-09-01T00:00:00Z' } };
+    const deleted = { ...post('p14', ALICE, 'public'), author: { deletedAt: '2026-09-01T00:00:00Z' } };
+    expect(matches(where, sharedByBob(suspended))).toBe(false);
+    expect(matches(where, sharedByBob(deleted))).toBe(false);
+    // The same original with its author still here is served.
+    expect(matches(where, sharedByBob(post('p15', ALICE, 'public')))).toBe(true);
+  });
+
+  it('the permalink of a share asks the same question', () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, 'social.service.ts'), 'utf8');
+    const fn = src.slice(src.indexOf('async post(userId: string, postId: string)'));
+    expect(fn).toMatch(/OR: \[\{ repostOfId: null \}, \{ repostOf: \{ is: \{ author: REACHABLE_USER \} \} \}\]/);
   });
 });
 

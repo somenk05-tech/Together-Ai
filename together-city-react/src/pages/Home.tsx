@@ -86,7 +86,7 @@ const DISTRICT_COPY: Partial<Record<HubKey, { name: string; line: string }>> = {
   realestate: { name: 'Real Estate', line: 'Your perfect space, found for you.' },
   fitness: { name: 'Fitness', line: 'Your body. Your goals. Your journey.' },
   beauty: { name: 'Beauty', line: 'Your look, your way.' },
-  social: { name: 'Social Life', line: 'Your people. Your communities. Your world.' },
+  social: { name: 'Social Life', line: 'Your people. Your city. Your moments.' },
   astrology: { name: 'Astrology', line: 'Your stars. Your journey. Your timing.' },
   /* THE ONE DISTRICT WHOSE PLATE IS NOT ITS HUB'S NAME, and the override exists
      for exactly that: the hub is Pet Care in the tab bar, the rail and the
@@ -228,7 +228,7 @@ export function Home() {
       <div className="wrap" style={{ maxWidth: 1240, margin: '0 auto', padding: '88px 32px 24px' }}>
         {/* ============ WELCOME ============ */}
         <div className="center rise" style={{ textAlign: 'center' }}>
-          <h1 style={{ maxWidth: '22ch', margin: '0 auto', fontSize: 'clamp(34px, 5.2vw, 64px)', lineHeight: 1.1 }}>A personalized engine for every aspect of your life.</h1>
+          <h1 style={{ maxWidth: '30ch', margin: '0 auto', fontSize: 'clamp(34px, 5.2vw, 64px)', lineHeight: 1.1 }}>The world's Largest Digital City, personalized for you, powered by your trusted local vendors.</h1>
           <p className="lede" style={{ margin: '22px auto 0', fontSize: 'clamp(18px, 1.9vw, 23px)', lineHeight: 1.6, maxWidth: '58ch' }}>
             Set your preferences once. Every hub personalizes to you.
           </p>

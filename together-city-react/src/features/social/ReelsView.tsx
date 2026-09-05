@@ -3,13 +3,14 @@ import { Button, Spinner } from '@/components/ui';
 import { ShareModal } from '@/features/chat/share';
 import type { ShareCard } from '@/types';
 import { isMuted, setMuted, subscribeMuted, claimPlayback, releasePlayback } from '@/lib/mediaState';
-import { CommentRow, savedIds, setSavedOwner, toggleSaved } from './PostCard';
+import { CommentRow } from './PostCard';
+import { Icon } from '@/components/ui/Icon';
 import { ReportMenu } from './report';
 import { useAuth } from '@/hooks/useAuth';
 import { useDialog } from '@/hooks/useDialog';
 import { HeartIcon, CommentIcon, SendIcon, SaveIcon, ShareIcon } from './marks';
 import {
-  useAddComment, useComments, useToggleLike, useRepost, type Post,
+  useAddComment, useComments, useToggleBookmark, useToggleLike, useRepost, type Post,
 } from './api';
 
 const ChevronIcon = () => (
@@ -118,12 +119,14 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
   const [actErr, setActErr] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
-  setSavedOwner(user?.id);
-  const [saved, setSaved] = useState(() => savedIds().has(post.id));
-  const toggleSave = () => setSaved(toggleSaved(post));
+  // A bookmark is a row on the account (4 Sep) — the card reads it off the
+  // post and the toggle is optimistic, so the mark answers the tap.
+  const bookmark = useToggleBookmark();
+  const saved = Boolean(post.savedByMe);
+  const toggleSave = () => { setActErr(null); bookmark.mutate(post.id, { onError: () => setActErr(saved ? 'That post is still saved — try again.' : 'That save didn’t register — try again.') }); };
   // Preload the video BEFORE it reaches the screen so playback starts instantly
   // instead of buffering on arrival (the "lag"). The reel the viewer opened on
-  // and its neighbours load at once; the rest flip true ~3 screens ahead.
+  // and its neighbours load at once; the rest flip true one screen ahead.
   const [near, setNear] = useState(eager ?? false);
   // Releasing the source is what actually frees the buffer: React setting
   // `src={undefined}` leaves the element's current source in place, so the
@@ -186,16 +189,19 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
    * below diagnosed exactly this problem and solved only its beginning — it
    * bounded when a video STARTS loading and nothing bounded the accumulation.
    *
-   * The window is the same three screens either side that the warm-up already
-   * used, so nothing about the scroll feels different; what changes is that
-   * leaving the window releases the bytes.
+   * The window WAS three screens either side. With `preload="auto"` on every
+   * reel inside it, that is up to seven fifty-megabyte files buffering on a
+   * phone for one being watched (4 Sep audit). One screen either side is the
+   * reel you are on and its two neighbours — the next one is still warm before
+   * you reach it, and the bytes for the five you may never reach are never
+   * asked for. Leaving the window still releases them.
    */
   useEffect(() => {
     const el = vref.current;
     if (!el) return;
     const io = new IntersectionObserver((entries) => {
       setNear(entries[0].isIntersecting);
-    }, { rootMargin: '300% 0px 300% 0px', threshold: 0 });
+    }, { rootMargin: '100% 0px 100% 0px', threshold: 0 });
     io.observe(el);
     return () => io.disconnect();
   }, []);
@@ -273,11 +279,11 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
                     was that the gesture belongs on the thing, and a reel is a
                     thing. */}
                 {!mine && <ReportMenu targetType="post" targetId={post.id} />}
-                {hasMusic && <span aria-hidden>♪</span>}
+                {hasMusic && <span aria-hidden style={{ display: 'inline-flex' }}><Icon name="music" size={13} /></span>}
                 {hasMusic && <span className="sl-reel-track">{post.musicTitle ?? 'Original audio'}</span>}
                 <button type="button" onClick={onToggleMute} className="sl-reel-sound"
                   aria-label={muted ? 'Turn the sound on' : 'Turn the sound off'}>
-                  {muted ? '🔇' : '🔊'}
+                  <Icon name={muted ? 'mute' : 'speak'} size={16} />
                 </button>
               </div>
             )}
@@ -322,7 +328,7 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
           {video && (
             <button type="button" onClick={togglePlay} className="sl-reel-tap"
               aria-label={paused ? 'Play video' : 'Pause video'} aria-pressed={!paused}>
-              {paused && <span aria-hidden className="sl-reel-play">▶</span>}
+              {paused && <span aria-hidden className="sl-reel-play"><Icon name="play" size={28} /></span>}
             </button>
           )}
         </div>
@@ -384,7 +390,7 @@ function ReelComments({ postId, canModerate, onClose }: { postId: string; canMod
         onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxHeight: '70%', background: 'var(--card,#fff)', borderRadius: '16px 16px 0 0', padding: '14px 16px', overflow: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
           <strong id="tc-reel-comments-title" style={{ fontSize: 14 }}>Comments</strong>
-          <button type="button" onClick={onClose} aria-label="Close comments" style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-soft)' }}>×</button>
+          <button type="button" onClick={onClose} aria-label="Close comments" style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', lineHeight: 0, minHeight: 44, minWidth: 44, display: 'grid', placeItems: 'center' }}><Icon name="close" size={18} /></button>
         </div>
         {comments.isLoading && <Spinner />}
         {comments.isError && (

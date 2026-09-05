@@ -135,24 +135,30 @@ describe('the city feed is a wall of the citizens\' own posters', () => {
     expect(poster).toMatch(/alt=""/); // the picture is named by the button
   });
 
-  it('opens a poster in place, keeping the whole post', () => {
-    // Expanding must not be a second rendering of a post — it is THE post
-    // card, so likes, comments, share, save and repost keep working and cannot
-    // drift from the ones on the profile.
-    expect(feed).toMatch(/className="wall-open"/);
-    expect(feed).toMatch(/<PostCard post=\{p\}/);
-    expect(css).toMatch(/\.wall-open \{ grid-column: 1 \/ -1; \}/);
+  /* ── OPENING A POSTER IS SCROLL MODE, AND ONLY SCROLL MODE (4 Sep) ──────
+     These three tests recorded the in-place expansion — `wall-open`, a
+     poster opening to a full-width PostCard where it stood. Scroll mode
+     replaced that, and the branch it left behind could never run: nothing
+     set `openKey` to anything but null. The tests went on asserting the
+     dead branch existed, which is the opposite of what a guard is for. What
+     they now hold is the design that is actually reachable. */
+  it('opens a poster into scroll mode at its own index, and nowhere else', () => {
+    // One implementation of "the post, whole": the same full-screen player
+    // the Videos tab uses, opened on the tapped index. No second card design.
+    expect(feed).toMatch(/onOpen=\{\(\) => setReelAt\(items\.findIndex/);
+    expect(feed).not.toMatch(/wall-open|openKey|setOpenKey/);
+    expect(css).not.toMatch(/\.wall-open/);
   });
 
-  it('keys the open poster by feed key, not post id', () => {
+  it('keys each poster by feed key, not post id', () => {
     // A repost and its original are two entries carrying the same post. Keyed
-    // on the id, opening one would open both.
+    // on the id, React would treat them as one.
     expect(feed).toMatch(/const key = p\.key \?\? p\.id/);
-    expect(feed).toMatch(/key === openKey/);
+    expect(feed).toMatch(/<Poster key=\{key\}/);
   });
 
-  it('closes what is open when the filter changes', () => {
-    expect(feed).toMatch(/showFilter = \(key: string\) => \{ setOpenKey\(null\); setFilter\(key\); \}/);
+  it('draws the wall\'s shape before the first page, rather than a spinner', () => {
+    expect(feed).toMatch(/feed\.isLoading && <WallSkeleton/);
   });
 
   it('stays on the city\'s white ground, at the named depths', () => {

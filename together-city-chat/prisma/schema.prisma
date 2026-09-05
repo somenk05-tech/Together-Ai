@@ -219,6 +219,7 @@ model User {
   posts                Post[]
   postComments         Comment[]
   postLikes            Like[]
+  postBookmarks        Bookmark[]
   following            Follow[]             @relation("FollowFollower")
   followers            Follow[]             @relation("FollowFollowee")
   blocksMade           Block[]              @relation("BlocksMade")
@@ -1010,6 +1011,7 @@ model Post {
   media    PostMedia[]
   comments Comment[]
   likes    Like[]
+  bookmarks Bookmark[]
   repostOf Post?       @relation("PostReposts", fields: [repostOfId], references: [id], onDelete: Cascade)
   reposts  Post[]      @relation("PostReposts")
 
@@ -1083,6 +1085,28 @@ model Like {
 
   @@unique([postId, userId])
   @@index([userId])
+}
+
+/// A SAVED POST IS A ROW, NOT A SNAPSHOT (4 Sep audit).
+///
+/// Saved posts lived in localStorage as a copy of the whole post — including
+/// its signed media URL, which expires in an hour, so every saved photograph
+/// was broken by the time anybody came back for it; and the list stayed on the
+/// device it was made on. A bookmark is a pointer: the post is re-read through
+/// the same gates the feed applies, so a deleted, removed or re-audienced post
+/// simply stops appearing rather than rendering forever from a stale copy.
+model Bookmark {
+  id        String   @id @default(uuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  /// The Saved page reads one citizen's bookmarks newest first, by keyset.
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
 }
 
 model Follow {

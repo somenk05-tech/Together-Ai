@@ -129,7 +129,17 @@ export type FeedQueryDto = z.infer<typeof FeedQuerySchema>;
  * `limit` — so there is one paging idiom in the hub rather than three.
  */
 export const ListQuerySchema = z.object({
-  cursor: z.string().uuid().optional(),
+  /* NOT `.uuid()` (4 Sep audit). `followers` has minted `<ms>_<id>` keyset
+     cursors since 31 Aug and this schema went on demanding a UUID, so the
+     second page of anybody's followers was a 400 — "Show more" failed for
+     every citizen with more than thirty. Comments still hand back a bare id,
+     which passes too; the reader of each cursor decides what it means. */
+  cursor: z.string().min(1).max(120).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(30),
 });
 export type ListQueryDto = z.infer<typeof ListQuerySchema>;
+
+/** The one-time move of a device's saved-post ids onto the account. */
+export const BookmarkSyncSchema = z.object({
+  postIds: z.array(z.string().uuid()).max(200),
+});

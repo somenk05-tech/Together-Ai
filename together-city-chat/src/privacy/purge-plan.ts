@@ -354,6 +354,7 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'ServiceReview', by: 'reviewerId', action: 'keep', reason: 'A review other citizens read and a business has replied to. Removing it edits a public rating and silently rewrites somebody else\u2019s page — the same reason a Like and a Comment are kept. It carries an alias rather than a name.' },
   { model: 'Comment', by: 'authorId', action: 'keep', reason: 'Replies on other people\'s posts, which those conversations still read as.' },
   { model: 'Like', by: 'userId', action: 'keep', reason: 'A like is a number on somebody else\'s post. Removing it edits their post.' },
+  { model: 'Bookmark', by: 'userId', action: 'purge', reason: 'The citizen\'s own reading list — a private list of pointers at other people\'s posts. Nobody else reads it and nothing on anybody else\'s page changes when it goes. It cascades from User at hard delete; this is the backstop, and it also covers the soft-delete window, because a reading list of somebody who has left is a list of what they were interested in.' },
   /* THIS RULE'S REASON WAS TRUE ABOUT THE DATABASE AND SILENT ABOUT THE BUCKET
      (30 Aug). It read "Already deleted at soft-delete time, so nothing is
      left", and the rows genuinely are: `deleteAccount` deletes the posts and

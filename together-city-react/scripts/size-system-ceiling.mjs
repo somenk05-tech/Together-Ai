@@ -104,10 +104,10 @@ import { join } from 'node:path';
  * which is what the script's own closing line asks for on every green run.
  */
 const CEILING = {
-  rawRadii: 317,
-  inlineStyleBlocks: 6678,
+  rawRadii: 315,
+  inlineStyleBlocks: 6545,
   distinctFontSizes: 35,
-  rawSpacing: 3605,
+  rawSpacing: 3540,
   /* Added 2 Sep. Today's readings, recorded so they can only fall.
    *
    * `distinctTracking` opened at 50 and is recorded at 49, because the last

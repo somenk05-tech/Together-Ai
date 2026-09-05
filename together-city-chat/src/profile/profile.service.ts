@@ -1,4 +1,4 @@
-import { swallow } from '../shared/swallow';
+import { swallow, swallowed } from '../shared/swallow';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { BlockingService } from '../connections/blocking.service';
@@ -62,6 +62,24 @@ export class ProfileService {
     private readonly access: AdminAccessService,
     private readonly storage: StorageProvider,
   ) {}
+
+  /**
+   * Which of these posts the VIEWER has saved (launch gate, third reading,
+   * 4 Sep). The feed sends `savedByMe` on every card; these two grids did
+   * not, so the same PostCard rendered "Save" over a post already saved, and
+   * tapping it unsaved the post while the label stayed "Save". Read through
+   * the same cast SocialService uses, and swallowed the same way: a grid
+   * that cannot say what you saved is a grid; one that 500s is not.
+   */
+  private async savedSetFor(viewerId: string, postIds: string[]): Promise<Set<string>> {
+    const table = (this.prisma as unknown as {
+      bookmark?: { findMany: (a: unknown) => Promise<Array<{ postId: string }>> };
+    }).bookmark;
+    if (!table || !postIds.length) return new Set();
+    const found = await table.findMany({ where: { userId: viewerId, postId: { in: postIds } }, select: { postId: true }, take: postIds.length })
+      .catch(swallowed('profile.posts.savedSet', [] as Array<{ postId: string }>));
+    return new Set(found.map((b) => b.postId));
+  }
 
   /** DESIGN YOUR SERVICES — read which hubs this citizen keeps off the street.
    *  Null, empty and corrupt all read as the whole city; see the module. */
@@ -382,9 +400,10 @@ export class ProfileService {
     // Post media is a private key now, signed on read (30 Aug audit). One pass
     // for the page, the same way SocialService.signMediaOf does it, or the grid
     // renders every photograph as a broken image.
-    const signed = await this.storage.signPostMedia(
-      page.flatMap((p) => (p.media ?? []).flatMap((m) => [m.url, m.thumbUrl])),
-    );
+    const [signed, saved] = await Promise.all([
+      this.storage.signPostMedia(page.flatMap((p) => (p.media ?? []).flatMap((m) => [m.url, m.thumbUrl]))),
+      this.savedSetFor(userId, page.map((p) => p.id)),
+    ]);
     return {
       items: page.map((p) => {
         const px = p as unknown as {
@@ -413,6 +432,7 @@ export class ProfileService {
           placeName: px.placeName ?? null,
           tagged,
           likedByMe: px.likes.length > 0,
+          savedByMe: saved.has(p.id),
           category: px.category ?? null,
         };
       }),
@@ -550,9 +570,10 @@ export class ProfileService {
     // Post media is a private key now, signed on read (30 Aug audit). One pass
     // for the page, the same way SocialService.signMediaOf does it, or the grid
     // renders every photograph as a broken image.
-    const signed = await this.storage.signPostMedia(
-      page.flatMap((p) => (p.media ?? []).flatMap((m) => [m.url, m.thumbUrl])),
-    );
+    const [signed, saved] = await Promise.all([
+      this.storage.signPostMedia(page.flatMap((p) => (p.media ?? []).flatMap((m) => [m.url, m.thumbUrl]))),
+      this.savedSetFor(viewerId, page.map((p) => p.id)),
+    ]);
     return {
       items: page.map((p) => {
         const px = p as unknown as {
@@ -580,6 +601,7 @@ export class ProfileService {
           placeName: px.placeName ?? null,
           tagged,
           likedByMe: px.likes.length > 0,
+          savedByMe: saved.has(p.id),
           category: px.category ?? null,
         };
       }),

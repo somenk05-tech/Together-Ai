@@ -5,6 +5,7 @@ import { useDialog } from '@/hooks/useDialog';
 import { Icon } from '@/components/ui/Icon';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { onStaleMedia } from '@/lib/remint';
 import { Avatar, Button, Spinner } from '@/components/ui';
 import { chatApi } from '@/api';
 import { useConnections, useRequestConnection, useRespondConnection } from '@/api/connections.api';
@@ -18,6 +19,8 @@ import {
 import { useFollowers, useFollowing, useFollow, useUnfollow, useBlock, useSetCover, useSetPostCategory, type FollowPerson, type Post } from '../api';
 import { PostCard } from '../PostCard';
 import { ReportMenu } from '../report';
+import { Confirm } from '../Confirm';
+import { Tablist } from '../Tablist';
 
 
 /** Resize a chosen image to a small square JPEG data URL (no external storage needed). */
@@ -84,6 +87,7 @@ function tileDate(iso: string): string {
  *  loaded here, only when the post is opened in the lightbox. This keeps the
  *  profile from downloading every video on load. */
 function PostTile({ p }: { p: ProfilePost }) {
+  const qc = useQueryClient();
   const first = p.media[0];
   const isVideo = first?.kind === 'video';
   // For videos, only a thumbnail image is ever loaded here (never the video file).
@@ -91,7 +95,7 @@ function PostTile({ p }: { p: ProfilePost }) {
   return (
     <div className="social-tile">
       {imgSrc ? (
-        <img src={imgSrc} alt={p.text ?? ''} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', background: isVideo ? 'var(--ink)' : undefined }} />
+        <img src={imgSrc} alt={p.text ?? ''} loading="lazy" onError={() => onStaleMedia(qc, ['profile'])} style={{ width: '100%', height: '100%', objectFit: 'cover', background: isVideo ? 'var(--ink)' : undefined }} />
       ) : isVideo && first ? (
         // No server thumbnail — show a STILL FRAME via preload="metadata" seeked
         // to 0.1s (#t=0.1). The browser fetches only metadata + that one frame,
@@ -140,6 +144,7 @@ function profilePostToPost(p: ProfilePost, me?: { id: string; handle: string; na
     likes: p.likeCount,
     comments: p.commentCount,
     likedByMe: p.likedByMe ?? false,
+    savedByMe: p.savedByMe ?? false,
     createdAt: p.createdAt,
   };
 }
@@ -164,23 +169,75 @@ function profilePostToPost(p: ProfilePost, me?: { id: string; handle: string; na
  * The scroll is INSTANT, not smooth. You touched a specific tile; arriving
  * anywhere else first and gliding to it is a journey nobody asked for.
  */
+/**
+ * ── THE READER OPENS WHERE YOU TOUCHED, AND KEEPS GOING (owner, 4 Sep) ──────
+ *
+ * "when clicked it should play at the same place and then make a scroll."
+ *
+ *   1 · THE COLUMN ARRIVED SOMEWHERE ELSE. A tap on the right of a nine-tile
+ *       wall opened a column centred at full size with nothing connecting the
+ *       tile to it. The column now starts AT the tile's rectangle
+ *       (`originRect`) and travels to its resting place — one FLIP, measured
+ *       after the instant scroll and released on the next paint. A citizen
+ *       who asked for no motion gets the column at rest, at once.
+ *   2 · THE VIDEO ENDED AND THE SCREEN SAT STILL. Autoplay-in-view plays what
+ *       is on screen; nothing moved the screen. The end of a clip now scrolls
+ *       to the next post that HAS a video — the next VIDEO, not the next
+ *       post — and never wraps.
+ */
 function PostReader({
-  posts, startId, onClose, manage, onOpenAuthor,
+  posts, startId, onClose, manage, onOpenAuthor, originRect,
 }: {
   posts: { post: Post; category?: string | null }[];
   startId: string;
   onClose: () => void;
   manage?: boolean;
   onOpenAuthor?: (handle: string) => void;
+  /** Where the tile that opened this sat, so the column can start there. */
+  originRect?: DOMRect | null;
 }) {
   const setCover = useSetCover();
   const setCategory = useSetPostCategory();
-  const scroller = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement | null>(null);
   const startRef = useRef<HTMLDivElement>(null);
+  const column = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
+  // useLayoutEffect, not useEffect: an effect would show the column at rest
+  // for one frame and then snap it back to the tile to begin. The scroll is
+  // instant so the FLIP measures the resting position, not a mid-scroll one.
+  useLayoutEffect(() => {
     startRef.current?.scrollIntoView({ block: 'start' });
-  }, [startId]);
+    const col = column.current;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    if (!col || !originRect || reduce) return;
+    const to = col.getBoundingClientRect();
+    if (!to.width || !to.height) return;
+    const dx = originRect.left - to.left;
+    const dy = originRect.top - to.top;
+    const sx = originRect.width / to.width;
+    const sy = originRect.height / to.height;
+    col.style.transition = 'none';
+    col.style.transformOrigin = 'top left';
+    col.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+    // Read back between the two writes, or the browser coalesces them and
+    // animates nothing.
+    void col.offsetWidth;
+    col.style.transition = 'transform 260ms cubic-bezier(.2,.8,.2,1)';
+    col.style.transform = 'none';
+    const done = () => { col.style.transition = ''; col.style.transformOrigin = ''; };
+    col.addEventListener('transitionend', done, { once: true });
+    return () => col.removeEventListener('transitionend', done);
+  }, [startId, originRect]);
+
+  // The next post that HAS a video, in column order. Photos between two
+  // clips are skipped: "play my videos" means the videos.
+  const videoIds = posts.filter(({ post }) => post.media.some((m) => m.kind === 'video')).map(({ post }) => post.id);
+  const advance = (fromId: string) => {
+    const i = videoIds.indexOf(fromId);
+    if (i < 0 || i + 1 >= videoIds.length) return;
+    const next = scroller.current?.querySelector<HTMLElement>(`[data-reader-post="${videoIds[i + 1]}"]`);
+    next?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  };
 
   // Escape closes, because a full-height scroller with a button at the bottom
   // has no reachable Close once you are three posts down. The shared hook does
@@ -239,12 +296,13 @@ function PostReader({
           down, a button at the end of the column is not a way out. */}
       <button type="button" onClick={onClose} className="btn btn-line btn-sm"
         style={{ position: 'fixed', top: 14, right: 16, zIndex: 2 }}>Close</button>
-      <div ref={scroller} onClick={(e) => e.stopPropagation()}
+      <div ref={(el) => { scroller.current = el; column.current = el; }} onClick={(e) => e.stopPropagation()}
         style={{ width: 'min(600px,96vw)', maxHeight: '100dvh', overflowY: 'auto', padding: '14px 0 40px', scrollbarWidth: 'thin',
           overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
         {posts.map(({ post, category }) => (
-          <div key={post.id} ref={post.id === startId ? startRef : undefined} style={{ scrollMarginTop: 14, marginBottom: 'var(--space-18)' }}>
+          <div key={post.id} data-reader-post={post.id} ref={post.id === startId ? startRef : undefined} style={{ scrollMarginTop: 14, marginBottom: 'var(--space-18)' }}>
             <PostCard post={post} autoplayVideo
+              onVideoEnded={() => advance(post.id)}
               manage={manage}
               onOpenAuthor={onOpenAuthor}
               onSetCover={manage ? (t) => {
@@ -293,6 +351,7 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
   const reorder = useReorderMyPosts();
   const me = useMyProfile();
   const [openId, setOpenId] = useState<string | null>(null);
+  const openFrom = useRef<DOMRect | null>(null);
   const matchesFilter = (p: ProfilePost) => {
     const hasVideo = p.media.some((m) => m.kind === 'video');
     const hasImage = p.media.some((m) => m.kind === 'image');
@@ -519,10 +578,10 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
               }}
             >
               <PostTile p={p} />
-              <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 14, color: 'var(--on-accent)', background: 'rgba(0,0,0,.5)', borderRadius: 6, padding: '0 6px', lineHeight: 1.6 }}>⠿</span>
+              <span aria-hidden style={{ position: 'absolute', top: 6, right: 6, color: 'var(--on-accent)', background: 'var(--scrim-deep)', borderRadius: 'var(--r-1)', width: 22, height: 22, lineHeight: 0, display: 'grid', placeItems: 'center' }}><Icon name="reorder" size={14} /></span>
             </div>
           ) : (
-            <button key={p.id} data-tile={p.id} type="button" onClick={() => setOpenId(p.id)}
+            <button key={p.id} data-tile={p.id} type="button" onClick={(e) => { openFrom.current = e.currentTarget.getBoundingClientRect(); setOpenId(p.id); }}
               style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', font: 'inherit' }}>
               <PostTile p={p} />
             </button>
@@ -542,6 +601,7 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
           <PostReader
             posts={view.map((x) => ({ post: profilePostToPost(x, me.data), category: x.category }))}
             startId={openId}
+            originRect={openFrom.current}
             manage
             onClose={() => setOpenId(null)}
           />
@@ -642,21 +702,28 @@ function SafetyActions({ id, handle, onBlocked }: { id: string; handle: string; 
    * a retry; this one costs them the thing they came here for.
    */
   const [failed, setFailed] = useState<'block' | null>(null);
+  const [asking, setAsking] = useState(false);
 
   const doBlock = () => {
-    if (!window.confirm(`Block @${handle}? They won't be able to see your posts or interact with you, and you won't see theirs.`)) return;
     setFailed(null);
-    block.mutate({ handle }, { onSuccess: onBlocked, onError: () => setFailed('block') });
+    block.mutate({ handle }, {
+      onSuccess: () => { setAsking(false); onBlocked(); },
+      onError: () => { setAsking(false); setFailed('block'); },
+    });
   };
 
 
   return (
     <div className="sl-safety">
       <div className="sl-safety-row">
-        <button type="button" onClick={doBlock} disabled={block.isPending}
+        <button type="button" onClick={() => setAsking(true)} disabled={block.isPending}
           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontFamily: 'inherit', color: 'var(--danger-ink)', padding: 0 }}>
           {block.isPending ? 'Blocking…' : <><Icon name="block" size={14} /> Block</>}
         </button>
+        <Confirm open={asking} title={`Block @${handle}?`}
+          body="They won't be able to see your posts or interact with you, and you won't see theirs. You can undo this from Blocked people, under Settings."
+          confirmLabel={block.isPending ? 'Blocking…' : 'Block'} danger busy={block.isPending}
+          onClose={() => setAsking(false)} onConfirm={doBlock} />
         {/* `window.prompt` was the whole reporting flow for a person: no
             categories, no cancel on some mobile browsers, and nothing at all
             wherever popups are blocked. Same picker the posts and comments
@@ -690,7 +757,7 @@ export function PublicProfileModal({ handle, onClose }: { handle: string; onClos
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)' }}>
                   <h3 style={{ margin: 0, fontSize: 20 }}>{p.name}</h3>{p.verified && <EmailConfirmedMark />}
                 </div>
-                <div className="muted" style={{ fontSize: 12.5, fontFamily: 'monospace' }}>@{p.handle}</div>
+                <div className="muted" style={{ fontSize: 12.5 }}>@{p.handle}</div>
                 {p.city && <div className="muted" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="place" size={13} />{p.city}</div>}
               </div>
             </div>
@@ -748,6 +815,7 @@ function FollowButton({ userId, handle, iFollow }: { userId: string; handle: str
 function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filter: 'all' | 'photo' | 'video'; onOpenAuthor: (handle: string) => void }) {
   const posts = usePublicPosts(handle);
   const [openId, setOpenId] = useState<string | null>(null);
+  const openFrom = useRef<DOMRect | null>(null);
   const sentinel = useRef<HTMLDivElement>(null);
   const postsRef = useRef(posts);
   postsRef.current = posts;
@@ -794,7 +862,7 @@ function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filt
     <>
       <div className="rise d1 social-grid" style={{ marginTop: 'var(--space-16)' }}>
         {view.map((p) => (
-          <button key={p.id} type="button" onClick={() => setOpenId(p.id)}
+          <button key={p.id} type="button" onClick={(e) => { openFrom.current = e.currentTarget.getBoundingClientRect(); setOpenId(p.id); }}
             style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', font: 'inherit' }}>
             <PostTile p={p} />
           </button>
@@ -809,6 +877,7 @@ function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filt
           <PostReader
             posts={view.map((x) => ({ post: profilePostToPost(x) }))}
             startId={op.id}
+            originRect={openFrom.current}
             onOpenAuthor={onOpenAuthor}
             onClose={() => setOpenId(null)}
           />
@@ -857,7 +926,7 @@ export function PublicProfilePage() {
             <ConnectButton id={p.id} handle={p.handle} relationship={p.relationship} />
           </div>
           <p className="muted" style={{ fontSize: 13, marginTop: 'var(--space-2)' }}>
-            <span style={{ fontFamily: 'monospace' }}>@{p.handle}</span>{joined && <> · Joined {joined}</>}
+            <span>@{p.handle}</span>{joined && <> · Joined {joined}</>}
           </p>
           {p.city && <p className="muted" style={{ fontSize: 12.5, marginTop: 3, display: 'flex', alignItems: 'center', gap: 'var(--space-6)' }}><Icon name="place" size={14} />{p.city}</p>}
           {p.bio && <p style={{ fontSize: 13.5, lineHeight: 1.5, margin: '8px 0 0', maxWidth: 560 }}>{p.bio}</p>}
@@ -921,7 +990,7 @@ function PeopleTab() {
                     <span style={{ fontSize: 14, fontWeight: 600 }}>{r.name}</span>{r.verified && <EmailConfirmedMark />}
                   </div>
                   <div className="muted" style={{ fontSize: 12 }}>
-                    <span style={{ fontFamily: 'monospace' }}>@{r.handle}</span>{r.city ? ` · ${r.city}` : ''}
+                    <span>@{r.handle}</span>{r.city ? ` · ${r.city}` : ''}
                   </div>
                 </div>
                 <Button variant="line" size="sm" onClick={() => navigate(`/social/u/${encodeURIComponent(r.handle)}`)}>View</Button>
@@ -1134,7 +1203,7 @@ function FollowRow({ person, onView }: { person: FollowPerson; onView: () => voi
       </button>
       <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={onView}>
         <div style={{ fontWeight: 600, fontSize: 14 }}>{person.name}</div>
-        <div className="muted" style={{ fontSize: 12, fontFamily: 'monospace' }}>@{person.handle}{person.followsMe && !person.iFollow ? ' · follows you' : ''}</div>
+        <div className="muted" style={{ fontSize: 12 }}>@{person.handle}{person.followsMe && !person.iFollow ? ' · follows you' : ''}</div>
       </div>
       <div>
         <Button variant={person.iFollow ? 'line' : 'accent'} size="sm" disabled={busy} onClick={act}>
@@ -1234,7 +1303,7 @@ export function SocialProfile() {
             </button>
           </div>
           <p className="muted" style={{ fontSize: 13, marginTop: 'var(--space-2)' }}>
-            <span style={{ fontFamily: 'monospace' }}>@{p.handle}</span>{joined && <> · Joined {joined}</>}
+            <span>@{p.handle}</span>{joined && <> · Joined {joined}</>}
           </p>
           {p.city && <p className="muted" style={{ fontSize: 12.5, marginTop: 3, display: 'flex', alignItems: 'center', gap: 'var(--space-6)' }}><Icon name="place" size={14} />{p.city}</p>}
           {p.bio && <p style={{ fontSize: 13.5, lineHeight: 1.5, margin: '8px 0 0', maxWidth: 560 }}>{p.bio}</p>}
@@ -1252,24 +1321,19 @@ export function SocialProfile() {
         </div>
       </div>
 
-      <div className="sl-tabs rise d1" role="tablist" aria-label="Your posts">
-        <button type="button" role="tab" className={`sl-tab${tab === 'posts' ? ' on' : ''}`} onClick={() => setTab('posts')} aria-selected={tab === 'posts'}>
-          <Icon name="grid" size={15} />Posts
-        </button>
-        <button type="button" role="tab" className={`sl-tab${tab === 'photos' ? ' on' : ''}`} onClick={() => setTab('photos')} aria-selected={tab === 'photos'}>
-          <Icon name="camera" size={15} />Photos
-        </button>
-        <button type="button" role="tab" className={`sl-tab${tab === 'videos' ? ' on' : ''}`} onClick={() => setTab('videos')} aria-selected={tab === 'videos'}>
-          <Icon name="video" size={15} />Videos
-        </button>
-        <button type="button" role="tab" className={`sl-tab${tab === 'personal' ? ' on' : ''}`} onClick={() => setTab('personal')} aria-selected={tab === 'personal'}>
-          <Icon name="personal" size={15} />Personal
-        </button>
-        <button type="button" role="tab" className={`sl-tab${tab === 'work' ? ' on' : ''}`} onClick={() => setTab('work')} aria-selected={tab === 'work'}>
-          <Icon name="job" size={15} />Work
-        </button>
-      </div>
+      {/* The row is the five grids. Followers, Following and Post & Earn are
+          reached from the chips above and are not tabs of this row — when one
+          of them is open, no tab is selected, which is the truth. */}
+      <Tablist className="rise d1" label="Your posts" value={tab} panelId="profile-grid-panel" onChange={(k) => setTab(k as Tab)}
+        tabs={[
+          { key: 'posts', label: <><Icon name="grid" size={15} />Posts</> },
+          { key: 'photos', label: <><Icon name="camera" size={15} />Photos</> },
+          { key: 'videos', label: <><Icon name="video" size={15} />Videos</> },
+          { key: 'personal', label: <><Icon name="personal" size={15} />Personal</> },
+          { key: 'work', label: <><Icon name="job" size={15} />Work</> },
+        ]} />
 
+      <div id="profile-grid-panel" role="tabpanel">
       {tab === 'posts' && <PostsTab />}
       {tab === 'photos' && <PostsTab filter="photo" />}
       {tab === 'videos' && <PostsTab filter="video" />}
@@ -1278,6 +1342,7 @@ export function SocialProfile() {
       {tab === 'followers' && <FollowList kind="followers" />}
       {tab === 'following' && (<><FollowList kind="following" /><PeopleTab /></>)}
       {tab === 'earn' && <div className="rise d1" style={{ marginTop: 'var(--space-16)' }}><EarnView posts={allPosts} /></div>}
+      </div>
 
       {editing && <EditProfileModal me={p} onClose={() => setEditing(false)} />}
     </div>

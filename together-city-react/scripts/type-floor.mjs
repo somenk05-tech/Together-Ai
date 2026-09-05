@@ -31,7 +31,7 @@ const FLOOR = 11;
 /* Lowered 194 → 191 on 1 Sep. Four `className="tag" style={{ fontSize: 10.5 }}`
  * sites were restating the `.tag` class's own `var(--fs-1)` — the same 10.5px,
  * written twice. Deleting the inline half changed nothing on screen. */
-const CEILING = 191;
+const CEILING = 186;
 
 const walk = (dir) => readdirSync(dir).flatMap((n) => {
   const p = join(dir, n);
