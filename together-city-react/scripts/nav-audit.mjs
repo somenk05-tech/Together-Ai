@@ -343,6 +343,11 @@ const UNREACHABLE_ON_PURPOSE = new Map([
   // /profile — and it is kept because a bookmark, a mail, or anything written
   // before the merge should land on the right heading rather than on a 404.
   ['/profile/master', 'the Master Profile\'s old address. Its fields moved onto /profile on 28 Aug — one page, under the name the record actually has — and this path is now a redirect that preserves the section hash. Deliberately unlinked: every caller in the app points at /profile, and this exists only for links written before the merge.'],
+  // The Wall — the old feed with its five lenses — came off the Together
+  // City TV rail on 6 Sep (owner: "hide the wall page for now"). The route
+  // stays so the page is one rail line away from coming back; unlinked ON
+  // PURPOSE until the owner asks for it.
+  ['/social/wall', 'the wall of posts the television replaced. Off the rail for now by the owner\'s call (6 Sep); kept so it can return with one rail line rather than a rebuild.'],
   ['/console', 'the admin console. Staff-only, and absent from every menu ON PURPOSE — a link in a citizen\'s navigation is an invitation to a door that will not open. The server checks the permission per request; the route existing is not access.'],
   ['/dev', 'the developer page. Absent from every menu for the same reason as the console, and with one more lock on top: the API refuses every /dev request that does not carry the password, checked on the server in constant time. The route existing is not access.'],
   // The hub was renamed Dating → Matchmaking on 31 Aug. The old paths are

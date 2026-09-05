@@ -231,12 +231,14 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // page of their own, and the wall of posts moved one path over.
       { path: '/social/feed', index: '01', label: 'City TV', sub: 'Videos, playing on their own' },
       { path: '/social/channels', index: '02', label: 'Together City Channels', sub: 'Every channel is a citizen' },
-      { path: '/social/wall', index: '03', label: 'The Wall', sub: 'Photos, thoughts & friends' },
+      // The Wall (/social/wall — the old feed with its five lenses) is off
+      // the rail for now (owner, 6 Sep: "hide the wall page for now"). The
+      // route stays, unlisted, so nothing that links to it breaks.
       // "Post & Earn" and "places" left these two lines (owner, 4 Sep): the
       // rail promises only what exists. The programme is still reachable from
       // the profile chip, labelled not open; places are a caption on a post.
-      { path: '/social/profile', index: '04', label: 'My Profile', sub: 'Story, stats & posts' },
-      { path: '/social/saved', index: '05', label: 'Saved', sub: 'Bookmarked posts' },
+      { path: '/social/profile', index: '03', label: 'My Profile', sub: 'Story, stats & posts' },
+      { path: '/social/saved', index: '04', label: 'Saved', sub: 'Bookmarked posts' },
       // Thoughts was here because it was "built, tested, and listed nowhere" —
       // a journal boarding in the social hub for want of anywhere else. It has
       // a home of its own now (Personal), and a private journal listed inside

@@ -271,7 +271,12 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
           playsInline autoPlay muted={muted} preload="auto"
           onPlaying={wake}
           onLoadedMetadata={(e) => { setReady(true); setClock({ time: e.currentTarget.currentTime, duration: e.currentTarget.duration || 0 }); }}
-          onDurationChange={(e) => setClock((c) => ({ ...c, duration: e.currentTarget.duration || 0 }))}
+          onDurationChange={(e) => {
+            // Read the element NOW: inside a state updater the event's
+            // currentTarget is already null (Safari, 6 Sep: a crashed page).
+            const duration = e.currentTarget.duration || 0;
+            setClock((c) => ({ ...c, duration }));
+          }}
           onVolumeChange={(e) => setElMuted(e.currentTarget.muted)}
           onTimeUpdate={(e) => {
             const el = e.currentTarget;
