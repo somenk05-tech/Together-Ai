@@ -28,7 +28,10 @@ export const RegisterSchema = z.object({
   password: z.string().min(12).max(128),         // policy enforced in the service
   email: z.string().email().max(160),            // required — verification + receipts
   phone: z.string().max(24).optional(),          // optional primary phone
-  profileImage: z.string().url().optional(),
+  /* `profileImage` was accepted here as any URL and written unscreened, while
+     setAvatar sniffs and classifies every avatar: registration was the bypass
+     around the one door the picture is supposed to come through. Gone (5 Sep);
+     the avatar is set after sign-in, through setAvatar. */
   /** Cloudflare Turnstile token; required only when TURNSTILE_SECRET is set. */
   turnstileToken: z.string().max(4096).optional(),
   /** Required. The city is 18+, and this is where that is established. */
@@ -99,6 +102,13 @@ export const ResetSchema = z.object({
   newPassword: z.string().min(8).max(128),
 });
 export type ResetDto = z.infer<typeof ResetSchema>;
+
+/** Signed in, proving it with the current password. Policy in the service. */
+export const ChangePasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(128),
+  newPassword: z.string().min(8).max(128),
+});
+export type ChangePasswordDto = z.infer<typeof ChangePasswordSchema>;
 
 export const LoginSchema = z.object({
   handle: z.string().min(1),

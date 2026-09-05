@@ -6,6 +6,7 @@
  * and the inbound webhook both import from here.
  */
 import { createHmac, timingSafeEqual } from 'crypto';
+import { purposeSecret } from '../shared/secrets/derived-secret';
 
 /**
  * Build an RFC 5322 From header from a citizen's display name + city address, so
@@ -45,9 +46,26 @@ export function cityFromHeader(name: string, addr: string): string {
  * minted here can never be presented anywhere else.
  */
 export function unsubscribeToken(address: string, expiresAt: number): string {
+  return unsubscribeTokenWith(unsubscribeSecret(), address, expiresAt);
+}
+
+/** The unsubscribe key is its own secret now (4 Sep) — explicit
+ *  MAIL_UNSUBSCRIBE_SECRET, else derived from the root; it was the raw JWT
+ *  secret under a prefix. See shared/secrets. */
+function unsubscribeSecret(): string {
+  return purposeSecret(process.env.MAIL_UNSUBSCRIBE_SECRET, process.env.JWT_ACCESS_SECRET ?? '', 'mail-unsubscribe');
+}
+
+/** The key every link sent before 4 Sep was signed with. Read-only, so a
+ *  footer in somebody's inbox keeps working through the 30-day window the
+ *  tokens carry; delete after 5 Oct 2026. */
+function legacyUnsubscribeSecret(): string {
+  return `together-city/unsubscribe/${process.env.JWT_ACCESS_SECRET ?? ''}`;
+}
+
+function unsubscribeTokenWith(secret: string, address: string, expiresAt: number): string {
   const payload = `${expiresAt}.${address.trim().toLowerCase()}`;
-  const mac = createHmac('sha256', `together-city/unsubscribe/${process.env.JWT_ACCESS_SECRET ?? ''}`)
-    .update(payload).digest('base64url');
+  const mac = createHmac('sha256', secret).update(payload).digest('base64url');
   return `${Buffer.from(payload).toString('base64url')}.${mac}`;
 }
 
@@ -63,11 +81,12 @@ export function addressFromUnsubscribeToken(token: string): string | null {
   const expiresAt = Number(payload.slice(0, cut));
   const address = payload.slice(cut + 1);
   if (!address || !Number.isFinite(expiresAt) || expiresAt < Date.now()) return null;
-  const expected = unsubscribeToken(address, expiresAt);
   const a = Buffer.from(token);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
-  return address;
+  for (const secret of [unsubscribeSecret(), legacyUnsubscribeSecret()]) {
+    const b = Buffer.from(unsubscribeTokenWith(secret, address, expiresAt));
+    if (a.length === b.length && timingSafeEqual(a, b)) return address;
+  }
+  return null;
 }
 
 /** Constant-time string compare for the inbound webhook secret. */
@@ -101,9 +120,27 @@ export function addrFromField(v: unknown): string {
  * Normalise a To field that may be a string, "Name <a@b>", or an array of
  * either / of { address } objects, into bare lowercase addresses.
  */
+/**
+ * THE ARRAY ARRIVES FROM THE INTERNET AND HAD NO CEILING.
+ *
+ * A webhook payload is a JSON body from outside, and this took whatever length
+ * of `to` it was handed: every entry parsed with a regex, lowercased, and held
+ * in a list, before anything downstream had a chance to say "fifty is enough".
+ * The delivery cap in the service is a cap on WORK DONE PER RECIPIENT; this is
+ * the cap on the payload itself, and it has to be here, in the parser, because
+ * by the time the service sees the list the allocation has already happened.
+ *
+ * `PARSE_CAP` is far above any real message — the delivery ceiling is fifty,
+ * and a mail with fifty city recipients does not exist — so nothing legitimate
+ * is trimmed. It is a bound on a hostile input, not a product rule, which is
+ * why it does not warn: a truncation here is either an absurd message or an
+ * attempt, and the service says out loud what it actually delivered to.
+ */
+const PARSE_CAP = 200;
+
 export function toAddrList(v: unknown): string[] {
   if (!v) return [];
-  const arr: unknown[] = Array.isArray(v) ? v : [v];
+  const arr: unknown[] = Array.isArray(v) ? v.slice(0, PARSE_CAP) : [v];
   return arr.map((x) => addrFromField(x)).filter(Boolean);
 }
 
@@ -126,6 +163,13 @@ export interface InboundMail {
    * MailService uses this id to fetch the body before writing the row.
    */
   emailId?: string;
+  /**
+   * What the webhook says was attached — names and types only, no bytes
+   * (5 Sep). Until now this was not even read: a reply that carried a PDF
+   * was filed as a reply with no PDF, and nothing anywhere said so. The
+   * bytes come from the provider's attachment endpoint, by `emailId`.
+   */
+  attachments: Array<{ id: string; filename: string; contentType: string }>;
   /**
    * The Message-IDs this mail says it answers — In-Reply-To first, then the
    * References chain, newest last.
@@ -296,6 +340,23 @@ export function normalizeInbound(payload: unknown): InboundMail | null {
     emailId: typeof d.email_id === 'string' ? d.email_id
       : typeof d.emailId === 'string' ? d.emailId : undefined,
     inReplyTo,
+    attachments: attachmentsOf(d.attachments),
     authenticated: senderVerdict(d, headers),
   };
+}
+
+function attachmentsOf(raw: unknown): InboundMail['attachments'] {
+  if (!Array.isArray(raw)) return [];
+  const out: InboundMail['attachments'] = [];
+  for (const a of raw) {
+    if (!a || typeof a !== 'object') continue;
+    const r = a as Record<string, unknown>;
+    if (typeof r.id !== 'string' || !r.id) continue;
+    out.push({
+      id: r.id,
+      filename: typeof r.filename === 'string' && r.filename ? r.filename : 'attachment',
+      contentType: typeof r.content_type === 'string' ? r.content_type : typeof r.contentType === 'string' ? r.contentType : 'application/octet-stream',
+    });
+  }
+  return out;
 }

@@ -111,6 +111,10 @@ export const authApi = {
     apiPost('/auth/verification/confirm', { channel, code }, CodeConfirmed),
   verificationStatus: (): Promise<VerificationStatus> =>
     apiGet('/auth/verification/status', VerificationStatus),
+  /** Change the password while signed in. Every session ends; the response
+   *  is a fresh pair for THIS device, which the caller must store. */
+  changePassword: (input: { currentPassword: string; newPassword: string }): Promise<AuthResult> =>
+    apiPost('/auth/change-password', input, AuthResultSchema),
   /** Permanently delete the signed-in account (password re-auth required). */
   deleteAccount: (password: string): Promise<{ ok: boolean }> =>
     apiPost('/auth/delete-account', { password }, z.object({ ok: z.boolean() })),

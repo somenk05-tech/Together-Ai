@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { informalName, salutation } from '../shared/salutation';
-import { acceptOrFallback, cityVoice, inVoice, violations } from '../shared/voice';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { ModelBudgetService } from './model-budget.service';
+import { salutation } from '../shared/salutation';
+import { acceptOrFallback, cityVoice, violations } from '../shared/voice';
 import Anthropic from '@anthropic-ai/sdk';
 
 /**
@@ -51,7 +52,15 @@ export class AiService {
   /** The model id used for blood-report interpretation (recorded on stored analyses). */
   get bloodModelId(): string { return this.bloodModel; }
 
-  constructor() {
+  /**
+   * THE METER SITS WHERE THE MONEY LEAVES (launch gate, third reading,
+   * 4 Sep). Three `messages.create` sites in this file are the whole of the
+   * city's model spend, so the daily budget is charged here, once per call,
+   * immediately before each — not in the twenty-three services that reach
+   * them. `@Optional()` so the specs that `new AiService()` keep working;
+   * a missing budget charges nothing, which is what those specs assume.
+   */
+  constructor(@Optional() private readonly budget?: ModelBudgetService) {
     const key = process.env.ANTHROPIC_API_KEY;
     /**
      * ── AN EXPLICIT TIMEOUT AND AN EXPLICIT RETRY COUNT ───────────────────
@@ -93,6 +102,7 @@ export class AiService {
     maxTokens = 400,
   ): Promise<string | null> {
     if (!this.client) return null;
+    await this.meter('converse');
     try {
       /**
        * ── ONE MODEL, ONE RETRY, A WALL CLOCK ──────────────────────────────
@@ -142,6 +152,7 @@ export class AiService {
 
   async json<T>(system: string, user: string, fallback: T, maxTokens = 1024): Promise<T> {
     if (!this.client) return fallback;
+    await this.meter('json');
     try {
       const res = await this.client.messages.create({
         model: this.model,
@@ -188,12 +199,22 @@ export class AiService {
   /** Extract markers from the plain text of a report (e.g. a text-based PDF).
    *  Uses the text model — cheaper and more reliable than PDF vision. */
   /**
+   * Charge today's budget, OUTSIDE every try/catch in this file: a 429 from
+   * the budget is an answer the citizen must see, never a reason to hand
+   * back the deterministic fallback as if the model had been asked.
+   */
+  private async meter(kind: string): Promise<void> {
+    await this.budget?.charge(kind);
+  }
+
+  /**
    * messages.create with an automatic model fallback: if the preferred model is
    * unavailable to this API key (404 not_found / 403), retry once on the default
    * model rather than silently failing the feature.
    */
   private async createWithFallback(params: Omit<Anthropic.MessageCreateParamsNonStreaming, 'model'> & { model: string }): Promise<Anthropic.Message> {
     if (!this.client) throw new Error('AI disabled');
+    await this.meter(params.model === this.visionModel ? 'vision' : 'extract');
     // Try the preferred model, then walk a chain of known-good current models.
     // Extraction/interpretation calls are read-only and idempotent, so retrying on
     // ANY failure (retired model id, 404, overloaded, transient 5xx) is safe and
@@ -807,17 +828,22 @@ export class AiService {
    * blood (Opus) model. Empty arrays on fallback.
    */
   async clinicalInterpretation(payload: string, name: string): Promise<{ greeting: string; interpretation: string[]; relationships: string[]; discuss: string[]; encouragement: string }> {
-    const first = informalName(name);
+    /* THE NAME STAYS HOME (launch gate, third reading, 4 Sep). The prompt
+       carried the citizen's first name beside their blood markers — a name and
+       a panel together are an identified health record, sent to a third-party
+       processor for a greeting the app writes itself anyway. The model gets
+       the markers and no name; the greeting is `salutation(name)` here, after
+       the call, deterministically. */
     const fallback = { greeting: salutation(name), interpretation: [] as string[], relationships: [] as string[], discuss: [] as string[], encouragement: '' };
     if (!this.client) return fallback;
     const system =
       // The city voice first, so the constraints that stop a model reassuring
       // somebody about their own blood results are stated before the task is.
-      `${cityVoice(name)} ` +
-      `You are a clinical-nutrition educator writing a personal letter to ${first}. ` +
+      `${cityVoice(null)} ` +
+      'You are a clinical-nutrition educator writing a personal letter to the reader. You are not told their name; never invent one. ' +
       'Given their blood markers (value, status vs reference range) and profile, return ONLY JSON: ' +
       '{"greeting": string, "interpretation": string[], "relationships": string[], "discuss": string[], "encouragement": string}. ' +
-      `greeting: the opening line, addressing them by name — "Dear ${first},". ` +
+      'greeting: leave as an empty string — the letter\'s opening is written elsewhere. ' +
       'interpretation: 3–6 short plain-language bullets on what each abnormal result may indicate. ' +
       'relationships: 1–3 bullets on how the abnormal markers relate to one another (e.g. glucose + triglycerides). ' +
       'discuss: the findings worth raising with a healthcare professional. ' +
@@ -864,7 +890,8 @@ export class AiService {
         // Checked, not trusted. A prompt is a request; this is the guarantee.
         // Anything that drifts falls back to the deterministic text, which
         // costs warmth and never correctness.
-        greeting: inVoice(str(p.greeting, '')) ? str(p.greeting, salutation(name)) : salutation(name),
+        // Written here, not by the model — the model was never told the name.
+        greeting: salutation(name),
         interpretation: arr(p.interpretation, 'interpretation'),
         relationships: arr(p.relationships, 'relationships'),
         discuss: arr(p.discuss, 'discuss'),

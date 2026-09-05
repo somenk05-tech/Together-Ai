@@ -35,4 +35,9 @@ custom_domain = false
 
 # LINK_SECRET is a secret, not a var:
 #   wrangler secret put LINK_SECRET
-# It must equal the API's JWT_ACCESS_SECRET — both derive the media key from it.
+# It must equal the API's MEDIA_LINK_SECRET — a secret of its own, NOT the
+# JWT secret (4 Sep: a Worker that holds the JWT secret can mint an access
+# token for anybody). Set MEDIA_LINK_SECRET on Railway to a random ≥32-char
+# value and put the same value here. If MEDIA_LINK_SECRET is unset the API
+# derives one from JWT_ACCESS_SECRET; `node scripts/print-media-link-secret.mjs`
+# in together-city-chat prints that derived value for this step.

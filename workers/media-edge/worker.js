@@ -28,7 +28,10 @@
  *
  *   1. wrangler.toml here binds MEDIA (your PRIVATE bucket) and the route.
  *   2. `wrangler secret put LINK_SECRET`  — the SAME value as the API's
- *      JWT_ACCESS_SECRET. The API derives the media key from it; so does this.
+ *      MEDIA_LINK_SECRET (its own secret, never the JWT secret — 4 Sep). The
+ *      API derives the media key from it; so does this. If the API has no
+ *      MEDIA_LINK_SECRET set, `scripts/print-media-link-secret.mjs` there
+ *      prints the value it derives.
  *   3. Point the host at this Worker, then set MEDIA_CDN_BASE on the API to
  *      that origin. Until you do, the API keeps minting presigned URLs and
  *      nothing changes — see `postMediaUrl` in storage.provider.ts.

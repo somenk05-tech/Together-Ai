@@ -147,7 +147,7 @@ export class ChatMediaGuard {
    * thumbnail-less row. Those are out of scope rather than approved, and the
    * docblock above says which is which.
    */
-  async screen(url: string, mimeType: string, senderId: string, publicBase: string): Promise<Screening> {
+  async screen(url: string, mimeType: string, senderId: string, publicBase: string | readonly string[]): Promise<Screening> {
     const key = keyFromUrl(url, publicBase);
     if (!key) {
       // No key means no bytes, and no bytes means no decision. A URL we cannot
@@ -327,11 +327,13 @@ export class ChatMediaGuard {
  * shape the ownership gate matches on. Parsed rather than string-sliced so a
  * query string or a trailing slash cannot produce a key that is nearly right.
  */
-export function keyFromUrl(url: string, publicBase: string): string | null {
-  const base = (publicBase ?? '').replace(/\/+$/, '');
+export function keyFromUrl(url: string, publicBase: string | readonly string[]): string | null {
+  // One base or several (4 Sep): a row written under the r2.dev address
+  // before a domain cutover is still an attachment of ours.
+  const bases = (Array.isArray(publicBase) ? publicBase : [publicBase ?? '']).map((b) => String(b).replace(/\/+$/, '')).filter(Boolean);
   let path: string;
   try { path = new URL(url).pathname; } catch { path = url; }
-  if (base && !url.startsWith(`${base}/`)) return null;
+  if (bases.length && !bases.some((b) => url.startsWith(`${b}/`))) return null;
   const key = path.replace(/^\/+/, '');
   return key.startsWith('uploads/') ? key : null;
 }

@@ -1,3 +1,4 @@
+import { publicBaseOf, publicBasesFrom } from '../media/public-bases';
 import {
   BadRequestException,
   ForbiddenException,
@@ -16,6 +17,7 @@ import { StorageProvider } from '../media/storage.provider';
 import { ChatEventBus } from '../shared/events/chat-events';
 import { nickname } from '../shared/nickname';
 import { shownName } from '../dating/matching';
+import { scanBio } from '../dating/bio-scan';
 import {
   AttachmentDto,
   DeleteMessageDto,
@@ -168,6 +170,8 @@ export class MessagesService {
         throw new BadRequestException('That message id has already been used in another conversation.');
       }
     }
+    // 1a-ii) WHAT THE WORDS ARE, if this is a chat between strangers — see screenWords.
+    if (dto.body?.trim()) await this.screenWords(dto.conversationId, dto.body);
     // 1b) attachment gate — see assertAttachmentsAreYoursToSend below.
     if (dto.attachments?.length) await this.assertAttachmentsAreYoursToSend(senderId, dto.attachments);
     // 1c) and WHAT IS IN THEM, if this is a chat between strangers.
@@ -1096,6 +1100,40 @@ export class MessagesService {
    * delivered-then-withdrawn: the person who can do something about it is told
    * at the moment they can still do it.
    */
+  /**
+   * ── THE WORDS ARE SCREENED WHERE THE PICTURES ARE (5 Sep) ─────────────────
+   *
+   * A dating chat screened every attachment and read none of the text. The
+   * bio scanner (`dating/bio-scan.ts`) refuses a phone number, an email, an
+   * app handle and romance-scam phrasing on a PROFILE — and the first message
+   * after a match is where those actually get typed, with nothing looking.
+   *
+   * Two rules, both only in a dating conversation (`anonymousTrust` set):
+   *   · while the pair is still anonymous (trust < 2), CONTACT DETAILS are
+   *     refused, in the words the profile scanner already uses. Anonymity
+   *     is the product's promise, and a number in the second message is the
+   *     promise broken by the person it protects the other from.
+   *   · at every stage, SCAM phrasing — send money, gift cards, wire
+   *     transfer, guaranteed returns — is refused. There is no honest reading
+   *     of "western union" in a first week of talking to a stranger.
+   * Refused with a sentence, not silently dropped: the sender learns the rule.
+   */
+  private async screenWords(conversationId: string, body: string): Promise<void> {
+    const convo = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { anonymousTrust: true },
+    }) as { anonymousTrust?: number | null } | null;
+    if (convo?.anonymousTrust == null) return;
+    const scan = scanBio(body);
+    if (scan.scam) {
+      throw new BadRequestException('That reads like a request for money or a transfer, which cannot be sent in a matchmaking chat. If you are being asked for money, report the profile.');
+    }
+    if (convo.anonymousTrust < 2 && scan.contacts.length) {
+      const what = scan.contacts.length === 1 ? scan.contacts[0] : `${scan.contacts.slice(0, -1).join(', ')} and ${scan.contacts[scan.contacts.length - 1]}`;
+      throw new BadRequestException(`Your message carries ${what}. Until you both choose to share names, contact details stay out of the chat — keep talking here for now.`);
+    }
+  }
+
   private async screenAttachments(
     senderId: string,
     conversationId: string,
@@ -1106,7 +1144,7 @@ export class MessagesService {
       select: { anonymousTrust: true },
     });
     if ((convo as { anonymousTrust?: number | null } | null)?.anonymousTrust == null) return;
-    const base = (this.config.get<string>('media.publicBaseUrl') ?? '').replace(/\/+$/, '');
+    const base = this.publicBases();
     for (const a of attachments) {
       /* A snap is screened by `screenSnap` in every conversation, before this
          runs, and its `url` is a private key that `keyFromUrl` would refuse.
@@ -1193,11 +1231,17 @@ export class MessagesService {
     };
   }
 
+  /** The current public base and every legacy one — see media/public-bases.ts. */
+  private publicBases(): string[] {
+    const bases = this.config.get<unknown>('media.publicBases');
+    return Array.isArray(bases) ? bases as string[] : publicBasesFrom(this.config.get<string>('media.publicBaseUrl'), undefined);
+  }
+
   private async assertAttachmentsAreYoursToSend(
     senderId: string,
     attachments: Array<{ url: string; thumbnail?: string }>,
   ): Promise<void> {
-    const base = (this.config.get<string>('media.publicBaseUrl') ?? '').replace(/\/+$/, '');
+    const bases = this.publicBases();
     const own = (u: string | undefined): boolean => {
       if (!u) return true;
       /* A SNAP PROVES ITSELF WITH ITS PREFIX. Its `url` is a private key, not
@@ -1208,7 +1252,7 @@ export class MessagesService {
          then fails the forward lookup too, which is right: a snap is never
          forwardable, because the row it names carries a spent view budget. */
       if (u.startsWith('snaps/')) return u.startsWith(`snaps/${senderId}/`);
-      if (base && !u.startsWith(`${base}/`)) return false;
+      if (bases.length && !publicBaseOf(u, bases)) return false;
       const path = (() => { try { return new URL(u).pathname; } catch { return u; } })();
       return path.includes(`/uploads/${senderId}/`);
     };

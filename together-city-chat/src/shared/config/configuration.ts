@@ -1,3 +1,5 @@
+import { purposeSecret } from '../secrets/derived-secret';
+import { publicBasesFrom } from '../../media/public-bases';
 /** Central typed configuration loaded from environment variables. */
 export interface AppConfig {
   env: string;
@@ -10,6 +12,7 @@ export interface AppConfig {
     refreshSecret: string;
     accessTtl: number;
     refreshTtl: number;
+    refreshAbsoluteTtl: number;
   };
   policy: {
     editWindowSec: number;
@@ -22,12 +25,20 @@ export interface AppConfig {
     bucket: string;
     privateBucket: string;
     publicBaseUrl: string;
+    /** Every base a stored public URL may still carry: the current one first,
+     *  then MEDIA_LEGACY_PUBLIC_BASES (comma-separated) — the r2.dev address a
+     *  row was written under before a custom domain was cut over. Read by
+     *  everything that turns a stored URL back into a key. See public-bases.ts. */
+    publicBases: string[];
     /** Where `workers/media-edge` answers. Empty = post media keeps the
      *  presigned R2 links it had before the edge Worker existed. */
     cdnBaseUrl: string;
     /** Where this API answers, as the public reaches it. Empty = dating photos
      *  keep the presigned-S3 path they had before the proxy route existed. */
     apiPublicBaseUrl: string;
+    /** What signs media links — the value the edge Worker holds as
+     *  LINK_SECRET. Never the JWT secret itself: see shared/secrets. */
+    linkSecret: string;
     region: string;
     endpoint: string;
     accessKeyId: string;
@@ -55,6 +66,8 @@ const int = (v: string | undefined, d: number): number =>
 
 const DEV_ACCESS_SECRET = 'dev-access';
 const DEV_REFRESH_SECRET = 'dev-refresh';
+/** The shapes a secret takes when somebody meant to come back and set it. */
+export const STAND_IN_SECRET = /change[-_ ]?me|^dev-|^secret$|^password$|^to-?fill/i;
 
 /**
  * Surface insecure/incomplete production config LOUDLY at boot so it's never a
@@ -73,11 +86,21 @@ export function assertProductionConfig(): void {
   // JWT secrets are ALWAYS fatal in production: booting with forgeable tokens is
   // strictly worse than downtime. (Everything else below warns unless strict.)
   const fatal: string[] = [];
-  if (!process.env.JWT_ACCESS_SECRET || process.env.JWT_ACCESS_SECRET === DEV_ACCESS_SECRET) {
-    fatal.push('JWT_ACCESS_SECRET is missing/default — set a strong unique value (≥32 random chars).');
+  // A PLACEHOLDER IS A DEFAULT (launch gate, third reading, 4 Sep). Only the
+  // two dev strings were refused; `.env.local.bak` shipped `change-me-access`
+  // / `change-me-refresh` (16 chars), which passed this check and drew a
+  // warning below that STRICT mode alone could turn into a refusal. An
+  // operator who seeded Railway from that file booted green with forgeable
+  // tokens. Short, `change-me`, `dev-`, `secret`, `to-fill` — fatal, always, no
+  // switch.
+  for (const [name, dflt] of [['JWT_ACCESS_SECRET', DEV_ACCESS_SECRET], ['JWT_REFRESH_SECRET', DEV_REFRESH_SECRET]] as const) {
+    const v = process.env[name] ?? '';
+    if (!v || v === dflt) fatal.push(`${name} is missing/default — set a strong unique value (≥32 random chars).`);
+    else if (v.length < 32) fatal.push(`${name} is ${v.length} chars — set a strong unique value (≥32 random chars).`);
+    else if (STAND_IN_SECRET.test(v)) fatal.push(`${name} looks like a stand-in — set a strong unique value (≥32 random chars).`);
   }
-  if (!process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET === DEV_REFRESH_SECRET) {
-    fatal.push('JWT_REFRESH_SECRET is missing/default — set a strong unique value (≥32 random chars).');
+  if (process.env.JWT_ACCESS_SECRET && process.env.JWT_ACCESS_SECRET === process.env.JWT_REFRESH_SECRET) {
+    fatal.push('JWT_ACCESS_SECRET and JWT_REFRESH_SECRET are the same value — a refresh token must not verify as an access token.');
   }
 
   /**
@@ -161,9 +184,6 @@ export function assertProductionConfig(): void {
     throw new Error(`Refusing to start with insecure config:\n  - ${fatal.join('\n  - ')}`);
   }
   const problems: string[] = [];
-  if ((process.env.JWT_ACCESS_SECRET ?? '').length < 32 || (process.env.JWT_REFRESH_SECRET ?? '').length < 32) {
-    problems.push('JWT secrets are shorter than 32 chars — rotate to ≥32 random chars.');
-  }
   const cors = process.env.CORS_ORIGIN ?? '';
   if (!cors || cors === '*') problems.push('CORS_ORIGIN is unset/"*" — set an explicit origin list.');
   if (!storageOn) {
@@ -251,6 +271,9 @@ export default (): AppConfig => {
     // 60 days — long-lived refresh so "stay signed in until I log out" holds
     // across browser restarts. Rotated single-use on every silent refresh.
     refreshTtl: int(process.env.JWT_REFRESH_TTL, 5184000),
+    // The ceiling a session can slide to, measured from sign-in (5 Sep):
+    // each refresh extends by refreshTtl, this is the day it stops extending.
+    refreshAbsoluteTtl: int(process.env.JWT_REFRESH_ABSOLUTE_TTL, 90 * 86400),
   },
   policy: {
     editWindowSec: int(process.env.MESSAGE_EDIT_WINDOW_SEC, 900),
@@ -263,8 +286,10 @@ export default (): AppConfig => {
     bucket: process.env.MEDIA_BUCKET ?? '',
     privateBucket: process.env.MEDIA_PRIVATE_BUCKET ?? '',
     publicBaseUrl: process.env.MEDIA_PUBLIC_BASE_URL ?? '',
+    publicBases: publicBasesFrom(process.env.MEDIA_PUBLIC_BASE_URL, process.env.MEDIA_LEGACY_PUBLIC_BASES),
     cdnBaseUrl: (process.env.MEDIA_CDN_BASE ?? '').replace(/\/+$/, ''),
     apiPublicBaseUrl: (process.env.PUBLIC_API_URL ?? '').replace(/\/+$/, ''),
+    linkSecret: purposeSecret(process.env.MEDIA_LINK_SECRET, process.env.JWT_ACCESS_SECRET ?? DEV_ACCESS_SECRET, 'media-link'),
     region: process.env.S3_REGION ?? 'auto',
     endpoint: process.env.S3_ENDPOINT ?? '',
     accessKeyId: process.env.S3_ACCESS_KEY_ID ?? '',

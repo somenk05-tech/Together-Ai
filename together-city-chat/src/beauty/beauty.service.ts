@@ -1,11 +1,10 @@
 import { swallow } from '../shared/swallow';
-import { BadRequestException, ForbiddenException, Injectable, Optional } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ORDER_HISTORY_CAP } from '../shared/paging';
 import { MedicalService } from '../medical/medical.service';
 import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
-import { ModelBudgetService } from '../ai/model-budget.service';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { beautyGender } from '../profile/sex-and-gender';
 import { clampBudget, planForWire, planWithinBudget, type StoredBudget } from './budget-routine';
@@ -77,9 +76,6 @@ export class BeautyService {
     private readonly ai: AiService,
     private readonly masterProfile: MasterProfileService,
     private readonly looks: LookAnalysisService,
-    /* Optional so the specs that construct this service directly keep working;
-       a missing budget means no daily cap, which is what those specs assume. */
-    @Optional() private readonly budget?: ModelBudgetService,
   ) {}
 
   /** Overlay the Master Profile's shared demographics onto the beauty profile
@@ -385,8 +381,10 @@ export class BeautyService {
     const profile = safeJson<BeautyProfileInput>(existing?.extras, {});
     const images = photos.filter((p) => p.base64).map((p) => ({ base64: p.base64, mediaType: p.mediaType || 'image/jpeg' }));
 
-    // The daily ceiling, spent BEFORE the model is asked (launch gate, 2 Sep).
-    if (images.length) await this.budget?.spend(userId, 'beauty.photos');
+    // The daily ceiling used to be spent here, by hand, on this route and one
+    // other (2 Sep). It is charged at the model call itself now, for every
+    // route in the city — AiService.meter(), 4 Sep — so nothing is spent
+    // here: a second charge would bill a photo twice.
     const review = images.length ? await this.ai.reviewSkinPhotos(images) : { quality: 'ok' as const, findings: [] as string[], note: '', face: null as Record<string, string> | null };
     const rejected = review.quality === 'suspect' || review.quality === 'unclear';
     const warning = review.quality === 'suspect'
@@ -522,6 +520,24 @@ export class BeautyService {
       personalisedBy: { concerns: profile.concerns, labs: usedLabs, assessment: readings.length > 0 },
       matchedCount: products.filter((p) => p.matched).length,
       allergyNotice: allergyNotice(cut.matched, cut.removed, { one: 'product', many: 'products' }),
+      /* THE SHELF SAYS WHAT IT WAS CHECKED AGAINST (5 Sep). The allergy and
+         condition cuts read `everythingIn(p)` — actives, the key ingredient
+         and the label list — and for the catalogue as it stands the label
+         list is empty on every row, so the cut is an ACTIVES cut. A citizen
+         who declared a fragrance allergy was shown a shelf that looked
+         screened for fragrance and was screened for nothing of the kind.
+         The count is computed, not asserted, so the day label lists arrive
+         the sentence changes on its own. */
+      labelCoverage: (() => {
+        const withLabel = BEAUTY_PRODUCTS.filter((p) => (p.ingredients?.length ?? 0) > 0).length;
+        const total = BEAUTY_PRODUCTS.length;
+        return {
+          withLabel, total,
+          note: withLabel < total
+            ? `Allergy and condition checks read each product’s listed actives${withLabel > 0 ? ` and, for ${withLabel} of ${total} products, the full label` : ''} — full ingredient lists are not on file for ${withLabel === 0 ? 'these products' : 'the rest'}. Read the pack before you use anything you react to.`
+            : null,
+        };
+      })(),
       conditionNotice: held.removed > 0
         ? { removed: held.removed, sentence: `${held.removed === 1 ? '1 product is' : `${held.removed} products are`} not shown here because ${held.because.join(' and ')}.` }
         : null,
@@ -533,8 +549,6 @@ export class BeautyService {
    * the products matched to the steps are ones they can actually use.
    */
   async analyzeLook(userId: string, input: { fileKey?: string; mimeType?: string; base64?: string }) {
-    // The daily ceiling, spent before the row is written or the model asked.
-    if (input.base64) await this.budget?.spend(userId, 'beauty.looks');
     const profile = await this.getProfile(userId);
     const extras = profile.profile as { skinType?: string; allergies?: string[] };
     return this.looks.analyze(userId, input, {

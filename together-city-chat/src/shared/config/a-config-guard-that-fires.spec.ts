@@ -53,6 +53,32 @@ describe('what refuses to start', () => {
     });
   });
 
+  /**
+   * A PLACEHOLDER IS A DEFAULT (4 Sep). `.env.local.bak` shipped
+   * `change-me-access` / `change-me-refresh`; they passed the default check,
+   * drew a warning, and STRICT_PROD_CONFIG was the only thing between an
+   * operator who copied that file and a city with forgeable tokens. Short
+   * and placeholder-shaped secrets refuse to start with no switch.
+   */
+  it('a change-me secret, a short secret, and two secrets that are the same', () => {
+    withEnv({ JWT_ACCESS_SECRET: 'change-me-access-change-me-access-change-me' }, () => {
+      expect(() => assertProductionConfig()).toThrow(/JWT_ACCESS_SECRET looks like a stand-in/);
+    });
+    withEnv({ JWT_REFRESH_SECRET: 'change-me-refresh' }, () => {
+      expect(() => assertProductionConfig()).toThrow(/JWT_REFRESH_SECRET is 17 chars/);
+    });
+    withEnv({ JWT_REFRESH_SECRET: 'dev-' + 'r'.repeat(40) }, () => {
+      expect(() => assertProductionConfig()).toThrow(/looks like a stand-in/);
+    });
+    withEnv({ JWT_REFRESH_SECRET: 'x'.repeat(40) }, () => {
+      expect(() => assertProductionConfig()).toThrow(/are the same value/);
+    });
+    // STRICT off makes no difference: these were warnings, they are refusals.
+    withEnv({ STRICT_PROD_CONFIG: 'false', JWT_ACCESS_SECRET: 'a'.repeat(31) }, () => {
+      expect(() => assertProductionConfig()).toThrow(/31 chars/);
+    });
+  });
+
   it('health documents in the public bucket', () => {
     withEnv({ MEDIA_PRIVATE_BUCKET: '' }, () => {
       expect(() => assertProductionConfig()).toThrow(/PUBLIC media bucket/);

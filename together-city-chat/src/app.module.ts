@@ -5,6 +5,7 @@ import { AccountThrottlerGuard } from './shared/account-throttler.guard';
 import { RedisService } from './shared/redis/redis.service';
 import { RedisThrottlerStorage } from './shared/redis/throttler-redis.storage';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { RequestContextInterceptor } from './shared/request-context';
 import { NoStoreInterceptor } from './shared/interceptors/no-store.interceptor';
 import { DeprecationInterceptor } from './shared/interceptors/deprecation.interceptor';
 import configuration from './shared/config/configuration';
@@ -149,6 +150,8 @@ import { QueueModule } from './shared/queue/queue.module';
     { provide: APP_GUARD, useClass: AccountThrottlerGuard },
     // No authenticated response is ever cacheable by a browser, proxy or CDN.
     { provide: APP_INTERCEPTOR, useClass: NoStoreInterceptor },
+    // Who is asking, readable from the model call site — see request-context.ts.
+    { provide: APP_INTERCEPTOR, useClass: RequestContextInterceptor },
     { provide: APP_INTERCEPTOR, useClass: DeprecationInterceptor },
   ],
 })

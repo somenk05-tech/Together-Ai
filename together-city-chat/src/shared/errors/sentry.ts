@@ -19,7 +19,10 @@ export function initSentry(): boolean {
   Sentry.init({
     dsn,
     environment: process.env.NODE_ENV ?? 'development',
-    release: process.env.SENTRY_RELEASE || process.env.VERCEL_GIT_COMMIT_SHA || undefined,
+    // The API runs on Railway, which exposes RAILWAY_GIT_COMMIT_SHA; the
+    // Vercel name was the web app's and never set here, so every error landed
+    // as "no release" and nothing could be pinned to a deploy (4 Sep).
+    release: process.env.SENTRY_RELEASE || process.env.RAILWAY_GIT_COMMIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA || undefined,
     sendDefaultPii: false,
     tracesSampleRate: 0,
   });

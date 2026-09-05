@@ -12,7 +12,11 @@
  * `heic-convert` two functions down was already deferred, for the same reason
  * and without the reason written down. The two now match.
  */
-type Sharp = typeof import('sharp');
+/* sharp 0.35 ships ESM-first typings (`export default sharp`), so the callable
+   is the module's default; at runtime our CJS build gets `module.exports =
+   sharp` from index.cjs, so the value may be the module itself. Type from the
+   one, read from either. */
+type Sharp = typeof import('sharp').default;
 let loaded: Sharp | null = null;
 async function sharpLib(): Promise<Sharp> {
   const mod = (await import('sharp')) as unknown as { default?: Sharp };

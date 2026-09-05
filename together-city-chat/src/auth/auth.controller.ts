@@ -20,6 +20,8 @@ import {
   RegisterSchema,
   ResetDto,
   ResetSchema,
+  ChangePasswordDto,
+  ChangePasswordSchema,
 } from './dto/auth.dto';
 
 // ─── Refresh-token cookie ───────────────────────────────────────────────────
@@ -154,6 +156,27 @@ export class AuthController {
   @UsePipes(new ZodValidationPipe(ResetSchema))
   reset(@Body() dto: ResetDto) {
     return this.auth.reset(dto);
+  }
+
+  /**
+   * Change the password while signed in. Every session ends — this one is
+   * re-minted in the same response, so the device that asked stays signed in
+   * and every other one is out at once. Tight limit: each attempt verifies
+   * argon2 against the current password, which is a guess at it.
+   */
+  @Throttle({ default: { limit: 5, ttl: 300_000 } })
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @UsePipes(new ZodValidationPipe(ChangePasswordSchema))
+  async changePassword(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: ChangePasswordDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.auth.changePassword(user.sub, dto, metaFrom(req));
+    setRefreshCookie(res, result.refreshToken);
+    return result;
   }
 
   // Log out THIS device: revoke the presented refresh token + clear the cookie.

@@ -3,6 +3,7 @@ import { RedisService } from '../shared/redis/redis.service';
 import { StorageProvider } from '../media/storage.provider';
 import { isDisposableEmail } from './disposable-domains';
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
@@ -101,7 +102,14 @@ export class AuthService {
       if (isDisposableEmail(dto.email)) {
         throw new ConflictException('Please use a real email address — temporary inboxes cannot recover an account.');
       }
-      const emailTaken = await this.prisma.user.findFirst({ where: { email: dto.email.toLowerCase() } });
+      /* A CLAIM IS NOT A SQUAT (5 Sep). This refused any row that CARRIED the
+         address, verified or not — so registering with somebody else's email
+         and never answering the code locked them out of their own address
+         ("already registered") for good. The database's own rule is the
+         partial unique index on VERIFIED emails; the door now asks the same
+         question. Two unverified claims coexist until one of them proves it,
+         and stampVerified's P2002 handling is what settles that. */
+      const emailTaken = await this.prisma.user.findFirst({ where: { email: dto.email.toLowerCase(), emailVerified: true, deletedAt: null } });
       if (emailTaken) throw new ConflictException('That email is already registered.');
     }
     const user = await this.prisma.user.create({
@@ -110,7 +118,6 @@ export class AuthService {
         name: dto.name.trim(),
         email: dto.email?.toLowerCase(),
         phone: dto.phone,
-        profileImage: dto.profileImage,
         passwordHash: await argon2.hash(dto.password),
       },
     });
@@ -214,7 +221,12 @@ export class AuthService {
     const raw = identifier.trim();
     const id = raw.toLowerCase();
     if (id.includes('@') && !isCityAddress(id)) {
-      return this.prisma.user.findFirst({ where: { email: id } });
+      // The PROVED holder of an address recovers the account (5 Sep). Two
+      // unverified claims can coexist now; when one is verified it wins, and
+      // when none is, the sole claimant still gets a code — sent to the
+      // address itself, so a squatter's claim can only ever reach the
+      // address's real owner.
+      return this.prisma.user.findFirst({ where: { email: id, deletedAt: null }, orderBy: { emailVerified: 'desc' } });
     }
     if (/^[+0-9][0-9\s-]{5,}$/.test(id)) {
       return this.prisma.user.findFirst({ where: { phone: raw } });
@@ -622,6 +634,46 @@ export class AuthService {
   async logout(refreshToken?: string): Promise<{ ok: true }> {
     if (refreshToken) await this.tokens.revokeOne(refreshToken);
     return { ok: true };
+  }
+
+  /**
+   * ── CHANGE PASSWORD, SIGNED IN (launch gate, third reading, 4 Sep) ────────
+   *
+   * There was no way to change a password while holding the account. A
+   * citizen who suspected their password had leaked had to sign out and use
+   * the forgot-code flow — which depends on email delivery, and which the
+   * Settings copy ("until you change your password") implied was a page.
+   *
+   * The shape: the current password proves it is them (a session alone does
+   * not — a stolen laptop is a session), the new one passes the same policy
+   * the door enforces, and then EVERY session ends, this one included, and
+   * a fresh pair is minted for the device that asked. Revoking all rather
+   * than others is the difference between a stolen access token dying now
+   * and living another quarter of an hour; the price is one token swap the
+   * client does without the citizen noticing. The security notice goes out
+   * the way it does after a reset.
+   */
+  async changePassword(
+    userId: string,
+    dto: { currentPassword: string; newPassword: string },
+    meta: SessionMeta = {},
+  ): Promise<TokenPair & { userId: string }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !(await argon2.verify(user.passwordHash, dto.currentPassword).catch(() => false))) {
+      throw new UnauthorizedException('That is not your current password.');
+    }
+    assertStrongPassword(dto.newPassword);
+    if (dto.newPassword === dto.currentPassword) {
+      throw new BadRequestException('Choose a password you have not used here before.');
+    }
+    await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash: await argon2.hash(dto.newPassword) } });
+    await this.tokens.revokeAll(user.id);
+    const pair = await this.tokens.issuePair({ sub: user.id, handle: user.handle }, meta);
+    const notice = passwordChangedEmail();
+    await swallow(this.mail.deliverSystem(user.id, {
+      subject: notice.subject, body: notice.text, html: notice.html,
+    }, 'security'), 'password-changed notice', { userId: user.id });
+    return { ...pair, userId: user.id };
   }
 
   /** Log out of every device (also used after a password change). */

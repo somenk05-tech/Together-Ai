@@ -18,6 +18,8 @@ import { HttpException } from '@nestjs/common';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { ModelBudgetService } from './model-budget.service';
+import { AiService } from './ai.service';
+import { runWithRequestStore } from '../shared/request-context';
 
 function build(opts: { enabled?: boolean; up?: boolean; failIncr?: boolean } = {}) {
   const counts = new Map<string, number>();
@@ -29,8 +31,7 @@ function build(opts: { enabled?: boolean; up?: boolean; failIncr?: boolean } = {
       expire: async (k: string) => { expires.push(k); return 1; },
     },
   };
-  const ai = { enabled: opts.enabled ?? true };
-  const svc = new ModelBudgetService(redis as never, ai as never);
+  const svc = new ModelBudgetService(redis as never);
   return { svc, counts, expires };
 }
 
@@ -55,10 +56,21 @@ describe('a day has a ceiling', () => {
     expect(expires[0]).toBe(ModelBudgetService.keyFor('u1'));
   });
 
-  it('charges nothing when the model is off', async () => {
-    const { svc, counts } = build({ enabled: false });
-    for (let i = 0; i < 100; i++) await svc.spend('u1', 'x');
-    expect(counts.size).toBe(0);
+  it('charges nothing when the model is off — there is no call to charge', async () => {
+    // The charge sits inside AiService, immediately before messages.create.
+    // With no API key there is no client, the method returns its fallback
+    // before the meter, and the budget never hears about it.
+    const saved = process.env.ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
+    try {
+      const { svc, counts } = build();
+      const ai = new AiService(svc);
+      expect(ai.enabled).toBe(false);
+      for (let i = 0; i < 100; i++) await ai.json('s', 'u', { fallback: true });
+      expect(counts.size).toBe(0);
+    } finally {
+      if (saved !== undefined) process.env.ANTHROPIC_API_KEY = saved;
+    }
   });
 
   it('fails open when Redis is away, and when a command fails', async () => {
@@ -78,13 +90,64 @@ describe('a day has a ceiling', () => {
     expect(build().svc.dailyCap).toBe(ModelBudgetService.DEFAULT_DAILY);
   });
 
-  it('beauty spends it BEFORE the model is asked, on both routes', () => {
-    const src = readFileSync(join(__dirname, '..', 'beauty', 'beauty.service.ts'), 'utf8');
-    const photos = src.slice(src.indexOf('async analyzePhotos('), src.indexOf('async analyzePhotos(') + 4000);
-    expect(photos.indexOf("this.budget?.spend(userId, 'beauty.photos')")).toBeGreaterThan(-1);
-    expect(photos.indexOf("this.budget?.spend(userId, 'beauty.photos')")).toBeLessThan(photos.indexOf('this.ai.reviewSkinPhotos('));
-    const look = src.slice(src.indexOf('async analyzeLook('));
-    expect(look.indexOf("this.budget?.spend(userId, 'beauty.looks')")).toBeGreaterThan(-1);
-    expect(look.indexOf("this.budget?.spend(userId, 'beauty.looks')")).toBeLessThan(look.indexOf('this.looks.analyze('));
+  /**
+   * CHARGED AT THE CALL, FOR EVERYONE (launch gate, third reading, 4 Sep).
+   * Two Beauty routes spent this by hand and twenty-one other model routes
+   * spent nothing. The meter sits in AiService now, before each of the
+   * three `messages.create` sites, reading the citizen from the request
+   * context; a call with nobody behind it moves the global counter only.
+   */
+  it('charge() bills the citizen in the request context, and the city\'s day, once each', async () => {
+    const { svc, counts } = build();
+    await runWithRequestStore({ userId: 'u1' }, () => svc.charge('vision'));
+    expect(counts.get(ModelBudgetService.keyFor('u1'))).toBe(1);
+    expect(counts.get(ModelBudgetService.globalKeyFor())).toBe(1);
+    // No citizen: the global day still moves, nobody's personal day does.
+    await svc.charge('job');
+    expect(counts.get(ModelBudgetService.globalKeyFor())).toBe(2);
+    expect(counts.size).toBe(2);
+  });
+
+  it('the city\'s day has a ceiling of its own, and it refuses everybody past it', async () => {
+    process.env.AI_DAILY_CALLS_GLOBAL = '2';
+    try {
+      const { svc } = build();
+      await svc.charge('a'); await svc.charge('b');
+      await expect(svc.charge('c')).rejects.toMatchObject({ status: 429 });
+      await expect(runWithRequestStore({ userId: 'fresh' }, () => svc.charge('d'))).rejects.toMatchObject({ status: 429 });
+    } finally { delete process.env.AI_DAILY_CALLS_GLOBAL; }
+  });
+
+  it('AiService meters every messages.create site, outside its try/catch, and nothing else charges by hand', () => {
+    const src = readFileSync(join(__dirname, 'ai.service.ts'), 'utf8');
+    const strip = (x: string) => x.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+    const code = strip(src);
+    const creates = (code.match(/this\.client\.messages\.create\(/g) ?? []).length;
+    const meters = (code.match(/await this\.meter\(/g) ?? []).length;
+    expect(creates).toBe(3);
+    expect(meters).toBe(3);
+    // Each meter precedes its call's try: between the meter and the create
+    // there is no `catch`, so a 429 reaches the citizen and not the fallback.
+    let from = 0;
+    for (let i = 0; i < meters; i += 1) {
+      const at = code.indexOf('await this.meter(', from);
+      const create = code.indexOf('this.client.messages.create(', at);
+      expect(at).toBeGreaterThan(-1);
+      expect(create).toBeGreaterThan(at);
+      expect(code.slice(at, create)).not.toMatch(/catch/);
+      from = create;
+    }
+    // No service spends the budget by hand any more — a second charge bills twice.
+    const beauty = strip(readFileSync(join(__dirname, '..', 'beauty', 'beauty.service.ts'), 'utf8'));
+    expect(beauty).not.toMatch(/budget\?\.spend\(/);
+  });
+
+  it('the request context reaches the meter through an await', async () => {
+    const { svc, counts } = build();
+    await runWithRequestStore({ userId: 'u9' }, async () => {
+      await new Promise((r) => setTimeout(r, 1));
+      await svc.charge('later');
+    });
+    expect(counts.get(ModelBudgetService.keyFor('u9'))).toBe(1);
   });
 });
