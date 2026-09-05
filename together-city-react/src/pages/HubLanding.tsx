@@ -100,34 +100,24 @@ export function setLine(line: string): { before: string[]; hero: string; after: 
 }
 
 /**
- * PORTRAIT ART — one poster per hub, shaped like a phone (9:19.5), with the
- * hub's own name and line painted into the picture by the sign-painter.
+ * ── THE PHONE TAKES THE SAME PICTURE AS THE DESK (owner, 5 Sep) ────────────
  *
- * A hub landing on a phone is a threshold you arrive at, and these are built
- * to BE that screen rather than to sit inside it. Only hubs whose poster
- * exists are listed; anything unlisted falls back to the landscape hero, so a
- * missing file is a plainer landing, never an empty frame.
+ * There were two sets of art here: the landscape plate, and a 9:19.5 portrait
+ * poster per hub in `hub-poster/`, drawn only on a phone. Fourteen hubs, two
+ * commissions each, and the two could — and did — say different things about
+ * the same room.
+ *
+ * The "Walk the hub" set replaced all thirteen plates at once, and the owner's
+ * call came with it: use these on mobile too, and no vertical images. So the
+ * map is gone rather than emptied. The phone branch below already had the
+ * fallback it needs — `is-wide`, which sets the plate `contain` against a dark
+ * ground rather than cropping a landscape picture into a portrait hole — and
+ * that is now the only path, not the exception.
+ *
+ * The `hub-poster/` files stay on disk untouched. Deleting fourteen images in
+ * the same pass that changes which ones are drawn is two decisions wearing one
+ * commit, and the second is not urgent.
  */
-export const HUB_PORTRAIT: Partial<Record<HubKey, string>> = {
-  travel: 'hub-poster/travel.webp',
-  astrology: 'hub-poster/astrology.webp',
-  nutrition: 'hub-poster/nutrition.webp',
-  entertainment: 'hub-poster/entertainment.webp',
-  social: 'hub-poster/social.webp',
-  dating: 'hub-poster/dating.webp',
-  realestate: 'hub-poster/realestate.webp',
-  jobs: 'hub-poster/jobs.webp',
-  medical: 'hub-poster/medical.webp',
-  financial: 'hub-poster/financial.webp',
-  beauty: 'hub-poster/beauty.webp',
-  fitness: 'hub-poster/fitness.webp',
-  services: 'hub-poster/services.webp',
-  /* Pet Care had a poster before it had a landing, and this line rendered
-     nothing for as long as that was true. The hub opened on 19 Aug; the phone
-     arrival it was waiting for is the one it now draws. */
-  pets: 'hub-poster/pets.webp',
-};
-
 /**
  * One component that renders every hub's landing page from config — the vanilla
  * site had 12 near-identical hub homepages; here it's a single data-driven page.
@@ -172,20 +162,20 @@ export function HubLanding({ hub }: { hub: HubKey }) {
      in a case — a stage, built for the amber reference and then the gradient
      one. It went with the atmosphere when the city turned black and white,
      and the hub takes the same plate as the other twenty-four. */
-  /* ON A PHONE THE LANDING IS THE POSTER.
+  /* ON A PHONE THE LANDING IS THE PLATE, FULL BLEED.
      The desktop plate plays a photograph inside a cased card with a foot
-     beneath it — right for a desk, and on a phone it left a 9:19.5 poster
-     boxed in the middle of the screen with furniture around it. These images
-     are the shape of the screen and carry the hub's name and line themselves,
-     so here they ARE the screen: full bleed, and the only thing we add is the
-     line and the door. Decided at mount, like every other phone branch. */
+     beneath it — right for a desk, and on a phone that left the picture boxed
+     in the middle of the screen with furniture around it. Here it IS the
+     screen: the plate held `contain` against a dark ground, the line, and the
+     door. `is-wide` rather than a crop, because these billboards carry their
+     own lettering and cropping one to a phone's shape cuts the words off.
+     Decided at mount, like every other phone branch. */
   const phone = typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches;
   if (phone) {
-    const poster = HUB_PORTRAIT[hub];
     return (
       <HubConsentGate hub={hub}>
-        <div className={`hposter${poster ? '' : ' is-wide'}`}>
-          <img className="no-case" src={poster ? `/assets/img/${poster}` : heroSrc} alt="" />
+        <div className="hposter is-wide">
+          <img className="no-case" src={heroSrc} alt="" />
           <div className="hposter-foot">
             {(() => {
               const { before, hero, after } = setLine(HUB_LINE[hub] ?? cfg.tag);

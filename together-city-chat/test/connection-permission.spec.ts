@@ -15,17 +15,26 @@ interface Blk { blockerId: string; blockedId: string }
  */
 interface Convo { id: string; type: 'DIRECT' | 'GROUP'; anonymousTrust?: number | null; members: { userId: string }[] }
 
+/**
+ * The shape a Prisma `where` arrives in, as this stub actually uses it: a bag
+ * of scalar fields, sometimes carrying an `OR` of more of the same. Written
+ * out rather than left as `any` because `any` here means every `where.x` below
+ * is unchecked, and a field renamed in the service would keep passing.
+ */
+type WhereVal = string | number | Date | null | undefined;
+interface Where { [key: string]: WhereVal | Where[]; OR?: Where[] }
+
 function prismaStub(connections: Conn[], blocks: Blk[] = [], convos: Convo[] = [], gone: string[] = []) {
-  const involves = (where: any, one: string, two: string) =>
-    (where.OR ?? []).some((c: any) => c[one] !== undefined ? c[one] === where.__me : c[two] === where.__me);
+  const involves = (where: Where, one: string, two: string) =>
+    (where.OR ?? []).some((c: Where) => c[one] !== undefined ? c[one] === where.__me : c[two] === where.__me);
   void involves;
   return {
     connection: {
-      findFirst: async ({ where }: any) =>
+      findFirst: async ({ where }: { where: Where }) =>
         connections.find(
           (c) => c.userOneId === where.userOneId && c.userTwoId === where.userTwoId && c.status === where.status,
         ) ?? null,
-      findMany: async ({ where }: any) => {
+      findMany: async ({ where }: { where: Where }) => {
         const me = where.OR?.[0]?.userOneId ?? where.OR?.[0]?.userTwoId;
         return connections.filter(
           (c) => c.status === where.status && (c.userOneId === me || c.userTwoId === me),
@@ -33,13 +42,13 @@ function prismaStub(connections: Conn[], blocks: Blk[] = [], convos: Convo[] = [
       },
     },
     block: {
-      findMany: async ({ where }: any) => {
+      findMany: async ({ where }: { where: Where }) => {
         const me = where.OR?.[0]?.blockerId ?? where.OR?.[0]?.blockedId;
         return blocks.filter((b) => b.blockerId === me || b.blockedId === me);
       },
     },
     conversation: {
-      findUnique: async ({ where }: any) => convos.find((c) => c.id === where.id) ?? null,
+      findUnique: async ({ where }: { where: Where }) => convos.find((c) => c.id === where.id) ?? null,
     },
     // THE OTHER PERSON MUST STILL BE HERE (27 Aug). Deletion is a tombstone
     // for thirty days and never touches a match row, so the gate below read
@@ -48,10 +57,10 @@ function prismaStub(connections: Conn[], blocks: Blk[] = [], convos: Convo[] = [
     // `gone` names the members who have deleted, so the case is TESTED rather
     // than stubbed away.
     user: {
-      findUnique: async ({ where }: any) =>
-        ({ deletedAt: gone.includes(where.id) ? new Date('2026-08-27T00:00:00Z') : null }),
+      findUnique: async ({ where }: { where: Where }) =>
+        ({ deletedAt: gone.includes(String(where.id)) ? new Date('2026-08-27T00:00:00Z') : null }),
     },
-  } as any;
+  } as never;
 }
 
 const gate = (connections: Conn[], blocks: Blk[] = [], convos: Convo[] = [], gone: string[] = []) => {
