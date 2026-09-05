@@ -30,9 +30,10 @@ import { channelsOf, tuneIndex } from './city-tv';
  * goes there.
  *
  * THE REMOTE SLEEPS. Owner: "the player remote disappears until the cursor
- * goes down." A few seconds after the pointer last moved, the remote and
- * the row over the screen's head fade and the cursor goes with them; any
- * movement wakes them. A paused set stays awake, and so does a remote a
+ * goes down"; then, "let the player vanish when the video is playing." Two
+ * seconds after the hand last moved — and two seconds after a video starts
+ * playing, whether or not the hand moved — the remote and the row over the
+ * screen's head fade and the cursor goes with them; any movement wakes them. A paused set stays awake, and so does a remote a
  * keyboard is on — a control that hides under the hand using it is a trap.
  *
  * SOUND follows the one shared preference every video surface in the city
@@ -66,6 +67,8 @@ import { channelsOf, tuneIndex } from './city-tv';
 
 /** How long a video may sit at readyState 0 before the set moves on. */
 const TUNE_MS = 12_000;
+/** How long the remote stays after the hand goes still while a video plays. */
+const SLEEP_MS = 2_000;
 /** How long the set waits at the end of the stream for the next page. */
 const PAGE_MS = 10_000;
 
@@ -110,16 +113,20 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
   const screen = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [awake, setAwake] = useState(true);
+  const sleepTimer = useRef(0);
+  const wake = useCallback(() => {
+    setAwake(true);
+    window.clearTimeout(sleepTimer.current);
+    sleepTimer.current = window.setTimeout(() => setAwake(false), SLEEP_MS);
+  }, []);
   useEffect(() => {
-    let t = 0;
-    const wake = () => { setAwake(true); window.clearTimeout(t); t = window.setTimeout(() => setAwake(false), 2_800); };
     wake();
     // Every way a hand can announce itself: a mouse, a pen, a finger, a key,
     // a wheel. One of them not firing is a citizen who cannot find the door.
     const EVENTS = ['pointermove', 'mousemove', 'pointerdown', 'touchstart', 'keydown', 'wheel'] as const;
     for (const e of EVENTS) window.addEventListener(e, wake, { passive: true });
-    return () => { window.clearTimeout(t); for (const e of EVENTS) window.removeEventListener(e, wake); };
-  }, []);
+    return () => { window.clearTimeout(sleepTimer.current); for (const e of EVENTS) window.removeEventListener(e, wake); };
+  }, [wake]);
   /* What the ELEMENT is doing, as opposed to what the set asked of it: a
      browser that refused autoplay with sound leaves the element muted; a file
      the browser cannot read never reaches its metadata. */
@@ -262,6 +269,7 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
       <div className="tv-screen" aria-live="off">
         <video key={current.id} ref={video} className="tv-media" src={current.url} poster={current.thumbUrl ?? undefined}
           playsInline autoPlay muted={muted} preload="auto"
+          onPlaying={wake}
           onLoadedMetadata={(e) => { setReady(true); setClock({ time: e.currentTarget.currentTime, duration: e.currentTarget.duration || 0 }); }}
           onDurationChange={(e) => setClock((c) => ({ ...c, duration: e.currentTarget.duration || 0 }))}
           onVolumeChange={(e) => setElMuted(e.currentTarget.muted)}
@@ -317,17 +325,17 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
         </aside>
       )}
 
-      {/* THE SLIDER, over the remote: where the video is, and how long it is. */}
-      <div className="tv-seek">
-        <span className="tv-seek-t">{clockText(clock.time)}</span>
-        <input type="range" className="tv-scrub" min={0} max={clock.duration || 0} step={0.1} value={Math.min(clock.time, clock.duration || 0)}
-          disabled={!clock.duration} aria-label="Move through the video" aria-valuetext={`${clockText(clock.time)} of ${clockText(clock.duration)}`}
-          onChange={(e) => { const el = video.current; const t = Number(e.currentTarget.value); if (el && Number.isFinite(t)) el.currentTime = t; setClock((c) => ({ ...c, time: t })); }} />
-        <span className="tv-seek-t">{clockText(clock.duration)}</span>
-      </div>
-
-      {/* THE REMOTE, over the foot of the screen. */}
+      {/* THE REMOTE, over the foot of the screen: the slider along its top —
+          where the video is, and how long it is — and the keys beneath. */}
       <div className="tv-bar" role="toolbar" aria-label="Together City TV">
+        <div className="tv-seek">
+          <span className="tv-seek-t">{clockText(clock.time)}</span>
+          <input type="range" className="tv-scrub" min={0} max={clock.duration || 0} step={0.1} value={Math.min(clock.time, clock.duration || 0)}
+            disabled={!clock.duration} aria-label="Move through the video" aria-valuetext={`${clockText(clock.time)} of ${clockText(clock.duration)}`}
+            onChange={(e) => { const el = video.current; const t = Number(e.currentTarget.value); if (el && Number.isFinite(t)) el.currentTime = t; setClock((c) => ({ ...c, time: t })); }} />
+          <span className="tv-seek-t">{clockText(clock.duration)}</span>
+        </div>
+        <div className="tv-bar-row">
         <span className="tv-mark" aria-hidden><Icon name="tv" size={22} /></span>
         <div className="tv-keys">
           <button type="button" className="tv-key" onClick={() => go(-1)} aria-label="Previous video"><Icon name="skip-back" size={16} /></button>
@@ -356,6 +364,7 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
