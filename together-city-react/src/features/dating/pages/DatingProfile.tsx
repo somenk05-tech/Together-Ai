@@ -1316,10 +1316,15 @@ export function DatingProfilePage() {
               visible, and a mismatch comes off the percentage instead. The word
               "deal breaker" is kept because it is the citizen's word for what
               they will not compromise on — what changed is that the engine
-              answers it with a number rather than an empty room. */}
+              answers it with a number rather than an empty room.
+
+              AND ON 4 SEP THREE OF THEM HIDE PEOPLE AGAIN (owner, the launch
+              gate's third reading). Intent, children and diet are walls: a side
+              of the commitment line is not negotiable by degrees. The other
+              four stay dents. The hint says which is which. */}
           <span style={label}>Deal breakers (optional)</span>
           <span className="muted" style={locHint}>
-            None of these hides anybody. Everyone in your city appears either way — these decide how far a percentage falls when somebody does not match.
+            Marriage intentions, wanting children and diet are boundaries: somebody on the other side of one does not appear. Smoking, drinking, distance and religion hide nobody — they decide how far the percentage falls.
           </span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{DEAL_BREAKERS.map((v) => {
             const core = coreFilterOn[v];
@@ -1331,7 +1336,7 @@ export function DatingProfilePage() {
           })}</div>
           {Object.keys(coreFilterOn).length > 0 && (
             <span className="muted" style={locHint}>
-              {Object.values(coreFilterOn).join(' ')} They are on because you answered, not because you are stuck with them — tap one to turn it off and it stops counting against anybody. Your answer stays either way.
+              {Object.values(coreFilterOn).join(' ')} They are on because you answered, not because you are stuck with them — tap one to turn it off and it stops hiding anybody; it lowers the percentage instead. Your answer stays either way.
             </span>
           )}
         </div>

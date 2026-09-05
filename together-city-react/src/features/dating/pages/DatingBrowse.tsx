@@ -238,13 +238,18 @@ export function DatingBrowse() {
               chips stopped removing anybody; they lower the percentage instead.
               What can still empty this room is age, height and language — so the
               sentence names those three rather than sending somebody to go and
-              untick a chip that is no longer capable of hiding a soul. */}
+              untick a chip that is no longer capable of hiding a soul.
+
+              AND THEN THREE CAME BACK (owner, 4 Sep). Intent, children and diet
+              remove people again — a side of the commitment line is not
+              negotiable by degrees. So the sentence names six things, and says
+              which four still only lower the number. */}
           {(discover.data?.poolSize ?? 0) > 0 ? (
             <>
               <EmptyState
                 icon="🎚"
-                title="Your age, height or language settings are hiding everyone"
-                hint={`${discover.data?.poolSize} ${discover.data?.poolSize === 1 ? 'person is' : 'people are'} looking for someone like you, and ${discover.data?.poolSize === 1 ? 'they are' : 'all of them are'} outside your age range, your height range, or the languages you speak — either yours or theirs. Nothing else hides anyone: your deal breakers only lower the percentage.`}
+                title="Your settings are hiding everyone"
+                hint={`${discover.data?.poolSize} ${discover.data?.poolSize === 1 ? 'person is' : 'people are'} looking for someone like you, and ${discover.data?.poolSize === 1 ? 'they are' : 'all of them are'} outside your age range, your height range, or the languages you speak — or on the other side of what you are looking for, whether you want children, or your diet. Either yours or theirs. Religion, distance, smoking and drinking hide nobody: those only lower the percentage.`}
               />
               <div style={{ textAlign: 'center', marginTop: 14 }}>
                 <Link to="/matchmaking/profile"><Button variant="accent">Open my preferences</Button></Link>

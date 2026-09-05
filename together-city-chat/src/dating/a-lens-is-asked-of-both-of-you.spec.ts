@@ -115,13 +115,20 @@ describe('a lens is asked of both of you', () => {
      * The lenses are untouched by this and matter MORE for it. They were the
      * name for a line the filter drew invisibly; they are now the only way to
      * draw it, and a citizen who wants the old behaviour picks a heading.
+     *
+     * AND ON 4 SEP THE OWNER REVERSED IT BACK, for intent, children and diet
+     * only: a side of the commitment line is not negotiable by degrees, so a
+     * stated intent removes the other side again (the launch gate's third
+     * reading). The casual viewer with no lens sees the casual side; the
+     * marriage-seeker sees marriage AND serious dating, which is the same
+     * side of the line two steps apart.
      */
     expect(await shown(CASUAL, [
       candidate('casual', CASUAL), candidate('serious', SERIOUS), candidate('marrying', MARRYING),
-    ])).toEqual(['casual', 'marrying', 'serious']);
+    ])).toEqual(['casual']);
     expect(await shown(MARRYING, [
       candidate('casual', CASUAL), candidate('serious', SERIOUS), candidate('marrying', MARRYING),
-    ])).toEqual(['casual', 'marrying', 'serious']);
+    ])).toEqual(['marrying', 'serious']);
     // And a chosen lens still narrows, which is now the whole of the mechanism.
     expect(await shown(MARRYING, [candidate('serious', SERIOUS)], 'marriage')).toEqual([]);
     expect(await shown(CASUAL, [

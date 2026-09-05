@@ -11,6 +11,14 @@ import {
  * Owner, 1 Sep. The seven deal-breaker chips stop removing people; age, height
  * and language still do. A mismatch comes off the percentage instead.
  *
+ * AND THEN THREE OF THEM CAME BACK (owner, 4 Sep, the launch gate's third
+ * reading). Intent, children and diet remove the person again — a side of the
+ * commitment line is not negotiable by degrees — for everybody who answered
+ * and did not untick the chip. Religion, distance, smoking and drinking stay
+ * multipliers. The arithmetic below is unchanged and still matters: it is what
+ * a pair reads if it reaches a score through any other door, and the four
+ * remaining multipliers are measured the same way.
+ *
  * THIS FILE MEASURES RATHER THAN ASSERTS, because the failure mode here is not
  * "the filter is still on" — that is easy to see. It is shipping half the
  * change: filters off, scoring untouched, and a marriage-seeker shown somebody
@@ -34,10 +42,18 @@ describe('the pair the 1M run said was the problem', () => {
   const A = dx({ ...same, relationshipGoal: 'Marriage', wantsChildren: 'Yes', prefDiet: 'Vegetarian', diet: 'Vegetarian' });
   const B = dx({ ...same, relationshipGoal: 'Casual Dating', wantsChildren: 'No', diet: 'Non-vegetarian' });
 
-  it('is visible — nothing removes them from each other any more', () => {
-    expect(hardFilterReason(A, B, 30)).toBeNull();
-    expect(hardFilterReason(B, A, 31)).toBeNull();
-    expect(unreachableReason(A, B, 31, 30)).toBeNull();
+  it('is removed again — intent is the first of the three core filters to say so (4 Sep)', () => {
+    expect(hardFilterReason(A, B, 30)).toBe('intent');
+    expect(hardFilterReason(B, A, 31)).toBe('intent');
+    expect(unreachableReason(A, B, 31, 30)).toEqual({ by: 'you', reason: 'intent' });
+  });
+
+  it('a pair wrong on religion alone is still visible, at a lower number', () => {
+    const C = dx({ ...same, relationshipGoal: 'Marriage', dealBreakers: ['Religion'], religion: 'Hindu' });
+    const D = dx({ ...same, relationshipGoal: 'Marriage', religion: 'Christian' });
+    expect(hardFilterReason(C, D, 30)).toBeNull();
+    expect(mismatchReasons(C, D)).toEqual(['religion']);
+    expect(mismatchFactor(C, D)).toBe(MISMATCH_PENALTY.religion);
   });
 
   it('names all three mismatches', () => {

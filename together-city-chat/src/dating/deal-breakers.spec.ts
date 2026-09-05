@@ -36,8 +36,10 @@ describe('Marriage Intentions — a side of the line, not a distance along it', 
   const seeker = dx({ dealBreakers: ['Marriage Intentions'], relationshipGoal: 'Marriage' });
   const casual = dx({ relationshipGoal: 'Casual Dating' });
 
-  it('keeps a casual dater in front of a marriage-seeker, and says they differ', () => {
-    expect(hardFilterReason(seeker, casual, 30)).toBeNull();
+  it('removes a casual dater from a marriage-seeker (owner, 4 Sep), and says why', () => {
+    // A side of the commitment line is not negotiable by degrees: the three
+    // core questions are filters again, not multipliers. The reason names it.
+    expect(hardFilterReason(seeker, casual, 30)).toBe('intent');
     expect(mismatchReasons(seeker, casual)).toContain('intent');
   });
 
@@ -68,11 +70,17 @@ describe('Marriage Intentions — a side of the line, not a distance along it', 
   });
 
   it('is a property of the pair, so it reads the same from either side', () => {
-    // `unreachableReason` no longer has an opinion here — neither side removes
-    // the other. The penalty is what carries the disagreement, and it must be
-    // identical whichever of them is looking, or one screen contradicts the other.
-    expect(unreachableReason(casual, seeker, 30, 31)).toBeNull();
-    expect(unreachableReason(seeker, casual, 31, 30)).toBeNull();
+    // Both directions: a boundary the other person set is as real as one you
+    // set yourself. The casual dater is told the seeker removed them; the
+    // seeker is told they removed the casual dater. And the penalty, which
+    // still carries the disagreement for any pair that reaches a score, is
+    // identical whichever of them is looking.
+    // Both of them ANSWERED, so each side's own core filter fires first and
+    // each is told the boundary is their own — which it is.
+    expect(unreachableReason(casual, seeker, 30, 31)).toEqual({ by: 'you', reason: 'intent' });
+    expect(unreachableReason(seeker, casual, 31, 30)).toEqual({ by: 'you', reason: 'intent' });
+    // Somebody who never said what they want is removed by the seeker's answer.
+    expect(unreachableReason(dx({ relationshipGoal: 'Casual Dating', dealBreakers: ['-Marriage Intentions'] }), seeker, 30, 31)).toEqual({ by: 'them', reason: 'intent' });
     expect(mismatchFactor(casual, seeker)).toBe(mismatchFactor(seeker, casual));
     expect(mismatchFactor(casual, seeker)).toBeLessThan(0.5);
   });
@@ -110,7 +118,8 @@ describe('Diet and Religion — collected all along, read for the first time', (
   it('counts a non-vegetarian against someone who asked for vegetarian and meant it', () => {
     const jain = dx({ dealBreakers: ['Diet'], prefDiet: 'Vegetarian' });
     expect(mismatchReasons(jain, dx({ diet: 'Non-vegetarian' }))).toContain('diet');
-    expect(hardFilterReason(jain, dx({ diet: 'Non-vegetarian' }), 30)).toBeNull();
+    // Diet is one of the three that remove (owner, 4 Sep).
+    expect(hardFilterReason(jain, dx({ diet: 'Non-vegetarian' }), 30)).toBe('diet');
     expect(mismatchReasons(jain, dx({ diet: 'Vegetarian' }))).toEqual([]);
   });
 

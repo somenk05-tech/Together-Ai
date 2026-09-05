@@ -34,15 +34,18 @@ describe('an empty room has two causes', () => {
   });
 
   /**
-   * AND IT NAMES THE THREE THAT CAN STILL DO IT (owner, 1 Sep). The seven
-   * deal-breaker chips stopped removing anybody, so a sentence sending somebody
-   * off to untick one would be advice that cannot work. Age, height and
-   * language are what is left.
+   * AND IT NAMES THE SIX THAT CAN DO IT (owner, 1 Sep, then 4 Sep). The seven
+   * deal-breaker chips stopped removing anybody on 1 Sep; on 4 Sep intent,
+   * children and diet came back as walls. So the sentence names age, height,
+   * language and the three core answers, and says the other four chips only
+   * lower the number — advice a citizen can act on either way.
    */
   it('blames the settings when the settings are what emptied it', () => {
     expect(browse).toMatch(/poolSize \?\? 0\) > 0/);
-    expect(browse).toMatch(/age, height or language settings are hiding everyone/);
-    expect(browse).toMatch(/your deal breakers only lower the percentage/);
+    expect(browse).toMatch(/Your settings are hiding everyone/);
+    expect(browse).toMatch(/other side of what you are looking for, whether you want children, or your diet/);
+    expect(browse).toMatch(/Religion, distance, smoking and drinking hide nobody/);
+    expect(browse).not.toMatch(/your deal breakers only lower the percentage/);
     expect(browse).toMatch(/Open my preferences/);
   });
 

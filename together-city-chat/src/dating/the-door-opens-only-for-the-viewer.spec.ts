@@ -79,11 +79,29 @@ describe('the door opens only for the viewer', () => {
   it('refuses a raw id for a stranger — the handle lookup goes nowhere', async () => {
     const svc = svcWith({ datingMatch: { findFirst: jest.fn(async () => null) } }, secret);
     await expect(svc.resolveTarget('me', 'looked-up-coworker')).rejects.toBeInstanceOf(NotFoundException);
-    expect(svc.prisma.datingMatch.findFirst).toHaveBeenCalledWith({ where: { userOneId: 'looked-up-coworker', userTwoId: 'me' }, select: { id: true } });
+    expect(svc.prisma.datingMatch.findFirst).toHaveBeenCalledWith({ where: { userOneId: 'looked-up-coworker', userTwoId: 'me', status: 'matched' }, select: { id: true } });
   });
 
-  it('accepts a raw id for a pair a match row already links', async () => {
+  it('accepts a raw id for a pair that has MATCHED — they already share real ids in their chat', async () => {
     const svc = svcWith({ datingMatch: { findFirst: jest.fn(async () => ({ id: 'm1' })) } }, secret);
+    await expect(svc.resolveTarget('me', 'them')).resolves.toBe('them');
+  });
+
+  /**
+   * ONLY A MATCH SHARES REAL IDS (launch gate, third reading, 4 Sep). A
+   * `pending` row is what like() and pass() write on the first tap, so
+   * accepting a raw id on ANY row let somebody probe a suspect's real id and
+   * learn, from 200 vs 404, that the suspect has a dating profile and has
+   * liked or passed them. The query names `status: 'matched'`, and the
+   * fixture below proves a pending-only pair is a stranger to this door.
+   */
+  it('refuses a raw id for a pair linked only by a pending like or pass', async () => {
+    const rows = [{ id: 'm1', userOneId: 'me', userTwoId: 'them', status: 'pending' }];
+    const findFirst = jest.fn(async ({ where }: { where: { userOneId: string; userTwoId: string; status?: string } }) =>
+      rows.find((r) => r.userOneId === where.userOneId && r.userTwoId === where.userTwoId && (!where.status || r.status === where.status)) ?? null);
+    const svc = svcWith({ datingMatch: { findFirst } }, secret);
+    await expect(svc.resolveTarget('me', 'them')).rejects.toBeInstanceOf(NotFoundException);
+    rows[0].status = 'matched';
     await expect(svc.resolveTarget('me', 'them')).resolves.toBe('them');
   });
 

@@ -137,6 +137,14 @@ export function MatchStack({ people, kind }: { people: CuratedMatch[]; kind: Mat
  * picture growing into the page rather than a cut. Everywhere else the
  * attribute is inert and navigation is what it always was.
  */
+/** The one sentence a card carries under its number. Exported for the test. */
+export function whyOnCard(score: number, reasons?: string[], frictions?: string[]): string | null {
+  const reason = reasons?.find((r) => r.trim().length > 0) ?? null;
+  const friction = frictions?.find((f) => f.trim().length > 0) ?? null;
+  if (score < 50 && friction) return friction;
+  return reason ?? friction;
+}
+
 export function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
   const like = useLikeMatch(kind);
   const pass = usePassMatch(kind);
@@ -158,6 +166,7 @@ export function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKin
   const active = Math.min(shot, Math.max(0, n - 1));
   const go = (delta: number) => setShot((x) => (n ? (x + delta + n) % n : 0));
   const detailHref = `/dating/match?u=${match.user.id}&kind=${kind}`;
+  const why = whyOnCard(match.score, match.reasons, match.frictions);
   const band = bandFor(match.score);
   const cov = coverageShort(match.coverage);
   const label = `${match.user.name}${match.age ? `, ${match.age}` : ''}`;
@@ -201,6 +210,13 @@ export function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKin
               Its own line rather than a third item in the flex row above, so
               the figure and the band still read as one phrase. */}
           {cov && <p className="pm-cov">{cov}</p>}
+          {/* WHY, ON THE CARD (owner rule; landed 4 Sep). The server has sent
+              reasons and frictions on every card since 1 Sep and only the
+              detail screen drew them — so the number the citizen decides on
+              arrived with no sentence under it. One line: the strongest
+              reason, or the first friction when the number is low, because a
+              low number with a compliment under it argues with itself. */}
+          {why && <p className="pm-why">{why}</p>}
         </Link>
         {matched ? (
           <div className="pm-hit">

@@ -1159,8 +1159,28 @@ export function hardFilterReason(myD: DXProfile, theirD: DXProfile, theirAge: nu
   // filters nobody — see `languageBarrier`.
   if (languageBarrier(myD, theirD)) return 'language';
 
+  /* THE THREE THAT ARE NOT NEGOTIABLE BY DEGREES (owner, 4 Sep, reversing
+     the 1 Sep reversal above for these three and these three only). Intent,
+     children and diet are back to removing the person — for everybody who
+     has answered the field and not unticked the chip, which is exactly what
+     `effectiveDealBreakers` already computes and `mismatchReasons` already
+     reads. A marriage-seeker does not get shown somebody looking for a
+     fortnight at 40% with the sentence "your deal breakers only lower the
+     percentage"; they do not get shown them. Religion, distance, smoking
+     and drinking stay multipliers — a dent, not a wall. The 1 Sep argument
+     about the number still holds for those four, and `mismatchFactor` still
+     carries the core three so a pair that slips through any other door
+     reads low rather than 87%. */
+  const reasons = mismatchReasons(myD, theirD);
+  // Named in the order they matter: intent before children before diet.
+  const core = CORE_FILTER_REASONS.find((r) => reasons.includes(r));
+  if (core) return core;
+
   return null;
 }
+
+/** The mismatch reasons that remove a person rather than lower a number. */
+export const CORE_FILTER_REASONS = ['intent', 'children', 'diet'] as const;
 
 /**
  * WHAT THE VIEWER ASKED FOR AND THIS CANDIDATE IS NOT, in the citizen's own
