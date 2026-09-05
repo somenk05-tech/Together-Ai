@@ -94,9 +94,19 @@ describe('a post can only carry media we issued, to the person posting it', () =
     // The presign cap reads `sizeBytes` out of the request body and the signed
     // PUT carries no content-length-range, so declaring 1 KB and pushing 200 MB
     // worked. This is the check the bucket can actually make.
-    const { svc: s } = svc({ size: 400 * 1024 * 1024 });
+    // A video may be up to 2 GB (owner, 5 Sep: "up to 1 hour content and up
+    // to 2 GB"); a photograph, and a video's poster, still stop at 200 MB.
+    const { svc: s } = svc({ size: 3 * 1024 * 1024 * 1024 });
     await expect(s.createPost(ME, post([{ url: `social/${ME}/x.mp4`, kind: 'video' }])))
       .rejects.toBeInstanceOf(ForbiddenException);
+    const { svc: p } = svc({ size: 400 * 1024 * 1024 });
+    await expect(p.createPost(ME, post([{ url: `social/${ME}/x.jpg`, kind: 'image' }])))
+      .rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('a video of 400 MB is a post, not a refusal', async () => {
+    const { svc: s } = svc({ size: 400 * 1024 * 1024 });
+    await expect(s.createPost(ME, post([{ url: `social/${ME}/x.mp4`, kind: 'video' }]))).resolves.toBeTruthy();
   });
 
   it('checks the poster frame as well as the video', async () => {

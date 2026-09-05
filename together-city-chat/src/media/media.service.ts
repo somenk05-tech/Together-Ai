@@ -202,13 +202,30 @@ export class MediaService {
    * pushed into the bucket, and a big one has to be refused after.
    */
   async requestPostUpload(userId: string, mimeType: string, sizeBytes: number): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
-    const max = this.config.get<number>('policy.maxUploadBytes') ?? 52428800;
-    if (sizeBytes > max) throw new BadRequestException(`File exceeds ${max} bytes`);
     const bare = bareMimeType(mimeType);
     if (!POSTABLE_MEDIA.has(bare)) {
       throw new BadRequestException('A post takes a photograph or a video — that file is neither.');
     }
-    return this.storage.presignPostUpload(userId, mimeType, extFor(mimeType));
+    /**
+     * A VIDEO MAY BE AN HOUR AND TWO GIGABYTES (owner, 5 Sep). Its own
+     * ceiling, because a photograph never needs it and a 2 GB "photograph" is
+     * a file host. The declared size is signed INTO the URL as ContentLength
+     * now — the bucket refuses a body of any other size — so the number the
+     * client says is the number it must send, and the advisory cap became a
+     * real one. And a two-gigabyte PUT over a phone connection takes longer
+     * than fifteen minutes, so a video's URL lives three hours.
+     */
+    const isVideo = bare.startsWith('video/');
+    const max = isVideo
+      ? (this.config.get<number>('policy.maxPostVideoBytes') ?? 2147483648)
+      : (this.config.get<number>('policy.maxUploadBytes') ?? 52428800);
+    if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) throw new BadRequestException('Say how large the file is.');
+    if (sizeBytes > max) {
+      throw new BadRequestException(isVideo
+        ? `A video can be up to ${Math.round(max / 1024 / 1024 / 1024)} GB and an hour long.`
+        : `A photograph must be under ${Math.round(max / 1024 / 1024)} MB.`);
+    }
+    return this.storage.presignPostUpload(userId, mimeType, extFor(mimeType), sizeBytes, isVideo ? 3 * 3600 : undefined);
   }
 
   /**

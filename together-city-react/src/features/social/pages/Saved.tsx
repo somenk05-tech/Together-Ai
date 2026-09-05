@@ -109,7 +109,7 @@ export function SocialSaved() {
     <div>
       <div className="sl-head rise">
         <div className="sl-head-t">
-          <div className="eyebrow">Social Life · Saved</div>
+          <div className="eyebrow">Together City TV · Saved</div>
           <h1>Kept for later</h1>
           <p>Posts you bookmarked from the feed — on your account, on every device.</p>
         </div>

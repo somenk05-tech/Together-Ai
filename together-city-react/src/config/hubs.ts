@@ -98,7 +98,9 @@ export const NAV: NavItem[] = [
      them as the same word. */
   { key: 'pets', label: 'Pets', path: '/pets' },
   { key: 'realestate', label: 'Real estate', path: '/realestate' },
-  { key: 'social', label: 'Social life', path: '/social' },
+  // Renamed from "Social life" (owner, 5 Sep): the hub is a television now,
+  // and the city's own name is on the set. Still last in `localeCompare` order.
+  { key: 'social', label: 'Together City TV', path: '/social' },
   /* TRAVEL LEFT THE STREET (owner, 15 Aug), NOT THE CITY. The hub keeps its
      config, its rooms, its routes and its art below — /travel and every page
      under it still answer, Mira can still take you there, and the command
@@ -218,13 +220,15 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   social: {
-    key: 'social', name: 'Social Life', tag: 'Discover everything around you', backPath: '/social', dark: false,
+    key: 'social', name: 'Together City TV', tag: 'The city, one moment at a time', backPath: '/social', dark: false,
     items: [
       // The map page was removed by the review (p18) — it had never held a pin.
       // Create Post left the rail by the owner's call (15 Aug): the page
       // stays, reached from the feed's + Create and its composer — a verb
       // does not need a room in the list of places.
-      { path: '/social/feed', index: '01', label: 'City Feed', sub: 'Moments from around you' },
+      // The feed became a television (owner, 5 Sep): one screen, one post at
+      // a time, a channel per citizen. Same path, same lens underneath.
+      { path: '/social/feed', index: '01', label: 'City TV', sub: 'One moment at a time' },
       // "Post & Earn" and "places" left these two lines (owner, 4 Sep): the
       // rail promises only what exists. The programme is still reachable from
       // the profile chip, labelled not open; places are a caption on a post.

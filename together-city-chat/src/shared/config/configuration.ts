@@ -20,6 +20,8 @@ export interface AppConfig {
     typingTimeoutMs: number;
     pageSize: number;
     maxUploadBytes: number;
+    /** A post's VIDEO may be this large (owner, 5 Sep: up to an hour, up to 2 GB). Photographs keep maxUploadBytes. */
+    maxPostVideoBytes: number;
   };
   media: {
     bucket: string;
@@ -281,6 +283,7 @@ export default (): AppConfig => {
     typingTimeoutMs: int(process.env.TYPING_TIMEOUT_MS, 3000),
     pageSize: int(process.env.MESSAGES_PAGE_SIZE, 30),
     maxUploadBytes: int(process.env.MAX_UPLOAD_BYTES, 52428800),
+    maxPostVideoBytes: int(process.env.MAX_POST_VIDEO_BYTES, 2147483648),
   },
   media: {
     bucket: process.env.MEDIA_BUCKET ?? '',

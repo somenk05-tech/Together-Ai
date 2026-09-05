@@ -207,8 +207,14 @@ const frameRatio = (portrait?: boolean) => (portrait ? '9 / 16' : '16 / 9');
    written the caption. A client ceiling above the server's is not a limit, it
    is a trap. 50 here, and the total is what one post may carry across all ten
    attachments. */
-const MAX_VIDEO_BYTES = 50 * 1024 * 1024;   // matches MAX_UPLOAD_BYTES on the API
-const MAX_TOTAL_BYTES = 60 * 1024 * 1024;   // everything on one post, on the wire
+/* UP TO AN HOUR, UP TO TWO GIGABYTES (owner, 5 Sep). The server's
+   MAX_POST_VIDEO_BYTES is the same 2 GiB, signed into the upload URL, so the
+   two caps still agree — the rule above stands, the number moved. The hour is
+   read from the file's metadata here and refused before anything is uploaded;
+   the server cannot know a clip's length without pulling the whole object. */
+const MAX_VIDEO_BYTES = 2 * 1024 * 1024 * 1024; // matches MAX_POST_VIDEO_BYTES on the API
+const MAX_VIDEO_SECONDS = 60 * 60;
+const MAX_TOTAL_BYTES = MAX_VIDEO_BYTES + 60 * 1024 * 1024; // one full-length video plus the photographs
 const mb = (b: number) => Math.round(b / (1024 * 1024));
 const sizeMB = (b: number) => (b / 1048576).toFixed(b < 10485760 ? 1 : 0);
 /** Human format label for a picked video file, e.g. "MP4" / "MOV" / "WEBM". */
@@ -530,6 +536,9 @@ export function CreatePost() {
   }, [text, feeling, placeName, hashtags, tagged, audience, category]);
   // Share lifecycle: idle → sharing → success (→ navigate) | error
   const [phase, setPhase] = useState<'idle' | 'sharing' | 'success' | 'error'>('idle');
+  // Bytes sent so far over bytes to send, across every attachment: the one
+  // number a two-gigabyte upload owes the person waiting on it.
+  const [sent, setSent] = useState<number | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [coverPick, setCoverPick] = useState<number | null>(null);
@@ -569,7 +578,7 @@ export function CreatePost() {
       try {
         if (isVid) {
           if (f.size > MAX_VIDEO_BYTES) {
-            setMediaError(`"${f.name}" is ${mb(f.size)} MB — videos must be under ${mb(MAX_VIDEO_BYTES)} MB.`);
+            setMediaError(`"${f.name}" is ${mb(f.size)} MB — a video can be up to 2 GB and an hour long.`);
             continue;
           }
           /* AN OBJECT URL, NOT A 100 MB STRING (30 Aug audit). This read a
@@ -584,6 +593,13 @@ export function CreatePost() {
           v.onloadedmetadata = () => {
             item.dur = Math.round(v.duration) || 0;
             item.portrait = v.videoHeight > v.videoWidth;
+            if (item.dur > MAX_VIDEO_SECONDS) {
+              // Refused here, whole, before a byte goes up: an hour is the rule.
+              setMediaError(`"${f.name}" runs ${Math.round(item.dur / 60)} minutes — a video can be up to an hour long.`);
+              setMedia((prev) => prev.filter((x) => x !== item));
+              URL.revokeObjectURL(src);
+              return;
+            }
             setMedia((prev) => [...prev]);
           };
           v.src = src;
@@ -637,7 +653,7 @@ export function CreatePost() {
     // than "the part of it that travels inline as base64".
     const totalBytes = media.reduce((n, m) => n + m.file.size, 0);
     if (totalBytes > MAX_TOTAL_BYTES) {
-      setMediaError(`These files total ${mb(totalBytes)} MB — that's over the ${mb(MAX_TOTAL_BYTES)} MB limit for one post. Remove one or use a smaller file.`);
+      setMediaError(`These files total ${mb(totalBytes)} MB — that's over the ${Math.round(MAX_TOTAL_BYTES / 1024 / 1024 / 1024 * 10) / 10} GB limit for one post. Remove one or use a smaller file.`);
       return;
     }
     setMediaError(null);
@@ -657,11 +673,16 @@ export function CreatePost() {
      * others' keys before they can be recorded.
      */
     type Uploaded = { url: string; kind: 'image' | 'video'; thumbUrl?: string };
+    const toSend = media.filter((m) => !m.key).reduce((n, m) => n + m.file.size, 0);
+    const done = new Map<MediaItem, number>();
+    const tally = () => { if (toSend > 0) setSent([...done.values()].reduce((a, b) => a + b, 0) / toSend); };
+    setSent(toSend > 0 ? 0 : null);
     const results = await Promise.allSettled(media.map(async (m): Promise<Uploaded> => {
-      if (!m.key) m.key = await mediaApi.uploadPost(m.file);
+      if (!m.key) m.key = await mediaApi.uploadPost(m.file, (f) => { done.set(m, f * m.file.size); tally(); });
       if (m.poster && !m.posterKey) m.posterKey = await mediaApi.uploadPost(m.poster).catch(() => undefined);
       return { url: m.key, kind: m.type, ...(m.posterKey ? { thumbUrl: m.posterKey } : {}) };
     }));
+    setSent(null);
     const failedAt = results.findIndex((r) => r.status === 'rejected');
     if (failedAt >= 0) {
       const why = (results[failedAt] as PromiseRejectedResult).reason as unknown;
@@ -802,7 +823,7 @@ export function CreatePost() {
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 12, minHeight: 44 }}>
             <Icon name="back" size={15} /> Back to the feed
           </Link>
-          <div className="eyebrow">Social Life · Create Post</div>
+          <div className="eyebrow">Together City TV · Create Post</div>
           <h1>Share with your city</h1>
           <p>A photo, a video, a place or a thought — any one of them is a post.</p>
         </div>
@@ -960,7 +981,7 @@ export function CreatePost() {
         )}
 
         <p className="muted" style={{ fontSize: 11.5, margin: '8px 0 0' }}>
-          <Icon name="video" size={14} /> {VIDEO_FORMATS} · up to {mb(MAX_VIDEO_BYTES)} MB each.
+          <Icon name="video" size={14} /> {VIDEO_FORMATS} · up to 2 GB and an hour each.
         </p>
 
         <input ref={photoPicker} type="file" accept="image/*" multiple style={{ display: 'none' }}
@@ -1149,7 +1170,7 @@ export function CreatePost() {
             flex: busy ? 'none' : 2, width: busy ? 150 : 'auto', minWidth: 150,
             ...(phase === 'success' ? { background: 'var(--ok-ink)', color: 'var(--on-accent)' } : {}),
           }}>
-          {phase === 'sharing' && (<><span className="tc-spin" /> Sharing…</>)}
+          {phase === 'sharing' && (<><span className="tc-spin" /> {sent != null && sent < 1 ? `Uploading ${Math.round(sent * 100)}%` : 'Sharing…'}</>)}
           {phase === 'success' && (<><Icon name="accepted" size={16} /> Shared</>)}
           {(phase === 'idle' || phase === 'error') && (<><Icon name="plus" size={16} /> Share with my city</>)}
         </button>

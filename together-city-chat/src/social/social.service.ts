@@ -843,9 +843,14 @@ export class SocialService {
    */
   private async verifyMedia(userId: string, media: CreatePostDto['media']): Promise<void> {
     if (!media?.length) return;
-    const max = 200 * 1024 * 1024;
+    // A video may be two gigabytes (owner, 5 Sep); a photograph, or a
+    // video's poster, stays small. The poster is checked with the photo cap
+    // whatever its post's kind — it is a JPEG the composer made.
+    const photoMax = 200 * 1024 * 1024;
+    const videoMax = 2 * 1024 * 1024 * 1024;
     for (const m of media) {
       for (const value of [m.url, m.thumbUrl]) {
+        const max = m.kind === 'video' && value === m.url ? videoMax : photoMax;
         if (!value) continue;
         if (!this.storage.isOwnPostKey(userId, value)) {
           throw new ForbiddenException('That media was not uploaded here, by you, for this post.');

@@ -103,11 +103,17 @@ export const mediaApi = {
    * other in the file: a post is the most public thing in the application, and
    * a phone photograph carries the coordinates it was taken at.
    */
-  async uploadPost(file: File): Promise<string> {
+  async uploadPost(file: File, onProgress?: (fraction: number) => void): Promise<string> {
     const { file: safe } = await scrubImage(file, 'public');
     const res = await apiPost('/media/upload-post', { mimeType: safe.type, sizeBytes: safe.size },
       z.object({ uploadUrl: z.string(), key: z.string(), expiresInSec: z.number().optional() }));
-    await axios.put(res.uploadUrl, safe, { headers: { 'Content-Type': safe.type } });
+    // A video may be two gigabytes now (5 Sep); a PUT that size with no
+    // progress is a blank wait somebody gives up on. The URL is signed against
+    // `safe.size`, which is why the scrubbed file — not the original — goes up.
+    await axios.put(res.uploadUrl, safe, {
+      headers: { 'Content-Type': safe.type },
+      onUploadProgress: onProgress ? (e) => { if (e.total) onProgress(Math.min(1, e.loaded / e.total)); } : undefined,
+    });
     return res.key;
   },
 

@@ -66,7 +66,7 @@ export function SocialNotifications() {
     <div className="page">
       <div className="sl-head rise" style={{ flexWrap: 'wrap' }}>
         <div className="sl-head-t">
-          <div className="eyebrow">Social Life · Notifications</div>
+          <div className="eyebrow">Together City TV · Notifications</div>
           <h1>Likes, comments &amp; follows</h1>
           <p>Everything the city did with what you shared.</p>
         </div>

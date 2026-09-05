@@ -450,18 +450,21 @@ export class StorageProvider implements OnModuleInit {
    * userId is IN the key, so "is this yours" is something the key answers
    * rather than something a lookup has to be trusted to check.
    */
-  async presignPostUpload(userId: string, mimeType: string, ext: string): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+  async presignPostUpload(userId: string, mimeType: string, ext: string, sizeBytes?: number, expiresInSec?: number): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
     const safeExt = (ext || 'bin').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) || 'bin';
     const key = `social/${userId}/${randomUUID()}.${safeExt}`;
+    const ttl = expiresInSec ?? this.expiresInSec;
     if (!this.s3) {
-      return { uploadUrl: `${this.publicBase}/__presigned__/${key}`, key, expiresInSec: this.expiresInSec };
+      return { uploadUrl: `${this.publicBase}/__presigned__/${key}`, key, expiresInSec: ttl };
     }
+    // ContentLength signed in (5 Sep): the body must be the size that was
+    // declared, which is what makes the size check at presign time a real one.
     const uploadUrl = await getSignedUrl(
       this.s3,
-      new PutObjectCommand({ Bucket: this.healthBucket, Key: key, ContentType: mimeType }),
-      { expiresIn: this.expiresInSec },
+      new PutObjectCommand({ Bucket: this.healthBucket, Key: key, ContentType: mimeType, ...(sizeBytes ? { ContentLength: sizeBytes } : {}) }),
+      { expiresIn: ttl },
     );
-    return { uploadUrl, key, expiresInSec: this.expiresInSec };
+    return { uploadUrl, key, expiresInSec: ttl };
   }
 
   /**
