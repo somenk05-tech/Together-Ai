@@ -21,6 +21,10 @@ export function channelsOf(items: readonly Post[]): Channel[] {
   items.forEach((p, i) => {
     const a = p.author;
     if (!a?.handle || seen.has(a.handle)) return;
+    // A citizen whose only video is still being made playable is not yet a
+    // channel: there is nothing to tune to. (A stream item with no video at
+    // all — the dial spec's bare posts — still counts; the set skips those.)
+    if (p.media?.some((x) => x.kind === 'video') && !p.media.some((x) => x.kind === 'video' && (x.state ?? 'ready') === 'ready')) return;
     seen.add(a.handle);
     const m = p.media?.[0];
     const tile = m ? (m.kind === 'video' ? m.thumbUrl : m.url) : null;

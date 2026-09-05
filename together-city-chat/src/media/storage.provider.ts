@@ -2,6 +2,9 @@ import { Injectable, Logger, type OnModuleInit, Optional } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import type { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
+import { createReadStream, createWriteStream } from 'fs';
+import { stat } from 'fs/promises';
 import { apiUrl } from '../shared/api-prefix';
 import { mintPhotoToken, readPhotoToken } from '../dating/photo-link';
 import { keyUnderPublicBases, publicBasesFrom } from './public-bases';
@@ -1289,6 +1292,39 @@ export class StorageProvider implements OnModuleInit {
       }
     }
     return { failed };
+  }
+
+  /**
+   * A POST OBJECT TO DISK, AND A FILE BACK AS ONE — for the transcode worker
+   * (5 Sep), whose input is a video of up to 2 GB. Neither side is ever a
+   * Buffer: the GET is piped to a file and the PUT streams the file with its
+   * length declared, which is the one way a single PUT of that size works.
+   */
+  async downloadPostObjectToFile(key: string, filePath: string): Promise<boolean> {
+    if (!this.s3 || !this.isPostKey(key)) return false;
+    try {
+      const res = await this.s3.send(new GetObjectCommand({ Bucket: this.healthBucket, Key: key }));
+      if (!res.Body) return false;
+      await pipeline(res.Body as Readable, createWriteStream(filePath));
+      return true;
+    } catch (e) {
+      this.logger.warn(`download of ${key} failed: ${(e as Error).message}`);
+      return false;
+    }
+  }
+
+  async putPostObjectFromFile(key: string, filePath: string, contentType: string): Promise<boolean> {
+    if (!this.s3 || !this.isPostKey(key)) return false;
+    try {
+      const { size } = await stat(filePath);
+      await this.s3.send(new PutObjectCommand({
+        Bucket: this.healthBucket, Key: key, Body: createReadStream(filePath), ContentType: contentType, ContentLength: size,
+      }));
+      return true;
+    } catch (e) {
+      this.logger.warn(`upload of ${key} failed: ${(e as Error).message}`);
+      return false;
+    }
   }
 
   /** The private-bucket plural of `deletePrivateObject`. */

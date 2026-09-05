@@ -15,6 +15,7 @@ import { ConnectionsService } from '../connections/connections.service';
 import { SocialGateway } from './social.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { StorageProvider } from '../media/storage.provider';
+import { TranscodeService } from '../media/transcode.service';
 import { shownName } from '../dating/matching';
 import type { CreateCommentDto, CreatePostDto, FeedQueryDto } from './dto/social.dto';
 
@@ -136,6 +137,9 @@ export class SocialService {
      * always correct.
      */
     @Optional() private readonly cache?: ReadCache,
+    /** The video worker (5 Sep). Optional so a spec can post without one;
+     *  absent, a video is stored as uploaded and marked ready, as before. */
+    @Optional() private readonly transcode?: TranscodeService,
   ) {}
 
   /**
@@ -950,11 +954,21 @@ export class SocialService {
         lat: dto.lat ?? null,
         lng: dto.lng ?? null,
         media: dto.media?.length
-          ? { create: dto.media.map((m) => ({ url: m.url, kind: m.kind, thumbUrl: m.thumbUrl ?? null })) }
+          ? { create: dto.media.map((m) => ({
+            url: m.url, kind: m.kind, thumbUrl: m.thumbUrl ?? null,
+            // A video is 'processing' until the worker has made it playable
+            // everywhere (transcode.service.ts); a photograph is ready as it is.
+            state: m.kind === 'video' && this.transcode ? 'processing' : 'ready',
+          })) }
           : undefined,
       },
       include: { author: { select: AUTHOR_SELECT }, media: true },
     });
+    for (const m of post.media) {
+      if (m.kind === 'video' && this.transcode) {
+        void this.transcode.enqueue(m.id).catch(swallowed('social.createPost.transcode', undefined, { mediaId: m.id }));
+      }
+    }
     const shaped = this.shapePost(post, { likes: 0, comments: 0 }, false, await this.signMediaOf([post]));
     this.broadcast(userId, audience, (r) => this.gateway.postNew(shaped, r));
     /* EVERY NOTIFICATION ABOUT A POST NOW POINTS AT THAT POST.
@@ -2684,7 +2698,7 @@ export class SocialService {
       lng: number | null;
       createdAt: Date;
       author: { id: string; handle: string; name: string; profileImage: string | null };
-      media: { id: string; url: string; kind: string; thumbUrl: string | null }[];
+      media: { id: string; url: string; kind: string; thumbUrl: string | null; state?: string }[];
     },
     counts: { likes: number; comments: number },
     likedByMe: boolean,
@@ -2713,6 +2727,7 @@ export class SocialService {
         url: signed?.get(m.url) ?? m.url,
         kind: m.kind,
         thumbUrl: m.thumbUrl ? (signed?.get(m.thumbUrl) ?? m.thumbUrl) : null,
+        state: m.state ?? 'ready',
       })),
       likes: counts.likes,
       comments: counts.comments,

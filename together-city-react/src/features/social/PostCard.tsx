@@ -525,7 +525,13 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
       {images.length > 1 && <ImageCarousel images={images} authorName={post.author.name} />}
       {/* Only the first video of a card reports its end — a carousel of clips
           would otherwise advance the column three times. */}
-      {videos.map((m, i) => <VideoFrame key={m.id} url={m.url} poster={m.thumbUrl} isNew={isNew} vref={i === 0 ? vidRef : undefined} autoInView={autoplayVideo} onEnded={i === 0 ? onVideoEnded : undefined} />)}
+      {videos.map((m, i) => (
+        /* A video the worker has not finished with yet (5 Sep) is its poster
+           and a line, not a player: the file as uploaded may not play here. */
+        m.state === 'processing'
+          ? <div key={m.id} className="sl-processing">{m.thumbUrl && <img src={m.thumbUrl} alt="" />}<span>Getting this video ready…</span></div>
+          : <VideoFrame key={m.id} url={m.url} poster={m.thumbUrl} isNew={isNew} vref={i === 0 ? vidRef : undefined} autoInView={autoplayVideo} onEnded={i === 0 ? onVideoEnded : undefined} />
+      ))}
 
       {manage && isMine && videos.length > 0 && onSetCover && (
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>

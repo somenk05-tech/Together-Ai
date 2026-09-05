@@ -1052,6 +1052,11 @@ model PostMedia {
   url      String
   kind     String // image | video
   thumbUrl String?
+  /// 'ready' | 'processing' | 'failed'. A video is 'processing' from the post
+  /// until media/transcode.service.ts has written the H.264 rendition the
+  /// whole city can play (5 Sep); a photograph is 'ready' as it is. The TV
+  /// plays only 'ready' videos; the wall shows a processing one by its poster.
+  state    String  @default("ready")
 
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 

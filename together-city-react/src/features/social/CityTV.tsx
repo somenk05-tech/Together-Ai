@@ -55,6 +55,12 @@ import { channelsOf, tuneIndex } from './city-tv';
  * The expand key never said it would also shrink: it does. And a thin line
  * along the foot of the screen says how far into the video the set is.
  *
+ * WHAT'S NEXT (owner, 6 Sep): a key on the remote opens a list down the
+ * right of the screen — the videos to come, in the order the set will
+ * play them, each with its poster, its citizen and its first words; a tap
+ * jumps the set there. The list is what is loaded, so it grows as pages
+ * arrive, and the set stays awake while it is open.
+ *
  * No inline styles: the set is drawn in social.css.
  */
 
@@ -63,7 +69,18 @@ const TUNE_MS = 12_000;
 /** How long the set waits at the end of the stream for the next page. */
 const PAGE_MS = 10_000;
 
-const videoOf = (p: Post | undefined) => p?.media?.find((m) => m.kind === 'video') ?? null;
+/** The post's video, if the set can play it: a video still being made
+ *  playable by the worker, or one that could not be, is not a broadcast. */
+/** m:ss, or h:mm:ss past an hour — a post's video may be an hour long. */
+export function clockText(sec: number): string {
+  if (!Number.isFinite(sec) || sec < 0) return '0:00';
+  const s = Math.floor(sec);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+  const mm = h ? String(m).padStart(2, '0') : String(m);
+  return `${h ? h + ':' : ''}${mm}:${String(r).padStart(2, '0')}`;
+}
+
+const videoOf = (p: Post | undefined) => p?.media?.find((m) => m.kind === 'video' && (m.state ?? 'ready') === 'ready') ?? null;
 
 export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenChannel, onOpenChannels, onLeave, head }: {
   items: Post[];
@@ -82,6 +99,12 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
   const [at, setAt] = useState(() => Math.min(Math.max(0, startAt), Math.max(0, items.length - 1)));
   const [paused, setPaused] = useState(false);
   const [captions, setCaptions] = useState(true);
+  // WHAT'S NEXT (owner, 6 Sep): a list down the right of the screen of the
+  // videos to come, in the order the set will play them; a tap jumps there.
+  const [queue, setQueue] = useState(false);
+  // THE SLIDER (owner, 6 Sep): where the video is and how long it is, and a
+  // slider to move it. Read off the element four times a second.
+  const [clock, setClock] = useState({ time: 0, duration: 0 });
   const [muted, setMutedState] = useState(isMuted());
   useEffect(() => subscribeMuted(setMutedState), []);
   const screen = useRef<HTMLDivElement>(null);
@@ -166,6 +189,7 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
   useEffect(() => {
     setReady(false);
     setElMuted(false);
+    setClock({ time: 0, duration: 0 });
     screen.current?.style.setProperty('--tv-progress', '0');
   }, [currentId]);
   useEffect(() => {
@@ -219,22 +243,33 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
   }, [go, items, fullScreen, onLeave]);
   const tune = (step: 1 | -1) => setAt((i) => tuneIndex(items, i, step));
 
+  /* The videos to come, in play order: after this one to the end of what is
+     loaded, then — with nothing more to load — round from the top. */
+  const upNext = useMemo(() => {
+    const rest = items.map((p, index) => ({ post: p, index })).filter((e) => e.index !== at && videoOf(e.post));
+    const after = rest.filter((e) => e.index > at);
+    const before = hasNextPage ? [] : rest.filter((e) => e.index < at);
+    return [...after, ...before].slice(0, 40);
+  }, [items, at, hasNextPage]);
+
   if (!post || !current) return null;
   const caption = post.text?.trim() ?? '';
   const stale = () => onStaleMedia(qc, ['social']);
 
   return (
-    <div className={awake || paused ? 'tv' : 'tv asleep'} ref={screen}>
+    <div className={awake || paused || queue ? 'tv' : 'tv asleep'} ref={screen}>
       {head}
       <div className="tv-screen" aria-live="off">
         <video key={current.id} ref={video} className="tv-media" src={current.url} poster={current.thumbUrl ?? undefined}
           playsInline autoPlay muted={muted} preload="auto"
-          onLoadedMetadata={() => setReady(true)}
+          onLoadedMetadata={(e) => { setReady(true); setClock({ time: e.currentTarget.currentTime, duration: e.currentTarget.duration || 0 }); }}
+          onDurationChange={(e) => setClock((c) => ({ ...c, duration: e.currentTarget.duration || 0 }))}
           onVolumeChange={(e) => setElMuted(e.currentTarget.muted)}
           onTimeUpdate={(e) => {
             const el = e.currentTarget;
             const p = el.duration > 0 ? el.currentTime / el.duration : 0;
             screen.current?.style.setProperty('--tv-progress', String(p));
+            setClock({ time: el.currentTime, duration: el.duration || 0 });
           }}
           onEnded={() => go(1)} onError={() => { stale(); go(1); }} />
         {!ready && !paused && (
@@ -256,6 +291,41 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
         )}
       </div>
 
+      {queue && (
+        <aside id="tv-next" className="tv-next" aria-label="What's next">
+          <div className="tv-next-h">
+            <span>What's next</span>
+            <button type="button" className="tv-key sm" onClick={() => setQueue(false)} aria-label="Hide what is next"><Icon name="close" size={14} /></button>
+          </div>
+          <ol className="tv-next-l">
+            {upNext.map(({ post: p, index }) => {
+              const v = videoOf(p)!;
+              return (
+                <li key={p.id}>
+                  <button type="button" className="tv-next-i" onClick={() => { setAt(index); setPaused(false); }}>
+                    <span className="tv-next-p">{v.thumbUrl ? <img src={v.thumbUrl} alt="" loading="lazy" onError={stale} /> : <Icon name="video" size={18} />}</span>
+                    <span className="tv-next-t">
+                      <span className="tv-next-n">{p.author.name}</span>
+                      <span className="tv-next-c">{p.text?.trim() || 'A video'}</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+            {upNext.length === 0 && <li className="tv-next-e">{hasNextPage ? 'More on its way…' : 'Back to the top after this.'}</li>}
+          </ol>
+        </aside>
+      )}
+
+      {/* THE SLIDER, over the remote: where the video is, and how long it is. */}
+      <div className="tv-seek">
+        <span className="tv-seek-t">{clockText(clock.time)}</span>
+        <input type="range" className="tv-scrub" min={0} max={clock.duration || 0} step={0.1} value={Math.min(clock.time, clock.duration || 0)}
+          disabled={!clock.duration} aria-label="Move through the video" aria-valuetext={`${clockText(clock.time)} of ${clockText(clock.duration)}`}
+          onChange={(e) => { const el = video.current; const t = Number(e.currentTarget.value); if (el && Number.isFinite(t)) el.currentTime = t; setClock((c) => ({ ...c, time: t })); }} />
+        <span className="tv-seek-t">{clockText(clock.duration)}</span>
+      </div>
+
       {/* THE REMOTE, over the foot of the screen. */}
       <div className="tv-bar" role="toolbar" aria-label="Together City TV">
         <span className="tv-mark" aria-hidden><Icon name="tv" size={22} /></span>
@@ -267,6 +337,7 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
           <button type="button" className="tv-key" onClick={() => { const on = muted || elMuted; setMuted(!on); const el = video.current; if (el) { el.muted = !on; if (!on) return; void el.play().catch(() => {}); } }} aria-label={muted || elMuted ? 'Turn the sound on' : 'Turn the sound off'} aria-pressed={!(muted || elMuted)}><Icon name={muted || elMuted ? 'mute' : 'speak'} size={16} /></button>
           <button type="button" className="tv-key" onClick={fullScreen} aria-label={fs ? 'Leave full screen' : 'Full screen'} aria-pressed={fs}><Icon name="expand" size={16} /></button>
           <button type="button" className="tv-key" onClick={onOpenChannels} aria-label="Together City Channels"><Icon name="grid" size={16} /></button>
+          <button type="button" className="tv-key" onClick={() => setQueue((q) => !q)} aria-label={queue ? 'Hide what is next' : "What's next"} aria-pressed={queue} aria-controls="tv-next" aria-expanded={queue}><Icon name="queue" size={16} /></button>
         </div>
         {/* THE CHANNEL IS THE CITIZEN. Up and down tune; the face opens the
             profile, which is the channel's page. */}

@@ -11,7 +11,10 @@ export interface PostAuthor { id: string; handle: string; name: string; profileI
 export interface BlockedPerson { id: string; handle: string | null; name: string; profileImage: string | null }
 /** A follower/following row with the viewer's follow-state for Follow / Following / Follow back. */
 export interface FollowPerson extends PostAuthor { iFollow: boolean; followsMe: boolean }
-export interface PostMedia { id: string; url: string; kind: 'image' | 'video'; thumbUrl: string | null }
+/** `state` (5 Sep): a video is 'processing' from the post until the server's
+ *  worker has made it playable everywhere, 'ready' after, 'failed' if it
+ *  could not be read. Absent on rows written before the column: ready. */
+export interface PostMedia { id: string; url: string; kind: 'image' | 'video'; thumbUrl: string | null; state?: 'ready' | 'processing' | 'failed' }
 export interface Post {
   id: string;
   text: string | null;
