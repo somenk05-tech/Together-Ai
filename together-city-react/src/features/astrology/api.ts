@@ -49,11 +49,6 @@ export interface Letter {
   signOff: string;
   words: number;
 }
-export interface DailyLetter extends Letter {
-  needsProfile: boolean;
-  pending?: boolean;
-  date: string;
-}
 export interface MonthlyLetter extends Letter {
   needsProfile: boolean;
   pending?: boolean;
@@ -349,8 +344,6 @@ export const astrologyApi = {
   profile: () => api.get<AstroProfileView>('/astrology/profile').then((r) => r.data),
   saveProfile: (dto: SaveAstroProfileInput) =>
     api.put<{ saved: boolean; profile: AstroProfile }>('/astrology/profile', dto).then((r) => r.data),
-  daily: () => api.get<DailyLetter>('/astrology/daily').then((r) => r.data),
-  dailyHistory: () => api.get<Array<Omit<DailyLetter, 'needsProfile' | 'pending'>>>('/astrology/daily/history').then((r) => r.data),
   monthly: () => api.get<MonthlyLetter>('/astrology/monthly').then((r) => r.data),
   monthlyHistory: () => api.get<Array<Omit<MonthlyLetter, 'needsProfile' | 'pending'>>>('/astrology/monthly/history').then((r) => r.data),
   askQuota: () => api.get<AskQuota>('/astrology/ask').then((r) => r.data),

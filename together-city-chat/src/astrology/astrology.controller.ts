@@ -23,6 +23,8 @@ const SaveProfileSchema = z.object({
   birthState: z.string().max(60).optional().nullable(),
   birthCity: z.string().min(1).max(80),
   timeZone: z.string().min(3).max(60),
+  // Five free profile changes a month, ₹50 each after (5 Sep) — how the ₹50 is paid.
+  method: z.enum(['wallet', 'card']).optional(),
 });
 
 /**
@@ -71,22 +73,31 @@ export class AstrologyController {
     return this.astrology.saveProfile(user.sub, dto);
   }
 
-  /** Tab 01 — Today's Horoscope. */
+  /**
+   * THE DAILY LETTER IS RETIRED (owner decision, 5 Sep).
+   *
+   * It was the largest single line in the free tier — one model call per
+   * citizen per day, more than half of what a member cost to serve — and the
+   * owner dropped it. No letter is written any more, nothing reads the archive,
+   * and the web has no page for it (`/astrology/today` redirects to the month).
+   *
+   * The route stays for one reason: it is the anchor for Mira's "how is my day"
+   * capability, whose executor (`dayBrief`) now reads doses, the kitchen, the
+   * inbox and the bell and never this. The handler costs nothing and says so.
+   * `AstrologyService.daily()` survives beside its specs but has no caller;
+   * `the-daily-letter-is-retired.spec.ts` keeps it that way.
+   */
   @Mira({
-    intent: 'Read the citizen’s own reading for today',
+    intent: 'Read the citizen’s own day — doses, kitchen, inbox, alerts',
     utterances: ['how is my day going to be', 'how is my day', 'how will my day be', 'what is my day like', 'my reading today', 'todays reading', 'my horoscope', 'todays horoscope', 'what do the stars say', 'read my day', 'anything I should watch out for today'],
     risk: 'R0',
   })
   @Get('daily')
-  @Throttle(MODEL_LIMIT)
-  daily(@CurrentUser() user: JwtUser) {
-    return this.astrology.daily(user.sub);
-  }
-
-  /** Saved daily predictions (last 30 days on the profile). */
-  @Get('daily/history')
-  dailyHistory(@CurrentUser() user: JwtUser) {
-    return this.astrology.dailyHistory(user.sub);
+  daily(@CurrentUser() _user: JwtUser) {
+    // The citizen is taken and unused on purpose: Mira's manifest gate refuses
+    // a capability whose route does not know who is asking, and the route is
+    // that capability's anchor. Nothing is read for them.
+    return { retired: true as const };
   }
 
   /** Tab 02 — Monthly Horoscope (premium long-form). */

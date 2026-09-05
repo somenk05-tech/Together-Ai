@@ -39,6 +39,10 @@ export const REMOVED_ROUTES: Readonly<Record<string, string>> = {
   '/nutrition/supplements': '/fitness/supplements',
   '/nutrition/dietitian': '/medical/consults',
   '/social/map': '/social/feed',
+  // The daily astrology letter (5 Sep). One model call per citizen per day was
+  // the largest line in what a free member cost to serve, and the owner dropped
+  // it. The month's letter is the nearest surviving page.
+  '/astrology/today': '/astrology/monthly',
   // Trainer Mode, the camera form coach (20 Aug). Workout is the nearest
   // surviving page — a guided session with a timer, which is what somebody
   // following an old Trainer link was after.

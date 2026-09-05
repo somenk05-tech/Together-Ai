@@ -398,7 +398,7 @@ export function AstroProfilePage() {
         // card, then take the user straight to their Today's Horoscope.
         setSaved(true); setJustSaved(true); setCollapsing(true);
         setTimeout(() => { setEditing(false); setCollapsing(false); }, 380);
-        setTimeout(() => navigate('/astrology/today'), 1500);
+        setTimeout(() => navigate('/astrology/monthly'), 1500);
       },
       onError: (e) => {
         const m = (e as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;

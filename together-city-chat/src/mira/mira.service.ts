@@ -1982,9 +1982,13 @@ export class MiraService {
    * own morning is a menu with a personality.
    *
    * So this is the one composite in the executor, and it is the shape the rest
-   * of "proactive" will take: HER OWN READING FIRST, because that is what was
-   * asked, then only the facts that would change what somebody does before
-   * lunch.
+   * of "proactive" will take: only the facts that would change what somebody
+   * does before lunch.
+   *
+   * THE READING IS GONE FROM IT (owner decision, 5 Sep). The daily letter was
+   * retired — a model call per citizen per day, the largest line in the free
+   * tier — so the brief no longer opens with it and never asks astrology for
+   * anything. Doses, the kitchen, the inbox and the bell are what a day is now.
    *
    * ── EVERY READ IS GUARDED SEPARATELY ──────────────────────────────────────
    *
@@ -1993,13 +1997,9 @@ export class MiraService {
    * watchlist service is down is worse than no morning brief — and this is the
    * one turn most likely to be somebody's first.
    *
-   * The astrology letter is written by a model and cached per citizen per day.
-   * On a cache miss it returns `pending`, and `pending` is reported, never
-   * retried in a loop: it costs a model call and it is not hers to spend.
    */
   private async dayBrief(userId: string, tz?: string): Promise<Attempt> {
-    const [reading, doses, prep, post, alerts] = await Promise.allSettled([
-      this.astrology.daily(userId),
+    const [doses, prep, post, alerts] = await Promise.allSettled([
       this.prescriptions.today(userId),
       this.nutrition.prepAlerts(userId),
       this.mail.account(userId),
@@ -2008,22 +2008,6 @@ export class MiraService {
     const ok = <T,>(r: PromiseSettledResult<T>): T | undefined => (r.status === 'fulfilled' ? r.value : undefined);
 
     const parts: string[] = [];
-    const r = ok(reading);
-    if (pick(r, 'needsProfile') === true) {
-      return {
-        outcome: 'navigate',
-        text: 'I need your birth details before I can read your day — date, time and place.',
-        goto: { label: 'Astrology', path: '/astrology' },
-      };
-    }
-    if (pick(r, 'pending') === true) {
-      parts.push('Your reading for today is still being written. Give it a few minutes.');
-    } else {
-      const body = str(pick(r, 'body'));
-      const title = str(pick(r, 'title'));
-      if (body) parts.push(firstSentences(body, 1));
-      else if (title) parts.push(title);
-    }
 
     const due = asList(ok(doses), 'doses').filter((d) => {
       const s = str(pick(d, 'status'));
@@ -2056,7 +2040,7 @@ export class MiraService {
     if (!parts.length) {
       return {
         outcome: 'capability',
-        text: 'Nothing on your day yet — no reading, no doses, nothing waiting.',
+        text: 'Nothing on your day yet — no doses, nothing in the kitchen, nothing waiting.',
         asides: ['Enjoy it while it lasts.'],
       };
     }
@@ -2065,15 +2049,14 @@ export class MiraService {
     // once the finished line exceeds the mood's word budget, so an unbounded
     // join does not merely make her verbose — it makes her voiceless, and it
     // does it silently, on the turn most likely to be somebody's first. The
-    // reading is always kept; the rest is reachable by asking, which is the
-    // whole premise of her existing.
+    // rest is reachable by asking, which is the whole premise of her existing.
     return {
       outcome: 'capability',
       text: parts.slice(0, 4).join(' '),
       asides: due.length
         ? ['The pills are not going to take themselves.']
         : ['That is the whole of it. Ask me for any of it properly and I will open it.'],
-      payload: { reading: ok(reading), doses: due.slice(0, 6), prep: cook.slice(0, 3) },
+      payload: { doses: due.slice(0, 6), prep: cook.slice(0, 3) },
       goto: { label: 'Astrology', path: '/astrology' },
     };
   }

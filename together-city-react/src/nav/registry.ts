@@ -64,7 +64,7 @@ const ACTIONS: Dest[] = [
   { id: 'a-wallet', kind: 'action', label: 'Open my wallet', path: '/financial/wallet', hub: 'financial', icon: 'product', keywords: 'money balance pay finance' },
   { id: 'a-spend', kind: 'action', label: 'See my spending', path: '/financial/spending', hub: 'financial', icon: 'product', keywords: 'budget money transactions finance' },
   { id: 'a-matches', kind: 'action', label: 'See my matches', path: '/matchmaking/matches', hub: 'dating', icon: 'heart', keywords: 'matchmaking dating date love' },
-  { id: 'a-horoscope', kind: 'action', label: "Read today's horoscope", path: '/astrology/today', hub: 'astrology', icon: 'sparkles', keywords: 'astrology guidance stars zodiac' },
+  { id: 'a-horoscope', kind: 'action', label: "Read this month's horoscope", path: '/astrology/monthly', hub: 'astrology', icon: 'sparkles', keywords: 'astrology guidance stars zodiac' },
   { id: 'a-post', kind: 'action', label: 'Create a post', path: '/social/create', hub: 'social', icon: 'people', keywords: 'share photo video social' },
   { id: 'a-movies', kind: 'action', label: "What's on this week", path: '/entertainment/movies', hub: 'entertainment', icon: 'movie', keywords: 'movies cinema tickets' },
 ];

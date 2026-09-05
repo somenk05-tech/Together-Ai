@@ -146,29 +146,29 @@ export const HUBS: Record<HubKey, HubConfig> = {
   astrology: {
     key: 'astrology', name: 'Astrology', tag: 'Read the stars, together', backPath: '/astrology', dark: true, skies: true,
     items: [
-      // These two lead to letters, and a letter may not name what produced it.
-      // A menu entry sitting four inches away that says "from your chart" gives
+      // This leads to a letter, and a letter may not name what produced it. A
+      // menu entry sitting four inches away that says "from your chart" gives
       // away in a subtitle exactly what the prose spends 400 words not saying.
-      { path: '/astrology/today', index: '01', label: 'Today', sub: 'Your letter for today' },
-      { path: '/astrology/monthly', index: '02', label: 'This Month', sub: 'One letter, once a month' },
+      // The daily letter that sat above it was retired on 5 Sep.
+      { path: '/astrology/monthly', index: '01', label: 'This Month', sub: 'One letter, once a month' },
       // NO PRICE IN A MENU. This said "₹75 · personal consultation" through a
       // paywall coming down and a new one going up, and was wrong both times —
       // a subtitle in a config file cannot know what the server will charge.
       // The screen reads the real number from GET /astrology/ask.
-      { path: '/astrology/ask', index: '03', label: 'Ask the Astrologer', sub: 'A private consultation' },
-      { path: '/astrology/tarot', index: '04', label: 'Tarot', sub: 'A card a day, and full spreads' },
+      { path: '/astrology/ask', index: '02', label: 'Ask the Astrologer', sub: 'A private consultation' },
+      { path: '/astrology/tarot', index: '03', label: 'Tarot', sub: 'A card a day, and full spreads' },
       // The marketplace, and the only place a stone is prescribed. The remedies
       // page kept the practices and gave up its Stones half — two surfaces
       // answering "which stone is mine" from two different readings was the
       // arrangement before this, and it survived only because one of them had
       // no way in from this menu.
-      { path: '/astrology/gemstones', index: '05', label: 'Gemstones', sub: 'Personalised stones for your chart' },
+      { path: '/astrology/gemstones', index: '04', label: 'Gemstones', sub: 'Personalised stones for your chart' },
       // A locked commission is a decision somebody made and walked away from,
       // and it needs somewhere to be waiting. Without a door in the menu the
       // cart is a page you can only reach from the page you just left.
-      { path: '/astrology/gem-checkout', index: '06', label: 'Checkout', sub: 'Stones you have locked' },
-      { path: '/astrology/remedies', index: '07', label: 'Remedies', sub: 'Practices for the season you are in' },
-      { path: '/profile/astrology', index: '08', label: 'Astrology Profile', sub: 'Birth details, entered once' },
+      { path: '/astrology/gem-checkout', index: '05', label: 'Checkout', sub: 'Stones you have locked' },
+      { path: '/astrology/remedies', index: '06', label: 'Remedies', sub: 'Practices for the season you are in' },
+      { path: '/profile/astrology', index: '07', label: 'Astrology Profile', sub: 'Birth details, entered once' },
     ],
   },
   nutrition: {

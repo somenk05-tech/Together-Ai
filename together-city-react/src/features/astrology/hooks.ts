@@ -13,15 +13,6 @@ export function useSaveAstroProfile() {
   });
 }
 
-/** Today's saved prediction (one per user per day, flips at the user's midnight). */
-export function useAstroDaily() {
-  return useQuery({ queryKey: ['astrology', 'daily'], queryFn: astrologyApi.daily, staleTime: 5 * 60_000 });
-}
-
-export function useAstroDailyHistory() {
-  return useQuery({ queryKey: ['astrology', 'daily-history'], queryFn: astrologyApi.dailyHistory });
-}
-
 /** The month's saved reading (one per user per calendar month). */
 export function useAstroMonthly() {
   return useQuery({ queryKey: ['astrology', 'monthly'], queryFn: astrologyApi.monthly, staleTime: 30 * 60_000 });
@@ -30,7 +21,7 @@ export function useAstroMonthly() {
 /**
  * The months behind this one — two years of them.
  *
- * No staleTime, matching the daily archive: a list of letters already written
+ * No staleTime: a list of letters already written
  * changes only when a new one is, and the cost of re-reading it is one small
  * request against a page somebody has just navigated to.
  */

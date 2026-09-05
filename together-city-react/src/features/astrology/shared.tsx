@@ -16,13 +16,12 @@ export function NeedsProfileCard() {
 }
 
 const TABS = [
-  { path: '/astrology/today', label: '01 · Today' },
-  { path: '/astrology/monthly', label: '02 · This Month' },
-  { path: '/astrology/ask', label: '03 · Ask the Astrologer' },
-  { path: '/astrology/tarot', label: '04 · Tarot' },
-  { path: '/astrology/gemstones', label: '05 · Gemstones' },
-  { path: '/astrology/gem-checkout', label: '06 · Checkout' },
-  { path: '/astrology/remedies', label: '07 · Remedies' },
+  { path: '/astrology/monthly', label: '01 · This Month' },
+  { path: '/astrology/ask', label: '02 · Ask the Astrologer' },
+  { path: '/astrology/tarot', label: '03 · Tarot' },
+  { path: '/astrology/gemstones', label: '04 · Gemstones' },
+  { path: '/astrology/gem-checkout', label: '05 · Checkout' },
+  { path: '/astrology/remedies', label: '06 · Remedies' },
 ];
 
 /** Shared tab bar for the three Astrology Zone tabs. */

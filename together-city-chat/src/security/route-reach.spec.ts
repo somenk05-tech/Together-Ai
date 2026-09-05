@@ -51,6 +51,13 @@ const ALLOW: Array<{ id: string; why: string }> = [
       + 'a rule that quietly excuses a whole class.',
   })),
   {
+    id: 'astrology/astrology.controller.ts  GET /astrology/daily',
+    why: 'The daily letter was retired on 5 Sep and the page that read it is '
+      + 'gone; the route survives only as the anchor for Mira\'s "how is my day" '
+      + 'capability and returns { retired: true } without touching a model. '
+      + 'the-daily-letter-is-retired.spec.ts pins that it stays that way.',
+  },
+  {
     id: 'mail/mail-inbound.controller.ts  POST /mail/inbound',
     why: 'The Resend inbound-mail webhook. Its caller is a mail provider, not a '
       + 'page — a reply someone sends from Gmail arrives here, and no browser '

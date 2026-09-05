@@ -224,18 +224,17 @@ describe('she does not ask the same question twice', () => {
 });
 
 describe('“how is my day going to be” is one turn, not four', () => {
-  it('reads the citizen’s own letter rather than shrugging', async () => {
+  it('answers from the day itself rather than shrugging', async () => {
     const t = await svc().ask('how is my day going to be', ctx());
     expect(t.text).not.toMatch(/not something I can do yet/i);
-    expect(t.text).toMatch(/steady day/i);
+    expect(t.text).toMatch(/Nothing on your day yet/i);
   });
 
-  it('joins the doses and the inbox onto the reading', async () => {
+  it('joins the doses and the inbox', async () => {
     const t = await svc({
       today: () => Promise.resolve({ doses: [{ medicine: 'Metformin', status: 'due' }] }),
       account: () => Promise.resolve({ counts: { inboxUnread: 3 } }),
     }).ask('how is my day going to be', ctx({ dial: 0 }));
-    expect(t.text).toMatch(/steady day/i);
     expect(t.text).toMatch(/One dose/);
     expect(t.text).toMatch(/Metformin/);
     expect(t.text).toMatch(/3 unread/);
@@ -243,22 +242,27 @@ describe('“how is my day going to be” is one turn, not four', () => {
 
   /** A hub being down must not take the morning with it. */
   it('survives a hub throwing', async () => {
-    const t = await svc({ today: () => Promise.reject(new Error('db down')) }).ask('how is my day', ctx());
-    expect(t.text).toMatch(/steady day/i);
+    const t = await svc({
+      today: () => Promise.reject(new Error('db down')),
+      account: () => Promise.resolve({ counts: { inboxUnread: 3 } }),
+    }).ask('how is my day', ctx());
+    expect(t.text).not.toMatch(/not something I can do yet/i);
+    expect(t.text).toMatch(/3 unread/);
   });
 
-  it('asks for birth details instead of inventing a reading', async () => {
+  /**
+   * THE DAILY LETTER IS RETIRED (owner decision, 5 Sep). The brief used to open
+   * with the citizen's reading and cost a model call to do it; it no longer
+   * asks astrology for anything. A `daily` that would have said "needs profile"
+   * or "pending" is never consulted, so neither sentence can come back.
+   */
+  it('never reads a letter, and never asks for birth details to write one', async () => {
     const t = await svc({ daily: () => Promise.resolve({ needsProfile: true }) }).ask('my horoscope', ctx());
-    expect(t.text).toMatch(/birth details/i);
-    expect(t.goto?.path).toBe('/astrology');
-  });
-
-  /** The letter is a model call, cached per day. `pending` is reported, never
-   *  retried — it is not hers to spend. */
-  it('says the letter is still being written rather than pretending', async () => {
-    const t = await svc({ daily: () => Promise.resolve({ needsProfile: false, pending: true, date: 'x' }) })
+    expect(t.text).not.toMatch(/birth details/i);
+    expect(t.text).not.toMatch(/steady day/i);
+    const p = await svc({ daily: () => Promise.resolve({ needsProfile: false, pending: true, date: 'x' }) })
       .ask('my reading today', ctx());
-    expect(t.text).toMatch(/still being written/i);
+    expect(p.text).not.toMatch(/still being written/i);
   });
 });
 

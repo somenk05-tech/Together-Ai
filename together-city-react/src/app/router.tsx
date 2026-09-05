@@ -45,7 +45,6 @@ const MyOrders = lazy(() => import('@/features/services/pages/MyOrders').then((m
 const BizOrders = lazy(() => import('@/features/services/pages/BizOrders').then((m) => ({ default: m.BizOrders })));
 const Regulars = lazy(() => import('@/features/services/pages/Regulars').then((m) => ({ default: m.Regulars })));
 const DailyOffers = lazy(() => import('@/features/services/pages/DailyOffers').then((m) => ({ default: m.DailyOffers })));
-const AstroToday = lazy(() => import('@/features/astrology/pages/AstroToday').then((m) => ({ default: m.AstroToday })));
 const AstroMonthly = lazy(() => import('@/features/astrology/pages/AstroMonthly').then((m) => ({ default: m.AstroMonthly })));
 const AstroAsk = lazy(() => import('@/features/astrology/pages/AstroAsk').then((m) => ({ default: m.AstroAsk })));
 const AstroProfilePage = lazy(() => import('@/features/astrology/pages/AstroProfilePage').then((m) => ({ default: m.AstroProfilePage })));
@@ -578,7 +577,6 @@ const ROUTE_BLOCKS: RouteObject[] = [
     // made the one section that looked unlike the rest of the app.
     element: <HubLayout hub={HUBS.astrology} />,
     children: [
-      { path: '/astrology/today', element: <RequireAuth>{wrap(<AstroToday />)}</RequireAuth> },
       { path: '/astrology/monthly', element: <RequireAuth>{wrap(<AstroMonthly />)}</RequireAuth> },
       { path: '/astrology/ask', element: <RequireAuth>{wrap(<AstroAsk />)}</RequireAuth> },
       { path: '/astrology/tarot', element: <RequireAuth>{wrap(<AstroTarot />)}</RequireAuth> },
