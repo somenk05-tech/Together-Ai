@@ -103,8 +103,12 @@ describe('the friction list takes a class', () => {
     // And again the same evening: the unverified-email banner's style was
     // hoisted so the socket's reconnect strip could wear it. 6546 → 6545,
     // 3541 → 3540.
-    expect(s).toMatch(/inlineStyleBlocks: 6545,/);
-    expect(s).toMatch(/rawSpacing: 3540,/);
+    // And 5 Sep: the developer page's citizen register became a `table.tc`
+    // with classes where the search list had been a hand-styled button per
+    // row, and the two edit-quota notes wear `.muted` alone. 6545 → 6540,
+    // 3540 → 3538.
+    expect(s).toMatch(/inlineStyleBlocks: 6540,/);
+    expect(s).toMatch(/rawSpacing: 3538,/);
     // The two the script prints beside them, pinned for the same reason: a
     // number nothing reads is a number that drifts back up.
     expect(s).toMatch(/distinctFontSizes: 35,/);

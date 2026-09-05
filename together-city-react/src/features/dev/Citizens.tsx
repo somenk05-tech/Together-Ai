@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Card, EmptyState, Spinner } from '@/components/ui';
 import {
-  adminApi, useAdminMe, useCitizens, useCitizen, useCitizenActivity, useSetSuspended,
+  adminApi, useAdminMe, useCitizenPages, useCitizen, useCitizenActivity, useSetSuspended,
   type CitizenView,
 } from '@/features/admin/api';
 
@@ -284,7 +284,13 @@ export function DevCitizens() {
     return () => clearTimeout(t);
   }, [typed]);
 
-  const list = useCitizens(true, { q, status: status || undefined });
+  // THE WHOLE CITY IS THE DEFAULT (owner ask, 5 Sep: "a detailed list of users
+  // and their details"). No search needed to see the list; search narrows it.
+  // Contact details stay masked in every row whatever the reader holds — the
+  // reveal is one record, one reason, one audit row, in the panel below.
+  const list = useCitizenPages(true, { q, status: status || undefined });
+  const rows = useMemo(() => (list.data?.pages ?? []).flatMap((p) => p.items), [list.data]);
+  const total = list.data?.pages[0]?.total ?? 0;
   const asked = useMemo(() => Boolean(q || status), [q, status]);
 
   if (me.isLoading) return <Spinner label="Checking what you can do…" />;
@@ -339,28 +345,48 @@ export function DevCitizens() {
         ))}
       </div>
 
-      {!asked && <p className="muted" style={{ fontSize: 13, margin: 0 }}>Search to find somebody.</p>}
-      {asked && list.isLoading && <Spinner label="Searching…" />}
-      {asked && list.data?.items.length === 0 && (
-        <p className="muted" style={{ fontSize: 13, margin: 0 }}>Nobody matches that.</p>
+      {list.isLoading && <Spinner label={asked ? 'Searching…' : 'Opening the register…'} />}
+      {list.isError && (
+        <p className="muted" style={{ fontSize: 13, margin: 0 }}>The register could not be read — this account may not hold users.read.</p>
       )}
-      {list.data && list.data.items.length > 0 && (
-        <div style={{ display: 'grid', gap: 2 }}>
-          {list.data.items.map((c) => (
-            <button key={c.id} type="button" onClick={() => setOpenId(c.id === openId ? null : c.id)}
-              style={{ display: 'flex', gap: 10, alignItems: 'baseline', textAlign: 'left', width: '100%',
-                minHeight: 44, background: c.id === openId ? 'var(--accent-soft)' : 'none', border: 0,
-                borderBottom: '1px solid var(--line)', padding: '8px 10px', cursor: 'pointer',
-                fontFamily: 'inherit', color: 'inherit' }}>
-              <span style={{ fontSize: 13.5, fontWeight: 600 }}>{c.name}</span>
-              <span className="muted" style={{ fontSize: 12.5, flex: 1, minWidth: 0 }}>@{c.handle}</span>
-              <Status status={c.status} />
-            </button>
-          ))}
-          {list.data.truncated && (
-            <p className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>
-              Showing the first {list.data.limit}. Narrow the search — this is not all of them.
-            </p>
+      {list.data && rows.length === 0 && (
+        <p className="muted" style={{ fontSize: 13, margin: 0 }}>{asked ? 'Nobody matches that.' : 'Nobody has signed up yet.'}</p>
+      )}
+      {rows.length > 0 && (
+        <div>
+          <p className="muted">
+            Showing {rows.length.toLocaleString('en-IN')} of {total.toLocaleString('en-IN')} {asked ? 'matching ' : ''}citizen{total === 1 ? '' : 's'}, newest first. Open a name for the full record.
+          </p>
+          <div className="tablewrap"><table className="tc">
+            <tbody>
+              <tr>
+                {['Name', 'Handle', 'City', 'Joined', 'Last seen', 'Email', 'Phone', 'Status', 'Role'].map((h) => <th key={h} scope="col">{h}</th>)}
+              </tr>
+              {rows.map((c) => (
+                <tr key={c.id} className={c.id === openId ? 'row-open' : undefined}>
+                  <td>
+                    <Button variant="ghost" size="sm" aria-expanded={c.id === openId} onClick={() => setOpenId(c.id === openId ? null : c.id)}>
+                      <b>{c.name}</b>
+                    </Button>
+                  </td>
+                  <td><span className="muted">@{c.handle}</span></td>
+                  <td>{c.city ?? <span className="muted">—</span>}</td>
+                  <td title={dt(String(c.joinedAt))}>{day(String(c.joinedAt))}</td>
+                  <td title={dt(String(c.lastSeen))}>{day(String(c.lastSeen))}</td>
+                  <td>{c.email ?? <span className="muted">—</span>}{c.email && c.emailVerified ? <span title="Verified"> ✓</span> : null}</td>
+                  <td>{c.phone ?? <span className="muted">—</span>}{c.phone && c.phoneVerified ? <span title="Verified"> ✓</span> : null}</td>
+                  <td><Status status={c.status} /></td>
+                  <td>{c.moderator ? 'moderator' : <span className="muted">citizen</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table></div>
+          {list.hasNextPage && (
+            <div>
+              <Button variant="line" size="sm" disabled={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>
+                {list.isFetchingNextPage ? 'Loading…' : `Show the next ${Math.min(50, total - rows.length)}`}
+              </Button>
+            </div>
           )}
         </div>
       )}

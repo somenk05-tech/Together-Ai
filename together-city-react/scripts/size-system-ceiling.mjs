@@ -105,9 +105,9 @@ import { join } from 'node:path';
  */
 const CEILING = {
   rawRadii: 315,
-  inlineStyleBlocks: 6545,
+  inlineStyleBlocks: 6540,
   distinctFontSizes: 35,
-  rawSpacing: 3540,
+  rawSpacing: 3538,
   /* Added 2 Sep. Today's readings, recorded so they can only fall.
    *
    * `distinctTracking` opened at 50 and is recorded at 49, because the last

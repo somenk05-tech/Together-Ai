@@ -91,8 +91,10 @@ export class AdminController {
     @CurrentUser() user: JwtUser,
     @Query('q') q?: string,
     @Query('status') status?: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.admin.citizens(user.sub, { query: q, status });
+    return this.admin.citizens(user.sub, { query: q, status, cursor, limit: limit ? Number(limit) : undefined });
   }
 
   // Declared before ':id', or "export" is read as a citizen id.

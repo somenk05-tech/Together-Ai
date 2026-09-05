@@ -122,6 +122,9 @@ describe('one grid, two meanings', () => {
       ['features/chat/pages/Chats.tsx', /\{miraShown && <MiraRow /],
       ['features/dating/pages/DatingChats.tsx', /\{miraShown && \(/],
       ['features/daybook/pages/DayPage.tsx', /\{miraShown && <section className="dayb-mira">/],
+      // The sixth door (5 Sep): the home hero's "Talk to Mira" — the one the
+      // owner saw still lit with the switch off.
+      ['pages/Home.tsx', /miraShown \? \(\s*<Link className="btn btn-gold" to="\/chats\?c=__mira__">/],
     ] as const) {
       expect({ file, gated: needle.test(code(file)) }).toEqual({ file, gated: true });
     }

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { http as api } from '@/api/client';
 
 export interface AdminMe {
@@ -90,8 +90,8 @@ export const adminApi = {
     api.post<{ id: string; moderation: string }>(`/admin/queue/${id}/decision`, { decision, reason }).then((r) => r.data),
   audit: (q: { entity?: string; entityId?: string } = {}) =>
     api.get<{ items: AuditItem[] }>('/admin/audit', { params: q }).then((r) => r.data),
-  citizens: (q: { q?: string; status?: string } = {}) =>
-    api.get<{ items: CitizenView[]; limit: number; truncated: boolean }>('/admin/citizens', { params: q }).then((r) => r.data),
+  citizens: (q: { q?: string; status?: string; cursor?: string; limit?: number } = {}) =>
+    api.get<{ items: CitizenView[]; limit: number; total: number; truncated: boolean; nextCursor: string | null }>('/admin/citizens', { params: q }).then((r) => r.data),
   citizen: (id: string, opts: { unmask?: boolean; reason?: string } = {}) =>
     api.get<CitizenRecord>(`/admin/citizens/${id}`, {
       params: opts.unmask ? { unmask: '1', reason: opts.reason ?? '' } : undefined,
@@ -142,6 +142,21 @@ export function useCitizens(enabled: boolean, q: { q?: string; status?: string }
     queryKey: ['admin', 'citizens', q],
     queryFn: () => adminApi.citizens(q),
     enabled: enabled && Boolean(q.q?.trim() || q.status),
+    retry: false,
+  });
+}
+/**
+ * The whole city, a page at a time (5 Sep). With no search this is everybody,
+ * newest first; each page carries the cursor for the next, and `total` under
+ * the same filter so the screen can say how much of it is on view.
+ */
+export function useCitizenPages(enabled: boolean, q: { q?: string; status?: string }) {
+  return useInfiniteQuery({
+    queryKey: ['admin', 'citizen-pages', q],
+    queryFn: ({ pageParam }) => adminApi.citizens({ ...q, cursor: pageParam || undefined, limit: 50 }),
+    initialPageParam: '',
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    enabled,
     retry: false,
   });
 }

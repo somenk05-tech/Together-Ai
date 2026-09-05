@@ -18,6 +18,17 @@ import { VerificationService } from '../local-services/verification.service';
  * approve a listing without the permission and without a written reason. That
  * is the whole point of having built the substrate before the screen.
  */
+
+/** `<createdAt ISO>|<id>` from the previous page, or nothing for the first. */
+function parseCursor(raw?: string): { createdAt: Date; id: string } | null {
+  if (!raw) return null;
+  const bar = raw.lastIndexOf('|');
+  if (bar <= 0) return null;
+  const createdAt = new Date(raw.slice(0, bar));
+  const id = raw.slice(bar + 1);
+  return Number.isFinite(createdAt.getTime()) && id ? { createdAt, id } : null;
+}
+
 @Injectable()
 export class AdminService {
   constructor(
@@ -219,7 +230,7 @@ export class AdminService {
    * "what happened to this account", which is the question somebody is asking
    * precisely when the account is gone.
    */
-  async citizens(userId: string, q: { query?: string; status?: string }) {
+  async citizens(userId: string, q: { query?: string; status?: string; cursor?: string; limit?: number }) {
     await this.access.assert(userId, 'users.read');
     const term = (q.query ?? '').trim();
     const where: Record<string, unknown> = {};
@@ -233,19 +244,41 @@ export class AdminService {
     if (q.status === 'suspended') where.suspendedAt = { not: null };
     if (q.status === 'deleted') where.deletedAt = { not: null };
 
-    const rows = await this.prisma.user.findMany({
-      where,
-      select: this.citizenSelect,
-      orderBy: { createdAt: 'desc' },
-      // Bounded, and the bound is reported rather than hidden — a list that
-      // silently stops at fifty reads as "there are fifty".
-      take: 50,
-    }) as unknown as CitizenRow[];
+    /**
+     * THE WHOLE CITY, A PAGE AT A TIME (owner ask, 5 Sep: "a detailed list of
+     * users and their details"). With no search the list is everybody, newest
+     * first, on a keyset cursor of (createdAt, id) — the same tiebreak the chat
+     * history uses — so a page never repeats or skips a row while people keep
+     * signing up. `total` is the count under the same filter, so the screen can
+     * say "showing 50 of 14,212" rather than leaving the reader to guess.
+     */
+    const limit = Math.max(1, Math.min(100, Math.floor(q.limit ?? 50)));
+    const after = parseCursor(q.cursor);
+    const paged = after
+      ? { AND: [where, { OR: [{ createdAt: { lt: after.createdAt } }, { createdAt: after.createdAt, id: { lt: after.id } }] }] }
+      : where;
+    const [rows, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where: paged,
+        select: this.citizenSelect,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: limit + 1,
+      }) as unknown as Promise<CitizenRow[]>,
+      this.prisma.user.count({ where }),
+    ]);
+    const page = rows.slice(0, limit);
+    const last = page[page.length - 1];
     // Not `rows.map(toCitizenView)`: map passes the INDEX as the second
     // argument, which lands in the options object. It happens to be harmless
     // — `(3).unmask` is undefined, so it masks — but the version of this that
     // is safe by accident is one refactor away from the version that is not.
-    return { items: rows.map((r) => toCitizenView(r)), limit: 50, truncated: rows.length === 50 };
+    return {
+      items: page.map((r) => toCitizenView(r)),
+      limit,
+      total,
+      truncated: rows.length > limit,
+      nextCursor: rows.length > limit && last ? `${last.createdAt.toISOString()}|${last.id}` : null,
+    };
   }
 
   /**

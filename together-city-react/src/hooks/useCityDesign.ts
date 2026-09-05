@@ -21,7 +21,7 @@ interface ServicesDesign { hidden: string[] }
 const KEY = ['profile', 'services'] as const;
 const SWITCHES = ['city', 'visibility'] as const;
 
-/** Mira's door, in the five places she has one. She is not a hub, so she is
+/** Mira's door, in the six places she has one (the home hero joined, 5 Sep). She is not a hub, so she is
  *  not in `hubOn` — but she is a thing with doors, which is what the
  *  operator's switch is about. Off hides the door and nothing else: she keeps
  *  answering, and an open conversation stays open. */

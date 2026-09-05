@@ -373,6 +373,9 @@ h1 { letter-spacing: .015em; }
 
 table.tc { font-size: var(--fs-4); }
 table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--ink-soft); }
+/* The developer page's citizen register (5 Sep): a row is a door to the
+   record, and the open one is lit the way the search list lit it. */
+table.tc tr.row-open td { background: var(--accent-soft); }
 
 /* The section rhythm keeps its shape; only the material changes. */
 .blk-head .more { color: var(--accent-ink); }

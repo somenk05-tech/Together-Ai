@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { CityHeader } from '@/components/CityHeader';
 import { RecentPanel } from '@/components/RecentPanel';
 import { HUBS } from '@/config/hubs';
-import { useCityDesign } from '@/hooks/useCityDesign';
+import { useCityDesign, useMiraShown } from '@/hooks/useCityDesign';
 import type { HubKey } from '@/types';
 import { InstallCity } from '@/components/InstallCity';
 
@@ -22,7 +22,7 @@ interface Zone { to: string; label: string; shape: 'poly' | 'ellipse'; points?: 
 // it simply has no door on this page any more.
 const ZONES: Zone[] = [
   { to: '/nutrition', label: 'Nutrition & Groceries', shape: 'poly', points: '178.4,364.2 461.2,364.2 461.2,496.4 178.4,496.4' },
-  { to: '/social', label: 'Social Life', shape: 'poly', points: '173.3,502.5 381.9,502.5 381.9,652.1 173.3,652.1' },
+  { to: '/social', label: 'Together City TV', shape: 'poly', points: '173.3,502.5 381.9,502.5 381.9,652.1 173.3,652.1' },
   { to: '/astrology', label: 'Astrology Hub', shape: 'poly', points: '183.5,665.3 381.9,665.3 381.9,794.5 183.5,794.5' },
   { to: '/dating', label: 'Matchmaking Hub', shape: 'ellipse', cx: 951.5, cy: 524.9, rx: 132.2, ry: 73.2 },
   { to: '/medical', label: 'Medical Hub', shape: 'poly', points: '1144.8,290.9 1441.8,290.9 1441.8,415.0 1144.8,415.0' },
@@ -39,7 +39,7 @@ const PAVILIONS: Pavilion[] = [
   // just not being advertised here.
   { to: '/astrology', img: 'astrology-hub.webp', title: 'Astrology Hub' },
   { to: '/nutrition', img: 'nutrition-and-groceies.webp', title: 'Nutrition & Groceries' },
-  { to: '/social', img: 'social-life.webp', title: 'Social Life' },
+  { to: '/social', img: 'social-life.webp', title: 'Together City TV' },
   { to: '/dating', img: 'dating-hub.webp', title: 'Matchmaking Hub' },
   { to: '/entertainment', img: 'entertainment.webp', title: 'Entertainment' },
   { to: '/realestate', img: 'real-estate.webp', title: 'Real Estate' },
@@ -86,7 +86,7 @@ const DISTRICT_COPY: Partial<Record<HubKey, { name: string; line: string }>> = {
   realestate: { name: 'Real Estate', line: 'Your perfect space, found for you.' },
   fitness: { name: 'Fitness', line: 'Your body. Your goals. Your journey.' },
   beauty: { name: 'Beauty', line: 'Your look, your way.' },
-  social: { name: 'Social Life', line: 'Your people. Your city. Your moments.' },
+  social: { name: 'Together City TV', line: 'Your people. Your city. Your moments.' },
   astrology: { name: 'Astrology', line: 'Your stars. Your journey. Your timing.' },
   /* THE ONE DISTRICT WHOSE PLATE IS NOT ITS HUB'S NAME, and the override exists
      for exactly that: the hub is Pet Care in the tab bar, the rail and the
@@ -171,6 +171,10 @@ export function Home() {
      a photograph is not a menu. Hidden is not deleted: the routes still
      answer, and the profile section puts everything back in one press. */
   const { hubOn } = useCityDesign();
+  // The sixth door (owner, 5 Sep): the hero's "Talk to Mira" follows the
+  // operator's switch like her other five. Off, the door is not drawn — she
+  // keeps answering, and an open conversation stays open.
+  const miraShown = useMiraShown();
   const zones = ZONES.filter((z) => hubOn(z.to.slice(1)));
   const districts = DISTRICTS.filter((p) => hubOn(p.key));
   const tiles = FALLBACK.filter((p) => hubOn(p.to.slice(1)));
@@ -253,12 +257,14 @@ export function Home() {
                  it. The argument that justified hiding it now argues the other
                  way: the smaller the screen, the more it costs to go and find
                  the page yourself. */
-              <Link className="btn btn-gold" to="/chats?c=__mira__">
-                Talk to Mira
-              </Link>
+              miraShown ? (
+                <Link className="btn btn-gold" to="/chats?c=__mira__">
+                  Talk to Mira
+                </Link>
+              ) : null
             ) : (
               <>
-                <Link className="btn btn-gold" to="/sign-up">Talk to Mira</Link>
+                <Link className="btn btn-gold" to="/sign-up">{miraShown ? 'Talk to Mira' : 'Join the city'}</Link>
                 <Link className="btn" to="/sign-in">Sign in</Link>
               </>
             )}

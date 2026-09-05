@@ -36,7 +36,9 @@ describe('Mira has a door on a phone', () => {
   const home = strip(read('pages/Home.tsx'));
 
   it('shows the signed-in citizen the way to her at every width', () => {
-    expect(home).toMatch(/\{authed \? \(\s*<Link className="btn btn-gold" to="\/chats\?c=__mira__">/);
+    // …behind the operator's switch and nothing else (5 Sep): `miraShown` is
+    // the one hand on her six doors; a width check is not allowed back in.
+    expect(home).toMatch(/\{authed \? \(\s*miraShown \? \(\s*<Link className="btn btn-gold" to="\/chats\?c=__mira__">/);
   });
 
   /** The specific shape of the defect, named so it cannot come back wearing the
@@ -62,8 +64,11 @@ describe('Mira has a door on a phone', () => {
    * something the app then calls by another name.
    */
   it('says the same thing signed in or out', () => {
-    const labels = [...home.matchAll(/Talk to Mira[^<]*/g)].map((m) => m[0].trim());
-    expect(labels.length).toBe(2);
-    expect(new Set(labels).size).toBe(1);
+    // Two doors, one name — and with the switch off, neither says her name:
+    // the signed-in door is not drawn and the signed-out one becomes a plain
+    // "Join the city", so the landing page never advertises a room the
+    // operator has closed.
+    expect((home.match(/Talk to Mira/g) ?? []).length).toBe(2);
+    expect(home).toMatch(/\{miraShown \? 'Talk to Mira' : 'Join the city'\}/);
   });
 });
