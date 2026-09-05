@@ -112,21 +112,54 @@ const AFFINITY: Record<Element, Record<Element, number>> = {
   water: { water: 86, earth: 92, air: 64, fire: 58 },
 };
 
-/** Stable pseudo-random jitter from the two user ids, so a pair's score is fixed. */
-function pairJitter(a: string, b: string): number {
-  const s = [a, b].sort().join(':');
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return Math.abs(h) % 9; // 0..8
+/**
+ * ── THE CHART, NOT JUST THE SUN, AND NO DICE (owner, 5 Sep) ──────────────────
+ *
+ * Two things were wrong with the number under every card. It was the Sun
+ * sign alone, though the city collects birth time and place and the Astrology
+ * Zone already casts the whole chart from them. And it carried a per-pair
+ * hash — `-4 + (0..8)` — a stable random nudge so two pairs with the same
+ * signs did not read the same, which is to say the compatibility figure was
+ * partly dice, inside the factor that weighs 0.90 of the score.
+ *
+ * Now: the Sun sign's elemental affinity, the MOON sign's when both have one
+ * (every citizen with a birth date does — the Moon needs no time), and the
+ * ASCENDANT's when both have a birth time and place. Vedic practice puts the
+ * Moon at the centre of a match, so it carries as much as the Sun; the
+ * ascendant, being the most time-sensitive, carries less and only when it is
+ * actually known. No jitter: two pairs with the same charts read the same,
+ * and a number a citizen decides on is a number the same inputs reproduce.
+ */
+export interface NatalSigns { moon?: string | null; ascendant?: string | null }
+
+const ELEMENT_OF: Record<string, Element> = Object.fromEntries(
+  SIGNS12.map((name, i) => [name, (['fire', 'earth', 'air', 'water'] as Element[])[i % 4]]),
+);
+const elementOf = (sign: string | null | undefined): Element | null => (sign ? ELEMENT_OF[sign] ?? null : null);
+
+/** The three affinities, weighted over what is actually known. */
+export function chartAffinity(
+  sunA: Element, sunB: Element, natalA: NatalSigns = {}, natalB: NatalSigns = {},
+): { base: number; layers: Array<'sun' | 'moon' | 'ascendant'> } {
+  const parts: Array<{ w: number; v: number; layer: 'sun' | 'moon' | 'ascendant' }> = [
+    { w: 0.4, v: AFFINITY[sunA][sunB], layer: 'sun' },
+  ];
+  const moonA = elementOf(natalA.moon); const moonB = elementOf(natalB.moon);
+  if (moonA && moonB) parts.push({ w: 0.4, v: AFFINITY[moonA][moonB], layer: 'moon' });
+  const ascA = elementOf(natalA.ascendant); const ascB = elementOf(natalB.ascendant);
+  if (ascA && ascB) parts.push({ w: 0.2, v: AFFINITY[ascA][ascB], layer: 'ascendant' });
+  const total = parts.reduce((s, p) => s + p.w, 0);
+  const base = Math.round(parts.reduce((s, p) => s + p.w * p.v, 0) / total);
+  return { base, layers: parts.map((p) => p.layer) };
 }
 
 export function compatibilityScore(
-  a: { userId: string; birthDate: Date; interests: string[] },
-  b: { userId: string; birthDate: Date; interests: string[] },
-): { score: number; signA: string; signB: string } {
+  a: { userId: string; birthDate: Date; interests: string[]; natal?: NatalSigns },
+  b: { userId: string; birthDate: Date; interests: string[]; natal?: NatalSigns },
+): { score: number; signA: string; signB: string; layers: Array<'sun' | 'moon' | 'ascendant'> } {
   const sa = zodiacSign(a.birthDate);
   const sb = zodiacSign(b.birthDate);
-  const base = AFFINITY[sa.element][sb.element];
+  const { base, layers } = chartAffinity(sa.element, sb.element, a.natal, b.natal);
 
   // ANTI-GAMING (1M run, §13). This was `min(8, shared x 2)` — a RAW COUNT, so
   // a profile that ticked every interest the form offers collected the full +8
@@ -139,6 +172,6 @@ export function compatibilityScore(
   const union = new Set([...setA, ...setB]).size;
   const interestBonus = union ? Math.round(8 * (shared / union)) : 0;
 
-  const score = Math.min(99, base + interestBonus - 4 + pairJitter(a.userId, b.userId));
-  return { score, signA: sa.name, signB: sb.name };
+  const score = Math.min(99, base + interestBonus);
+  return { score, signA: sa.name, signB: sb.name, layers };
 }

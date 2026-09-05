@@ -36,7 +36,7 @@ function serviceWith(quoted: { conversationId: string } | null) {
       }),
     },
     conversationMember: { findMany: jest.fn(async () => []) },
-    conversation: { update: jest.fn(async () => ({})) },
+    conversation: { update: jest.fn(async () => ({})), findUnique: jest.fn(async () => ({ anonymousTrust: null })) },
   };
   const svc = new MessagesService(
     prisma as never,

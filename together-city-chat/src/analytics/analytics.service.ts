@@ -27,6 +27,7 @@ export const EVENT_NAMES = [
   'dating.photo.held',
   'dating.photo.rejected',
   'dating.appeal',
+  'dating.auto_held', // a card taken out of Browse by a pattern of reports (5 Sep)
 ] as const;
 export type EventName = (typeof EVENT_NAMES)[number];
 
