@@ -48,8 +48,15 @@ async function bootstrap(): Promise<void> {
    * X-Forwarded-For chain, which the client controls the left-hand end of — so
    * anyone could present a fresh "IP" per request and never be limited at all.
    * One hop means: take the address the proxy itself appended, and no further.
+   *
+   * HOW MANY HOPS IS A FACT ABOUT THE DEPLOYMENT, NOT THE CODE (5 Sep). One
+   * is right for Railway's edge alone; put Cloudflare's proxy in front of the
+   * custom domain and there are two, and `1` then names Cloudflare as every
+   * caller — the shared-bucket failure above, back again. TRUST_PROXY_HOPS
+   * says how many; a non-number or zero falls back to one.
    */
-  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  const hops = Number.parseInt(process.env.TRUST_PROXY_HOPS ?? '1', 10);
+  app.getHttpAdapter().getInstance().set('trust proxy', Number.isFinite(hops) && hops > 0 ? hops : 1);
 
   // Raised to fit a 75 MB video posted inline as base64 (~100 MB encoded) until
   // object storage (R2/S3) credentials are configured and direct-to-bucket
@@ -83,7 +90,9 @@ async function bootstrap(): Promise<void> {
     threshold: 1024,
     filter: (req, res) => (res.getHeader('x-no-compression') ? false : compression.filter(req, res)),
   }));
-  app.use(json({ limit: '32mb' }));
+  // The raw bytes, kept for the one route that verifies a signature over them
+  // (mail/inbound — Svix signs the body as sent, not as re-serialised).
+  app.use(json({ limit: '32mb', verify: (req, _res, buf) => { (req as unknown as { rawBody?: Buffer }).rawBody = buf; } }));
   app.use(urlencoded({ limit: '32mb', extended: true }));
   // 2-year HSTS with preload — HTTPS only, everywhere (TLS terminates at the
   // platform edge; HTTP never reaches the app).

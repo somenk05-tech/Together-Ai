@@ -164,7 +164,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   afterInit(): void {
     // Fan domain events out to the right socket rooms.
-    this.bus.subscribe((event) => this.handleBusEvent(event));
+    this.bus.subscribe((event, meta) => this.handleBusEvent(event, meta?.origin ?? true));
   }
 
   // ── connection lifecycle ───────────────────────────────
@@ -337,6 +337,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   // ── rooms ──────────────────────────────────────────────
   @SubscribeMessage(WS.JOIN_CONVERSATION)
   async onJoin(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
+    if (!client.userId) return; // handshake auth not finished — drop the frame (5 Sep: every handler, not just heartbeat)
     if (overLimit(client, 'join')) { refuse(client, 'conversation opens', 'join'); return; }
     const { conversationId } = parseOrThrow(JoinConversationSchema, body);
     await this.permission.assertCanPostToConversation(client.userId, conversationId);
@@ -348,6 +349,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   @SubscribeMessage(WS.LEAVE_CONVERSATION)
   async onLeave(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
+    if (!client.userId) return; // handshake auth not finished — drop the frame (5 Sep: every handler, not just heartbeat)
     if (overLimit(client, 'join')) { refuse(client, 'conversation opens', 'join'); return; }
     const { conversationId } = parseOrThrow(LeaveConversationSchema, body);
     await client.leave(room.conversation(conversationId));
@@ -357,6 +359,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   // ── messaging ──────────────────────────────────────────
   @SubscribeMessage(WS.SEND_MESSAGE)
   async onSend(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
+    if (!client.userId) return; // handshake auth not finished — drop the frame (5 Sep: every handler, not just heartbeat)
     if (overLimit(client, 'send')) { refuse(client, 'messages', 'send'); return; }
     const dto = parseOrThrow(SocketSendSchema, body);
     // MessagesService enforces the connection gate; throws 403 if not connected.
@@ -368,6 +371,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   @SubscribeMessage(WS.MESSAGE_DELIVERED)
   async onDelivered(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
+    if (!client.userId) return; // handshake auth not finished — drop the frame (5 Sep: every handler, not just heartbeat)
     if (overLimit(client, 'ack')) { refuse(client, 'receipts', 'ack'); return; }
     const { messageIds } = parseOrThrow(AckSchema, body);
     await this.messages.markDelivered(client.userId, messageIds);
@@ -375,6 +379,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   @SubscribeMessage(WS.MESSAGE_READ)
   async onRead(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
+    if (!client.userId) return; // handshake auth not finished — drop the frame (5 Sep: every handler, not just heartbeat)
     if (overLimit(client, 'ack')) { refuse(client, 'receipts', 'ack'); return; }
     const { messageIds } = parseOrThrow(AckSchema, body);
     await this.messages.markRead(client.userId, messageIds);
@@ -383,6 +388,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   // ── typing ─────────────────────────────────────────────
   @SubscribeMessage(WS.TYPING_START)
   async onTypingStart(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
+    if (!client.userId) return; // handshake auth not finished — drop the frame (5 Sep: every handler, not just heartbeat)
     if (overLimit(client, 'typing')) { refuse(client, 'typing signals', 'typing'); return; }
     const { conversationId } = parseOrThrow(TypingSchema, body);
     /* Typing is gated by the ROOM, not by a DB query per keystroke: the
@@ -420,6 +426,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   @SubscribeMessage(WS.TYPING_STOP)
   async onTypingStop(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
+    if (!client.userId) return; // handshake auth not finished — drop the frame (5 Sep: every handler, not just heartbeat)
     if (overLimit(client, 'typing')) { refuse(client, 'typing signals', 'typing'); return; }
     const { conversationId } = parseOrThrow(TypingSchema, body);
     if (!client.userId || !client.rooms.has(room.conversation(conversationId))) return;
@@ -445,6 +452,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
    */
   @SubscribeMessage(WS.CALL_SIGNAL)
   async onCallSignal(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
+    if (!client.userId) return; // handshake auth not finished — drop the frame (5 Sep: every handler, not just heartbeat)
     if (overLimit(client, 'call')) { refuse(client, 'call signals', 'call'); return; }
     let dto: CallSignalDto;
     try {
@@ -482,7 +490,28 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   }
 
   // ── bus → socket fan-out ───────────────────────────────
-  private async handleBusEvent(event: ChatEvent): Promise<void> {
+  /** This node's sockets only: `server.local` skips the adapter broadcast.
+   *  Falls back to the server itself for the specs' bare fakes. */
+  private local(): Server {
+    const s = this.server as Server & { local?: Server };
+    return (s.local ?? s) as Server;
+  }
+
+  /**
+   * ── ONE FRAME PER SOCKET, WHATEVER THE REPLICA COUNT (5 Sep) ──────────────
+   * Two fan-out layers were both crossing nodes. The app bus hands every
+   * event to every replica (that is its job), and each replica then called
+   * `server.to(room).emit`, which the socket.io Redis adapter ALSO broadcasts
+   * to every replica — so with N replicas each socket received every message
+   * N times, and `notifyNewMessage` filed N bell rows and sent N pushes.
+   * Railway always overlaps two instances during a deploy, so this was live
+   * every deploy.
+   *
+   * Now: emits are LOCAL — this node delivers to its own sockets, the bus has
+   * already reached the others — and the side effects (bell rows, pushes) run
+   * only on the ORIGIN node, the one whose request created the event.
+   */
+  private async handleBusEvent(event: ChatEvent, origin = true): Promise<void> {
     switch (event.kind) {
       case 'message.created': {
         /* A conversation that did not exist when you connected is a room you
@@ -492,9 +521,9 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
            every connected socket is in, and works across the Redis adapter, so
            it reaches their sockets on other instances too. Idempotent. */
         for (const rid of event.recipientIds) {
-          this.server.in(room.user(rid)).socketsJoin(room.conversation(event.conversationId));
+          this.local().in(room.user(rid)).socketsJoin(room.conversation(event.conversationId));
         }
-        this.server
+        this.local()
           .to(room.conversation(event.conversationId))
           .emit(WS.RECEIVE_MESSAGE, event.message);
         const preview = this.previewOf(event.message);
@@ -522,12 +551,12 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
            the notification path, where the masking lives. Do not add fields
            here; add them to the bell. */
         for (const rid of event.recipientIds) {
-          this.server.to(room.user(rid)).emit(WS.CHAT_NOTIFICATION, {
+          this.local().to(room.user(rid)).emit(WS.CHAT_NOTIFICATION, {
             conversationId: event.conversationId,
             messageId,
           });
         }
-        await this.notifications.notifyNewMessage({
+        if (origin) await this.notifications.notifyNewMessage({
           conversationId: event.conversationId,
           senderId: sender,
           recipientIds: event.recipientIds,
@@ -536,20 +565,20 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         break;
       }
       case 'message.edited':
-        this.server.to(room.conversation(event.conversationId)).emit(WS.MESSAGE_EDITED, event.message);
+        this.local().to(room.conversation(event.conversationId)).emit(WS.MESSAGE_EDITED, event.message);
         break;
       case 'message.deleted':
-        this.server
+        this.local()
           .to(room.conversation(event.conversationId))
           .emit(WS.MESSAGE_DELETED, { conversationId: event.conversationId, messageId: event.messageId });
         break;
       case 'message.delivered':
-        this.server
+        this.local()
           .to(room.conversation(event.conversationId))
           .emit(WS.MESSAGE_DELIVERED, { conversationId: event.conversationId, messageId: event.messageId, userId: event.userId });
         break;
       case 'message.read':
-        this.server
+        this.local()
           .to(room.conversation(event.conversationId))
           .emit(WS.MESSAGE_READ, { conversationId: event.conversationId, messageId: event.messageId, userId: event.userId });
         break;
@@ -558,7 +587,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
          you notice when you are in the room, not things that should light up a
          phone in somebody's pocket. */
       case 'message.reacted':
-        this.server
+        this.local()
           .to(room.conversation(event.conversationId))
           .emit(WS.MESSAGE_REACTED, {
             conversationId: event.conversationId,
@@ -567,7 +596,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
           });
         break;
       case 'message.pinned':
-        this.server
+        this.local()
           .to(room.conversation(event.conversationId))
           .emit(WS.MESSAGE_PINNED, {
             conversationId: event.conversationId,
@@ -576,7 +605,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
           });
         break;
       case 'snap.changed':
-        this.server
+        this.local()
           .to(room.conversation(event.conversationId))
           .emit(WS.SNAP_CHANGED, {
             conversationId: event.conversationId,
@@ -605,8 +634,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
           const direct = await this.messages.directIds(ids);
           const shared = ids.filter((id) => direct.has(id) && (members.get(id) ?? []).includes(b));
           for (const id of shared) {
-            await this.server.in(room.user(a)).socketsLeave(room.conversation(id));
-            await this.server.in(room.user(b)).socketsLeave(room.conversation(id));
+            await this.local().in(room.user(a)).socketsLeave(room.conversation(id));
+            await this.local().in(room.user(b)).socketsLeave(room.conversation(id));
           }
         } catch (e) {
           this.logger.error(`Could not empty the rooms ${a} and ${b} share: ${(e as Error).message}`);
@@ -619,10 +648,21 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         const [a, b] = event.userIds;
         try {
           for (const uid of [a, b]) {
-            await this.server.in(room.user(uid)).socketsLeave(room.conversation(event.conversationId));
+            await this.local().in(room.user(uid)).socketsLeave(room.conversation(event.conversationId));
           }
         } catch (e) {
           this.logger.error(`Could not empty the room ${event.conversationId} after an unmatch: ${(e as Error).message}`);
+        }
+        break;
+      }
+      case 'member.removed': {
+        /* The row is gone and REST already refuses them; the room is what
+           `message.created` actually emits to, so the room has to agree now,
+           not at their next reconnect. One person, one conversation. */
+        try {
+          await this.local().in(room.user(event.userId)).socketsLeave(room.conversation(event.conversationId));
+        } catch (e) {
+          this.logger.error(`Could not remove ${event.userId} from room ${event.conversationId}: ${(e as Error).message}`);
         }
         break;
       }
@@ -640,21 +680,21 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         } catch (e) {
           this.logger.error(`presence fan-out lookup failed: ${(e as Error).message}`);
         }
-        this.server
+        this.local()
           .to(rooms)
           .emit(event.online ? WS.USER_ONLINE : WS.USER_OFFLINE, { userId: event.userId });
         break;
       }
       case 'call.ringing':
         for (const rid of event.recipientIds) {
-          this.server.to(room.user(rid)).emit(WS.CALL_RINGING, event.call);
+          this.local().to(room.user(rid)).emit(WS.CALL_RINGING, event.call);
         }
         break;
       case 'call.updated':
         // Everyone on the roster, including whoever just left, so their own UI
         // agrees with everybody else's about how the call finished.
         for (const rid of event.recipientIds) {
-          this.server.to(room.user(rid)).emit(WS.CALL_UPDATED, { event: event.event, call: event.call });
+          this.local().to(room.user(rid)).emit(WS.CALL_UPDATED, { event: event.event, call: event.call });
         }
         break;
     }

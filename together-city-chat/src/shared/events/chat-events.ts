@@ -57,6 +57,13 @@ export type ChatEvent =
    *  rebuilt on connect. The conversation is named, because unlike a block an
    *  unmatch is about exactly one of them. */
   | { kind: 'connection.unmatched'; userIds: [string, string]; conversationId: string }
+  /** Somebody is no longer in a group — removed by an admin, or they left.
+   *  The row is gone, so REST refuses them; the ROOM did not know (launch
+   *  gate, third reading, 4 Sep): rooms were rebuilt only on connect and
+   *  evicted only for a block or an unmatch, so a removed member's open
+   *  socket went on receiving every message the group sent — text,
+   *  attachments, sender — until they happened to reconnect. */
+  | { kind: 'member.removed'; conversationId: string; userId: string }
   // Calls. The gateway fans these to per-user rooms rather than the
   // conversation room: a call has to reach someone who is not looking at the
   // chat, which is the entire point of a phone ringing.
@@ -149,20 +156,23 @@ export class ChatEventBus implements OnModuleDestroy {
     // Mine. I already emitted it locally, and handling it twice would send two
     // pushes and file two bell rows for one message.
     if (!parsed?.event || parsed.origin === this.nodeId) return;
-    this.emitter.emit('chat', parsed.event);
+    this.emitter.emit('chat', parsed.event, { origin: false });
   }
 
   publish(event: ChatEvent): void {
     /* LOCAL FIRST, AND UNCONDITIONALLY. The node handling the request does the
        work whether or not Redis answers, which is the property that lets this
        be an addition rather than a rewrite. */
-    this.emitter.emit('chat', event);
+    this.emitter.emit('chat', event, { origin: true });
     if (!this.publisher) return;
     void Promise.resolve(this.publisher.publish(CHANNEL, JSON.stringify({ origin: this.nodeId, event })))
       .catch(swallowed('events.chatBus.publish', undefined));
   }
 
-  subscribe(handler: (event: ChatEvent) => void): () => void {
+  /** `meta.origin` is true on the node whose request produced the event and
+   *  false on the nodes that heard it over Redis — the flag a subscriber uses
+   *  to run a side effect once rather than once per replica (5 Sep). */
+  subscribe(handler: (event: ChatEvent, meta: { origin: boolean }) => void): () => void {
     this.emitter.on('chat', handler);
     return () => this.emitter.off('chat', handler);
   }

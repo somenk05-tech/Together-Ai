@@ -205,7 +205,8 @@ them; they're quick, isolated fixes. Verify chat connects (WSS) and a message ro
 | `MEDIA_PRIVATE_BUCKET` | ✅ **if media is on** | A SEPARATE bucket with **no public access**. Blood tests, prescriptions, Drive files and dating photos are written here and served only through short-lived signed links. Leave it unset, or point it at `MEDIA_BUCKET`, and all three land in the bucket published at `MEDIA_PUBLIC_BASE_URL` — so **the API refuses to boot** rather than let that happen quietly |
 | `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION=auto` | media | R2 endpoint `https://<accountid>.r2.cloudflarestorage.com` + R2 API token |
 | `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `EMAIL_FROM` | email | `EMAIL_FROM` must be a Resend-verified sender. Used for SYSTEM mail only — a citizen's own message now leaves as `<handle>@togethercity.app` |
-| `RESEND_INBOUND_SECRET` | inbound mail | Long random string, shared with the Resend Inbound webhook. `POST /api/mail/inbound` writes into a citizen's mailbox and cannot carry a user JWT, so this is the only thing authenticating it. Unset → inbound is refused everywhere (the feature is off, not open). Point Resend at `https://api.togethercity.app/api/mail/inbound` with `Authorization: Bearer <secret>` — preferred over `?secret=`, which ends up in access logs |
+| `RESEND_WEBHOOK_SECRET` | inbound mail | The `whsec_…` signing secret shown on the webhook's page in Resend. Resend configures a webhook as a URL only — it cannot send a custom header — and signs every delivery the Svix way (`svix-id`, `svix-timestamp`, `svix-signature` over the raw body). The guard verifies that first. **This is the value a Resend webhook needs**; point it at `https://api.togethercity.app/api/mail/inbound` with no query string |
+| `RESEND_INBOUND_SECRET` | inbound mail | A shared secret for a relay you configure by hand (one that can send `Authorization: Bearer <secret>`). Not needed for Resend itself once `RESEND_WEBHOOK_SECRET` is set. `?secret=` on the URL is refused unless `ALLOW_INBOUND_SECRET_IN_URL=true` — a query string ends up in access logs. Both unset → inbound is refused everywhere (the feature is off, not open) |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | ✅ **if you want push at all** | Generate with `npx web-push generate-vapid-keys`. **Web push is the whole of push on this deployment** — the FCM row below is for a native app that does not exist yet, and `push-reaches-a-browser.spec.ts` says so in as many words. Unset, `WebPushProvider` disables itself: it logs one line at boot, every `send()` returns immediately, and `GET /api/push/vapid-public-key` answers with an empty string that the browser reads as "no push here". Nothing fails, nothing is logged again, and no notification reaches anybody with the app closed. `VAPID_SUBJECT` is a `mailto:` the push service can reach you at, as the protocol requires |
 | `FCM_ENABLED=true`, `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY` | push | From your Firebase service-account JSON (keep the key's `\n`s). For a future native app; browser push above is what delivers today |
 | `PHOTO_MODERATION=rekognition`, `REKOGNITION_REGION`, `REKOGNITION_ACCESS_KEY_ID`, `REKOGNITION_SECRET_ACCESS_KEY` | ✅ **if the Dating hub is on** | Every dating photograph is looked at before another citizen sees it, and a photo with no verdict shows to nobody. Leave these blank and every card in the hub is a coloured letter of the alphabet — permanently, while each citizen's own editor shows their pictures perfectly, so nobody reports it. **The API refuses to boot** rather than serve that, and the error names the variable that is missing |
@@ -228,6 +229,13 @@ receipt is written to the log and nothing arrives. With the `VAPID_*` pair unset
 disables itself and no notification reaches anybody with the app closed. Neither fails anything, and
 `/api/health` reported neither until it was taught to — it now answers `emailConfigured` and
 `pushConfigured` beside `ok`, which is the cheapest way to tell a green deploy from a working one.
+
+**And since 2 Sep it answers `db` and `redis` too** — a `SELECT 1` and a `PING`, each bounded to
+1.5 s and cached for 5 s per instance, so a warm process with a dead pool or a closed Redis no longer
+reads as healthy. `ok` deliberately stays the readiness flag alone: it is what the platform routes
+on, and a database outage that pulled every instance from routing would turn "the database is down"
+into "the API is gone". An alert should read `db:false` or `redis:false`; the platform should keep
+reading `ok`.
 
 ---
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth.store';
+import { bannerStyle } from '@/layouts/banner-style';
 
 const DISMISS_KEY = 'tc:verify-banner-dismissed';
 
@@ -49,13 +50,7 @@ export function VerifyEmailBanner() {
   };
 
   return (
-    <div role="status" style={{
-      display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-      padding: '10px 18px', fontSize: 13.5,
-      background: 'color-mix(in srgb, var(--gold) 14%, var(--paper))',
-      borderBottom: '1px solid color-mix(in srgb, var(--gold) 34%, var(--line))',
-      color: 'var(--ink)',
-    }}>
+    <div role="status" style={bannerStyle}>
       <span aria-hidden style={{ fontSize: 15 }}>✉️</span>
       <span style={{ flex: 1, minWidth: 220 }}>
         Confirm your email{user?.email ? <> (<strong>{user.email}</strong>)</> : ''} so you can get back

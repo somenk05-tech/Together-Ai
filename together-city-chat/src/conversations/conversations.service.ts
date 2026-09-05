@@ -1,5 +1,6 @@
 import { swallowed } from '../shared/swallow';
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { ChatEventBus } from '../shared/events/chat-events';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ConnectionPermissionService } from '../connections/connection-permission.service';
 import { directKeyOf } from './conversation.util';
@@ -25,7 +26,16 @@ export class ConversationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly permission: ConnectionPermissionService,
+    /* Optional for the reason DatingService's is: this service is built by
+       hand in specs, and a bus that is not there must cost a socket frame
+       rather than a suite. */
+    @Optional() private readonly bus?: ChatEventBus,
   ) {}
+
+  /** The room learns before the next reconnect — see `member.removed`. */
+  private announceRemoval(conversationId: string, userId: string): void {
+    this.bus?.publish({ kind: 'member.removed', conversationId, userId });
+  }
 
   /**
    * People you can start a chat / group with = your ACCEPTED connections only.
@@ -654,6 +664,7 @@ export class ConversationsService {
     if (!target) throw new NotFoundException('They are not in this group.');
     if (target.role === 'OWNER') throw new ForbiddenException('The group owner cannot be removed.');
     await this.prisma.conversationMember.deleteMany({ where: { conversationId, userId: targetId } });
+    this.announceRemoval(conversationId, targetId);
     return { ok: true as const };
   }
 
@@ -705,6 +716,7 @@ export class ConversationsService {
       });
     }
     await this.prisma.conversationMember.deleteMany({ where: { conversationId, userId } });
+    this.announceRemoval(conversationId, userId);
     return { ok: true as const };
   }
 
