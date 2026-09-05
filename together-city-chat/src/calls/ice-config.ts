@@ -52,12 +52,16 @@ export interface IceEnv {
    *   TURN_SHARED_SECRET — the TURN REST API (coturn `use-auth-secret`, and
    *     every provider that supports it): username `<expiry>:<userId>`,
    *     credential base64(HMAC-SHA1(secret, username)).
-   *   METERED_APP + METERED_API_KEY — metered.ca's credentials endpoint,
-   *     asked for a pair that expires in TURN_CREDENTIAL_TTL seconds.
+   *   METERED_APP + METERED_SECRET_KEY — metered.ca: POST
+   *     /api/v1/turn/credential?secretKey=… CREATES a pair that expires in
+   *     TURN_CREDENTIAL_TTL seconds. (Not the GET …/credentials?apiKey=
+   *     endpoint: that one ignores expiryInSeconds and hands back the same
+   *     static pair — proved against the live app on 5 Sep before this was
+   *     corrected. The secret key is on the dashboard's Developers page.)
    */
   TURN_SHARED_SECRET?: string;
   METERED_APP?: string;
-  METERED_API_KEY?: string;
+  METERED_SECRET_KEY?: string;
   /** Seconds a minted credential lives; default 4 hours, floor 10 minutes. */
   TURN_CREDENTIAL_TTL?: string;
 }

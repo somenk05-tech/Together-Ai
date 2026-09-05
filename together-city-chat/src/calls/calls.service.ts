@@ -9,7 +9,7 @@ import {
   afterJoin, afterLeave, afterTimeout, durationSeconds, mayEndForAll, ringExpired,
   type CallView, type Transition,
 } from './call-state';
-import { buildIceConfig, credentialTtl, mintTurnCredential, withMintedCredential, withoutRelay, type IceConfig, type IceServer } from './ice-config';
+import { buildIceConfig, credentialTtl, mintTurnCredential, withMintedCredential, withoutRelay, type IceConfig } from './ice-config';
 import { reachOf, type Reach } from './reach';
 import type { ListCallsDto, StartCallDto } from './dto/calls.dto';
 
@@ -98,8 +98,8 @@ export class CallsService {
    * changed: one screenshot of the calls screen and anybody could relay
    * anything through the city's relay, on the city's bill, for as long as the
    * pair lived. With TURN_SHARED_SECRET the pair is minted here per citizen
-   * for TURN_CREDENTIAL_TTL; with METERED_APP + METERED_API_KEY it is asked
-   * of metered.ca for the same window. When neither is set the static pair is
+   * for TURN_CREDENTIAL_TTL; with METERED_APP + METERED_SECRET_KEY it is
+   * created at metered.ca for the same window. When neither is set the static pair is
    * still served — with the note saying so, because that is a fact the
    * operator should read in the deploy log, not learn from a bill.
    *
@@ -116,8 +116,8 @@ export class CallsService {
       const minted = mintTurnCredential(env.TURN_SHARED_SECRET.trim(), userId, Math.floor(Date.now() / 1000) + ttl);
       return { ...base, iceServers: withMintedCredential(base.iceServers, minted) };
     }
-    if (env.METERED_APP?.trim() && env.METERED_API_KEY?.trim()) {
-      const minted = await this.meteredCredential(userId, env.METERED_APP.trim(), env.METERED_API_KEY.trim(), ttl);
+    if (env.METERED_APP?.trim() && env.METERED_SECRET_KEY?.trim()) {
+      const minted = await this.meteredCredential(userId, env.METERED_APP.trim(), env.METERED_SECRET_KEY.trim(), ttl);
       if (minted) return { ...base, iceServers: withMintedCredential(base.iceServers, minted) };
       return {
         iceServers: withoutRelay(base.iceServers), relayAvailable: false,
@@ -126,27 +126,37 @@ export class CallsService {
     }
     return {
       ...base,
-      note: [base.note, 'TURN credentials are a static pair shared by every account — set TURN_SHARED_SECRET or METERED_APP + METERED_API_KEY so each citizen gets one that expires.'].filter(Boolean).join(' '),
+      note: [base.note, 'TURN credentials are a static pair shared by every account — set TURN_SHARED_SECRET or METERED_APP + METERED_SECRET_KEY so each citizen gets one that expires.'].filter(Boolean).join(' '),
     };
   }
 
   /** One minted pair per citizen, kept for a third of its life so the calls
    *  screen opening ten times is one request to the provider, not ten. */
   private readonly mintedFor = new Map<string, { username: string; credential: string; until: number }>();
-  private async meteredCredential(userId: string, app: string, apiKey: string, ttl: number): Promise<{ username: string; credential: string } | null> {
+  private async meteredCredential(userId: string, app: string, secretKey: string, ttl: number): Promise<{ username: string; credential: string } | null> {
     const now = Date.now();
     const kept = this.mintedFor.get(userId);
     if (kept && kept.until > now) return { username: kept.username, credential: kept.credential };
     if (this.mintedFor.size > 5000) this.mintedFor.clear();
     try {
-      const url = `https://${app}.metered.live/api/v1/turn/credentials?apiKey=${encodeURIComponent(apiKey)}&expiryInSeconds=${ttl}&label=${encodeURIComponent(userId)}`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      // CREATE a credential (POST …/turn/credential) — the only metered.ca call
+      // that honours expiryInSeconds. GET …/turn/credentials?apiKey= returns the
+      // static pair whatever you ask it, which is the pair this exists to retire.
+      const url = `https://${app}.metered.live/api/v1/turn/credential?secretKey=${encodeURIComponent(secretKey)}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ expiryInSeconds: ttl, label: userId }),
+        signal: AbortSignal.timeout(5000),
+      });
       if (!res.ok) throw new Error(`metered ${res.status}`);
-      const list = (await res.json()) as Array<Partial<IceServer> & { username?: string; credential?: string }>;
-      const pair = Array.isArray(list) ? list.find((s) => typeof s.username === 'string' && typeof s.credential === 'string') : null;
-      if (!pair?.username || !pair.credential) throw new Error('metered returned no credential');
-      this.mintedFor.set(userId, { username: pair.username, credential: pair.credential, until: now + Math.floor((ttl * 1000) / 3) });
-      return { username: pair.username, credential: pair.credential };
+      const made = (await res.json()) as { username?: unknown; password?: unknown };
+      if (typeof made.username !== 'string' || typeof made.password !== 'string' || !made.username || !made.password) {
+        throw new Error('metered returned no credential');
+      }
+      const pair = { username: made.username, credential: made.password };
+      this.mintedFor.set(userId, { ...pair, until: now + Math.floor((ttl * 1000) / 3) });
+      return pair;
     } catch (e) {
       this.logger.warn(`ice: could not mint a TURN credential for ${userId}: ${(e as Error).message}`);
       return null;

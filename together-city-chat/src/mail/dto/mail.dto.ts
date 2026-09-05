@@ -43,15 +43,6 @@ export type FolderQueryDto = z.infer<typeof FolderQuerySchema>;
  * body are all legitimate states for a message somebody is still writing, and
  * refusing to hold them is how a client loses work.
  */
-export const SaveDraftSchema = z.object({
-  id: z.string().uuid().optional(),        // updating an existing draft
-  to: z.string().max(120).default(''),
-  subject: z.string().max(200).default(''),
-  body: z.string().max(50000).default(''),
-  threadId: z.string().max(64).optional(),
-});
-export type SaveDraftDto = z.infer<typeof SaveDraftSchema>;
-
 /**
  * The key is a URL segment and half an email address, so it is bounded to what
  * both of those can carry without escaping: lowercase letters, digits and
@@ -61,6 +52,35 @@ export type SaveDraftDto = z.infer<typeof SaveDraftSchema>;
 export const ProjectKeySchema = z.string().trim().min(1).max(24)
   .regex(/^[A-Za-z0-9][A-Za-z0-9-]*$/, 'Use letters, numbers and hyphens')
   .transform((v) => v.toLowerCase());
+
+/**
+ * A DRAFT IS THE MESSAGE, NOT A SUMMARY OF IT.
+ *
+ * This carried five fields — id, to, subject, body, thread — while the
+ * composer's message has nine, and the row it writes to has columns for every
+ * one of them. So a citizen who attached three files, blind-copied their
+ * accountant and wrote half a letter inside a project saw "Draft saved", came
+ * back the next morning, and had the words: no files, no Bcc, no Cc, and no
+ * room. Nothing said so, because saying so would have required the endpoint to
+ * know what it was dropping.
+ *
+ * The four that were missing are here now, typed exactly as the send path
+ * types them — same caps, same shapes — because a draft that accepts more than
+ * a send can carry is a different bug on the same line.
+ */
+export const SaveDraftSchema = z.object({
+  id: z.string().uuid().optional(),        // updating an existing draft
+  to: z.string().max(120).default(''),
+  cc: z.array(z.string().trim().min(1).max(120)).max(25).optional(),
+  bcc: z.array(z.string().trim().min(1).max(120)).max(25).optional(),
+  subject: z.string().max(200).default(''),
+  body: z.string().max(50000).default(''),
+  threadId: z.string().max(64).optional(),
+  attachmentFileIds: z.array(z.string().uuid()).max(10).optional(),
+  projectKey: ProjectKeySchema.optional(),
+});
+export type SaveDraftDto = z.infer<typeof SaveDraftSchema>;
+
 
 /**
  * The nine a citizen picks from, and the slate All Emails wears.
