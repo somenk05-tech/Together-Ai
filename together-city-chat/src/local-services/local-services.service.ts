@@ -11,6 +11,7 @@ import { looksLikeId, normaliseSlug, slugProblem, SLUG_MESSAGES, suggestSlug } f
 import { cleanDetails, isBusinessType, readDetails, sectionsFor } from './business-types';
 import { normaliseHours, parseHours } from './hours';
 import { VerificationService } from './verification.service';
+import { PostMediaGuard } from '../social/post-media-guard';
 import type { BrowseDto, CreateListingDto, UpdateListingDto, PostOfferDto, SaveMenuDto } from './dto/local-services.dto';
 import type { PatchMenuItemDto } from './dto/orders.dto';
 
@@ -67,6 +68,10 @@ const MAX_LIVE_OFFERS = 5;
 const startOfDayUtc = (d: Date): Date =>
   new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 const ymd = (d: Date): string => d.toISOString().slice(0, 10);
+/** The URLs a listing's photosJson already carries — the ones an edit need not screen again. */
+const parsePhotoUrls = (json: string | null): string[] =>
+  parse<Array<{ url?: unknown }>>(json, []).map((p) => (typeof p?.url === 'string' ? p.url : '')).filter(Boolean);
+
 const parseYmd = (s: string): Date | null => {
   const [y, m, day] = s.split('-').map(Number);
   if (!y || !m || !day) return null;
@@ -93,7 +98,34 @@ export class LocalServicesService {
     /* Optional so the specs that construct this service directly keep working;
        `remove` says loudly in the log when files were left behind. */
     @Optional() private readonly storage?: StorageProvider,
+    /* Optional for the same reason; `screenPictures` fails CLOSED without it. */
+    @Optional() private readonly screening?: PostMediaGuard,
   ) {}
+
+  /**
+   * ── A PICTURE ON A LISTING IS A PICTURE THE CITY SEES (5 Sep) ─────────────
+   * `photoUrls` and `logoUrl` were `z.string().url()` and written as they
+   * came: any address on the internet, and nothing had looked at the bytes
+   * even when the address was our own bucket. Every NEW picture — one the row
+   * does not already carry — goes through the post guard: it must be an
+   * upload of ours, and it must pass the same sniff and classifier a post
+   * photo does. A refusal deletes the object and refuses the edit; an outage
+   * refuses the edit and keeps the object, so the owner tries again.
+   */
+  private async screenPictures(ownerId: string, urls: readonly string[], already: ReadonlySet<string>): Promise<void> {
+    const fresh = [...new Set(urls.filter((u) => u && !already.has(u)))];
+    if (!fresh.length) return;
+    if (!this.screening) {
+      throw new ServiceUnavailableException('We couldn’t check those photos just now. Try again in a moment.');
+    }
+    for (const url of fresh) {
+      const out = await this.screening.screenPublicUrl(ownerId, url, 'listing photo', 'so the listing hasn’t been saved');
+      if (!out.ok) {
+        if (out.retryable) throw new ServiceUnavailableException(out.reason);
+        throw new BadRequestException(out.reason);
+      }
+    }
+  }
 
   // ───────────────────────── shaping ─────────────────────────
 
@@ -435,6 +467,7 @@ export class LocalServicesService {
     if (live >= MAX_LISTINGS_PER_OWNER) {
       throw new BadRequestException(`You can list up to ${MAX_LISTINGS_PER_OWNER} businesses. Close one first.`);
     }
+    await this.screenPictures(ownerId, [...(dto.photoUrls ?? []), ...(dto.logoUrl ? [dto.logoUrl] : [])], new Set());
     const row = await this.prisma.serviceListing.create({
       data: {
         ownerId,
@@ -470,7 +503,14 @@ export class LocalServicesService {
   }
 
   async update(ownerId: string, id: string, dto: UpdateListingDto) {
-    await this.own(ownerId, id);
+    const before = await this.own(ownerId, id);
+    if (dto.photoUrls !== undefined || dto.logoUrl) {
+      const had = new Set<string>([
+        ...parsePhotoUrls(before.photosJson),
+        ...(before.logoUrl ? [before.logoUrl] : []),
+      ]);
+      await this.screenPictures(ownerId, [...(dto.photoUrls ?? []), ...(dto.logoUrl ? [dto.logoUrl] : [])], had);
+    }
     const data: Record<string, unknown> = {};
     if (dto.businessName !== undefined) data.businessName = dto.businessName;
     if (dto.categoryKey !== undefined) data.categoryKey = dto.categoryKey;

@@ -150,7 +150,7 @@ export class MediaService {
        instead is the denylist above, which is a different question — "would a
        browser RUN this file" rather than "should a person SEE it" — and both
        are needed. */
-    return this.storage.presignUpload(userId, mimeType, extFor(mimeType));
+    return this.storage.presignUpload(userId, mimeType, extFor(mimeType), sizeBytes);
   }
 
   /** Presign a PUT for a dating photo — private bucket, no public URL. (M3.) */

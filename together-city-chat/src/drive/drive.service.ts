@@ -1,6 +1,6 @@
 import { RECORD_CAP } from '../shared/paging';
 import { swallowed } from '../shared/swallow';
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { StorageProvider } from '../media/storage.provider';
 
@@ -27,6 +27,7 @@ interface FileRow {
  */
 @Injectable()
 export class DriveService {
+  private readonly logger = new Logger('DriveService');
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageProvider,
@@ -191,7 +192,7 @@ export class DriveService {
     if (input.sizeBytes > remainingBytes) {
       throw new ForbiddenException('Your 10 GB vault is full — delete something to free up space.');
     }
-    return this.storage.presignDriveUpload(userId, input.mimeType || 'application/octet-stream', input.ext || 'bin');
+    return this.storage.presignDriveUpload(userId, input.mimeType || 'application/octet-stream', input.ext || 'bin', Math.floor(input.sizeBytes));
   }
 
   /** Step 2: confirm the upload landed and record it. */
@@ -204,16 +205,27 @@ export class DriveService {
       throw new ForbiddenException('That upload does not belong to you.');
     }
     const folderId = await this.ownFolder(userId, input.folderId ?? null);
-    if (input.sizeBytes > MAX_FILE_BYTES) throw new BadRequestException('That file is too large.');
-    const { remainingBytes } = await this.usage(userId);
-    if (input.sizeBytes > remainingBytes) throw new ForbiddenException('Your 10 GB vault is full.');
-    if (!(await this.storage.healthObjectExists(input.storageKey))) {
+    /* THE BUCKET SAYS HOW BIG IT IS (5 Sep). The size on the row was the one
+       the client declared at confirm — declare a kilobyte, put a gigabyte,
+       and the vault's accounting never noticed. The object's real size is
+       read back and is what the quota and the row are charged with. */
+    const actual = await this.storage.healthObjectSize(input.storageKey);
+    if (actual === null) {
       throw new BadRequestException("That upload didn't finish — check your connection and try again.");
+    }
+    if (actual > MAX_FILE_BYTES) {
+      if (!(await this.storage.deleteHealthObject(input.storageKey))) this.logger.warn(`drive: oversized upload ${input.storageKey} was NOT removed`);
+      throw new BadRequestException('That file is too large.');
+    }
+    const { remainingBytes } = await this.usage(userId);
+    if (actual > remainingBytes) {
+      if (!(await this.storage.deleteHealthObject(input.storageKey))) this.logger.warn(`drive: over-quota upload ${input.storageKey} was NOT removed`);
+      throw new ForbiddenException('Your 10 GB vault is full.');
     }
     const row = await this.files.create({
       data: {
         ownerId: userId, folderId, name: this.clean(input.name),
-        mimeType: input.mimeType ?? null, sizeBytes: Math.max(0, Math.floor(input.sizeBytes)),
+        mimeType: input.mimeType ?? null, sizeBytes: actual,
         storageKey: input.storageKey, checksum: input.checksum ?? null,
       },
     });

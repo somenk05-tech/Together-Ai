@@ -43,7 +43,7 @@ export const SaveJobProfileSchema = z.object({
   noticeDays: z.number().int().min(0).max(365).nullable().optional(),
   expectedLpa: z.number().int().min(0).max(1000).nullable().optional(),
   links: z.string().max(600).optional(),
-  photoUrl: z.string().max(500).nullable().optional(),
+  photoUrl: z.string().url().max(500).nullable().optional(),
 });
 export type SaveJobProfileDto = z.infer<typeof SaveJobProfileSchema>;
 

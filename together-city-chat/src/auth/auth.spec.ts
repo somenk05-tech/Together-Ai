@@ -78,10 +78,20 @@ describe('registration', () => {
     await svc.register({ handle: 'dup', name: 'A', email: 'a@e.com', password: STRONG, dateOfBirth: '1995-06-15', gender: 'female', orientation: 'preferNotToSay' } as never);
     await expect(svc.register({ handle: 'dup', name: 'B', email: 'b@e.com', password: STRONG, dateOfBirth: '1995-06-15', gender: 'female', orientation: 'preferNotToSay' } as never)).rejects.toThrow(/handle/i);
   });
-  it('rejects a duplicate email', async () => {
+  /* A CLAIM IS NOT A SQUAT (5 Sep). Registering with somebody else's email
+     and never answering the code used to lock them out of their own address
+     for good. Two unverified claims coexist; a VERIFIED holder refuses the
+     next claim — the same question the partial unique index asks. */
+  it('rejects a duplicate email once its holder has verified it', async () => {
+    const { svc, f } = build();
+    await svc.register({ handle: 'a1', name: 'A', email: 'same@e.com', password: STRONG, dateOfBirth: '1995-06-15', gender: 'female', orientation: 'preferNotToSay' } as never);
+    (f.prisma.user.rows as Array<{ email?: string | null; emailVerified?: boolean }>).forEach((r) => { if (r.email === 'same@e.com') r.emailVerified = true; });
+    await expect(svc.register({ handle: 'a2', name: 'B', email: 'same@e.com', password: STRONG, dateOfBirth: '1995-06-15', gender: 'female', orientation: 'preferNotToSay' } as never)).rejects.toThrow(/email/i);
+  });
+  it('an unverified claim does not lock the address against its owner', async () => {
     const { svc } = build();
     await svc.register({ handle: 'a1', name: 'A', email: 'same@e.com', password: STRONG, dateOfBirth: '1995-06-15', gender: 'female', orientation: 'preferNotToSay' } as never);
-    await expect(svc.register({ handle: 'a2', name: 'B', email: 'same@e.com', password: STRONG, dateOfBirth: '1995-06-15', gender: 'female', orientation: 'preferNotToSay' } as never)).rejects.toThrow(/email/i);
+    await expect(svc.register({ handle: 'a2', name: 'B', email: 'same@e.com', password: STRONG, dateOfBirth: '1995-06-15', gender: 'female', orientation: 'preferNotToSay' } as never)).resolves.toBeDefined();
   });
   it('reports handle availability + suggestions', async () => {
     const { f, svc } = build();

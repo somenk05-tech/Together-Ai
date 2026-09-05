@@ -1,8 +1,9 @@
 import { swallowed } from '../shared/swallow';
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit, Optional } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { demoDataEnabled } from '../shared/demo-data';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { StorageProvider } from '../media/storage.provider';
+import { PostMediaGuard } from '../social/post-media-guard';
 import { ClockService } from '../shared/clock/clock.service';
 import { FEED_CAP, ORDER_HISTORY_CAP } from '../shared/paging';
 import { MasterProfileService } from '../profile/master-profile.service';
@@ -67,6 +68,8 @@ export class JobsService implements OnModuleInit {
     /* Optional so the specs that construct this service directly keep working;
        `deleteResume` says loudly in the log when a document was left behind. */
     @Optional() private readonly storage?: StorageProvider,
+    /* The profile photo goes through the post guard (5 Sep); fails closed without it. */
+    @Optional() private readonly screening?: PostMediaGuard,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -703,6 +706,17 @@ export class JobsService implements OnModuleInit {
 
   async saveProfile(userId: string, dto: SaveJobProfileDto) {
     const existing = await this.prisma.jobProfile.findUnique({ where: { userId } });
+    /* A JOB PROFILE'S PHOTO IS A PICTURE THE CITY SEES (5 Sep). It was
+       `z.string().max(500)` — not even a URL — and written as it came. A new
+       photo must be an upload of ours and pass the same screen a post does. */
+    if (dto.photoUrl && dto.photoUrl !== (existing as { photoUrl?: string | null } | null)?.photoUrl) {
+      if (!this.screening) throw new ServiceUnavailableException('We couldn’t check that photo just now. Try again in a moment.');
+      const out = await this.screening.screenPublicUrl(userId, dto.photoUrl, 'profile photo', 'so the profile hasn’t been saved');
+      if (!out.ok) {
+        if (out.retryable) throw new ServiceUnavailableException(out.reason);
+        throw new BadRequestException(out.reason);
+      }
+    }
     const parsed: ParsedResume = {
       headline: dto.headline, skills: dto.skills, experienceYears: dto.experienceYears,
       seniority: dto.experienceYears >= 10 ? 'lead' : dto.experienceYears >= 6 ? 'senior' : dto.experienceYears >= 2 ? 'mid' : 'junior',

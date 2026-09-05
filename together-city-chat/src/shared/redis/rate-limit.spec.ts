@@ -114,7 +114,7 @@ describe('the wiring that makes the counter and the key real', () => {
 
   it('Express is told to trust exactly one proxy hop', () => {
     const main = strip(read('main.ts'));
-    expect(main).toMatch(/set\('trust proxy',\s*1\)/);
+    expect(main).toMatch(/set\('trust proxy', Number\.isFinite\(hops\) && hops > 0 \? hops : 1\)/);
     // `true` believes the entire X-Forwarded-For chain, whose left-hand end the
     // CLIENT writes — so a caller could mint a new address per request and never
     // be limited. One hop means only what the proxy itself appended.

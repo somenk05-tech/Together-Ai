@@ -108,6 +108,10 @@ const MAX_SCREEN_BYTES = 12 * 1024 * 1024;
  * produced the bytes, and now it says so.
  */
 type Subject = { noun: string; consequence: string; appMade: boolean };
+/** Which bucket the key lives in: post media moved to the private bucket on
+ *  30 Aug; a listing's photographs and a job's photo are public-bucket
+ *  uploads that until 5 Sep were screened by nothing at all. */
+type Shelf = 'post' | 'public';
 
 const AS_A_POST_PHOTO: Subject = { noun: 'photo', consequence: 'so the post hasn’t gone up', appMade: false };
 const AS_A_POST_COVER: Subject = { noun: 'video’s cover image', consequence: 'so the post hasn’t gone up', appMade: true };
@@ -241,6 +245,28 @@ export class PostMediaGuard {
   }
 
   /**
+   * ── A PICTURE ON A LISTING IS A PICTURE THE CITY SEES (5 Sep) ─────────────
+   *
+   * A local-services listing's photographs and logo, and a job post's photo,
+   * arrived as URLs — `z.string().url()` — and were written to the row as
+   * they came. Two holes in one: the URL could point anywhere on the internet
+   * (a listing that renders a stranger's image, or one that stops rendering
+   * when the stranger's server does), and when it did point at our own bucket
+   * nothing had looked at the bytes. Every such picture goes through the same
+   * sniff, allowlist and classifier as a post's, with two rules of its own:
+   * the URL must resolve to a key under one of OUR public bases, and a refusal
+   * deletes the public object exactly as decision 4 deletes a post's.
+   */
+  async screenPublicUrl(userId: string, url: string, noun: string, consequence: string): Promise<PostScreening> {
+    let key = '';
+    try { key = this.storage.keyFromUrl(url); } catch { key = ''; }
+    if (!key) {
+      return { ok: false, retryable: false, reason: `A ${noun} has to be uploaded here — a link to another site can’t be used, ${consequence}.` };
+    }
+    return this.screenOne(key, userId, { noun, consequence, appMade: false }, 'public');
+  }
+
+  /**
    * ── A PICTURE THAT NEVER BECAME AN OBJECT IS STILL A PICTURE ───────────────
    *
    * Everything above screens a KEY: the bytes are in the bucket already,
@@ -293,14 +319,16 @@ export class PostMediaGuard {
     return { ok: false, retryable: false, reason: `That photo didn’t pass our automated check, ${consequence}.` };
   }
 
-  private async screenOne(key: string, userId: string, subject: Subject): Promise<PostScreening> {
+  private async screenOne(key: string, userId: string, subject: Subject, shelf: Shelf = 'post'): Promise<PostScreening> {
     const { noun, consequence } = subject;
 
     // THE BYTES DECIDE, NOT THE LABEL. Nothing server-side saw this file at
     // upload — the PUT went straight to the bucket with a Content-Type the
     // client chose — so the declared type is the claim being checked and
     // cannot be what answers.
-    const head = await this.storage.getPostObjectPrefix(key, SNIFF_BYTES)
+    const head = await (shelf === 'public'
+      ? this.storage.getPublicObjectPrefix(key, SNIFF_BYTES)
+      : this.storage.getPostObjectPrefix(key, SNIFF_BYTES))
       .catch(swallowed('social: read the first bytes of post media', null, { userId }));
     if (!head) {
       return { ok: false, retryable: true, reason: `We couldn’t read that ${noun} just now, ${consequence}. Try again in a moment.` };
@@ -309,7 +337,7 @@ export class PostMediaGuard {
     const actual = sniffImage(head);
     if (actual === null) {
       if (subject.appMade) {
-        return this.refuse(key, userId, `We couldn’t read that ${noun}, ${consequence}.`);
+        return this.refuse(key, userId, `We couldn’t read that ${noun}, ${consequence}.`, shelf);
       }
       /* A POST'S IMAGE THAT IS NOT AN IMAGE IS REFUSED, WHERE A CHAT'S WOULD
          PASS. ChatMediaGuard returns ok for a non-image because a chat carries
@@ -317,13 +345,13 @@ export class PostMediaGuard {
          carries images and videos and nothing else — the DTO's allowlist says
          so — so a file here that is not a raster image is a file that lied
          about what it is, and there is no third category to fall into. */
-      return this.refuse(key, userId, `That file isn’t a photo we can read, ${consequence}.`);
+      return this.refuse(key, userId, `That file isn’t a photo we can read, ${consequence}.`, shelf);
     }
     if (actual === 'image' || !SCREENABLE.has(actual)) {
       // An image container Rekognition cannot take — an animated GIF, a HEIC
       // burst. Refused rather than waved through: it is exactly as capable of
       // being the thing this guard exists to stop.
-      return this.refuse(key, userId, `A ${noun} has to be a JPEG, PNG or WebP.`);
+      return this.refuse(key, userId, `A ${noun} has to be a JPEG, PNG or WebP.`, shelf);
     }
 
     if (!this.client) {
@@ -333,14 +361,14 @@ export class PostMediaGuard {
       return { ok: false, retryable: true, reason: `We couldn’t check that ${noun} just now, ${consequence}. Try again in a moment.` };
     }
 
-    const obj = await this.storage.getPostObjectBase64(key)
+    const obj = await (shelf === 'public' ? this.storage.getPublicObjectBase64(key) : this.storage.getPostObjectBase64(key))
       .catch(swallowed('social: read post media for screening', null, { userId }));
     if (!obj) {
       return { ok: false, retryable: true, reason: `We couldn’t read that ${noun} just now, ${consequence}. Try again in a moment.` };
     }
     const bytes = Buffer.from(obj.base64, 'base64');
     if (bytes.length > MAX_SCREEN_BYTES) {
-      return this.refuse(key, userId, `That ${noun} is too large to check — try a smaller one.`);
+      return this.refuse(key, userId, `That ${noun} is too large to check — try a smaller one.`, shelf);
     }
 
     let labels: Array<{ Name?: string; ParentName?: string; Confidence?: number }>;
@@ -357,12 +385,12 @@ export class PostMediaGuard {
     const verdict = verdictFor(labels, this.rejectAt);
     if (verdict.status === 'approved') return { ok: true };
     this.logger.warn(`social media refused (${verdict.status}) from ${userId}: ${verdict.reason}`);
-    return this.refuse(key, userId, `That ${noun} didn’t pass our automated check, ${consequence}.`);
+    return this.refuse(key, userId, `That ${noun} didn’t pass our automated check, ${consequence}.`, shelf);
   }
 
   /** A refusal that is final, and takes the file with it. See decision 4. */
-  private async refuse(key: string, userId: string, reason: string): Promise<PostScreening> {
-    await this.storage.deletePrivateObject(key)
+  private async refuse(key: string, userId: string, reason: string, shelf: Shelf = 'post'): Promise<PostScreening> {
+    await (shelf === 'public' ? this.storage.deleteObject(key) : this.storage.deletePrivateObject(key))
       .catch(swallowed('social: delete refused post media', undefined, { userId, key }));
     return { ok: false, retryable: false, reason };
   }

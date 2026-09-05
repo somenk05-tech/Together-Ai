@@ -1,3 +1,4 @@
+import { PostMediaGuard } from '../social/post-media-guard';
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../shared/prisma/prisma.module';
 import { MediaModule } from '../media/media.module';
@@ -24,7 +25,7 @@ import { VerificationService } from './verification.service';
   // declaration-order rule 'mine' and 'regulars' already rely on inside the
   // main controller.
   controllers: [VerificationController, ServiceOrdersController, LocalServicesController],
-  providers: [LocalServicesService, ServiceOrdersService, VerificationService],
+  providers: [LocalServicesService, ServiceOrdersService, VerificationService, PostMediaGuard],
   // The console decides on submissions, and the decision lives where the
   // permission check and the audit row are.
   exports: [VerificationService],

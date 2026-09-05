@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { JwtUser } from '../shared/types';
 
@@ -53,6 +53,20 @@ export class TokenService {
     return Number.isFinite(raw) && raw >= 3600 ? raw : 5184000;
   }
 
+  /**
+   * A SESSION DOES NOT SLIDE FOREVER (launch gate, third reading, 5 Sep). Every
+   * silent refresh extended the row by a full refreshTtl, so a session that was
+   * used once a month lived until the device was lost — and a stolen refresh
+   * token that was used once a month lived exactly as long. The row's createdAt
+   * is the anchor: past REFRESH_ABSOLUTE_TTL (default 90 days) the rotation is
+   * refused and the citizen signs in again. Not configurable below one day.
+   */
+  private absoluteTtl(): number {
+    const raw = this.config.get<number>('jwt.refreshAbsoluteTtl') ?? TokenService.ABSOLUTE_TTL_DEFAULT;
+    return Number.isFinite(raw) && raw >= 86_400 ? raw : TokenService.ABSOLUTE_TTL_DEFAULT;
+  }
+  private static readonly ABSOLUTE_TTL_DEFAULT = 90 * 86_400;
+
   private hash(token: string): string {
     return createHash('sha256').update(token).digest('hex');
   }
@@ -74,12 +88,17 @@ export class TokenService {
     for (const [k, v] of this.recentlyRotated) if (v.until <= now) this.recentlyRotated.delete(k);
   }
 
-  private async signPair(user: JwtUser): Promise<TokenPair> {
+  /**
+   * The refresh token carries `sid`, the session row it belongs to. The access
+   * token does not: nothing downstream should key on a session, and a shorter
+   * claim set is a shorter token on every request.
+   */
+  private async signPair(user: JwtUser, sid: string): Promise<TokenPair> {
     const accessToken = await this.jwt.signAsync(user, {
       secret: this.config.get<string>('jwt.accessSecret'),
       expiresIn: this.accessTtl(),
     });
-    const refreshToken = await this.jwt.signAsync(user, {
+    const refreshToken = await this.jwt.signAsync({ ...user, sid }, {
       secret: this.config.get<string>('jwt.refreshSecret'),
       expiresIn: this.refreshTtl(),
     });
@@ -88,9 +107,11 @@ export class TokenService {
 
   /** New login/registration → a fresh session row. */
   async issuePair(user: JwtUser, meta: SessionMeta = {}): Promise<TokenPair> {
-    const pair = await this.signPair(user);
+    const id = randomUUID();
+    const pair = await this.signPair(user, id);
     await this.prisma.refreshToken.create({
       data: {
+        id,
         userId: user.sub,
         tokenHash: this.hash(pair.refreshToken),
         expiresAt: new Date(Date.now() + this.refreshTtl() * 1000),
@@ -104,9 +125,17 @@ export class TokenService {
   /**
    * Verify + rotate a refresh token, single-use, IN PLACE — the session row keeps
    * its id/createdAt/device and gets a new hash + extended expiry + lastUsedAt.
+   *
+   * A STALE TOKEN IS A SIGNAL, NOT JUST A REFUSAL (5 Sep). A refresh token
+   * that verifies, names a session, and matches no row was rotated away — and
+   * is now being presented again outside the honest-replay window. One of the
+   * two holders is not the citizen. The only safe answer is to close that
+   * session for both of them: the honest device signs in again, the other
+   * one has nothing. Before this, the reply was 'Invalid refresh token' and
+   * the session the thief had already advanced stayed live.
    */
   async rotate(refreshToken: string, meta: SessionMeta = {}): Promise<TokenPair> {
-    const payload = await this.jwt.verifyAsync<JwtUser>(refreshToken, {
+    const payload = await this.jwt.verifyAsync<JwtUser & { sid?: string }>(refreshToken, {
       secret: this.config.get<string>('jwt.refreshSecret'),
     });
     const oldHash = this.hash(refreshToken);
@@ -116,9 +145,20 @@ export class TokenService {
     if (!stored || stored.revoked || stored.expiresAt < new Date()) {
       const grace = this.recentlyRotated.get(oldHash);
       if (grace && grace.until > now) return grace.pair; // honest replay — same answer as the winner
+      if (!stored && payload.sid) {
+        // rotated away and replayed late: reuse. The whole session goes.
+        this.logger.warn(`refresh reuse detected user=${payload.sub} session=${payload.sid} — session revoked`);
+        await this.prisma.refreshToken.updateMany({ where: { id: payload.sid, userId: payload.sub }, data: { revoked: true } });
+        this.recentlyRotated.clear();
+      }
       throw new Error('Invalid refresh token');
     }
-    const pair = await this.signPair({ sub: payload.sub, handle: payload.handle });
+    const born = (stored as { createdAt?: Date }).createdAt;
+    if (born && born.getTime() + this.absoluteTtl() * 1000 < now) {
+      await this.prisma.refreshToken.updateMany({ where: { id: stored.id, userId: stored.userId }, data: { revoked: true } });
+      throw new Error('Invalid refresh token');
+    }
+    const pair = await this.signPair({ sub: payload.sub, handle: payload.handle }, stored.id);
     await this.prisma.refreshToken.update({
       where: { id: stored.id },
       data: {

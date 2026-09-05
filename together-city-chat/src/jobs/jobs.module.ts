@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PostMediaGuard } from '../social/post-media-guard';
 import { PrismaModule } from '../shared/prisma/prisma.module';
 import { MediaModule } from '../media/media.module';
 import { ProfileModule } from '../profile/profile.module';
@@ -17,6 +18,6 @@ import { ExternalJobsService } from './external/external-jobs.service';
   controllers: [JobsController],
   // ExternalJobsService's @Cron registers with the ScheduleModule that
   // tasks.module already installs globally — same pattern as retention.
-  providers: [JobsService, ExternalJobsService],
+  providers: [JobsService, ExternalJobsService, PostMediaGuard],
 })
 export class JobsModule {}
