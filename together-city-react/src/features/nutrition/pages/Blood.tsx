@@ -91,7 +91,7 @@ export function Blood() {
             <strong style={{ fontSize: 15 }}>Connect to Medical Hub</strong>
             <p className="muted" style={{ fontSize: 13, margin: '4px 0 0', lineHeight: 1.55 }}>
               When on, your recipes and meal plans are designed around your latest blood panel.
-              {unanswered && ' This is on unless you turn it off — you have not been asked before now.'}
+              {unanswered && ' It is off until you turn it on — nothing is read from your panel before you say so.'}
             </p>
           </div>
           <button

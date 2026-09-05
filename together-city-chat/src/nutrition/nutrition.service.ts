@@ -47,6 +47,7 @@ import { resolveSchedule, fastingSafety, categorizeRecipe, type MealCategory } f
 import { computeNutrients, computeMicros, ingredientBatchServings, isSalt, perServingIngredients } from './ingredient-nutrients';
 import { dietKeyFrom } from '../shared/diet';
 import { DEFAULT_HUB_ACCESS } from '../medical/medical.service';
+import { CLINICAL_CAVEAT } from './clinical-caveat';
 // Nothing is imported from './quick-commerce' any more. Quoting and ordering
 // came out with the quick-commerce flow (B.12), and the reader that turned a
 // charged order's stored qcJson back into a story went out with the grocery
@@ -2521,7 +2522,7 @@ export class NutritionService implements OnModuleInit {
     // and attributing a clinical avoid to "you told us about it" would be false.
     const cut = corpusExcludedBy(datasetPool, terms(ex.allergies));
     const locks = this.lockedDays(ex);
-    return { ...week, mode, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], locks, lockModes: this.lockPlanModes(ex), scorecard, planStartDate, reviewDate: addDaysISO(planStartDate, planDays), planDays, allergyNotice: allergyNotice(cut.matched, cut.removed, { one: 'recipe', many: 'recipes' }), ...(compliance ? { compliance } : {}) };
+    return { ...week, mode, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], locks, lockModes: this.lockPlanModes(ex), scorecard, planStartDate, reviewDate: addDaysISO(planStartDate, planDays), planDays, allergyNotice: allergyNotice(cut.matched, cut.removed, { one: 'recipe', many: 'recipes' }), ...(compliance ? { compliance } : {}), ...(isClinical ? { clinicalCaveat: CLINICAL_CAVEAT } : {}) };
   }
 
   /** DB diet values that satisfy a requested diet (ladder). Real DB values:
@@ -6517,30 +6518,22 @@ export class NutritionService implements OnModuleInit {
   }
 
   // ─────────────── wallet ───────────────
-  private static readonly WALLET_SEED_INR = 5000;
-
-  /** Balance + ledger. First call seeds a welcome credit so the demo economy works. */
+  /**
+   * ── ONE WALLET IN THE CITY (5 Sep) ────────────────────────────────────────
+   * This hub kept a wallet of its own — a `WalletLedger` table, a balance by
+   * summation, and on the first read a ₹5,000 "Welcome credit" minted out of
+   * nothing — while every till in the city charges `CityWallet` through
+   * FinancialService's conditional decrement. Two balances for one person,
+   * one of them a gift that appeared whenever the ledger was empty. The
+   * nutrition wallet screen now reads the city wallet, in the shape it
+   * always returned, and mints nothing.
+   */
   async wallet(userId: string) {
-    // unbounded: the balance SUMS the ledger — truncation corrupts the balance
-    let ledger = await this.prisma.walletLedger.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (ledger.length === 0) {
-      await this.prisma.walletLedger.create({
-        data: { userId, amountInr: NutritionService.WALLET_SEED_INR, kind: 'credit', note: 'Welcome credit' },
-      });
-      // unbounded: the balance SUMS the ledger — truncation corrupts the balance
-      ledger = await this.prisma.walletLedger.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
-    }
-    const balanceInr = ledger.reduce(
-      (sum, t) => sum + (t.kind === 'debit' ? -t.amountInr : t.amountInr),
-      0,
-    );
+    const w = await this.financial.wallet(userId);
     return {
-      balanceInr,
-      transactions: ledger.slice(0, 20).map((t) => ({
-        id: t.id, amountInr: t.amountInr, kind: t.kind, note: t.note, createdAt: t.createdAt.toISOString(),
+      balanceInr: w.balanceInr,
+      transactions: w.recent.map((t) => ({
+        id: t.id, amountInr: t.amountInr, kind: t.direction, note: t.label, createdAt: t.date,
       })),
     };
   }

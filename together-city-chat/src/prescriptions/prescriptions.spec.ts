@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-var-requires */
 import { BadRequestException } from '@nestjs/common';
 import { needsReview, ManualEntryExtractor, CONFIDENCE_THRESHOLD } from './prescription-extractor';
 import { timesFromFrequency } from './prescriptions.service';
@@ -47,11 +48,40 @@ describe('the default extractor, with no OCR connected', () => {
 
 describe('reading a frequency into clock times', () => {
   it('understands the common Indian prescription forms', () => {
-    expect(timesFromFrequency('1-0-1')).toEqual(['09:00', '21:00']);
+    expect(timesFromFrequency('1-0-1')).toEqual(['08:00', '21:00']);
     expect(timesFromFrequency('1-1-1')).toEqual(['08:00', '14:00', '21:00']);
     expect(timesFromFrequency('BD')).toEqual(['09:00', '21:00']);
     expect(timesFromFrequency('TDS')).toHaveLength(3);
     expect(timesFromFrequency('once daily')).toEqual(['09:00']);
+  });
+
+  /**
+   * THE GRID IS POSITIONAL (launch gate, third reading, 4 Sep). `0-0-1` is a
+   * night dose and used to become a 09:00 alarm — a bedtime sedative in the
+   * morning. `1-1-1-1` matched the thrice pattern first: three alarms for four
+   * doses. And `bd` matched inside any word. Each slot is read on its own,
+   * the word forms are whole words, and anything unplaceable stays in review.
+   */
+  it('reads each slot of the grid on its own — a night dose is a night alarm', () => {
+    expect(timesFromFrequency('0-0-1')).toEqual(['21:00']);
+    expect(timesFromFrequency('1-0-0')).toEqual(['08:00']);
+    expect(timesFromFrequency('0-1-0')).toEqual(['14:00']);
+    expect(timesFromFrequency('1-1-0')).toEqual(['08:00', '14:00']);
+    expect(timesFromFrequency('2-0-2')).toEqual(['08:00', '21:00']);
+    expect(timesFromFrequency('Tab. Atorva 10mg 0-0-1 after food')).toEqual(['21:00']);
+  });
+
+  it('a four-slot grid is four alarms, and a grid with no dose is nothing', () => {
+    expect(timesFromFrequency('1-1-1-1')).toEqual(['06:00', '12:00', '18:00', '22:00']);
+    expect(timesFromFrequency('1-0-0-1')).toEqual(['06:00', '22:00']);
+    expect(timesFromFrequency('0-0-0')).toEqual([]);
+  });
+
+  it('the word forms are whole words, so a syllable inside another word is not a schedule', () => {
+    expect(timesFromFrequency('abdominal cramps')).toEqual([]);
+    expect(timesFromFrequency('apply to abd')).toEqual([]);
+    expect(timesFromFrequency('1 tab bd')).toEqual(['09:00', '21:00']);
+    expect(timesFromFrequency('QID')).toHaveLength(4);
   });
 
   it('returns nothing for a phrase it does not understand', () => {
@@ -137,7 +167,7 @@ describe('adding a line by hand', () => {
   it('derives dose times from the frequency when none were given', async () => {
     const { svc, created } = serviceWith({ id: 'p1', status: 'review_required' });
     await svc.addItem('me', 'p1', { medicineName: 'Metformin', dosage: '500mg', frequency: '1-0-1' });
-    expect(JSON.parse(created[0].timesLocal as string)).toEqual(['09:00', '21:00']);
+    expect(JSON.parse(created[0].timesLocal as string)).toEqual(['08:00', '21:00']);
   });
 
   it('prefers the times the citizen typed over the frequency', async () => {

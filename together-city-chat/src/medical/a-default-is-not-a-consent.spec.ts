@@ -106,9 +106,19 @@ describe('the screen says which it is', () => {
     expect(blood).toMatch(/!nutrition\.answered/);
   });
 
-  it('tells somebody who has never been asked that it is on anyway', () => {
-    expect(blood).toMatch(/on unless you turn it off/);
-    expect(blood).toMatch(/you have not been asked before now/);
+  it('tells somebody who has never been asked that nothing is read until they say so (4 Sep)', () => {
+    expect(blood).toMatch(/off until you turn it on/);
+    expect(blood).toMatch(/nothing is read from your panel before you say so/);
+    expect(blood).not.toMatch(/on unless you turn it off/);
+  });
+
+  /**
+   * ASK-FIRST IS THE CONSTANT (launch gate, third reading, 4 Sep). The
+   * privacy policy promises explicit consent before health data is processed
+   * or shared across hubs; a default of `true` was the policy's opposite.
+   */
+  it('the default is no: an unanswered hub reads nothing', () => {
+    expect(DEFAULT_HUB_ACCESS).toBe(false);
   });
 });
 
@@ -141,8 +151,12 @@ describe('the ask on Blood Test Analysis', () => {
     expect(card).toMatch(/\.filter\(\(c\) => !c\.answered\)/);
   });
 
-  it('says the thing that makes it worth asking — it is already on', () => {
-    expect(card).toMatch(/switched\s*\n?\s*on now, and you have not been asked before/);
+  it('says the thing that makes it worth asking — nothing is read until they say so (4 Sep)', () => {
+    expect(card).toMatch(/nothing\s*\n?\s*until you say so/);
+    expect(card).not.toMatch(/on now, and you have not been asked before/);
+    // The affirmative button is the affirmative act; the other keeps it off.
+    expect(card).toMatch(/'Turn it on'/);
+    expect(card).toMatch(/Keep it off/);
   });
 
   /**

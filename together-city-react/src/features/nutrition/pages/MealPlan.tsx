@@ -704,6 +704,9 @@ export function MealPlan() {
           </Button>
         )}
       </div>
+      {/* THE STANDING CAVEAT (RELEASE-GATE.md; landed 4 Sep). Present on every
+          clinical plan, not only on a day the caps could not be met. */}
+      {wk.clinicalCaveat && <p className="muted" role="note">{wk.clinicalCaveat}</p>}
       {wk.blocked && (
         <div role="alert" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger-line)', borderRadius: 'var(--r-1)', padding: '12px 14px', marginBottom: 12, fontSize: 12.5 }}>
           <strong>⚠ This plan could not be fully certified against your medical limits.</strong>

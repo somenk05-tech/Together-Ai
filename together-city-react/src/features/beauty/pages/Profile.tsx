@@ -757,7 +757,7 @@ export function Profile() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 12, padding: '10px 12px', background: 'var(--paper)', borderRadius: 'var(--r-1)' }}>
               <span style={{ fontSize: 15 }}>📷</span>
               <p className="muted" style={{ fontSize: 11.5, margin: 0, lineHeight: 1.5 }}>
-                Bare face, even light. Camera, file, or drag one in. <strong>No beauty filters and no AI-generated images</strong> — they distort the analysis and will be rejected. {aiEnabled ? 'AI reviews clear photos once to spot visible issues (acne, pigmentation, texture, pores, redness, hydration, hair density & scalp).' : 'Photos build your before/after alongside your profile assessment.'} Full images aren't stored — only a small unedited thumbnail for your timeline. <strong>🔒 Your photos are never shared, never used for anything but your analysis.</strong>
+                Bare face, even light. Camera, file, or drag one in. <strong>No beauty filters and no AI-generated images</strong> — they distort the analysis and will be rejected. {aiEnabled ? 'AI reviews clear photos once to spot visible issues (acne, pigmentation, texture, pores, redness, hydration, hair density & scalp).' : 'Photos build your before/after alongside your profile assessment.'} Full images aren't stored — only a small unedited thumbnail for your timeline. <strong>🔒 Your photos are used for your analysis and nothing else.</strong> {aiEnabled ? 'The analysis is performed by Anthropic\u2019s Claude, which processes the photos for Together City under commercial terms that do not permit training on them; your name and profile are not sent with them.' : ''}
               </p>
             </div>
             {warning && (

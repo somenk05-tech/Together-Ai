@@ -24,20 +24,47 @@ const DEFAULT_TIMES: Record<string, string[]> = {
   four: ['06:00', '12:00', '18:00', '22:00'],
 };
 
+/** The slots of the Indian 1-0-1 grid, in the order the grid writes them. */
+const GRID_SLOTS = ['08:00', '14:00', '21:00'] as const;
+const GRID_SLOTS_FOUR = ['06:00', '12:00', '18:00', '22:00'] as const;
+
 /**
  * Read a frequency phrase into clock times.
  *
  * Deliberately conservative: it recognises the common Indian-prescription forms
  * and otherwise returns nothing, which leaves the line in review rather than
  * inventing a schedule. A wrong time is worse than an absent one.
+ *
+ * ── THE GRID IS POSITIONAL (launch gate, third reading, 4 Sep) ─────────────
+ *
+ * `1-0-1` is morning-and-night, and this used to read it as "twice" and hand
+ * back the twice-a-day defaults — which happened to be right. `0-0-1` is
+ * NIGHT ONLY, and it read as "once" and handed back 09:00: a bedtime sedative
+ * or statin with a morning alarm. `1-1-1-1` matched the thrice pattern first
+ * and got three alarms for four doses. And `bd` matched inside any word that
+ * contained it. Now: a grid of three or four digits is read slot by slot —
+ * each `1` (or any count) is an alarm at that slot's time and each `0` is
+ * not — the word forms are whole words, and a grid with no dose in it, or
+ * one this function cannot place, returns nothing and stays in review.
  */
 export function timesFromFrequency(frequency?: string | null): string[] {
   if (!frequency) return [];
-  const f = frequency.toLowerCase();
-  if (/\b1-1-1\b|thrice|three times|tds|tid|8\s*hour/.test(f)) return DEFAULT_TIMES.thrice;
-  if (/\b1-0-1\b|1-1-0|twice|two times|bd|bid|12\s*hour/.test(f)) return DEFAULT_TIMES.twice;
-  if (/\bqid\b|four times|1-1-1-1/.test(f)) return DEFAULT_TIMES.four;
-  if (/\bod\b|once|daily|1-0-0|0-0-1|每/.test(f)) return DEFAULT_TIMES.once;
+  const f = frequency.toLowerCase().trim();
+
+  // The grid, read positionally. Four slots before three so `1-1-1-1` is
+  // four doses and not `1-1-1` with a tail.
+  const grid = /(?:^|[^\d-])(\d)\s*-\s*(\d)\s*-\s*(\d)(?:\s*-\s*(\d))?(?![\d-])/.exec(f);
+  if (grid) {
+    const cells = [grid[1], grid[2], grid[3], grid[4]].filter((c): c is string => c !== undefined);
+    const slots = cells.length === 4 ? GRID_SLOTS_FOUR : GRID_SLOTS;
+    const times = cells.flatMap((c, i) => (Number(c) > 0 ? [slots[i]] : []));
+    return times; // `0-0-0` is nothing, and stays in review
+  }
+
+  if (/\bqid\b|four times|\bq6h\b|6\s*hour/.test(f)) return DEFAULT_TIMES.four;
+  if (/\bthrice\b|three times|\btds\b|\btid\b|8\s*hour/.test(f)) return DEFAULT_TIMES.thrice;
+  if (/\btwice\b|two times|\bbd\b|\bbid\b|12\s*hour/.test(f)) return DEFAULT_TIMES.twice;
+  if (/\bod\b|\bonce\b|\bdaily\b|每/.test(f)) return DEFAULT_TIMES.once;
   return [];
 }
 

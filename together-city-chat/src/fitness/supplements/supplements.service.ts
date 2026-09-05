@@ -63,7 +63,7 @@ export class SupplementsService {
    * `plan()` rather than re-deriving its own opinion.
    */
   private async citizenFor(userId: string): Promise<{ citizen: Citizen; shared: unknown }> {
-    const [master, shared, targets, meds, pref, fitness] = await Promise.all([
+    const [master, shared, targets, meds, pref, fitness, dating] = await Promise.all([
       this.masterProfile.get(userId).catch(swallowed('supplements.master', null)),
       this.medical.sharedBiomarkers(userId, 'fitness').catch(swallowed('supplements.biomarkers', null)),
       this.nutrition.targets(userId).catch(swallowed('supplements.targets', null)),
@@ -74,10 +74,35 @@ export class SupplementsService {
         .catch(swallowed('supplements.medicines', [] as Array<{ name: string }>)),
       this.prisma.foodPref.findUnique({ where: { userId } }).catch(swallowed('supplements.pref', null)),
       this.prisma.fitnessProfile.findUnique({ where: { userId } }).catch(swallowed('supplements.fitness', null)),
+      // Smoking is asked in exactly one place in the city — the matchmaking
+      // profile's habits — and the beta-carotene rule needs the answer.
+      this.prisma.datingProfile.findUnique({ where: { userId }, select: { extras: true } }).catch(swallowed('supplements.dating', null)),
     ]);
 
+    /* THE INPUTS THE ENGINE'S RULES READ (launch gate, third reading, 4 Sep).
+       `pregnant` and `smoker` were never set, so the retinol-in-pregnancy and
+       beta-carotene-in-smokers rules fired only in their unit tests; and
+       `pick(master, 'food', 'conditions')` / `pick(master, 'food', 'age')`
+       read keys the master view does not have — it is flat: `age`,
+       `healthConditions`, `pregnancyTrimester`. Read where the city keeps
+       each answer. */
+    const masterConditions = String(pick(master, 'healthConditions') ?? '')
+      .split(',').map((x) => x.trim()).filter((x) => x && x.toLowerCase() !== 'none');
+    const conditions = [...new Set([...(listOf(fitness?.conditions) ?? []), ...masterConditions])];
+    const trimester = String(pick(master, 'pregnancyTrimester') ?? '').trim();
+    const pregnant = Boolean(trimester) || conditions.some((x) => /pregnan|breastfeed|lactat|nursing/i.test(x));
+    const smoking = (() => {
+      try { return String((JSON.parse(String(dating?.extras ?? '{}')) as { smoking?: unknown }).smoking ?? ''); } catch { return ''; }
+    })();
+    const smoker = /regular|sometimes|occasional|yes/i.test(smoking);
+    // The fitness row's age is a default of 35 until the form was answered.
+    const fitnessRow = fitness as { age?: number | null; answeredAt?: Date | null } | null;
+    const answeredAge = fitnessRow?.answeredAt ? num(fitnessRow.age) : undefined;
+
     const citizen: Citizen = {
-      age: num(fitness?.age) ?? num(pick(master, 'food', 'age')),
+      age: answeredAge ?? num(pick(master, 'age')),
+      pregnant,
+      smoker,
       sex: sexOf(fitness?.sex ?? pick(master, 'dating', 'gender')),
       vegetarian: dietIsVeg(pref?.diet),
       vegan: String(pref?.diet ?? '').toLowerCase().includes('vegan'),
@@ -92,7 +117,7 @@ export class SupplementsService {
       /* Conditions live on the FITNESS profile as a comma-separated string
          (the same list the nutrition clinical engine reads), so they are read
          from there rather than invented on the master profile. */
-      conditions: listOf(fitness?.conditions) ?? listOf(pick(master, 'food', 'conditions')),
+      conditions,
       medicines: meds.map((m) => m.name),
       taking: [],
       /* THE LAB NAMES ARE THE MEDICAL HUB'S KEYS, mapped once, here. The engine
@@ -331,6 +356,33 @@ export class SupplementsService {
       throw new BadRequestException(
         `Your plan recommends against ${unread.map((l) => l.name).join(', ')}. The store shows the trial that says so — read it, then confirm.`,
       );
+    }
+
+    /* A REPLETION DOSE NEEDS THE DEFICIENCY ON FILE (launch gate, third
+       reading, 4 Sep). Two 60,000 IU vitamin D products sit on the shelf as
+       OTC — they are, in India — tagged "Repletion only", and the till sold
+       them to anybody: no lab, no acknowledgement, because only a
+       `not-recommended` verdict forced one and a repletion product never
+       carries that verdict. India's hypervitaminosis-D case series come from
+       exactly this pattern. The rule the owner already holds for the guide
+       applies to the till: no result below the cut-off on file, no 60K; and
+       with one on file, the plan calls that dose a clinical decision, so the
+       same read-then-confirm the refusals get. */
+    const repletion = priced.lines.filter((l) => (shelf.get(l.id)?.tags ?? []).some((t) => /repletion/i.test(t)));
+    if (repletion.length) {
+      const vitD = (built?.plan ?? []).find((r) => r.id === 'vitamin-d3');
+      const deficient = Boolean(built) && vitD?.bucket === 'priority' && vitD.needsClinician;
+      if (!deficient) {
+        throw new BadRequestException(
+          `${repletion[0].name} is a 60,000 IU repletion dose for a documented deficiency, and there is no vitamin D result below the cut-off on your file. This city will not sell it on a guess — a blood test is what turns it into a plan.`,
+        );
+      }
+      const unconfirmed = repletion.filter((l) => !seen.has(l.id));
+      if (unconfirmed.length) {
+        throw new BadRequestException(
+          `${unconfirmed.map((l) => l.name).join(', ')}: your plan calls this dose a clinical decision, not a shelf's. Read what it says, then confirm.`,
+        );
+      }
     }
 
     const orderId = await this.financial.paid<string>(

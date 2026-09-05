@@ -2,7 +2,11 @@
 // Company: Collective AI Private Limited ("the Company"). Brand: Together City.
 // Ported from the supplied legaldata.js. Templates written to a publishable
 // standard; review by an Indian technology lawyer required before launch.
-// [TO-FILL] marks details you supply.
+// FOUR COMPANY FIELDS ARE NULL UNTIL COUNSEL SUPPLIES THEM (owner, 3 Sep).
+// They used to render as `[TO-FILL: …]` on the live pages. Now a null field
+// is simply not said: the CIN and registered-office sentences are omitted,
+// and the Grievance Officer and DPO lines name the mailbox alone. Paste the
+// real values into CO below and every sentence comes back.
 
 export interface PolicySection { h: string; html: string; }
 export interface Policy {
@@ -20,18 +24,21 @@ export const CO = {
   company: 'Collective AI Private Limited',
   brand: 'Together City',
   domain: 'togethercity.app',
-  cin: '[TO-FILL: CIN]',
-  office: '[TO-FILL: Registered office address, Mumbai, Maharashtra]',
+  cin: null as string | null,
+  office: null as string | null,
   jurisdiction: 'Mumbai, Maharashtra, India',
-  grievanceOfficer: '[TO-FILL: Grievance Officer name]',
+  grievanceOfficer: null as string | null,
   grievanceEmail: 'grievance@togethercity.app',
   support: 'support@togethercity.app',
   privacyEmail: 'privacy@togethercity.app',
-  dpo: '[TO-FILL: Data Protection Officer / contact]',
+  dpo: null as string | null,
   updated: '16 July 2026',
 };
 
-const tf = (s: string) => `<span class="tf">${s}</span>`;
+/* A sentence that names a company field, or nothing. `tf` used to wrap a
+   placeholder in the dashed warning style; the placeholders are gone, and a
+   supplied value is printed plainly. */
+const ifSet = (v: string | null, sentence: (v: string) => string): string => (v ? sentence(v) : '');
 const li = (arr: string[]) => `<ul>${arr.map((x) => `<li>${x}</li>`).join('')}</ul>`;
 const note = (s: string) => `<div class="note">${s}</div>`;
 
@@ -52,7 +59,7 @@ P.terms = {
   ],
   sections: [
     { h: '1. Who we are and what these Terms cover', html:
-      `<p>These Terms of Service ("Terms") are a legally binding agreement between you and ${CO.company} ("${CO.brand}", "we", "us"), operator of the ${CO.brand} platform, mobile applications, and website at ${CO.domain} (together, the "Platform"). CIN: ${tf(CO.cin)}. Registered office: ${tf(CO.office)}.</p>
+      `<p>These Terms of Service ("Terms") are a legally binding agreement between you and ${CO.company} ("${CO.brand}", "we", "us"), operator of the ${CO.brand} platform, mobile applications, and website at ${CO.domain} (together, the "Platform").${ifSet(CO.cin, (v) => ` CIN: ${v}.`)}${ifSet(CO.office, (v) => ` Registered office: ${v}.`)}</p>
       <p>These Terms are published as an electronic record under the Information Technology Act, 2000 and the applicable rules, and do not require any physical or digital signature. By creating an account, accessing, or using the Platform you accept these Terms and every policy incorporated by reference, including our Privacy Policy, Community Guidelines, and hub-specific terms.</p>` },
     { h: '2. Eligibility', html:
       `<p>The Platform is intended solely for persons who are 18 years of age or older and competent to contract under the Indian Contract Act, 1872. You represent that you meet these requirements.</p>
@@ -84,7 +91,7 @@ P.terms = {
     { h: '12. Indemnity', html:
       `<p>You agree to indemnify and hold the Company harmless from claims arising out of your User Content, your breach of these Terms, or your violation of any law or third-party right.</p>` },
     { h: '13. Grievance redressal', html:
-      `<p>Complaints about content or the Platform may be sent to our Grievance Officer, ${tf(CO.grievanceOfficer)}, at ${CO.grievanceEmail}, who will acknowledge within 24 hours and resolve within the timelines set in our Grievance Redressal Policy.</p>` },
+      `<p>Complaints about content or the Platform may be sent to our Grievance Officer${ifSet(CO.grievanceOfficer, (v) => `, ${v},`)} at ${CO.grievanceEmail}, who will acknowledge within 24 hours and resolve within the timelines set in our Grievance Redressal Policy.</p>` },
     { h: '14. Governing law and dispute resolution', html:
       `<p>These Terms are governed by the laws of India. Subject to the arbitration provision below, courts at ${CO.jurisdiction} have exclusive jurisdiction. Disputes may be referred to arbitration by a sole arbitrator under the Arbitration and Conciliation Act, 1996, seated in Mumbai, in English.</p>` },
     { h: '15. Changes to these Terms', html:
@@ -121,7 +128,7 @@ P.privacy = {
       `<p>The Platform is restricted to users 18 and older. We do not knowingly process the personal data of children. If we learn that a minor has registered, we will delete the account and associated data. See our Child Safety & Minor Protection Policy.</p>` },
     { h: '7. Sharing and disclosure', html:
       `<p>We share personal data only as needed:</p>
-      ${li(['With third-party providers you transact with (sellers, local service providers, hotels, labs, creators) to fulfil your request;', 'With processors (Data Processors) who act on our instructions under contract;', 'With payment partners and, where required, regulators and law-enforcement under a valid legal request;', 'In a business transfer, subject to this Policy.'])}
+      ${li(['With third-party providers you transact with (sellers, local service providers, hotels, labs, creators) to fulfil your request;', 'With processors (Data Processors) who act on our instructions under contract — including Anthropic, PBC, whose Claude models perform the AI analysis behind blood-report reading, skin and hair photo analysis, meal-plan narration and Mira, under commercial terms that do not permit training on your data; we send the content needed for the analysis and not your name or account;', 'With payment partners and, where required, regulators and law-enforcement under a valid legal request;', 'In a business transfer, subject to this Policy.'])}
       <p>We do not sell your personal data.</p>` },
     { h: '8. Security', html:
       `<p>We apply reasonable security safeguards: encryption in transit and at rest for sensitive data, access controls, hashing of passwords, rate limiting, audit logs, and periodic security testing. See our Security Policy. No system is perfectly secure; we will notify you and the Data Protection Board of any breach as required.</p>` },
@@ -132,7 +139,7 @@ P.privacy = {
       ${li(['Access a summary of your personal data and how it is processed;', 'Correct or update inaccurate data;', 'Download your data (“Download My Data”);', 'Delete your data / erase your account (“Delete Account”);', 'Nominate another person to exercise your rights;', 'Withdraw consent and lodge a grievance.'])}
       <p>Exercise these via Settings or by writing to ${CO.privacyEmail}.</p>` },
     { h: '11. Data Protection Officer & grievances', html:
-      `<p>Data Protection Officer / contact: ${tf(CO.dpo)}, ${CO.privacyEmail}. Unresolved concerns may be escalated to our Grievance Officer and to the Data Protection Board of India.</p>` },
+      `<p>Data Protection Officer / contact: ${CO.dpo ? `${CO.dpo}, ` : ''}${CO.privacyEmail}. Unresolved concerns may be escalated to our Grievance Officer and to the Data Protection Board of India.</p>` },
     { h: '12. Changes', html:
       `<p>We will notify you of material changes to this Policy in-app or by email.</p>` },
   ],
@@ -403,7 +410,7 @@ P.grievance = {
   sections: [
     { h: '1. Grievance Officer', html:
       `<p>In accordance with the IT Act, IT Rules, DPDP Act, and Consumer Protection (E-Commerce) Rules, we have appointed a Grievance Officer:</p>
-      ${note(`Grievance Officer: ${tf(CO.grievanceOfficer)}<br>Email: ${CO.grievanceEmail}<br>Address: ${tf(CO.office)}`)}` },
+      ${note(`Grievance Officer${ifSet(CO.grievanceOfficer, (v) => `: ${v}`)}<br>Email: ${CO.grievanceEmail}${ifSet(CO.office, (v) => `<br>Address: ${v}`)}`)}` },
     { h: '2. What you can raise', html:
       li(['Unlawful, harmful, or infringing content;', 'Privacy and data-protection concerns;', 'Consumer complaints about orders, bookings, and payments;', 'Account actions and appeals;', 'Any breach of our policies.']) },
     { h: '3. Timelines', html:
@@ -555,6 +562,117 @@ P.copyright = {
   related: ['community', 'userlicense', 'trademark', 'creator', 'grievance'],
 };
 
+// ---- DRAFTED 5 SEP 2026 — the four the launch gate named; counsel review pending ----
+P.deletion = {
+  title: 'Data Deletion Policy',
+  short: 'How to delete your account and data, what goes at once, what goes after thirty days, and what stays.',
+  eff: '5 September 2026', drafted: true,
+  tldr: [
+    'You delete your account yourself, from Settings, with your password. No email, no ticket.',
+    'At that moment your profile is emptied, your sessions are signed out everywhere, and your posts, connections and photos are removed.',
+    'Thirty days later a scheduled purge destroys what remains of the account. Until then the record is a tombstone with no name, email or phone on it.',
+    'A few records outlive the account because the law says so: invoices and wallet ledger lines, and reports that were made about you or by you.',
+  ],
+  sections: [
+    { h: '1. Who this covers', html: `<p>Every citizen of ${CO.brand}. It sets out what ${CO.company} does when you delete your account, and how to have data deleted without deleting your account. It works alongside the Privacy Policy and the Data Retention Policy, and is issued under the Digital Personal Data Protection Act, 2023 (your right to erasure under section 12).</p>` },
+    { h: '2. How to delete your account', html: `<p>Open <strong>Settings → Delete account</strong>, enter your password, and confirm. The request is carried out immediately and is not reversible. You do not have to write to us, and we do not ask why.</p><p>If you cannot sign in, write to ${CO.privacyEmail} from the email address on the account and we will verify you before acting; that route can take up to seven days.</p>` },
+    { h: '3. What happens at once', html: li([
+      'Your sessions are revoked on every device, and push subscriptions are removed.',
+      'Your profile record is emptied: name, handle, email, phone, photo, bio, city and website are cleared and the handle is replaced by a tombstone so it cannot be confused with a living account.',
+      'Your posts, comments, follows and connections are deleted, and the photographs and videos behind them are removed from storage.',
+      'Your matchmaking profile and its photographs are removed, and every open match is ended for the other person too.',
+      'Health records, blood-test reports, prescriptions and the Drive vault are deleted from the private store.',
+    ]) },
+    { h: '4. What happens after thirty days', html: `<p>A scheduled purge runs daily and destroys the remaining data of any account deleted more than thirty days earlier — the tombstone row, mail, notifications and analytics events keyed to the account. The thirty days exist so that a deletion carried out on a stolen phone can be reported and stopped by writing to ${CO.privacyEmail}; they are not a change-your-mind window through the app.</p>` },
+    { h: '5. What is kept, and why', html: `<p>Some records are kept after deletion because a law requires it, and in each case only for as long as that law says:</p>` + li([
+      'Invoices, payments, refunds and wallet ledger lines — accounting and tax law, up to eight years.',
+      'Reports made about your account or by it, and moderation decisions — so an enforcement decision cannot be undone by deleting and re-registering.',
+      'Records we are ordered to preserve by a court or a lawful government request.',
+    ]) + `<p>These records are held with your identifiers removed where the law allows it.</p>` },
+    { h: '6. Deleting data without deleting the account', html: `<p>You can delete individual things as you go: a post, a photograph, a blood-test report, a record in the Drive vault, a conversation, a saved card, a matchmaking profile. Each is removed at once from the live service and from storage; a copy may survive in an encrypted backup for up to thirty days, after which the backup itself expires.</p><p>Health data you shared with another hub stops being read the moment you turn sharing off on the Blood Test Analysis page; nothing is read again until you turn it back on.</p>` },
+    { h: '7. Other people’s copies', html: `<p>Deleting your account removes what we hold. A message you sent stays in the recipient’s conversation, a reply you wrote to somebody’s post is removed with your comments, and a screenshot somebody took is outside anything we can reach.</p>` },
+    { h: '8. Contact', html: `<p>Questions about deletion: ${CO.privacyEmail}. Complaints: the Grievance Officer at ${CO.grievanceEmail}. If you are not satisfied with our answer you may approach the Data Protection Board of India.</p>` },
+  ],
+  related: ['retention', 'privacy', 'healthdata', 'grievance'],
+};
+P.subscription = {
+  title: 'Subscription & Auto-Renewal Terms',
+  short: 'There is no paid subscription today. What these terms will mean the day there is one.',
+  eff: '5 September 2026', drafted: true,
+  tldr: [
+    'Today every feature of Together City is free of a recurring charge. There is no membership to buy and nothing renews.',
+    'Where a hub charges, it charges per item — a consultation, a test, a plan — from your city wallet, and says the amount before you confirm.',
+    'If a membership is ever introduced these are the rules it will follow: the price before you pay, a reminder before it renews, and cancellation in the app in one step.',
+  ],
+  sections: [
+    { h: '1. Where things stand', html: `<p>${CO.brand} has no paid membership as of the date above. No feature is gated behind a recurring charge, no card on file is charged on a schedule, and there is nothing to cancel. This document exists so that the rules are published before a membership is, not after.</p>` },
+    { h: '2. One-off charges', html: `<p>Some hubs charge for a specific thing — a doctor’s consultation, a blood-test booking, a supplement order, a stone. Every such charge is a single amount shown on a payment sheet before you confirm it, paid from your city wallet, and recorded in the wallet’s transaction list with the hub and the item named. Nothing is charged without that sheet.</p>` },
+    { h: '3. If a membership is introduced', html: `<p>Should we introduce a recurring membership, the following will apply from the day it is offered:</p>` + li([
+      'The price, the billing period and what it includes are shown before you join, and in your account settings afterwards.',
+      'Any price change is told to you by email and in the app at least thirty days before it takes effect, and applies only from your next renewal.',
+      'We send a reminder at least seven days before each renewal, with the amount and the date.',
+      'You cancel in the app, in one step, at any time. Cancellation takes effect at the end of the paid period; nothing is charged after it.',
+      'A renewal that fails for want of balance or a declined card does not suspend your account; the membership lapses and the free features continue.',
+      'Refunds for membership follow the Refund & Cancellation Policy.',
+    ]) },
+    { h: '4. Trials', html: `<p>A free trial, if offered, will say on the day it starts when it ends and what it will cost afterwards, and will send the same reminder before converting. A trial that is cancelled before it ends costs nothing.</p>` },
+    { h: '5. Contact', html: `<p>Billing questions: ${CO.support}. Complaints: ${CO.grievanceEmail}.</p>` },
+  ],
+  related: ['payments', 'refunds', 'wallet'],
+};
+P.wallet = {
+  title: 'Wallet & Credits Policy',
+  short: 'What the city wallet is, what it is not, and how money moves in and out of it.',
+  eff: '5 September 2026', drafted: true,
+  tldr: [
+    'The city wallet is a prepaid balance, in rupees, that the hubs charge from. It is not a bank account and pays no interest.',
+    'You top it up; hubs charge it only when you confirm a payment sheet; refunds go back to it.',
+    'There is no withdrawal to a bank yet. Until a payment partner is signed, money that reaches the wallet is spent in the city or refunded to its source.',
+    'Business payouts are not live: the payout screens rehearse the arithmetic and say so; no money has been transferred.',
+  ],
+  sections: [
+    { h: '1. What the wallet is', html: `<p>The city wallet is a stored balance held by ${CO.company} on your behalf and denominated in Indian rupees. It is a closed-loop prepaid instrument: it can be spent only inside ${CO.brand}, cannot be transferred to another citizen, and earns no interest. It is not a deposit, not a bank account, and not a payment system of its own.</p><p>The balance is a stored figure guarded by a conditional decrement: a charge either takes the whole amount or takes nothing. Every movement is a ledger line you can read under <strong>Financial → Transactions</strong>.</p>` },
+    { h: '2. Putting money in', html: `<p>You top up from the Financial District. A top-up is recorded once, as one ledger line and one balance change, together or not at all. There is no welcome credit, no bonus balance and no promotional money: every rupee in the wallet is a rupee somebody put there.</p>` },
+    { h: '3. Spending', html: `<p>A hub charges the wallet only after you confirm a payment sheet that shows the amount, the hub and the item. The sheet is the consent. A charge for a service that is later cancelled or refunded returns to the wallet as its own ledger line, marked as a refund, with the invoice named.</p><p>A price that a hub calls indicative is not charged: the gem counter, for example, asks a person to quote before anything is paid.</p>` },
+    { h: '4. Taking money out', html: `<p>There is no withdrawal to a bank account today. ${CO.company} has not yet signed a payment partner able to send money out of the city, and until it has, a balance can be spent in the city or refunded to the source it was topped up from by writing to ${CO.support}. This document will change on the day withdrawals open, and you will be told.</p>` },
+    { h: '5. Businesses and payouts', html: `<p>Money a citizen pays a business through an invoice is recorded to that business’s settlement ledger with the fee shown. Because no payout partner is live, the payout pages are a rehearsal: every figure is real arithmetic and every “settled” batch is labelled as sandbox, and no bank transfer has been made. Businesses are not asked for bank details until the day a transfer can be made.</p>` },
+    { h: '6. Points and credits', html: `<p>There is no points scheme. If one is introduced it will be separate from the rupee wallet, will say what a point is worth and when it expires, and will not be presented as money.</p>` },
+    { h: '7. Errors, disputes and closure', html: `<p>If a ledger line is wrong, write to ${CO.support} with the transaction id from the list; we correct errors with a reversing line, never by editing history. When you delete your account any balance is refunded to its source where we can, and the ledger is kept for the period accounting law requires (see the Data Deletion Policy).</p>` },
+    { h: '8. Regulation', html: `<p>${CO.company} keeps the wallet within the limits that apply to a closed-loop prepaid instrument under the Reserve Bank of India’s directions on prepaid payment instruments. Before any withdrawal, transfer between citizens, or interest-like feature is offered, the necessary authorisation or partner arrangement will be in place and this document will say so.</p>` },
+    { h: '9. Contact', html: `<p>Wallet questions: ${CO.support}. Complaints: ${CO.grievanceEmail}.</p>` },
+  ],
+  related: ['payments', 'refunds', 'subscription', 'deletion'],
+};
+P.healthdata = {
+  title: 'Blood Test & Health Data Policy',
+  short: 'How the Medical Hub holds your blood tests and records, who reads them, and how you switch that off.',
+  eff: '5 September 2026', drafted: true,
+  tldr: [
+    'Health records live in a private, encrypted store separate from the rest of the city, reachable only through short-lived signed links minted for you.',
+    'No other hub reads your blood markers until you say so. The switch is off by default and is asked for, once, on the Blood Test Analysis page.',
+    'Reading a report is done by an AI model run by Anthropic, on our instructions, with your name left out of the request.',
+    'Nothing here is certified for unsupervised clinical use. Every clinical plan carries that sentence, and your doctor is the person who decides.',
+  ],
+  sections: [
+    { h: '1. What this covers', html: `<p>Blood-test reports you upload or book, the markers we read from them, prescriptions, medical records and files in the Medical Hub, and the derived plans other hubs build from them (nutrition targets, supplement plans, beauty routines, fitness rules). Under the Digital Personal Data Protection Act, 2023 this is personal data ${CO.company} processes as Data Fiduciary, on your consent.</p>` },
+    { h: '2. Where it is kept', html: `<p>Health files are stored in a private object store, separate from the bucket that serves public images, encrypted at rest and in transit. They are never served by a permanent address: each read is a signed link minted for your session and valid for minutes. A key is prefixed with your account id so that “whose is this” is a fact the key itself answers.</p>` },
+    { h: '3. Who reads it inside the city', html: `<p>By default, <strong>nobody but you</strong>. The Nutrition, Beauty and Fitness hubs can build better plans from your blood markers, and they ask first: the Blood Test Analysis page puts the question once, with <em>Turn it on</em> and <em>Keep it off</em>, and reads nothing until you choose. You can change the answer at any time on the same page, and the change is immediate. A hub that is off reads no marker; there is no partial sharing.</p>` },
+    { h: '4. The AI that reads a report', html: `<p>A report image or PDF is read by a large language model provided by Anthropic PBC (Claude), acting as our Data Processor under contract, to extract the markers and to write a plain-language interpretation. The request carries the report and your markers and does not carry your name; the greeting is added by us afterwards. Anthropic does not use our requests to train its models under the terms we hold with it. The same processor reads beauty photographs when you ask for an assessment, and the Beauty page says so beside the button.</p>` },
+    { h: '5. What it is not', html: `<p>The interpretation and every plan built on it are informational. They are <strong>not certified for unsupervised clinical use</strong>, and that sentence is drawn under every clinical plan we produce until a clinician has signed the protocol off. A reference range is the laboratory’s, a flag is a comparison against it, and neither is a diagnosis. Show your doctor the report, not our reading of it.</p>` },
+    { h: '6. Supplements and prescriptions', html: `<p>Where a plan suggests a supplement, the rules the city applies — pregnancy, smoking, age under eighteen, a documented deficiency before a repletion dose — are written into the till, not only into the advice, and a refused item says why. A prescription you record sets reminders at the times the dose grid says, and a grid we cannot read stays in review rather than guessing a time.</p>` },
+    { h: '7. Your rights', html: li([
+      'Read everything: every report, marker, record and plan is on its page.',
+      'Download: the file behind a record is yours to fetch from its page.',
+      'Correct: a marker read wrongly can be edited on the report; the edit is kept beside the machine’s reading.',
+      'Delete: a report, a record or the whole hub can be deleted from its page; deletion is immediate in the live store and the backup copy expires within thirty days.',
+      'Withdraw consent: the sharing switch, at any time, with immediate effect.',
+    ]) },
+    { h: '8. Retention', html: `<p>Health data is kept while your account is open and you have not deleted it. It is destroyed with the account on deletion (see the Data Deletion Policy). We do not sell health data, do not use it for advertising, and do not share it with an insurer, an employer or a family member except by a share you make yourself from a record’s page.</p>` },
+    { h: '9. Contact', html: `<p>Questions: ${CO.privacyEmail}. Complaints: the Grievance Officer at ${CO.grievanceEmail}. You may also approach the Data Protection Board of India.</p>` },
+  ],
+  related: ['medical', 'privacy', 'deletion', 'ai', 'nutrition'],
+};
+
 // ---- STUB / SCAFFOLDED POLICIES (linked, full clauses in preparation) ------
 
 const stub = (title: string, short: string, purpose: string, related?: string[]): Policy => ({
@@ -570,7 +688,6 @@ const stub = (title: string, short: string, purpose: string, related?: string[])
 
 P.aidisclaimer = stub('AI Disclaimer', 'Standalone notice on the limits of AI outputs.', 'A short-form disclaimer, surfaced next to AI features, stating that AI outputs are automated, may be inaccurate, and are not professional advice.', ['ai', 'medical']);
 P.nutrition = stub('Nutrition Disclaimer', 'Nutrition guidance is informational, not clinical advice.', 'Explains that AI meal plans, macros, and supplement suggestions are informational and not a substitute for a doctor or registered dietitian.', ['medical', 'ai', 'healthdata']);
-P.healthdata = stub('Blood Test & Health Data Policy', 'How blood tests and health records are handled.', 'Governs ordering blood tests, storing reports in the Medical Hub, consent-based cross-hub sharing, encryption, and your rights to export or delete health data.', ['privacy', 'medical', 'retention']);
 P.userlicense = stub('User Content Licence', 'The licence you grant us for your content.', 'Sets out the worldwide, non-exclusive, royalty-free licence you grant to host, store, adapt for formatting, and display your content to operate and promote the service.', ['terms', 'creator', 'copyright']);
 P.trademark = stub('Trademark Policy', 'Use of the Together City brand and marks.', 'Governs permitted and prohibited use of the Together City name, logo, and brand assets, and how to report trademark misuse.', ['copyright', 'advertising']);
 P.harassment = stub('Harassment & Abuse Policy', 'Our stance on harassment and abuse.', 'Prohibits harassment, threats, doxxing, non-consensual imagery, and coordinated abuse, and sets out reporting and enforcement.', ['community', 'moderation', 'dating']);
@@ -580,8 +697,6 @@ P.merchant = stub('Merchant Agreement', 'General merchant terms across hubs.', '
 P.grocery = stub('Grocery Partner Agreement', 'Terms for grocery partners.', 'Governs grocery catalogues, pricing, freshness/expiry, substitutions, and fulfilment.', ['merchant', 'refunds']);
 P.marketplace = stub('Marketplace Terms', 'Buyer-side marketplace rules.', 'Explains how the marketplace works, that the Company is an intermediary, and buyer protections under consumer law.', ['seller', 'refunds', 'payments']);
 P.affiliate = stub('Affiliate Policy', 'Terms for affiliates and referrals.', 'Governs affiliate/referral participation, disclosure obligations, and commissions.', ['advertising', 'creator']);
-P.subscription = stub('Subscription & Auto-Renewal Terms', 'Details of recurring memberships.', 'Sets out billing cycles, auto-renewal, price-change notice, and cancellation for memberships like Together+.', ['payments', 'refunds']);
-P.wallet = stub('Wallet & Credits Policy', 'Rules for stored balances and points.', 'Governs any wallet, credits, or Together Points — issuance, expiry, redemption, and applicable RBI requirements.', ['payments', 'creator']);
 P.travel = stub('Travel Booking Terms', 'Terms for booking travel.', 'Covers flights, trains, buses, and packages: third-party responsibility, cancellation/refund timelines, taxes, and insurance disclosures.', ['hotel', 'flight', 'refunds']);
 P.hotel = stub('Hotel Booking Terms', 'Terms for hotel bookings.', 'Covers hotel reservations, provider terms, cancellation windows, and taxes.', ['travel', 'refunds']);
 P.flight = stub('Flight Booking Terms', 'Terms for flight bookings.', 'Covers airline bookings, fare rules, changes/cancellations, and third-party carrier responsibility.', ['travel', 'refunds']);
@@ -589,7 +704,6 @@ P.experience = stub('Experience & Event Booking Terms', 'Terms for experiences a
 P.advertising = stub('Advertising Policy', 'Rules for advertisers on the Platform.', 'Governs ad content standards, prohibited advertising, targeting limits, and ad-record keeping.', ['sponsored', 'creator', 'community']);
 P.sponsored = stub('Sponsored Content Policy', 'Disclosure of paid/branded content.', 'Requires clear labelling of sponsored and branded content by creators and advertisers.', ['advertising', 'creator']);
 P.reviews = stub('Review & Ratings Policy', 'How reviews and ratings work.', 'Governs authentic reviews, prohibits fake/paid reviews and misleading rankings, and explains moderation of reviews.', ['marketplace', 'moderation']);
-P.deletion = stub('Data Deletion Policy', 'How to delete your data.', 'Step-by-step account and data deletion, what is removed, and what is retained for legal reasons.', ['retention', 'privacy']);
 P.security = stub('Security Policy', 'Our security safeguards.', 'Describes encryption, authentication, access controls, testing, and breach response.', ['privacy', 'vulnerability', 'retention']);
 P.vulnerability = stub('Vulnerability Disclosure Policy', 'How to report security issues.', 'Invites responsible disclosure of vulnerabilities, sets safe-harbour expectations, and our response process.', ['security']);
 P.lawenforcement = stub('Law Enforcement & Government Request Policy', 'How we handle official requests.', 'Explains how we respond to lawful requests for data or content removal, the standards we apply, and user-notice practices.', ['privacy', 'grievance']);

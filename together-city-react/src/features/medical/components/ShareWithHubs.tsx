@@ -49,15 +49,15 @@ export function ShareWithHubs({ hasPanel }: { hasPanel: boolean }) {
     <div className="card mh-ask">
       <h2 className="mh-ask-h">Who may read this panel?</h2>
       <p className="mh-ask-b">
-        {list} can use these markers to personalise your plans — {names.length > 1 ? 'they are' : 'it is'} switched
-        on now, and you have not been asked before. Your report never leaves Together City either way.
+        {list} can use these markers to personalise your plans — {names.length > 1 ? 'they read' : 'it reads'} nothing
+        until you say so. Your report never leaves Together City either way.
       </p>
       <div className="mh-ask-row">
         <Button variant="accent" size="sm" disabled={busy} onClick={() => answer(true)}>
-          {busy ? 'Saving…' : 'Keep it on'}
+          {busy ? 'Saving…' : 'Turn it on'}
         </Button>
         <Button variant="line" size="sm" disabled={busy} onClick={() => answer(false)}>
-          Turn it off
+          Keep it off
         </Button>
         <Link to="/medical/consent" className="mh-ask-link">Choose per hub →</Link>
       </div>

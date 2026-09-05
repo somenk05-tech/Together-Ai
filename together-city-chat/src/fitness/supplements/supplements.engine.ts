@@ -172,6 +172,18 @@ const CONDITION_STOPS: Array<{ id: string; match: string[]; text: string }> = [
   { id: 'ashwagandha', match: ['liver', 'hepat', 'thyroid'], text: 'Liver and thyroid signals make this the wrong one to try here.' },
 ];
 
+/**
+ * UNDER EIGHTEEN (launch gate, third reading, 4 Sep). The engine had no
+ * minor rule at all: a fifteen-year-old with a fitness profile was handed
+ * creatine and whey with the adult evidence beside them. None of the trials
+ * this file cites enrolled adolescents; the ergogenic and herbal supplements
+ * below are a paediatrician's decision, not a shelf's. The micronutrients
+ * (D, B12, iron, folate, C, zinc, omega-3, a multivitamin) stay on the
+ * ordinary path, where the lab gates and the dose ceilings already apply.
+ */
+const MINOR_STOPS = ['creatine', 'protein', 'ashwagandha', 'melatonin', 'l-theanine', 'curcumin', 'coq10', 'collagen', 'vitamin-k2'];
+const MINOR_TEXT = 'Under 18: none of the trials behind this enrolled adolescents, and growth is not the adult picture. This is a paediatrician\'s decision, not a shelf\'s.';
+
 const skipFor = (name: string) =>
   DO_NOT_RECOMMEND.find((s) => s.what.toLowerCase().includes(name.toLowerCase()));
 
@@ -215,6 +227,10 @@ export function recommend(c: Citizen): {
     }
     if (c.pregnant && ['ashwagandha', 'vitamin-c', 'curcumin'].includes(id)) {
       flags.push({ kind: 'condition', text: 'Not while pregnant or breastfeeding — take this decision to your doctor.' });
+      bucket = 'not-recommended';
+    }
+    if (typeof c.age === 'number' && c.age < 18 && MINOR_STOPS.includes(id)) {
+      flags.push({ kind: 'condition', text: MINOR_TEXT });
       bucket = 'not-recommended';
     }
     /* PSYLLIUM INTERACTS WITH EVERYTHING AND WITH NOTHING. It is a gel, so it

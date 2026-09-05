@@ -68,6 +68,9 @@ export interface ComposedWeek {
    *  medical caps — the UI must warn instead of presenting it as certified-safe. */
   blocked?: boolean;
   blockReason?: string[];
+  /** Sent with every clinical plan until the release gate's Phase 4: "not
+   *  certified for unsupervised clinical use". Rendered under the plan. */
+  clinicalCaveat?: string;
   /** Resilience fallback: a general plan shown because the full profile couldn't be read. */
   degraded?: boolean;
   degradedReason?: string;
