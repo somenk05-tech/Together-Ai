@@ -89,6 +89,25 @@
   background: linear-gradient(to top, var(--scrim-deep), transparent);
 }
 .tv-caption p { margin: 0; font-size: var(--fs-4); line-height: 1.5; }
+/* how far into the video: a hairline along the foot of the screen, driven by
+   --tv-progress (0..1) which the set writes on timeupdate */
+.tv-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--scrim-deep); z-index: 2; }
+.tv-progress span { display: block; height: 100%; width: calc(var(--tv-progress, 0) * 100%); background: var(--on-accent); opacity: .85; }
+/* tuning in: the poster shows; a small status says the set is waiting */
+.tv-tuning {
+  position: absolute; top: calc(64px + var(--safe-top)); left: 50%; transform: translateX(-50%); z-index: 2;
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: var(--r-full);
+  background: var(--scrim-deep); color: var(--on-accent); font-size: var(--fs-2); letter-spacing: .08em; text-transform: uppercase;
+}
+.tv-tuning-dot { width: 8px; height: 8px; border-radius: var(--r-full); background: var(--on-accent); animation: tv-blink 1s var(--ease) infinite alternate; }
+@keyframes tv-blink { from { opacity: .2; } to { opacity: 1; } }
+/* the browser refused autoplay with sound: say so, and give it back on a tap */
+.tv-sound {
+  position: absolute; top: calc(64px + var(--safe-top)); right: 14px; z-index: 3;
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 0; border-radius: var(--r-full);
+  background: var(--face); color: var(--ink); box-shadow: var(--e2); font-family: inherit; font-size: var(--fs-3); font-weight: 600; cursor: pointer;
+}
+.tv-sound:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .tv-caption-p { display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; font-size: var(--fs-2); opacity: .8; }
 
 /* the remote, floating over the foot of the screen */

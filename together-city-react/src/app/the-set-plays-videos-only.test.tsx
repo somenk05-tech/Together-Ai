@@ -33,6 +33,9 @@ describe('the screen', () => {
     expect(html).toMatch(/<video[^>]*autoplay/i);
     expect(html).toContain('poster="https://x/b.jpg"');
     expect(html).toContain('the sea');
+    // Until the metadata arrives the set says it is tuning in, over the poster.
+    expect(html).toContain('Tuning in');
+    expect(html).toContain('tv-progress');
   });
 
   it('draws nothing for a photograph or a thought — no image, no title card', () => {

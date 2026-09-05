@@ -1,10 +1,9 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Spinner } from '@/components/ui';
 import { Icon } from '@/components/ui/Icon';
 import { useScrollLock } from '@/hooks/useScrollLock';
-import { useBackToClose } from '@/hooks/useBackToClose';
 import { CityTV } from '../CityTV';
 import { useFeed } from '../api';
 
@@ -13,6 +12,11 @@ import { useFeed } from '../api';
  * be a full screen TV." No heading, no composer, no tabs, no wall: the
  * viewport is the screen. Two small things sit over it — a way back to the
  * hub, and the one door to posting — and the remote the set draws itself.
+ *
+ * WHEN THE CHANNEL IS FURTHER DOWN. `?channel=` names a citizen; if their
+ * first video is not in the pages loaded yet, the page keeps loading pages
+ * until it is, or until there are none, and only then switches the set on —
+ * a set switched on early would open on the wrong channel.
  *
  * NO SIDE PANELS. The page is a portal over the whole document, so the
  * hub's rail and the site header are behind it, not beside it — a full
@@ -34,7 +38,12 @@ export function CityTVPage() {
   const { fetchNextPage } = feed;
   const more = useCallback(() => { void fetchNextPage(); }, [fetchNextPage]);
   useScrollLock(true);
-  useBackToClose(true, leave);
+  /* NOT useBackToClose. That hook is for overlays driven by component state
+     — it pushes a history entry and, when its own button closes it, pops the
+     entry back. This page is a ROUTE: with the hook, the "Together City"
+     button navigated away, the hook then went back, the TV came on again,
+     and the citizen could not leave (owner, 5 Sep: "not able to go back to
+     the city"). A route leaves by navigating; Back leaves on its own. */
 
   const head = (
     <div className="tv-room-top">
@@ -43,8 +52,15 @@ export function CityTVPage() {
     </div>
   );
   const channel = params.get('channel');
+  const found = channel ? items.findIndex((p) => p.author?.handle === channel) : -1;
+  const { hasNextPage, isFetchingNextPage } = feed;
+  // Six pages is as far as the stream keeps; past that a search would run forever.
+  const searching = Boolean(channel) && found < 0 && hasNextPage && (feed.data?.pages.length ?? 0) < 6;
+  useEffect(() => {
+    if (searching && !isFetchingNextPage) void fetchNextPage();
+  }, [searching, isFetchingNextPage, fetchNextPage, items.length]);
   const startAt = channel
-    ? Math.max(0, items.findIndex((p) => p.author?.handle === channel))
+    ? Math.max(0, found)
     : params.has('shuffle') && items.length ? Math.floor(Math.random() * items.length) : 0;
 
   return createPortal(
@@ -68,10 +84,10 @@ export function CityTVPage() {
           </div>
         </div>
       )}
-      {items.length > 0 && (
+      {items.length > 0 && !searching && (
         <CityTV key={channel ?? 'tv'} items={items} startAt={startAt}
           hasNextPage={feed.hasNextPage} fetchNextPage={more}
-          onOpenChannel={openAuthor} onOpenChannels={openChannels} head={head} />
+          onOpenChannel={openAuthor} onOpenChannels={openChannels} onLeave={leave} head={head} />
       )}
     </div>,
     document.body,

@@ -40,12 +40,32 @@ import { channelsOf, tuneIndex } from './city-tv';
  * touched the page; playWithSharedSound retries muted, and the speaker key
  * gives the sound back.
  *
+ * WHAT THE AUDIT FOUND (5 Sep, evening), and what this file now does about
+ * it. A video that never loads — an iPhone .mov Chrome cannot decode, a
+ * 2 GB file on a slow line — held the screen forever: the set now shows the
+ * poster with "tuning in" over it and moves on after a while, or at once on
+ * an error. A video that ended while the next page was still on its way
+ * froze the set on its last frame: it moves on the moment the page lands.
+ * When the stream drops its oldest page (six pages are kept), the index
+ * pointed twenty videos ahead: the set is anchored by the post's id. The
+ * speaker key said "sound on" while the browser had refused autoplay with
+ * sound and the element was in fact muted: the key reads the element, and a
+ * "tap for sound" chip says what happened. Space on a focused key both
+ * pressed the key and paused: the shortcuts step aside for a focused button.
+ * The expand key never said it would also shrink: it does. And a thin line
+ * along the foot of the screen says how far into the video the set is.
+ *
  * No inline styles: the set is drawn in social.css.
  */
 
+/** How long a video may sit at readyState 0 before the set moves on. */
+const TUNE_MS = 12_000;
+/** How long the set waits at the end of the stream for the next page. */
+const PAGE_MS = 10_000;
+
 const videoOf = (p: Post | undefined) => p?.media?.find((m) => m.kind === 'video') ?? null;
 
-export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenChannel, onOpenChannels, head }: {
+export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenChannel, onOpenChannels, onLeave, head }: {
   items: Post[];
   /** What sits over the screen's head — the page's way back and its door to posting. Sleeps with the remote. */
   head?: ReactNode;
@@ -55,6 +75,8 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
   fetchNextPage?: () => void;
   onOpenChannel: (handle: string) => void;
   onOpenChannels: () => void;
+  /** Escape, and the way back over the screen's head. */
+  onLeave?: () => void;
 }) {
   const qc = useQueryClient();
   const [at, setAt] = useState(() => Math.min(Math.max(0, startAt), Math.max(0, items.length - 1)));
@@ -69,14 +91,37 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
     let t = 0;
     const wake = () => { setAwake(true); window.clearTimeout(t); t = window.setTimeout(() => setAwake(false), 2_800); };
     wake();
-    window.addEventListener('pointermove', wake);
-    window.addEventListener('pointerdown', wake);
-    window.addEventListener('keydown', wake);
-    return () => { window.clearTimeout(t); window.removeEventListener('pointermove', wake); window.removeEventListener('pointerdown', wake); window.removeEventListener('keydown', wake); };
+    // Every way a hand can announce itself: a mouse, a pen, a finger, a key,
+    // a wheel. One of them not firing is a citizen who cannot find the door.
+    const EVENTS = ['pointermove', 'mousemove', 'pointerdown', 'touchstart', 'keydown', 'wheel'] as const;
+    for (const e of EVENTS) window.addEventListener(e, wake, { passive: true });
+    return () => { window.clearTimeout(t); for (const e of EVENTS) window.removeEventListener(e, wake); };
+  }, []);
+  /* What the ELEMENT is doing, as opposed to what the set asked of it: a
+     browser that refused autoplay with sound leaves the element muted; a file
+     the browser cannot read never reaches its metadata. */
+  const [elMuted, setElMuted] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [fs, setFs] = useState(false);
+  useEffect(() => {
+    const onFs = () => setFs(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
   }, []);
 
   const post = items[at];
   const current = videoOf(post);
+  /* ANCHORED BY ID. The stream keeps six pages and drops the oldest, so an
+     index into it moves twenty places when page seven arrives. The post on
+     screen is found again by its id whenever the stream changes. */
+  const onScreen = useRef<string | undefined>(undefined);
+  onScreen.current = post?.id;
+  useEffect(() => {
+    const id = onScreen.current;
+    if (!id) return;
+    const idx = items.findIndex((p) => p.id === id);
+    if (idx >= 0) setAt((i) => (i === idx ? i : idx));
+  }, [items]);
   const channels = useMemo(() => channelsOf(items), [items]);
   const channel = channels.find((c) => c.handle === post?.author?.handle) ?? null;
 
@@ -90,15 +135,44 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
   /* Onwards, and round again: past the last loaded video with no page left
      to load, the set starts over. A television does not go dark because the
      evening's programme ended. */
+  const waiting = useRef(false);
   const go = useCallback((step: 1 | -1) => {
     setAt((i) => {
       const n = i + step;
       if (!items.length) return 0;
       if (n < 0) return items.length - 1;
-      if (n >= items.length) return hasNextPage ? i : 0;
+      if (n >= items.length) {
+        // The next page is on its way: hold here, and move the moment it
+        // lands (below). Nothing on its way: round to the top.
+        if (hasNextPage) { waiting.current = true; return i; }
+        return 0;
+      }
       return n;
     });
   }, [items.length, hasNextPage]);
+  useEffect(() => {
+    if (!waiting.current) return;
+    if (at < items.length - 1) { waiting.current = false; setAt(at + 1); return; }
+    // A page that never comes — a lost connection, a request that failed —
+    // must not be a dark screen: after a while, round to the top.
+    const t = window.setTimeout(() => { if (waiting.current) { waiting.current = false; setAt(0); } }, PAGE_MS);
+    return () => window.clearTimeout(t);
+  }, [items.length, at]);
+
+  /* TUNING IN. A video that reaches no metadata in TUNE_MS — a format this
+     browser cannot decode, a file too far away — is not a broadcast; move on.
+     An error moves on at once, after asking the feed to re-mint its links. */
+  const currentId = current?.id;
+  useEffect(() => {
+    setReady(false);
+    setElMuted(false);
+    screen.current?.style.setProperty('--tv-progress', '0');
+  }, [currentId]);
+  useEffect(() => {
+    if (!currentId || ready || paused) return;
+    const t = window.setTimeout(() => go(1), TUNE_MS);
+    return () => window.clearTimeout(t);
+  }, [currentId, ready, paused, go]);
 
   /* A post with no video is not a frame. Skip it without drawing anything. */
   useEffect(() => {
@@ -128,6 +202,10 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      // A focused key on the remote is pressed by space and enter; the
+      // shortcuts must not press pause under it.
+      if (t && (t.tagName === 'BUTTON' || t.tagName === 'A') && (e.key === ' ' || e.key === 'Enter')) return;
+      if (e.key === 'Escape' && !document.fullscreenElement) { onLeave?.(); return; }
       if (e.key === 'ArrowRight') { e.preventDefault(); go(1); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
       else if (e.key === 'ArrowUp') { e.preventDefault(); setAt((i) => tuneIndex(items, i, -1)); }
@@ -138,7 +216,7 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [go, items, fullScreen]);
+  }, [go, items, fullScreen, onLeave]);
   const tune = (step: 1 | -1) => setAt((i) => tuneIndex(items, i, step));
 
   if (!post || !current) return null;
@@ -150,7 +228,26 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
       {head}
       <div className="tv-screen" aria-live="off">
         <video key={current.id} ref={video} className="tv-media" src={current.url} poster={current.thumbUrl ?? undefined}
-          playsInline autoPlay muted={muted} onEnded={() => go(1)} onError={stale} />
+          playsInline autoPlay muted={muted} preload="auto"
+          onLoadedMetadata={() => setReady(true)}
+          onVolumeChange={(e) => setElMuted(e.currentTarget.muted)}
+          onTimeUpdate={(e) => {
+            const el = e.currentTarget;
+            const p = el.duration > 0 ? el.currentTime / el.duration : 0;
+            screen.current?.style.setProperty('--tv-progress', String(p));
+          }}
+          onEnded={() => go(1)} onError={() => { stale(); go(1); }} />
+        {!ready && !paused && (
+          <div className="tv-tuning" role="status" aria-live="polite"><span className="tv-tuning-dot" aria-hidden />Tuning in…</div>
+        )}
+        {elMuted && !muted && ready && (
+          /* The browser refused autoplay with sound and the set is playing
+             muted; the citizen asked for sound, so say it and give it back. */
+          <button type="button" className="tv-sound" onClick={() => { setMuted(false); const el = video.current; if (el) { el.muted = false; void el.play().catch(() => {}); } }}>
+            <Icon name="speak" size={15} /> Tap for sound
+          </button>
+        )}
+        <div className="tv-progress" aria-hidden><span /></div>
         {captions && (caption || post.placeName) && (
           <div className="tv-caption">
             {caption && <p>{caption}</p>}
@@ -167,8 +264,8 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
           <button type="button" className="tv-key" onClick={() => setPaused((p) => !p)} aria-label={paused ? 'Play' : 'Pause'} aria-pressed={paused}><Icon name={paused ? 'play' : 'pause'} size={16} /></button>
           <button type="button" className="tv-key" onClick={() => go(1)} aria-label="Next video"><Icon name="skip-next" size={16} /></button>
           <button type="button" className="tv-key" onClick={() => setCaptions((c) => !c)} aria-label={captions ? 'Hide the caption' : 'Show the caption'} aria-pressed={captions}><Icon name="captions" size={16} /></button>
-          <button type="button" className="tv-key" onClick={() => setMuted(!isMuted())} aria-label={muted ? 'Turn the sound on' : 'Turn the sound off'} aria-pressed={!muted}><Icon name={muted ? 'mute' : 'speak'} size={16} /></button>
-          <button type="button" className="tv-key" onClick={fullScreen} aria-label="Full screen"><Icon name="expand" size={16} /></button>
+          <button type="button" className="tv-key" onClick={() => { const on = muted || elMuted; setMuted(!on); const el = video.current; if (el) { el.muted = !on; if (!on) return; void el.play().catch(() => {}); } }} aria-label={muted || elMuted ? 'Turn the sound on' : 'Turn the sound off'} aria-pressed={!(muted || elMuted)}><Icon name={muted || elMuted ? 'mute' : 'speak'} size={16} /></button>
+          <button type="button" className="tv-key" onClick={fullScreen} aria-label={fs ? 'Leave full screen' : 'Full screen'} aria-pressed={fs}><Icon name="expand" size={16} /></button>
           <button type="button" className="tv-key" onClick={onOpenChannels} aria-label="Together City Channels"><Icon name="grid" size={16} /></button>
         </div>
         {/* THE CHANNEL IS THE CITIZEN. Up and down tune; the face opens the

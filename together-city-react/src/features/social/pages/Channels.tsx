@@ -22,16 +22,22 @@ import { useFeed } from '../api';
  * channel here is always a channel there. The page keeps loading pages
  * while there are more, because a channel on page four is still a channel.
  */
+const CHANNEL_PAGES = 6;
+
 export function Channels() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const feed = useFeed('videos');
   const items = useMemo(() => feed.data?.pages.flatMap((p) => p.items) ?? [], [feed.data]);
   const channels = useMemo(() => channelsOf(items), [items]);
+  /* Up to CHANNEL_PAGES pages of the stream, not the whole city: a wall
+     that read every page would be one request per twenty posts, forever,
+     on a city of a crore. Six pages is what the stream keeps anyway. */
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = feed;
+  const pages = feed.data?.pages.length ?? 0;
   useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage, items.length]);
+    if (hasNextPage && !isFetchingNextPage && pages < CHANNEL_PAGES) void fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, pages]);
   const stale = () => onStaleMedia(qc, ['social']);
 
   return (
