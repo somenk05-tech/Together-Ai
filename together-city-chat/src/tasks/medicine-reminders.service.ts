@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { CronLease, leased } from '../shared/redis/cron-lease';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrescriptionsService } from '../prescriptions/prescriptions.service';
 
@@ -22,10 +23,17 @@ import { PrescriptionsService } from '../prescriptions/prescriptions.service';
 export class MedicineRemindersService {
   private readonly logger = new Logger('MedicineReminders');
 
-  constructor(private readonly prescriptions: PrescriptionsService) {}
+  constructor(private readonly prescriptions: PrescriptionsService,
+    @Optional() private readonly lease?: CronLease,
+  ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
   async dispatchDue(): Promise<void> {
+    // One instance per firing (5 Sep) — see shared/redis/cron-lease.ts.
+    await leased(this.lease, 'medicine.dispatch', 50_000, () => this.dispatchDueBody());
+  }
+
+  async dispatchDueBody(): Promise<void> {
     try {
       const due = await this.prescriptions.dueReminders();
       if (!due.length) return;
@@ -41,6 +49,11 @@ export class MedicineRemindersService {
 
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
   async extendHorizon(): Promise<void> {
+    // One instance per firing (5 Sep) — see shared/redis/cron-lease.ts.
+    await leased(this.lease, 'medicine.extend', 1_800_000, () => this.extendHorizonBody());
+  }
+
+  async extendHorizonBody(): Promise<void> {
     try {
       const created = await this.prescriptions.extendHorizon();
       if (created) this.logger.log(`expanded ${created} upcoming reminder(s)`);
@@ -51,6 +64,11 @@ export class MedicineRemindersService {
 
   @Cron(CronExpression.EVERY_HOUR)
   async sweepMissed(): Promise<void> {
+    // One instance per firing (5 Sep) — see shared/redis/cron-lease.ts.
+    await leased(this.lease, 'medicine.sweep-missed', 3_000_000, () => this.sweepMissedBody());
+  }
+
+  async sweepMissedBody(): Promise<void> {
     try {
       const missed = await this.prescriptions.markMissed();
       if (missed) this.logger.log(`marked ${missed} dose(s) missed`);

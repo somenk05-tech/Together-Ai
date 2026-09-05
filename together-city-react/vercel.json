@@ -2,7 +2,6 @@
   "buildCommand": "npm run build -- --base=/",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/backend/:path*", "destination": "https://api.togethercity.app/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [

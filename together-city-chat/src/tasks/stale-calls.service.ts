@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { CronLease, leased } from '../shared/redis/cron-lease';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { CallsService } from '../calls/calls.service';
 
@@ -18,10 +19,17 @@ import { CallsService } from '../calls/calls.service';
 export class StaleCallsService {
   private readonly logger = new Logger('StaleCalls');
 
-  constructor(private readonly calls: CallsService) {}
+  constructor(private readonly calls: CallsService,
+    @Optional() private readonly lease?: CronLease,
+  ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
   async sweep(): Promise<void> {
+    // One instance per firing (5 Sep) — see shared/redis/cron-lease.ts.
+    await leased(this.lease, 'stale-calls.sweep', 50_000, () => this.sweepBody());
+  }
+
+  async sweepBody(): Promise<void> {
     try {
       const closed = await this.calls.sweepStale();
       if (closed) this.logger.log(`closed ${closed} unanswered/abandoned call(s)`);

@@ -1,4 +1,5 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
+import { CronLease, leased } from '../../shared/redis/cron-lease';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import { skillsInText } from '../jobs-engine';
@@ -43,7 +44,9 @@ export class ExternalJobsService implements OnModuleInit {
   /** Rows not re-confirmed in this long stop being served (jobs.service). */
   static readonly SERVE_WINDOW_DAYS = 30;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService,
+    @Optional() private readonly lease?: CronLease,
+  ) {}
 
   /** First boot of a fresh deployment: an empty table means the citizen sees
    *  an empty shelf, so kick one window immediately — in the background,
@@ -57,6 +60,11 @@ export class ExternalJobsService implements OnModuleInit {
 
   @Cron(CronExpression.EVERY_6_HOURS)
   async scheduled() {
+    // One instance per firing (5 Sep) — see shared/redis/cron-lease.ts.
+    await leased(this.lease, 'external-jobs.scan', 18_000_000, () => this.scheduledBody());
+  }
+
+  async scheduledBody() {
     if (process.env.EXTERNAL_JOBS_SCAN === 'off') return;
     await this.scan();
   }

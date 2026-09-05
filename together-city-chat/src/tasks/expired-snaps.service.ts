@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { CronLease, leased } from '../shared/redis/cron-lease';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { StorageProvider } from '../media/storage.provider';
@@ -38,10 +39,16 @@ export class ExpiredSnapsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageProvider,
+    @Optional() private readonly lease?: CronLease,
   ) {}
 
   @Cron(CronExpression.EVERY_10_MINUTES)
   async sweep(): Promise<void> {
+    // One instance per firing (5 Sep) — see shared/redis/cron-lease.ts.
+    await leased(this.lease, 'expired-snaps.sweep', 540_000, () => this.sweepBody());
+  }
+
+  async sweepBody(): Promise<void> {
     try {
       const swept = await this.sweepExpired();
       if (swept) this.logger.log(`removed ${swept} expired snap(s) from the vault`);

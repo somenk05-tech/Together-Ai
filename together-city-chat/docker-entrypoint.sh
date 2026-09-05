@@ -61,8 +61,20 @@ if [ -d prisma/migrations ] && [ -n "$(ls -A prisma/migrations 2>/dev/null)" ]; 
     echo "Existing database without migration history — baselining ${FIRST_MIGRATION} as already applied..."
     npx prisma migrate resolve --applied "$FIRST_MIGRATION"
   fi
-  echo "Applying committed migrations (prisma migrate deploy)..."
-  npx prisma migrate deploy
+  # MIGRATIONS ARE A RELEASE STEP, NOT A BOOT STEP (5 Sep). railway.json runs
+  # `prisma migrate deploy` as the pre-deploy command, once, before the new
+  # instance starts — so a long migration cannot hold the health check hostage
+  # and two overlapping instances do not both try it. This boot-time run stays
+  # as the safety net for a host that ignores railway.json: `migrate deploy`
+  # is idempotent and advisory-locked, so after the pre-deploy step it finds
+  # nothing to do. MIGRATE_ON_BOOT=off skips it where the release step is known
+  # to run.
+  if [ "${MIGRATE_ON_BOOT:-on}" = "off" ]; then
+    echo "MIGRATE_ON_BOOT=off — migrations were applied by the release step."
+  else
+    echo "Applying committed migrations (prisma migrate deploy)..."
+    npx prisma migrate deploy
+  fi
 else
   # There is no db-push fallback here, deliberately.
   #

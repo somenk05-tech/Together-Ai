@@ -1,5 +1,6 @@
 import { swallowed } from '../shared/swallow';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { CronLease, leased } from '../shared/redis/cron-lease';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { AccountPurgeService } from '../privacy/account-purge.service';
@@ -36,6 +37,7 @@ export class RetentionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly purge: AccountPurgeService,
+    @Optional() private readonly lease?: CronLease,
   ) {}
 
   /**
@@ -51,6 +53,11 @@ export class RetentionService {
    */
   @Cron(CronExpression.EVERY_DAY_AT_4AM)
   async purgeDeletedAccounts(): Promise<void> {
+    // One instance per firing (5 Sep) — see shared/redis/cron-lease.ts.
+    await leased(this.lease, 'retention.purge', 3_600_000, () => this.purgeDeletedAccountsBody());
+  }
+
+  async purgeDeletedAccountsBody(): Promise<void> {
     try {
       const reports = await this.purge.sweep();
       if (!reports.length) return;
@@ -68,6 +75,11 @@ export class RetentionService {
 
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async sweepExpiredCredentials(): Promise<void> {
+    // One instance per firing (5 Sep) — see shared/redis/cron-lease.ts.
+    await leased(this.lease, 'retention.credentials', 3_600_000, () => this.sweepExpiredCredentialsBody());
+  }
+
+  async sweepExpiredCredentialsBody(): Promise<void> {
     const cutoff = new Date(Date.now() - GRACE_DAYS * 24 * 60 * 60 * 1000);
     const db = this.prisma as unknown as Record<
       string,
