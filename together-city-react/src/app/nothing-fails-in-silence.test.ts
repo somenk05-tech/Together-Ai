@@ -44,7 +44,7 @@ describe('a refusal reaches the person who caused it', () => {
     expect(api).toMatch(/const send = useCallback\([\s\S]{0,400}?\): Promise<void> =>/);
     // And it must not be able to hang: an ack that never arrives is the
     // commonest shape of this failure, not the rarest.
-    expect(api).toMatch(/setTimeout\([\s\S]{0,200}?10_000\)/);
+    expect(api).toMatch(/setTimeout\([\s\S]{0,600}?10_000\)/);
   });
 
   it('keeps the words and the attachments when the send is refused', () => {

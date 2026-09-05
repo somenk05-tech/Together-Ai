@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-var-requires */
 import { SocialService } from './social.service';
 import { ReadCache } from '../shared/cache/read-cache.service';
 
@@ -207,5 +207,29 @@ describe('the read cache fails open', () => {
     } } as any);
     expect(await cache.get('anything')).toBeUndefined();
     expect(await cache.wrap('anything', 30, async () => 'fresh')).toBe('fresh');
+  });
+});
+
+/**
+ * THE SOCKET ASKS THE SAME QUESTION THE FEED DOES (5 Sep). A connection who
+ * unticked the Social module was out of the HTTP feed and still received
+ * post:new over the socket. The fan-out reads the grant now.
+ */
+describe('the fan-out honours the Social grant', () => {
+  it('a connection without Social is not a recipient; one with it is', async () => {
+    const conns = [
+      { userOneId: AUTHOR, userTwoId: 'granted', relationship: null, modulesJson: JSON.stringify(['social', 'chat']) },
+      { userOneId: AUTHOR, userTwoId: 'unticked', relationship: null, modulesJson: JSON.stringify(['chat']) },
+      { userOneId: 'legacy', userTwoId: AUTHOR, relationship: null, modulesJson: null },
+    ];
+    const prisma: any = {
+      follow: { findMany: async () => [] },
+      connection: { findMany: async (args: any) => { expect(args.select.modulesJson).toBe(true); return conns; } },
+      post: { findUnique: async () => null },
+    };
+    const ids = await recipients(svc(prisma), 'friends');
+    expect(ids).toContain('granted');
+    expect(ids).toContain('legacy');
+    expect(ids).not.toContain('unticked');
   });
 });

@@ -75,6 +75,9 @@ describe('a path is derived, never stored', () => {
   it('the paths render inside Design Your Services, under their own eyebrow', () => {
     const section = read('features/profile/components/DesignYourServices.tsx');
     expect(section).toMatch(/Design your paths/);
-    expect(section).toMatch(/PATHS\.map/);
+    // …drawn from PATHS, less any path standing on a hub the operator has
+    // switched off site-wide (see the-city-is-yours-to-design.test.ts).
+    expect(section).toMatch(/const drawnPaths = PATHS\.filter\(\(p\) => p\.hubs\.every\(\(h\) => switches\.shown\(h\)\)\)/);
+    expect(section).toMatch(/drawnPaths\.map/);
   });
 });

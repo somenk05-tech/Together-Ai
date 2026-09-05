@@ -38,7 +38,6 @@ export interface Gem {
   description: string;
   /** The owner's own paragraph on why a chart would call for it. */
   whyRecommended: string;
-  whatYouFeel: string;
   wearingNote: string;
   image: string;
   imageAlt: string;

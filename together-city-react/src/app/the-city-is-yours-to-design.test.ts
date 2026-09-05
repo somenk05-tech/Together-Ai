@@ -107,4 +107,28 @@ describe('the control room is on the profile', () => {
     expect(section).toMatch(/<Switch /);
     expect(section).not.toMatch(/>Save</);
   });
+
+  /**
+   * ── THE OPERATOR'S HAND COMES FIRST (owner, 5 Sep) ─────────────────────────
+   * "If the developer switches something off the tab also vanishes from the
+   * website" — and it had, everywhere but here: the header, drawer, home and
+   * grid asked hubOn(), while this room listed DESIGNABLE_HUBS whole and
+   * offered a Jobs switch for a hub nobody could see. Now the cards, the paths
+   * and the count are drawn from the hubs the operator has left on; the
+   * citizen's own choice is still saved in full, so the card comes back as
+   * they left it when the operator turns the hub on again.
+   */
+  it('does not offer a hub the operator has switched off site-wide, and keeps the citizen’s answer for when it returns', () => {
+    const section = read('features/profile/components/DesignYourServices.tsx');
+    expect(section).toMatch(/const switches = useCitySwitches\(\)/);
+    expect(section).toMatch(/const designable = DESIGNABLE_HUBS\.filter\(\(k\) => switches\.shown\(k\)\)/);
+    expect(section).toMatch(/\{designable\.map\(\(key\) => \{/);
+    expect(section).not.toMatch(/\{DESIGNABLE_HUBS\.map/);
+    // The count and the sentence under the grid speak of the hubs on offer only.
+    expect(section).toMatch(/const hiddenHere = \[\.\.\.hidden\]\.filter\(\(k\) => switches\.shown\(k\)\)/);
+    expect(section).toMatch(/const onCount = designable\.length - hiddenHere\.length/);
+    // But the save still carries the whole list — an operator-off hub the
+    // citizen had hidden stays hidden in their record, not silently un-hidden.
+    expect(section).toMatch(/design\.mutate\(DESIGNABLE_HUBS\.filter\(\(k\) => next\.has\(k\)\)\)/);
+  });
 });

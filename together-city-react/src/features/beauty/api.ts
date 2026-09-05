@@ -94,6 +94,9 @@ export interface ProductsResponse {
    *  not because of what we stock. Separate from allergyNotice because the two
    *  are different sentences and conflating them explains neither. */
   conditionNotice: { removed: number; sentence: string } | null;
+  /** What the allergy and condition checks could read: for how many products a
+   *  full label is on file, and the sentence the shelf says about it (5 Sep). */
+  labelCoverage?: { withLabel: number; total: number; note: string | null };
 }
 /**
  * A product-backed routine step — distinct from the lightweight RoutineStep

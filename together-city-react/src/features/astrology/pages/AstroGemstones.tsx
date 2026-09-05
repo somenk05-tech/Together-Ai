@@ -225,8 +225,9 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
         <Fact label="First worn" value={wearing.day} />
       </div>
 
-      <Sub>When you wear it</Sub>
-      <p className="gem-body" style={{ color: 'var(--gem-body)' }}>{gem.whatYouFeel}</p>
+      {/* No "when you wear it" (5 Sep): a sold stone may not promise what the
+          wearer's body or mind will do. The tradition speaks in the sections
+          above and below; the note stays. */}
       <p className="gem-body" style={{ color: 'var(--gem-body)', fontSize: 11.5, marginTop: 8, opacity: .85 }}>
         {gem.wearingNote}
       </p>

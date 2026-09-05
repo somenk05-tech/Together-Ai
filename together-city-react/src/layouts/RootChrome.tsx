@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { MiraDock } from './MiraDock';
 import { useMiraShown } from '@/hooks/useCityDesign';
@@ -48,6 +48,26 @@ export function RootChrome() {
   const toggle = useUiStore((s) => s.toggleSidebar);
   const miraShown = useMiraShown();
   useEffect(() => { toggle(false); }, [pathname, toggle]);
+  /* ARRIVING SOMEWHERE STARTS AT THE TOP, AND SAYS SO (5 Sep). A route change
+     kept the previous page's scroll offset and left focus on the link that
+     was pressed — so a long feed, then a tap on Medical, landed a citizen
+     half-way down the Medical page with a screen reader still announcing
+     the feed. Back/forward keep their own positions (the browser restores
+     those); a PUSH to a new pathname goes to the top and focus moves to the
+     main landmark, which is where a reader begins reading. The hash is left
+     alone: an anchor link is asking for a place. */
+  const lastPath = useRef(pathname);
+  useEffect(() => {
+    if (lastPath.current === pathname) return;
+    lastPath.current = pathname;
+    if (window.location.hash) return;
+    window.scrollTo({ top: 0, left: 0 });
+    const main = document.querySelector<HTMLElement>('main');
+    if (main) {
+      if (!main.hasAttribute('tabindex')) main.setAttribute('tabindex', '-1');
+      main.focus({ preventScroll: true });
+    }
+  }, [pathname]);
   return (
     <>
       <Outlet />

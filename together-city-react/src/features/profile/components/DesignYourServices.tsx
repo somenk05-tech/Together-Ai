@@ -1,7 +1,7 @@
 import { HUBS } from '@/config/hubs';
 import { DESIGNABLE_HUBS } from '@/config/services';
 import { PATHS, type PathDef } from '@/config/paths';
-import { useCityDesign, useDesignServices } from '@/hooks/useCityDesign';
+import { useCityDesign, useCitySwitches, useDesignServices } from '@/hooks/useCityDesign';
 import { Switch } from '@/components/ui';
 import { Icon } from '@/components/ui/Icon';
 import { tabIcon } from '@/nav/registry';
@@ -21,10 +21,25 @@ import type { HubKey } from '@/types';
  * command palette can still take them there. Hidden is not deleted — the
  * rule Travel established when it left the street for everyone, now available
  * to one citizen at a time.
+ *
+ * THE OPERATOR'S HAND COMES FIRST (owner, 5 Sep). A hub the operator has
+ * switched off site-wide (/dev → visibility) is not on the street for anyone,
+ * so it is not offered here either: no card, no path standing on it, no
+ * place in the count. The citizen's own choice about it is kept, not erased —
+ * the whole list still travels on every save — so when the operator switches
+ * the hub back on, its card returns exactly as this citizen last left it.
  */
 export function DesignYourServices() {
   const { hidden } = useCityDesign();
+  const switches = useCitySwitches();
   const design = useDesignServices();
+
+  /* What the operator has left on the street: the only hubs a citizen can be
+     asked about. Falls open with the switches query, so a slow /visibility
+     never empties this room. */
+  const designable = DESIGNABLE_HUBS.filter((k) => switches.shown(k));
+  const drawnPaths = PATHS.filter((p) => p.hubs.every((h) => switches.shown(h)));
+  const hiddenHere = [...hidden].filter((k) => switches.shown(k));
 
   const save = (next: Set<string>) => design.mutate(DESIGNABLE_HUBS.filter((k) => next.has(k)));
 
@@ -53,7 +68,7 @@ export function DesignYourServices() {
     save(next);
   };
 
-  const onCount = DESIGNABLE_HUBS.length - hidden.size;
+  const onCount = designable.length - hiddenHere.length;
 
   return (
     <section aria-label="Design your services">
@@ -65,7 +80,7 @@ export function DesignYourServices() {
         everything it knows about you stays, and one press here puts it back.
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12 }}>
-        {DESIGNABLE_HUBS.map((key) => {
+        {designable.map((key) => {
           const cfg = HUBS[key];
           const on = !hidden.has(key);
           return (
@@ -87,9 +102,9 @@ export function DesignYourServices() {
         })}
       </div>
       <p className="muted" style={{ fontSize: 11.5, margin: '10px 0 0', lineHeight: 1.55 }}>
-        {hidden.size === 0
+        {hiddenHere.length === 0
           ? 'The whole city is on. Everything stays exactly as it is until you switch something off.'
-          : `${onCount} of ${DESIGNABLE_HUBS.length} hubs on. The ${hidden.size === 1 ? 'one you switched off is' : `${hidden.size} you switched off are`} hidden, not gone — saved links still open, and Mira can still take you there.`}
+          : `${onCount} of ${designable.length} hubs on. The ${hiddenHere.length === 1 ? 'one you switched off is' : `${hiddenHere.length} you switched off are`} hidden, not gone — saved links still open, and Mira can still take you there.`}
       </p>
 
       {/* ── DESIGN YOUR PATHS ─────────────────────────────────────────────
@@ -103,7 +118,7 @@ export function DesignYourServices() {
         off closes only the hubs none of your other paths are using.
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 12 }}>
-        {PATHS.map((p) => {
+        {drawnPaths.map((p) => {
           const on = pathOn(p);
           return (
             <div key={p.key} className="card" style={{ display: 'flex', gap: 10, opacity: on ? 1 : 0.62 }}>

@@ -190,7 +190,8 @@ export function Market() {
     const needle = q.trim().toLowerCase();
     return inSegment
       .filter((p) => !cat || p.category === cat)
-      .filter((p) => !needle || `${p.name} ${p.brand} ${p.actives.join(' ')} ${p.keyIngredient}`.toLowerCase().includes(needle))
+      // The label list is searched too (5 Sep): the box promised "or ingredient".
+      .filter((p) => !needle || `${p.name} ${p.brand} ${p.actives.join(' ')} ${p.keyIngredient} ${(p.ingredients ?? []).join(' ')}`.toLowerCase().includes(needle))
       .slice()
       .sort(sorter);
   }, [inSegment, cat, q, sorter]);
@@ -273,6 +274,12 @@ export function Market() {
 
         <div className="mk-main">
           <AllergyNote notice={products.data.allergyNotice} manageTo="/beauty/profile" />
+          {/* What the checks could actually read — actives, not the full label,
+              for most of the shelf today. Said before the shelf, not in a
+              footnote (5 Sep). */}
+          {products.data.labelCoverage?.note && (
+            <p className="muted mk-notice">{products.data.labelCoverage.note}</p>
+          )}
           {/* A shorter shelf is only ever OUR RULE or OUR RANGE, and from the
               outside those look identical. A condition that held products
               back says so. */}
