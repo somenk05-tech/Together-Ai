@@ -28,10 +28,23 @@ export function SupplementPlan() {
   const { basis, items, totalInr, safety } = plan.data;
   const goalLabel = basis.goal === 'lose' ? 'weight loss' : basis.goal === 'gain' ? 'muscle gain' : 'maintenance';
 
+  // NO BLOOD TEST, NO PLAN (owner, 29 Aug). The server sends no items without
+  // a panel on file; the page says so once and offers the one door, rather
+  // than printing an empty kit at ₹0 under a button that would order it.
+  const gated = !basis.hasBloodTest;
+
   return (
     <div>
       <div className="eyebrow">Medical Hub · Supplement Plan</div>
       <h1 style={{ fontSize: 26 }}>Your personal supplement plan</h1>
+      {gated && (
+        <EmptyState
+          title="No blood panel on file yet"
+          hint={safety}
+          action={<Link to="/medical/blood"><Button variant="gold">Add a blood report</Button></Link>}
+        />
+      )}
+      {!gated && (<>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 0' }}>
         Built for you alone — from your goal and your latest blood panel. Every item names the
         exact reason it's here, with its RDA and safe upper limit. Food-first, then supplements.
@@ -42,9 +55,7 @@ export function SupplementPlan() {
         <div className="eyebrow" style={{ margin: 0 }}>Why these — your basis</div>
         <p style={{ fontSize: 13.5, margin: '8px 0 0' }}>
           Goal: <strong>{goalLabel}</strong>.{' '}
-          {basis.hasBloodTest
-            ? <>From your blood panel{basis.takenOn ? ` (${basis.takenOn})` : ''}: </>
-            : <>No blood panel yet — <Link to="/medical/blood" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>add one</Link> to tailor this further. </>}
+          From your blood panel{basis.takenOn ? ` (${basis.takenOn})` : ''}:{' '}
           {basis.flags.length > 0 && (
             <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
               {basis.flags.map((f) => (
@@ -81,6 +92,7 @@ export function SupplementPlan() {
       </div>
 
       <p className="muted" style={{ fontSize: 11.5, marginTop: 12 }}>{safety}</p>
+      </>)}
     </div>
   );
 }

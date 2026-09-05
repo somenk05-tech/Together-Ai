@@ -5,7 +5,7 @@ import { RootChrome } from '@/layouts/RootChrome';
 import { HubLayout } from '@/layouts/HubLayout';
 import { HUBS } from '@/config/hubs';
 import { REMOVED_ROUTES } from '@/config/labels';
-import { ChunkBoundary } from './ChunkBoundary';
+import { ChunkBoundary, RouteError } from './ChunkBoundary';
 import { Home } from '@/pages/Home';
 import { Dashboard } from '@/pages/Dashboard';
 import { HubLanding } from '@/pages/HubLanding';
@@ -384,7 +384,9 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/hubs', element: <RequireAuth>{wrap(<HubsPage />)}</RequireAuth> },
       { path: '/alerts', element: <RequireAuth>{wrap(<SocNotifications />)}</RequireAuth> },
       { path: '/connections', element: <RequireAuth>{wrap(<Connections />)}</RequireAuth> },
-      { path: '/dashboard', element: <Dashboard /> },
+      // Behind the door like its siblings (5 Sep): six authed queries 401'd
+      // for a signed-out visitor instead of one redirect to sign-in.
+      { path: '/dashboard', element: <RequireAuth>{wrap(<Dashboard />)}</RequireAuth> },
     ],
   },
   {
@@ -730,5 +732,12 @@ const ROUTE_BLOCKS: RouteObject[] = [
  * lose her, which is the entire point of the wrapper.
  */
 export const router = createBrowserRouter([
-  { element: <RootChrome />, children: ROUTE_BLOCKS },
+  {
+    element: <RootChrome />,
+    // A card at every floor (4 Sep, blocker 3): a block's own errorElement
+    // keeps RootChrome — and Mira's door — standing over a page that threw;
+    // the root's catches RootChrome itself. See RouteError.
+    errorElement: <RouteError />,
+    children: ROUTE_BLOCKS.map((block) => ({ ...block, errorElement: <RouteError /> })),
+  },
 ]);

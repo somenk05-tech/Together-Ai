@@ -38,6 +38,9 @@ export interface SupplementItem {
 export interface SupplementPlan {
   basis: { goal: string; hasBloodTest: boolean; takenOn: string | null; flags: { key: string; label: string; status: string; value: number }[] };
   items: SupplementItem[]; totalInr: number; safety: string;
+  /** True when there is no blood panel on file: no items, no price — the rule
+   *  is no blood test, no plan. `safety` carries the sentence that says so. */
+  gated?: true;
 }
 
 export interface HealthSummary {

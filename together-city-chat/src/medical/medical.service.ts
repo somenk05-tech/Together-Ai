@@ -1,4 +1,5 @@
 import { swallow } from '../shared/swallow';
+import { ageOn } from '../shared/age';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { checkCollectionDate } from './collection-date';
 import { pageLimit } from '../shared/paging';
@@ -18,7 +19,7 @@ import { StorageProvider } from '../media/storage.provider';
 // logic is the shared, cited clinical engine — so Nutrition, Beauty and Fitness all
 // reason from the same evidence base.
 import {
-  CITATIONS, MARKER_RULES, criticalAlerts, evaluateMarker, flagsFor,
+  CITATIONS, MARKER_RULES, conditionsFromBlood, criticalAlerts, evaluateMarker, flagsFor,
   supplementKit, triggeredConditions, ruleFor,
 } from '../nutrition/clinical-engine';
 import type { SaveBloodTestDto } from './dto/medical.dto';
@@ -95,8 +96,18 @@ export function classifyTrend(
  * because a default written in two places is a default that will disagree with
  * itself the day somebody changes one of them. Changing this to `false` is the
  * whole of switching the product to ask-first.
+ *
+ * ── ASK-FIRST (launch gate, third reading, 4 Sep) ──────────────────────────
+ *
+ * It was `true`: a citizen who had never been asked had their blood markers
+ * read by Nutrition, Beauty and Fitness. The privacy policy promises the
+ * opposite — explicit consent before health data is processed, and before it
+ * crosses hubs — and under the DPDP Act consent is a clear affirmative act,
+ * which an absence of an answer is not. So a hub reads nothing until the
+ * citizen says yes: the ask on Blood Test Analysis (`ShareWithHubs`) is where
+ * that happens, the moment a panel exists and the question is concrete.
  */
-export const DEFAULT_HUB_ACCESS = true;
+export const DEFAULT_HUB_ACCESS = false;
 
 export const CONSENT_HUBS = [
   { hub: 'nutrition', label: 'Nutrition', reads: 'Personalises meal plans, targets and supplements from your markers.' },
@@ -1206,7 +1217,8 @@ export class MedicalService implements OnModuleInit {
     const mealRestrictions = [...new Set(abnormal.flatMap((m) => REST[m.key] ?? []))];
 
     // The one AI call — with deterministic fallbacks if AI is off / returns empty.
-    const prompt = `Person: ${first}.\nMarkers:\n`
+    // No name in the prompt (4 Sep) — see AiService.clinicalInterpretation.
+    const prompt = 'Markers:\n'
       + markers.map((m) => `- ${m.label}: ${m.value} ${m.unit} (ref ${m.range}) → ${m.status.toUpperCase()}`).join('\n')
       + (alerts.length ? `\nCritical alerts: ${alerts.map((al) => `${al.label} ${al.value}`).join('; ')}` : '')
       + (conditions.length ? `\nCondition patterns detected: ${conditions.map((c) => c.name).join(', ')}` : '')
@@ -1250,8 +1262,45 @@ export class MedicalService implements OnModuleInit {
     const latest = await this.prisma.medicalBloodTest.findFirst({
       where: { userId }, orderBy: { takenOn: 'desc' }, include: { biomarkers: true },
     });
-    const values = latest ? Object.fromEntries(latest.biomarkers.map((b) => [b.key, b.value])) : {};
+    // NO BLOOD TEST, NO PLAN (owner, 29 Aug; launch gate third reading, 4 Sep,
+    // blocker 2). Fitness has held this rule since it was written; this route
+    // was a second door that handed a priced omega-3 + multivitamin kit to a
+    // citizen the city knew nothing about, under "Everyday baseline". A plan
+    // built from a guess is not a plan. The shape stays the shape the page
+    // reads — empty items, a basis that says why — so nothing on the client
+    // has to learn a new answer.
+    if (!latest) {
+      return {
+        basis: { goal, hasBloodTest: false, takenOn: null, flags: [] },
+        items: [],
+        totalInr: 0,
+        gated: true as const,
+        safety: 'No blood panel on file, so no supplement plan — Together City does not suggest supplements from a guess. Upload a blood report and the plan is built from what it says.',
+      };
+    }
+    const values = Object.fromEntries(latest.biomarkers.map((b) => [b.key, b.value]));
     const flags = flagsFor(values);
+
+    // THE ENGINE'S STOPS NEED ITS INPUTS (blocker 2, same reading). Nutrition
+    // passed the citizen's conditions and age into `supplementKit`, where the
+    // CKD / pregnancy / lactation / under-18 guards live; this caller passed
+    // neither, so a CKD-4 citizen with goal `gain` was handed whey and
+    // creatine, and a pregnant one a non-prenatal multivitamin. Conditions are
+    // read where the city keeps them — the Master Profile's declared list and
+    // trimester, the food preference's own list, and what the panel itself
+    // says — and age from the record's date of birth.
+    const master = await swallow(
+      this.prisma.masterProfile.findUnique({ where: { userId }, select: { healthConditions: true, pregnancyTrimester: true, dateOfBirth: true } }),
+      'medical: master read for supplement plan', { userId },
+    );
+    const declared = String(master?.healthConditions ?? '').split(',').map((s) => s.trim()).filter(Boolean).filter((s) => s.toLowerCase() !== 'none');
+    const own = (() => { try { const ex = JSON.parse(pref?.extras ?? '{}') as { healthConditions?: unknown }; return Array.isArray(ex.healthConditions) ? ex.healthConditions.map(String) : []; } catch { return []; } })();
+    const conditions = [...new Set([
+      ...declared, ...own,
+      ...(master?.pregnancyTrimester ? ['pregnant'] : []),
+      ...conditionsFromBlood(values),
+    ])];
+    const age = (master?.dateOfBirth ? ageOn(master.dateOfBirth, this.clock.now()) : null) ?? pref?.age ?? undefined;
 
     // Human-readable trigger for each flag-driven supplement.
     const triggerFor = (name: string): string => {
@@ -1270,7 +1319,7 @@ export class MedicalService implements OnModuleInit {
       'Iron + Vitamin C': 'Food-first: lean red meat, liver, legumes + a vitamin-C source; avoid tea/coffee with meals.',
     };
 
-    const kit = supplementKit(goal, flags);
+    const kit = supplementKit(goal, flags, { conditions, age });
     const items = kit.map((s) => {
       const trigger = triggerFor(s.name) || (goal !== 'maintain' ? `Goal: ${goal === 'lose' ? 'weight loss' : 'muscle gain'}` : 'Everyday baseline');
       const ffKey = Object.keys(foodFirst).find((k) => s.name.startsWith(k));
@@ -1474,9 +1523,13 @@ export class MedicalService implements OnModuleInit {
       if ((await this.prisma.doctor.count()) > 0) return;
     } catch { return; }
     const seed = [
-      { handle: 'dr_narang', name: 'Dr. Anjali Narang', specialty: 'General physician · internal medicine', hospital: 'Fortis', languages: 'English,Hindi', rating: 4.9, priceInr: 699 },
-      { handle: 'dr_iyer', name: 'Dr. Rohan Iyer', specialty: 'Endocrinology · diabetes & thyroid', hospital: 'Apollo', languages: 'English,Hindi,Tamil', rating: 4.8, priceInr: 1199 },
-      { handle: 'dr_khan', name: 'Dr. Sara Khan', specialty: 'Haematology · anaemia & iron', hospital: 'Manipal', languages: 'English,Hindi,Urdu', rating: 4.9, priceInr: 1099 },
+      /* DEMO ROWS DO NOT BORROW REAL HOSPITALS' NAMES (5 Sep). They read
+         Fortis, Apollo and Manipal — three real chains that have not
+         appointed anybody here — so a screenshot of the demo was a false
+         affiliation. Invented places, marked as demo. */
+      { handle: 'dr_narang', name: 'Dr. Anjali Narang', specialty: 'General physician · internal medicine', hospital: 'Riverside Clinic (demo)', languages: 'English,Hindi', rating: 4.9, priceInr: 699 },
+      { handle: 'dr_iyer', name: 'Dr. Rohan Iyer', specialty: 'Endocrinology · diabetes & thyroid', hospital: 'Lakeview Hospital (demo)', languages: 'English,Hindi,Tamil', rating: 4.8, priceInr: 1199 },
+      { handle: 'dr_khan', name: 'Dr. Sara Khan', specialty: 'Haematology · anaemia & iron', hospital: 'Hillside Medical Centre (demo)', languages: 'English,Hindi,Urdu', rating: 4.9, priceInr: 1099 },
     ];
     for (const d of seed) {
       const user = await this.prisma.user.upsert({

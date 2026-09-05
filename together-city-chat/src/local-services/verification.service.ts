@@ -421,6 +421,17 @@ export class VerificationService {
     }) as unknown as Array<{ id: string; businessName: string; categoryKey: string; city: string; businessType: string | null }>;
     const byId = new Map(listings.map((l) => [l.id, l]));
 
+    /* A LINK THE REVIEWER CAN OPEN (4 Sep, blocker 4). `videoUrl` has been a
+       vault key since 2 Sep, and a key is not a URL. Each one is signed for
+       ten minutes here, on the read, so the console shows the clip and the
+       address it shows expires before it can be passed on. A key nothing can
+       sign — storage not wired, or a URL from before the vault — comes back
+       null rather than as a string that looks like a link and is not. */
+    const videoUrls = new Map<string, string | null>();
+    await Promise.all(rows.filter((r) => r.videoUrl).map(async (r) => {
+      videoUrls.set(r.listingId, (await this.storage?.signKycVideo(r.videoUrl as string)) ?? null);
+    }));
+
     return {
       items: rows.map((r) => ({
         listingId: r.listingId,
@@ -434,7 +445,7 @@ export class VerificationService {
         docRef: r.docRef,
         docUrl: r.docUrl,
         docStatus: r.docStatus,
-        videoUrl: r.videoUrl,
+        videoUrl: videoUrls.get(r.listingId) ?? null,
         videoStatus: r.videoStatus,
         submittedAt: r.submittedAt?.toISOString() ?? null,
         videoSubmittedAt: r.videoSubmittedAt?.toISOString() ?? null,

@@ -3,7 +3,8 @@ import { Button, Card, EmptyState, Spinner } from '@/components/ui';
 import {
   useAdminMe, useAdminQueue, useAdminAudit, useDecide,
   useCitizens, useCitizen, useBusinessRecord, useSetSuspended,
-  type QueueItem, type CitizenView,
+  useVerificationQueue, useDecideVerification,
+  type QueueItem, type CitizenView, type VerificationItem,
 } from '../api';
 
 /**
@@ -90,6 +91,113 @@ function Row({ item, canApprove, canSuspend }: { item: QueueItem; canApprove: bo
         {!ready && <span className="muted" style={{ fontSize: 12, alignSelf: 'center' }}>A reason is required.</span>}
       </div>
       {err && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: 0 }} role="alert">{err}</p>}
+    </Card>
+  );
+}
+
+
+/* ─────────────────────────── verification ─────────────────────────── */
+
+/**
+ * ONE BUSINESS, TWO KINDS OF EVIDENCE (launch gate, third reading, 4 Sep,
+ * blocker 4). The queue has existed on the API since the trust ladder was
+ * built and no screen ever read it: a business that sent its registration
+ * number, or a clip of the owner at the counter, sat at "submitted" for good,
+ * and the "checked by Together City" badge was unattainable.
+ *
+ * The document rung is a number against a kind — read it, look it up, decide.
+ * The video rung is a person watching a person: the player below plays a
+ * link the server signed for about ten minutes on this read, because the
+ * clip lives in the vault and has no permanent address. Each verdict carries
+ * its own reason, and a refusal's reason is shown to the owner verbatim.
+ *
+ * Styled with the console's own classes and nothing inline, on purpose: the
+ * size ratchet counts inline style objects and a fourth tab is not a reason
+ * to raise it.
+ */
+function VerificationRow({ item }: { item: VerificationItem }) {
+  const decide = useDecideVerification();
+  const [reason, setReason] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+  const ready = reason.trim().length >= 8;
+  const name = item.businessName ?? 'A business';
+
+  const act = (kind: 'doc' | 'video', decision: 'verified' | 'rejected') => {
+    setErr(null);
+    decide.mutate({ listingId: item.listingId, decision, reason: reason.trim(), kind }, {
+      onError: (e: unknown) => {
+        const m = e as { response?: { data?: { message?: string | string[] } } };
+        const raw = m?.response?.data?.message;
+        setErr(Array.isArray(raw) ? raw.join(', ') : raw ?? 'That decision could not be recorded.');
+      },
+    });
+  };
+
+  return (
+    <Card className="rows">
+      <div>
+        <strong>{name}</strong>
+        <div className="muted">
+          {[item.city, item.businessType, item.entityLabel].filter(Boolean).join(' · ')}
+        </div>
+      </div>
+
+      {item.docStatus === 'submitted' && (
+        <div className="rows">
+          <div className="eyebrow">Document · sent {item.submittedAt ? dt(item.submittedAt) : ''}</div>
+          <div>
+            {item.docLabel ?? item.docKind ?? 'Document'}: <strong>{item.docRef ?? '—'}</strong>
+          </div>
+          <p className="muted">
+            Look the number up at the issuing registry before deciding. Verifying lifts this business's daily
+            limit and puts a badge on it that a citizen will read as checked by Together City.
+          </p>
+        </div>
+      )}
+
+      {item.videoStatus === 'submitted' && (
+        <div className="rows">
+          <div className="eyebrow">Video · sent {item.videoSubmittedAt ? dt(item.videoSubmittedAt) : ''}</div>
+          {item.videoUrl ? (
+            <video controls playsInline preload="metadata" width="100%" src={item.videoUrl}
+              aria-label={`Verification video from ${name}`} />
+          ) : (
+            <p className="muted" role="status">
+              The clip could not be opened just now — the link the server signs for it was not available.
+              Reload the queue; if it stays closed, file storage is not reachable from the API.
+            </p>
+          )}
+          <p className="muted">
+            A person at the business, saying who they are. The link above lasts about ten minutes; reload the
+            queue for a fresh one. Decide from what you saw, never from what a model said.
+          </p>
+        </div>
+      )}
+
+      <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={1000}
+        aria-label={`Reason for your decision on ${name}`}
+        placeholder="Why? One sentence — a refusal's reason is shown to the owner as written." />
+
+      <div className="pill-row">
+        {item.docStatus === 'submitted' && (
+          <>
+            <Button variant="accent" size="sm" disabled={!ready || decide.isPending} onClick={() => act('doc', 'verified')}>
+              {decide.isPending ? 'Recording…' : 'Verify document'}
+            </Button>
+            <Button variant="line" size="sm" disabled={!ready || decide.isPending} onClick={() => act('doc', 'rejected')}>Reject document</Button>
+          </>
+        )}
+        {item.videoStatus === 'submitted' && (
+          <>
+            <Button variant="accent" size="sm" disabled={!ready || decide.isPending || !item.videoUrl} onClick={() => act('video', 'verified')}>
+              {decide.isPending ? 'Recording…' : 'Video checks out'}
+            </Button>
+            <Button variant="line" size="sm" disabled={!ready || decide.isPending} onClick={() => act('video', 'rejected')}>Reject video</Button>
+          </>
+        )}
+        {!ready && <span className="muted">A reason is required.</span>}
+      </div>
+      {err && <p className="muted" role="alert">{err}</p>}
     </Card>
   );
 }
@@ -437,13 +545,19 @@ function Citizens({ canSuspend, onOpenBusiness }: { canSuspend: boolean; onOpenB
   );
 }
 
-type Tab = 'queue' | 'citizens' | 'audit';
+type Tab = 'queue' | 'verification' | 'citizens' | 'audit';
 
 const HEADING: Record<Tab, { title: string; lede: string }> = {
   queue: {
     title: 'Waiting on a decision',
     lede: 'Oldest first — a queue sorted newest-first starves its own tail, and the listing '
       + 'nobody got to on Monday belongs to the person who has been waiting longest.',
+  },
+  verification: {
+    title: 'Is this business who it says it is',
+    lede: 'A second queue beside the first, and deliberately not merged with it: moderation asks '
+      + 'whether a page belongs in the directory at all; this asks whether the business is who it '
+      + 'says it is. A registration number to look up, or a clip of the owner to watch.',
   },
   citizens: {
     title: 'Find a person',
@@ -466,6 +580,7 @@ export function AdminConsole() {
   // that following owner → listing → owner does not nest panels inside panels.
   const [businessId, setBusinessId] = useState<string | null>(null);
   const queue = useAdminQueue(has('business.read') && tab === 'queue');
+  const verification = useVerificationQueue(has('business.verify') && tab === 'verification');
   const audit = useAdminAudit(has('audit.read') && tab === 'audit');
 
   if (me.isLoading) return <Spinner label="Checking what you can do…" />;
@@ -500,6 +615,7 @@ export function AdminConsole() {
         {(
           [
             ['queue', 'Queue', has('business.read')],
+            ['verification', 'Verification', has('business.verify')],
             ['citizens', 'Citizens', has('users.read')],
             ['audit', 'Audit', has('audit.read')],
           ] as Array<[Tab, string, boolean]>
@@ -545,6 +661,19 @@ export function AdminConsole() {
               Open the full record →
             </button>
           </div>
+        ))}
+      </div>
+      </>}
+
+      {tab === 'verification' && has('business.verify') && <>
+      {verification.isLoading && <Spinner label="Loading the verification queue…" />}
+      {verification.isError && <EmptyState title="Couldn't load the verification queue" hint="Try again in a moment." />}
+      {verification.data && verification.data.items.length === 0 && (
+        <EmptyState title="Nobody is waiting to be verified" hint="Every submission has been decided." />
+      )}
+      <div className="rows">
+        {(verification.data?.items ?? []).map((it) => (
+          <VerificationRow key={it.listingId} item={it} />
         ))}
       </div>
       </>}

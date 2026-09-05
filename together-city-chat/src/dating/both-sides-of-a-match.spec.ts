@@ -34,7 +34,7 @@ function build() {
   s.redis = { up: true, raw: { incr: async (k: string) => { bumps.push(k); return bumps.length; } } };
   s.prisma = {
     datingMatch: {
-      findFirst: async () => ({ id: 'm1', conversationId: null }),
+      findFirst: async () => ({ id: 'm1', status: 'matched', conversationId: null }),
       update: async () => ({ id: 'm1' }),
     },
   };

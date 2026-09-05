@@ -125,21 +125,14 @@ const ALLOW: Array<{ id: string; why: string }> = [
 // left panel now has one. Its two siblings, archive and unarchive, are still
 // waiting for the same treatment and stay on the list.
 const KNOWN_UNREACHED: string[] = [
-  // ── THE VERIFICATION QUEUE NOBODY CAN OPEN (investigated 27 Aug) ──────────
-  // Not dead, and not a matcher blind spot: NO web file calls either of these,
-  // and the console has exactly three tabs — queue, citizens, audit
-  // (features/admin/pages/Console.tsx, `type Tab`). The reviewer screen was
-  // never built.
-  //
-  // What makes it worth naming rather than parking: the OTHER half shipped. A
-  // business owner can send a registration document and a video from the web
-  // app today (services/verification.controller.ts, called by
-  // features/services/api.ts), and trust.ts answers them "Your document is
-  // with us. We will write to you either way." Nothing in the product can read
-  // that queue, so the sentence is not true. These two routes are the only
-  // path to making it true; they are the build, not the cleanup.
-  "admin/admin.controller.ts  GET /admin/verification",
-  "admin/admin.controller.ts  POST /admin/verification/*/decision",
+  // ── THE VERIFICATION QUEUE, OPENED (4 Sep) ───────────────────────────────
+  // Named here from 27 Aug as "the build, not the cleanup": the owner's half
+  // shipped, the reviewer's never did, and "Your document is with us. We will
+  // write to you either way" was a sentence nothing could make true. The
+  // console has a Verification tab now (features/admin/pages/Console.tsx,
+  // `VerificationRow`; features/admin/api.ts, `verificationQueue` and
+  // `decideVerification`), so GET /admin/verification and
+  // POST /admin/verification/*/decision are reached and left this list.
   "beauty/beauty.controller.ts  DELETE /beauty/looks/*",
   "beauty/beauty.controller.ts  GET /beauty/looks",
   "beauty/beauty.controller.ts  GET /beauty/looks/*",

@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import type { Readable } from 'stream';
 import { apiUrl } from '../shared/api-prefix';
 import { mintPhotoToken, readPhotoToken } from '../dating/photo-link';
+import { keyUnderPublicBases, publicBasesFrom } from './public-bases';
 import { mintCacheableMediaToken } from './media-link';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, HeadObjectCommand, PutBucketCorsCommand, GetBucketCorsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -42,6 +43,8 @@ export class StorageProvider implements OnModuleInit {
   private readonly bucket: string;
   private readonly healthBucket: string;
   private readonly publicBase: string;
+  /** The current base and every legacy one — see public-bases.ts. */
+  private readonly publicBases: string[];
   private readonly cdnBase: string;
   private readonly apiBase: string;
   private readonly linkSecret: string;
@@ -147,6 +150,8 @@ export class StorageProvider implements OnModuleInit {
      */
     this.healthBucket = this.config.get<string>('media.privateBucket') || this.bucket;
     this.publicBase = this.config.get<string>('media.publicBaseUrl') ?? '';
+    const bases = this.config.get<unknown>('media.publicBases');
+    this.publicBases = Array.isArray(bases) ? bases as string[] : publicBasesFrom(this.publicBase, undefined);
     /**
      * ── THE EDGE, IF THERE IS ONE ───────────────────────────────────────────
      *
@@ -160,7 +165,9 @@ export class StorageProvider implements OnModuleInit {
      */
     this.cdnBase = (this.config.get<string>('media.cdnBaseUrl') ?? '').replace(/\/+$/, '');
     this.apiBase = this.config.get<string>('media.apiPublicBaseUrl') ?? '';
-    this.linkSecret = this.config.get<string>('jwt.accessSecret') ?? '';
+    // Not the JWT secret (4 Sep): the Worker holds this value, so it is a
+    // secret of its own, explicit or derived — see shared/secrets.
+    this.linkSecret = this.config.get<string>('media.linkSecret') ?? '';
     const endpoint = this.config.get<string>('media.endpoint') ?? '';
     this.endpoint = endpoint;
     const accessKeyId = this.config.get<string>('media.accessKeyId') ?? '';
@@ -324,7 +331,16 @@ export class StorageProvider implements OnModuleInit {
     return { configured: true, site, buckets };
   }
 
-  async presignUpload(userId: string, mimeType: string, ext: string): Promise<PresignedUpload> {
+  /**
+   * THE SIZE IS SIGNED INTO THE PUT (5 Sep). `requestUpload` refused a
+   * declared size over 50 MB and then handed out a PUT that accepted any
+   * size at all — the declared number was the only thing checked, and it
+   * was the client's. With ContentLength in the signature the bucket refuses
+   * a body of any other length, which is what the dating presign has done
+   * since M3. `sizeBytes` is optional only for the one server-side caller
+   * that has no client to declare it.
+   */
+  async presignUpload(userId: string, mimeType: string, ext: string, sizeBytes?: number): Promise<PresignedUpload> {
     const key = `uploads/${userId}/${randomUUID()}.${ext}`;
 
     if (!this.s3) {
@@ -339,7 +355,10 @@ export class StorageProvider implements OnModuleInit {
 
     const uploadUrl = await getSignedUrl(
       this.s3,
-      new PutObjectCommand({ Bucket: this.bucket, Key: key, ContentType: mimeType }),
+      new PutObjectCommand({
+        Bucket: this.bucket, Key: key, ContentType: mimeType,
+        ...(Number.isFinite(sizeBytes) && (sizeBytes as number) > 0 ? { ContentLength: Math.floor(sizeBytes as number) } : {}),
+      }),
       { expiresIn: this.expiresInSec },
     );
 
@@ -384,15 +403,20 @@ export class StorageProvider implements OnModuleInit {
    * as the health vault (one 10 GB vault per citizen), namespaced under
    * `drive/<userId>/` so ownership is provable from the key itself.
    */
-  async presignDriveUpload(userId: string, mimeType: string, ext: string): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+  async presignDriveUpload(userId: string, mimeType: string, ext: string, sizeBytes?: number): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
     const safeExt = (ext || 'bin').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) || 'bin';
     const key = `drive/${userId}/${randomUUID()}.${safeExt}`;
     if (!this.s3) {
       return { uploadUrl: `${this.publicBase}/__presigned__/${key}`, key, expiresInSec: this.expiresInSec };
     }
+    // The quota was checked against the declared size; the signature makes
+    // the declared size the only one the bucket will take (5 Sep).
     const uploadUrl = await getSignedUrl(
       this.s3,
-      new PutObjectCommand({ Bucket: this.healthBucket, Key: key, ContentType: mimeType }),
+      new PutObjectCommand({
+        Bucket: this.healthBucket, Key: key, ContentType: mimeType,
+        ...(Number.isFinite(sizeBytes) && (sizeBytes as number) > 0 ? { ContentLength: Math.floor(sizeBytes as number) } : {}),
+      }),
       { expiresIn: this.expiresInSec },
     );
     return { uploadUrl, key, expiresInSec: this.expiresInSec };
@@ -795,6 +819,25 @@ export class StorageProvider implements OnModuleInit {
 
   static isOwnKycKey(userId: string, key: string): boolean {
     return typeof key === 'string' && key.startsWith(`kyc/${userId}/`);
+  }
+
+  /**
+   * THE CONSOLE CAN WATCH THE CLIP (launch gate, third reading, 4 Sep,
+   * blocker 4). Since the video moved into the vault, the verification queue
+   * handed the reviewer its bare key — a string nothing in a browser can
+   * open — so the rung that exists because "a person looked" had nothing
+   * for the person to look at. This signs a short GET for a `kyc/` key and
+   * nothing else: ten minutes, long enough to watch a clip twice, short
+   * enough that a link pasted somewhere is dead by the time it is read.
+   */
+  async signKycVideo(key: string, ttlSec = 600): Promise<string | null> {
+    if (!this.s3 || typeof key !== 'string' || !key.startsWith('kyc/')) return null;
+    try {
+      return await getSignedUrl(this.s3, new GetObjectCommand({ Bucket: this.healthBucket, Key: key }), { expiresIn: ttlSec });
+    } catch (e) {
+      this.logger.warn(`signKycVideo failed for ${key}: ${(e as Error).message}`);
+      return null;
+    }
   }
 
   /** True when a value is a vault key of either of those two shapes — as
@@ -1250,9 +1293,10 @@ export class StorageProvider implements OnModuleInit {
     return this.deleteObjects(keys, this.healthBucket);
   }
 
-  /** Derive the object key from a stored public URL (for legacy rows without a key). */
+  /** Derive the object key from a stored public URL (for legacy rows without
+   *  a key) — under the current base OR any legacy one (4 Sep), so a row
+   *  written before a domain cutover still deletes. */
   keyFromUrl(url: string): string {
-    if (this.publicBase && url.startsWith(this.publicBase)) return url.slice(this.publicBase.length + 1);
-    return '';
+    return keyUnderPublicBases(url, this.publicBases);
   }
 }

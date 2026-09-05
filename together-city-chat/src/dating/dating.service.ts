@@ -20,7 +20,8 @@ import { AdminAccessService } from '../admin/admin-access.service';
 import { REACHABLE_ACCOUNT, REACHABLE_USER, accountReachable } from '../admin/account-reach';
 import { RedisService } from '../shared/redis/redis.service';
 import { QueueService } from '../shared/queue/queue.service';
-import { compatibilityScore, zodiacSign } from './astrology';
+import { compatibilityScore, zodiacSign, type NatalSigns } from './astrology';
+import { natalChart } from '../astrology/astro-engine';
 import {
   canonicalGoal, cardNotes, coarseCoords, confidenceFor, coverage, curatedBar, distanceNote, factorScores, matchAlertBody, matchAlertReason, overallScore, pairMultiplier, preferenceNotes, sharedItems, seeks, shownName, underLens, type DXProfile, type FactorBreakdown, intentsOf, type Intent, unreachableReason,
 } from './matching';
@@ -241,8 +242,18 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       return opened;
     }
     if (param === viewerId) return param; // "That is you." is the writers' own answer
+    /* ONLY A MATCH SHARES REAL IDS (launch gate, third reading, 4 Sep). This
+       accepted a raw id whenever ANY row linked the pair — and `like()` and
+       `pass()` create a `pending` row on the first tap. So the seal was open
+       to exactly the people it exists for: take a coworker's raw id from
+       `/users/lookup`, ask for their card, and a 200 said "has a dating
+       profile AND has liked or passed me", a 404 said neither. Every
+       anonymous like was one probe from a name. The comment above argued
+       only for the matched case, and that is now the only case: a matched
+       pair already shares real ids inside their chat, and a match's
+       notification links keep working. */
     const [userOneId, userTwoId] = [viewerId, param].sort();
-    const known = await this.prisma.datingMatch.findFirst({ where: { userOneId, userTwoId }, select: { id: true } });
+    const known = await this.prisma.datingMatch.findFirst({ where: { userOneId, userTwoId, status: 'matched' }, select: { id: true } });
     if (!known) throw new NotFoundException('This profile is not available.');
     return param;
   }
@@ -1063,6 +1074,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     });
     // Connections/blocked users never get a "new match" alert about this member.
     const excluded = await this.connectionExclusions(userId);
+    const natal = await this.natalSigns([{ userId, birthDate: mine.birthDate }, ...candidates.map((c) => ({ userId: c.userId, birthDate: c.birthDate }))]);
 
     for (const cand of candidates) {
       if (excluded.has(cand.userId)) continue;
@@ -1075,8 +1087,8 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       if (unreachableReason(myD, candD, this.ageOf(mine.birthDate), theirAge)) continue;
 
       const { score: astro } = compatibilityScore(
-        { userId, birthDate: mine.birthDate, interests: myInterests },
-        { userId: cand.userId, birthDate: cand.birthDate, interests: this.splitInterests(cand.interests) },
+        { userId, birthDate: mine.birthDate, interests: myInterests, natal: natal.get(userId) },
+        { userId: cand.userId, birthDate: cand.birthDate, interests: this.splitInterests(cand.interests), natal: natal.get(cand.userId) },
       );
       const breakdown = factorScores(astro, myInterests, this.splitInterests(cand.interests), myD, candD);
       const score = overallScore(breakdown, pairMultiplier(myD, candD, myInterests, this.splitInterests(cand.interests)));
@@ -1463,6 +1475,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       city: string;
     }
     const scored: Scored[] = [];
+    const natal = await this.natalSigns([{ userId, birthDate: mine.birthDate }, ...candidates.map((c) => ({ userId: c.userId, birthDate: c.birthDate }))]);
 
     for (const cand of candidates) {
       if (excluded.has(cand.userId)) continue;
@@ -1498,8 +1511,8 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       }
 
       const { score: astro, signA, signB } = compatibilityScore(
-        { userId, birthDate: mine.birthDate, interests: this.splitInterests(mine.interests) },
-        { userId: cand.userId, birthDate: cand.birthDate, interests: this.splitInterests(cand.interests) },
+        { userId, birthDate: mine.birthDate, interests: this.splitInterests(mine.interests), natal: natal.get(userId) },
+        { userId: cand.userId, birthDate: cand.birthDate, interests: this.splitInterests(cand.interests), natal: natal.get(cand.userId) },
       );
       const myInterests = this.splitInterests(mine.interests);
       const theirInterests = this.splitInterests(cand.interests);
@@ -1870,6 +1883,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // notification said "open Dating to say hi" and linked to a page that no
     // longer showed them.
     const matchedCards: Array<Record<string, unknown> & { score: number }> = [];
+    const natal = await this.natalSigns([{ userId, birthDate: mine.birthDate }, ...candidates.map((c) => ({ userId: c.userId, birthDate: c.birthDate }))]);
     for (const cand of candidates) {
       if (excluded.has(cand.userId)) continue;
       const state = stateFor(cand.userId);
@@ -1910,8 +1924,8 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       }
 
       const { score: astro, signA, signB } = compatibilityScore(
-        { userId, birthDate: mine.birthDate, interests: myInterests },
-        { userId: cand.userId, birthDate: cand.birthDate, interests: this.splitInterests(cand.interests) },
+        { userId, birthDate: mine.birthDate, interests: myInterests, natal: natal.get(userId) },
+        { userId: cand.userId, birthDate: cand.birthDate, interests: this.splitInterests(cand.interests), natal: natal.get(cand.userId) },
       );
       const theirInterests = this.splitInterests(cand.interests);
       const candDX = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility & DXCard & { photos?: string[] };
@@ -2181,9 +2195,10 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
 
     const myInterests = this.splitInterests(mine.interests);
     const theirInterests = this.splitInterests(cand.interests);
+    const natal = await this.natalSigns([{ userId, birthDate: mine.birthDate }, { userId: targetUserId, birthDate: cand.birthDate }]);
     const { score: astro, signA, signB } = compatibilityScore(
-      { userId, birthDate: mine.birthDate, interests: myInterests },
-      { userId: targetUserId, birthDate: cand.birthDate, interests: theirInterests },
+      { userId, birthDate: mine.birthDate, interests: myInterests, natal: natal.get(userId) },
+      { userId: targetUserId, birthDate: cand.birthDate, interests: theirInterests, natal: natal.get(targetUserId) },
     );
     const breakdown = factorScores(astro, myInterests, theirInterests, myD, candD);
     const score = overallScore(breakdown, pairMultiplier(myD, candD, myInterests, theirInterests));
@@ -2467,14 +2482,99 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // disagreement; five is a pattern, and the difference belongs in the line
     // a moderator reads before deciding what to open first.
     const total = await this.prisma.report.count({ where: { targetType: 'user', targetId: targetUserId } });
+    const held = await this.holdIfReported(targetUserId);
     for (const g of grants) {
       await swallow(this.notifications.create({
         userId: g.userId, kind: 'system',
-        title: total > 1 ? `Matchmaking: a member has been reported ${total} times` : 'Matchmaking: a member has been reported',
-        body: 'Open the moderation queue to read the report and decide.',
+        title: held
+          ? `Matchmaking: a member has been reported ${total} times and is held from Browse`
+          : total > 1 ? `Matchmaking: a member has been reported ${total} times` : 'Matchmaking: a member has been reported',
+        body: held
+          ? 'Their card is out of Browse until a moderator decides. Open the queue to read the reports.'
+          : 'Open the moderation queue to read the report and decide.',
         href: '/moderation',
       }), 'dating: report notification row', { moderator: g.userId });
     }
+  }
+
+  /**
+   * ── A PATTERN OF REPORTS TAKES A CARD OUT OF BROWSE (5 Sep) ───────────────
+   *
+   * A report wrote a row and rang a bell, and nothing else: a profile with
+   * ten open reports stayed on every Browse deck until a moderator got to the
+   * queue, which on a launch weekend is hours. From DATING_REPORTS_AUTO_HOLD
+   * distinct open reports (default 3) the profile's moderation goes to
+   * `review` — the state poolWhere already excludes and the review queue
+   * already lists — so the card leaves Browse and existing matches keep
+   * their chats. Nothing is decided here: the moderator still reads and
+   * rules, and a dismissal that leaves no open report puts the card back
+   * (SocialService.reportDecide). Distinct REPORTERS, not rows: one person cannot
+   * hold another with one account, and the unique index means they cannot
+   * with two taps either.
+   */
+  static readonly AUTO_HOLD_DEFAULT = 3;
+  private autoHoldAt(): number {
+    const n = Number.parseInt(process.env.DATING_REPORTS_AUTO_HOLD ?? '', 10);
+    return Number.isFinite(n) && n >= 2 ? n : DatingService.AUTO_HOLD_DEFAULT;
+  }
+  private async holdIfReported(targetUserId: string): Promise<boolean> {
+    const open = await this.prisma.report.findMany({
+      where: { targetType: 'user', targetId: targetUserId, status: 'open' },
+      select: { reporterId: true }, distinct: ['reporterId'], take: 50,
+    });
+    if (open.length < this.autoHoldAt()) return false;
+    const moved = await this.prisma.datingProfile.updateMany({
+      where: { userId: targetUserId, moderation: 'approved' },
+      data: { moderation: 'review' },
+    });
+    if (moved.count === 1) this.analytics.track('dating.auto_held', targetUserId);
+    return moved.count === 1;
+  }
+
+
+
+  // ── the chart behind the number (owner, 5 Sep) ──────────────────────────
+  /**
+   * Moon sign and ascendant for a set of citizens, from the Astrology Zone's
+   * profile (birth time, IANA zone, coordinates) where one exists — the
+   * dating row's `birthPlace` is free text and cannot cast a chart. Cached
+   * per citizen for an hour against the five inputs, so a Browse of a
+   * hundred cards is a hundred sign look-ups, not a hundred ephemeris runs.
+   * A citizen with no astro profile gets the Moon from their dating birth
+   * date at noon IST (the Moon moves ~13°/day, so this is right on most days)
+   * and no ascendant.
+   */
+  private readonly natalCache = new Map<string, { key: string; signs: NatalSigns; until: number }>();
+  private async natalSigns(rows: Array<{ userId: string; birthDate: Date }>): Promise<Map<string, NatalSigns>> {
+    const out = new Map<string, NatalSigns>();
+    if (!rows.length) return out;
+    const ids = [...new Set(rows.map((r) => r.userId))];
+    const astro = (this.prisma as unknown as {
+      astroProfile?: { findMany(a: unknown): Promise<Array<{ userId: string; birthDate: Date; birthTime: string | null; timeZone: string; lat: number | null; lng: number | null }>> };
+    }).astroProfile;
+    // unbounded: `in:` of the candidate pool bounds it (SCORING_POOL / POOL_CEILING)
+    const profiles = astro ? (await swallow(astro.findMany({
+      where: { userId: { in: ids } },
+      select: { userId: true, birthDate: true, birthTime: true, timeZone: true, lat: true, lng: true },
+    }), 'dating: astro profiles for the chart', { count: ids.length })) ?? [] : [];
+    const byId = new Map(profiles.map((p) => [p.userId, p]));
+    const now = Date.now();
+    for (const r of rows) {
+      const p = byId.get(r.userId);
+      const birthDate = p?.birthDate ?? r.birthDate;
+      const key = [birthDate.toISOString(), p?.birthTime ?? '', p?.timeZone ?? 'Asia/Kolkata', p?.lat ?? '', p?.lng ?? ''].join('|');
+      const kept = this.natalCache.get(r.userId);
+      if (kept && kept.key === key && kept.until > now) { out.set(r.userId, kept.signs); continue; }
+      let signs: NatalSigns = {};
+      try {
+        const chart = natalChart(birthDate, p?.birthTime ?? null, p?.timeZone ?? 'Asia/Kolkata', p?.lat ?? null, p?.lng ?? null);
+        signs = { moon: chart.moon.sign, ascendant: chart.ascendant?.sign ?? null };
+      } catch { signs = {}; }
+      if (this.natalCache.size > 20_000) this.natalCache.clear();
+      this.natalCache.set(r.userId, { key, signs, until: now + 3_600_000 });
+      out.set(r.userId, signs);
+    }
+    return out;
   }
 
   private async connectionExclusions(userId: string): Promise<Set<string>> {
@@ -2525,9 +2625,10 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     const candD = this.parseDX((cand as { extras?: string | null }).extras);
     const myInterests = this.splitInterests(mine.interests);
     const theirInterests = this.splitInterests(cand.interests);
+    const natal = await this.natalSigns([{ userId, birthDate: mine.birthDate }, { userId: targetUserId, birthDate: cand.birthDate }]);
     const { score: astro } = compatibilityScore(
-      { userId, birthDate: mine.birthDate, interests: myInterests },
-      { userId: targetUserId, birthDate: cand.birthDate, interests: theirInterests },
+      { userId, birthDate: mine.birthDate, interests: myInterests, natal: natal.get(userId) },
+      { userId: targetUserId, birthDate: cand.birthDate, interests: theirInterests, natal: natal.get(targetUserId) },
     );
     const breakdown = factorScores(astro, myInterests, theirInterests, myD, candD);
     const score = overallScore(breakdown, pairMultiplier(myD, candD, myInterests, theirInterests));
@@ -3575,6 +3676,16 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       where: { OR: [{ userOneId, userTwoId }], kind },
     });
     if (!state) return { ok: true as const };
+    // ONLY A MATCH CAN BE UNMATCHED (launch gate, third reading, 4 Sep,
+    // blocker 1). This route took any row the pair shared — and `like()`
+    // creates a `pending` row on the first tap. So like → unmatch → like was a
+    // loop: the unmatch below refunded the like (the allowance counts by
+    // `likedAt*`) and blanked the memory `like()` uses to decide whether to
+    // push, and the next tap was a brand-new "You have a new like 💛" — sixty a
+    // minute at one person, at no cost, exactly the loop `pass()` was rewritten
+    // to close on 31 Aug. A row that never matched has nothing to end; it is
+    // the same clean answer as no row at all.
+    if (state.status !== 'matched') return { ok: true as const };
     if (state.conversationId) await swallow(this.conversations.archiveForAll(state.conversationId), 'dating unmatch: archive conversation', { userId });
     // CLEAR THE LIKES, NOT JUST SET PASSED (27 Aug, second audit, blocker 01).
     // Leaving likedBy* true meant a single ♡ tap by the OTHER person walked
@@ -3583,12 +3694,16 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // consent from whoever ended it. Clearing the likes makes a re-match what
     // it should be: two people both choosing again, each spending a like,
     // rather than one tap undoing the other's decision.
+    //
+    // THE FLAGS, NOT THE TIMESTAMPS (4 Sep). `likedAt*` is the allowance's
+    // ledger and the "ever liked before" memory that keeps a re-given like
+    // from pushing twice — the same rule `pass()` holds. Spent stays spent.
     await this.prisma.datingMatch.update({
       where: { id: state.id },
       data: {
         status: 'passed', passedByOne: true, passedByTwo: true,
         revealByOne: false, revealByTwo: false,
-        likedByOne: false, likedByTwo: false, likedAtOne: null, likedAtTwo: null,
+        likedByOne: false, likedByTwo: false,
         superByOne: false, superByTwo: false,
       },
     });

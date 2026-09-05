@@ -54,6 +54,22 @@ export interface CitizenActivity {
   profiles: Record<string, boolean>;
   sessions: { activeSessions: number; pushDevices: number };
 }
+/**
+ * A business that has sent something to be checked. `docRef` is the number
+ * the owner typed; `videoUrl` is a SIGNED link the server minted on this read,
+ * good for about ten minutes — the clip itself lives in the vault and has no
+ * permanent address. Null means there is no clip, or none that could be
+ * signed (which the screen says out loud rather than showing a dead player).
+ */
+export interface VerificationItem {
+  listingId: string;
+  businessName: string | null; city: string | null; businessType: string | null;
+  entityKind: string | null; entityLabel: string | null;
+  docKind: string | null; docLabel: string | null; docRef: string | null; docUrl: string | null;
+  docStatus: string;
+  videoUrl: string | null; videoStatus: string;
+  submittedAt: string | null; videoSubmittedAt: string | null;
+}
 export interface BusinessRecord {
   listing: {
     id: string; slug: string | null; businessName: string; categoryKey: string;
@@ -89,6 +105,9 @@ export const adminApi = {
     api.post<{ id: string; suspended: boolean }>(`/admin/citizens/${id}/suspension`, { suspended, reason }).then((r) => r.data),
   business: (id: string) =>
     api.get<BusinessRecord>(`/admin/businesses/${id}`).then((r) => r.data),
+  verificationQueue: () => api.get<{ items: VerificationItem[] }>('/admin/verification').then((r) => r.data),
+  decideVerification: (listingId: string, decision: 'verified' | 'rejected', reason: string, kind: 'doc' | 'video') =>
+    api.post<{ listingId: string; kind: string; released: number }>(`/admin/verification/${listingId}/decision`, { decision, reason, kind }).then((r) => r.data),
 };
 
 /** Who you are in console terms. Everything else on this screen waits on it —
@@ -165,5 +184,23 @@ export function useSetSuspended() {
     // The whole console, not just this record: a suspension changes the audit
     // log and the search results as well as the person's own page.
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin'] }); },
+  });
+}
+
+/** Businesses waiting to be verified. Needs `business.verify` on the server;
+ *  the screen hides the tab without it for the same reason the queue does. */
+export function useVerificationQueue(enabled: boolean) {
+  return useQuery({ queryKey: ['admin', 'verification'], queryFn: () => adminApi.verificationQueue(), enabled, retry: false });
+}
+export function useDecideVerification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { listingId: string; decision: 'verified' | 'rejected'; reason: string; kind: 'doc' | 'video' }) =>
+      adminApi.decideVerification(v.listingId, v.decision, v.reason, v.kind),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['admin'] });
+      // A verified badge changes what the directory shows.
+      void qc.invalidateQueries({ queryKey: ['services'] });
+    },
   });
 }
