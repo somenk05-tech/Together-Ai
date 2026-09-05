@@ -21,8 +21,8 @@ export class CallsController {
    * is configured. Declared before ':id' so 'ice' is not read as a call id.
    */
   @Get('ice')
-  ice() {
-    return this.calls.ice();
+  ice(@CurrentUser() user: JwtUser) {
+    return this.calls.ice(user.sub);
   }
 
   /**

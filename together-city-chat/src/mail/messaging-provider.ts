@@ -58,6 +58,8 @@ export interface ProviderResult {
 
 /** The parts of a received email that the webhook does not carry. */
 export interface ReceivedBody { text: string; html: string | null; subject: string }
+/** One attachment of a received email, with a short-lived download URL. */
+export interface ReceivedAttachment { id: string; filename: string; contentType: string; size: number; downloadUrl: string }
 
 export interface MessagingProvider {
   readonly name: string;
@@ -70,6 +72,8 @@ export interface MessagingProvider {
    * assume the configured provider can do this.
    */
   fetchReceived?(id: string): Promise<ReceivedBody | null>;
+  /** The received email's attachments with download URLs — null on failure (5 Sep). */
+  fetchReceivedAttachments?(id: string): Promise<ReceivedAttachment[] | null>;
 }
 
 /**
@@ -203,6 +207,26 @@ export class ResendEmailProvider implements MessagingProvider {
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error(`[messaging:resend] receiving.get(${id}) threw — ${(e as Error).message}`);
+      return null;
+    }
+  }
+
+  /** The attachments of a received email, each with a signed download URL. */
+  async fetchReceivedAttachments(id: string): Promise<ReceivedAttachment[] | null> {
+    try {
+      const { data, error } = await this.client.emails.receiving.attachments.list({ emailId: id });
+      if (error || !data) {
+        // eslint-disable-next-line no-console
+        console.error(`[messaging:resend] receiving.attachments.list(${id}) failed — ${error?.message ?? 'no data returned'}`);
+        return null;
+      }
+      return data.data.map((a) => ({
+        id: a.id, filename: a.filename || 'attachment', contentType: a.content_type || 'application/octet-stream',
+        size: Number(a.size) || 0, downloadUrl: a.download_url,
+      }));
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error(`[messaging:resend] receiving.attachments.list(${id}) threw — ${(e as Error).message}`);
       return null;
     }
   }

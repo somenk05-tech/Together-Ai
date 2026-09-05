@@ -15,6 +15,8 @@
  * response, in words a frontend can show, rather than shipping a config that
  * looks complete and works for whoever happens to test it.
  */
+import { createHmac } from 'crypto';
+
 export interface IceServer {
   urls: string[];
   username?: string;
@@ -40,6 +42,46 @@ export interface IceEnv {
   TURN_URL?: string;
   TURN_USERNAME?: string;
   TURN_CREDENTIAL?: string;
+  /**
+   * ── A CREDENTIAL THAT EXPIRES, MINTED PER CITIZEN (5 Sep) ─────────────────
+   * ICE_SERVERS carried ONE static username/credential pair, handed to every
+   * account: anybody who had ever opened the calls screen could relay any
+   * traffic through the relay on the city's bill, forever. Two ways to mint a
+   * short-lived pair instead, and the static pair is then only what the
+   * relay's URLs are read from:
+   *   TURN_SHARED_SECRET — the TURN REST API (coturn `use-auth-secret`, and
+   *     every provider that supports it): username `<expiry>:<userId>`,
+   *     credential base64(HMAC-SHA1(secret, username)).
+   *   METERED_APP + METERED_API_KEY — metered.ca's credentials endpoint,
+   *     asked for a pair that expires in TURN_CREDENTIAL_TTL seconds.
+   */
+  TURN_SHARED_SECRET?: string;
+  METERED_APP?: string;
+  METERED_API_KEY?: string;
+  /** Seconds a minted credential lives; default 4 hours, floor 10 minutes. */
+  TURN_CREDENTIAL_TTL?: string;
+}
+
+export function credentialTtl(env: IceEnv): number {
+  const n = Number.parseInt(env.TURN_CREDENTIAL_TTL ?? '', 10);
+  return Number.isFinite(n) && n >= 600 ? n : 4 * 3600;
+}
+
+/** TURN REST API credential: deterministic given (secret, userId, expiry). */
+export function mintTurnCredential(secret: string, userId: string, expiresAtSec: number): { username: string; credential: string } {
+  const username = `${expiresAtSec}:${userId}`;
+  const credential = createHmac('sha1', secret).update(username).digest('base64');
+  return { username, credential };
+}
+
+/** The relay entries of a list with the static pair swapped for a minted one. */
+export function withMintedCredential(servers: IceServer[], minted: { username: string; credential: string }): IceServer[] {
+  return servers.map((s) => (isRelay(s) ? { urls: s.urls, ...minted } : { urls: s.urls }));
+}
+
+/** The static pair, stripped — what a citizen gets when minting fails. */
+export function withoutRelay(servers: IceServer[]): IceServer[] {
+  return servers.filter((s) => !isRelay(s));
 }
 
 const SCHEMES = /^(stun|stuns|turn|turns):/;

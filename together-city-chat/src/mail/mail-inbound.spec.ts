@@ -52,6 +52,9 @@ describe('normalizeInbound — a reply is parsed to route to the right citizen',
       text: 'hello back',
       html: undefined,
       providerMessageId: '<abc@mail>',
+      emailId: undefined,
+      // Read since 5 Sep; this payload lists none.
+      attachments: [],
       // Empty because this payload names no parent. The threading fields are
       // parsed now; see a-reply-names-its-own-thread.spec.ts for the shapes
       // that fill them.

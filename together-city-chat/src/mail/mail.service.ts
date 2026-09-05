@@ -1,4 +1,4 @@
-import { swallow } from '../shared/swallow';
+import { optional, swallow } from '../shared/swallow';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { ConnectionStatus } from '@prisma/client';
@@ -81,6 +81,9 @@ type FiledFailure = Error & { filedARow?: boolean };
 
 const MIME_BUDGET_BYTES = 20 * 1024 * 1024;          // safely under provider caps
 const MAX_OUTBOUND_TOTAL_BYTES = 1024 * 1024 * 1024; // 1 GB across attachments
+/** Inbound attachments filed per message, and the size of each (5 Sep). */
+const MAX_INBOUND_ATTACHMENTS = 10;
+const MAX_INBOUND_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 const SHARE_LINK_TTL_SEC = 7 * 24 * 3600;            // 7 days (S3/R2 maximum)
 /**
  * How many city mailboxes ONE arriving email may be delivered to.
@@ -809,7 +812,10 @@ export class MailService {
     const m = await this.prisma.mailMessage.findFirst({ where: { id, ownerId: userId } });
     if (!m) throw new NotFoundException('message not found');
     if (!m.read) await this.prisma.mailMessage.update({ where: { id }, data: { read: true } });
-    return { ...this.shape({ ...m, read: true }), body: m.body };
+    // `attachments` is the resume path for a DRAFT and empty on everything
+    // else — a message in a thread reads its files through the thread route,
+    // which checks participation. See draftFiles.
+    return { ...this.shape({ ...m, read: true }), body: m.body, attachments: await this.draftFiles(userId, m) };
   }
 
   /**
@@ -835,6 +841,36 @@ export class MailService {
     const subject = dto.subject.trim();
     const size = sizeOf(subject, dto.body);
 
+    /**
+     * A DRAFT IS THE MESSAGE, NOT A SUMMARY OF IT.
+     *
+     * This wrote four fields of a nine-field composer. Attach three files,
+     * blind-copy your accountant, write half a letter inside a project, watch
+     * "Draft saved" appear — and come back the next morning to the words
+     * alone. No files, no Bcc, no Cc, no room. The columns were all on the row
+     * already; the endpoint simply never carried them, and the screen said the
+     * draft was saved because from where it stood it was.
+     *
+     * THE FILES ARE RECORDED AND NOT LINKED, and that is the one non-obvious
+     * choice here. `linkAttachments` sets DriveFile.attachedId, which is ONE
+     * column — linking on every autosave tick would detach each file from
+     * wherever it actually lives (a medical record, an earlier conversation)
+     * every 1.2 seconds while somebody typed, and a draft that is never sent
+     * would leave them detached for good. A draft holds a list of intentions.
+     * The send links them, once, when the message is real.
+     */
+    const list = (v?: string[]) => {
+      const clean = (v ?? []).map((x) => x.trim()).filter(Boolean);
+      return clean.length ? clean.join(', ') : null;
+    };
+    const ccAddrs = list(dto.cc);
+    const bccAddrs = list(dto.bcc);
+    const attachmentIds = dto.attachmentFileIds?.length ? JSON.stringify(dto.attachmentFileIds) : null;
+    // The key, not the id — the same race the send path documents: the
+    // composer knows the key the instant it reads the URL. An unknown key
+    // leaves the draft unfiled rather than refusing to save what was typed.
+    const project = dto.projectKey ? (await optional(this.projectByKey(userId, dto.projectKey))) ?? null : null;
+
     if (dto.id) {
       const existing = await this.prisma.mailMessage.findFirst({ where: { id: dto.id, ownerId: userId, folder: 'draft' } });
       if (!existing) throw new NotFoundException('draft not found');
@@ -848,9 +884,17 @@ export class MailService {
         data: {
           toAddr: dto.to.trim(), toName: dto.to.trim(), subject, body: dto.body,
           snippet: snippetOf(dto.body), sizeBytes: size,
+          // Written on every save, including back to null: removing the last
+          // Bcc from the composer has to remove it from the draft, or the
+          // draft keeps a recipient the citizen has already taken out.
+          ccAddrs, bccAddrs, attachmentIds,
+          // ...but the room only when one was named. An autosave from the
+          // Unsent folder carries no key, and that is not somebody saying
+          // "take this out of ABG".
+          ...(project ? { projectId: project.id } : {}),
         },
       });
-      return { ...this.shape(updated), body: updated.body };
+      return { ...this.shape(updated), body: updated.body, attachments: await this.draftFiles(userId, updated) };
     }
 
     const quota = Number(sender.quotaBytes ?? QUOTA_BYTES);
@@ -891,9 +935,45 @@ export class MailService {
          * they never chose.
          */
         threadId: dto.threadId ? await this.resolveThreadId(userId, dto.threadId) : null,
+        ccAddrs, bccAddrs, attachmentIds,
+        projectId: project?.id ?? null,
       },
     });
-    return { ...this.shape(created), body: created.body };
+    return { ...this.shape(created), body: created.body, attachments: await this.draftFiles(userId, created) };
+  }
+
+  /**
+   * The files a draft is holding, named rather than numbered.
+   *
+   * The row keeps a JSON list of Drive ids and nothing else, which is all a
+   * SEND needs — but a composer resuming a draft has to draw a chip per file,
+   * and a chip needs a name, a type and a size. Scoped to files this citizen
+   * still owns, so a draft that outlived one of its attachments quietly comes
+   * back with the files that are still there instead of failing on the one
+   * that is not.
+   *
+   * Drafts only. Everything else reads its files through
+   * `GET /mail/thread/:id/attachments`, which is thread-scoped and checks
+   * participation; a draft may have no thread at all.
+   */
+  private async draftFiles(
+    userId: string, m: { folder: string; attachmentIds?: string | null },
+  ): Promise<Array<{ id: string; name: string; mimeType: string | null; sizeBytes: number }>> {
+    if (m.folder !== 'draft' || !m.attachmentIds) return [];
+    let ids: string[] = [];
+    try { const j: unknown = JSON.parse(m.attachmentIds); ids = Array.isArray(j) ? j.map(String) : []; } catch { return []; }
+    if (!ids.length) return [];
+    const drive = (this.prisma as unknown as {
+      driveFile: { findMany(a: unknown): Promise<Array<{ id: string; name: string; mimeType: string | null; sizeBytes: number }>> };
+    }).driveFile;
+    // unbounded: `in:` of at most 10 ids — the same slice the send path takes
+    const files = (await swallow(drive.findMany({
+      where: { id: { in: ids.slice(0, 10) }, ownerId: userId },
+      select: { id: true, name: true, mimeType: true, sizeBytes: true },
+    }), 'mail: draft attachments read', { userId })) ?? [];
+    // In the order the citizen picked them, not the order the database
+    // returned them.
+    return ids.map((id) => files.find((f) => f.id === id)).filter((f): f is NonNullable<typeof f> => Boolean(f));
   }
 
   /**
@@ -1807,12 +1887,14 @@ export class MailService {
       // itself — the same rule the send path follows, for the same reason.
       if (tagged) await this.fileWholeThread(user.id, threadId, tagged);
       const projectId = inherited ?? tagged;
+      const filed = await this.fileInboundAttachments(user.id, threadId, mail, quota - used - size);
+      const bodyWithNote = filed.note ? `${body}\n\n${filed.note}` : body;
       await this.prisma.mailMessage.create({
         data: {
           ownerId: user.id, boxUserId: user.id, folder: 'inbox', read: false, system: false, projectId,
           fromAddr: mail.from.addr, fromName: mail.from.name || mail.from.addr,
           toAddr: addressFor(handle), toName: user.name ?? '',
-          subject, body, snippet: snippetOf(body), sizeBytes: size, threadId,
+          subject, body: bodyWithNote, snippet: snippetOf(body), sizeBytes: size + filed.bytes, threadId,
           ...(mail.providerMessageId ? { providerMessageId: mail.providerMessageId } : {}),
         },
       });
@@ -1877,6 +1959,74 @@ export class MailService {
       .replace(/\n{3,}/g, '\n\n')
       .split('\n').map((l) => l.trim()).join('\n')
       .trim();
+  }
+
+  /**
+   * ── AN ATTACHMENT THAT ARRIVED IS FILED, OR SAID TO BE MISSING (5 Sep) ─────
+   *
+   * Inbound attachments were dropped: the webhook's `attachments` list was
+   * never read, the body was fetched without them, and the row said nothing —
+   * a reply that carried a signed contract was filed as a reply with no
+   * contract. Now each one is pulled from the provider's attachment endpoint,
+   * written to the recipient's private vault as a Drive file attached to the
+   * THREAD (the same shape the send path links, so the reader's attachment
+   * list shows it), and charged to the mailbox quota. What cannot be filed —
+   * too large, over quota, a fetch that failed — is named in a line under
+   * the body, because a file the sender sent and the reader cannot see is a
+   * fact the reader must be told.
+   */
+  private async fileInboundAttachments(
+    userId: string, threadId: string, mail: InboundMail, roomBytes: number,
+  ): Promise<{ bytes: number; note: string }> {
+    if (!mail.attachments.length) return { bytes: 0, note: '' };
+    const names = mail.attachments.map((a) => a.filename);
+    const missing = (why: string) => ({ bytes: 0, note: `[${names.length === 1 ? 'An attachment' : `${names.length} attachments`} (${names.join(', ')}) could not be saved: ${why}]` });
+    if (!mail.emailId) return missing('the message arrived without a reference to fetch them by.');
+    const provider = createMessagingProvider('email');
+    if (!provider.fetchReceivedAttachments) return missing(`${provider.name} cannot fetch attachments.`);
+    const list = await provider.fetchReceivedAttachments(mail.emailId);
+    if (!list) return missing('the provider could not be reached. Ask the sender to resend.');
+    const drive = (this.prisma as unknown as {
+      driveFile: { create(a: unknown): Promise<{ id: string }> };
+    }).driveFile;
+    let bytes = 0;
+    const saved: string[] = [];
+    const skipped: string[] = [];
+    for (const a of list.slice(0, MAX_INBOUND_ATTACHMENTS)) {
+      const name = (a.filename || 'attachment').replace(/[\u0000-\u001f/\\]/g, '_').slice(0, 200);
+      if (a.size > MAX_INBOUND_ATTACHMENT_BYTES || bytes + a.size > roomBytes) { skipped.push(name); continue; }
+      const body = await this.download(a.downloadUrl, MAX_INBOUND_ATTACHMENT_BYTES);
+      if (!body || body.length + bytes > roomBytes) { skipped.push(name); continue; }
+      const ext = (name.includes('.') ? name.split('.').pop() : '') || 'bin';
+      const key = await this.storage.putPrivateObject('drive', userId, body, a.contentType, ext);
+      if (!key) { skipped.push(name); continue; }
+      const row = await swallow(drive.create({
+        data: {
+          ownerId: userId, folderId: null, name, mimeType: a.contentType, sizeBytes: body.length,
+          storageKey: key, attachedType: 'mail', attachedId: threadId,
+        },
+      }), 'mail: file an inbound attachment', { userId, threadId });
+      if (!row) { skipped.push(name); continue; }
+      bytes += body.length; saved.push(name);
+    }
+    for (const a of list.slice(MAX_INBOUND_ATTACHMENTS)) skipped.push(a.filename || 'attachment');
+    const note = skipped.length
+      ? `[${skipped.length === 1 ? 'An attachment' : `${skipped.length} attachments`} (${skipped.join(', ')}) could not be saved — too large for the mailbox, or the copy failed. Ask the sender to share it another way.]`
+      : '';
+    return { bytes, note };
+  }
+
+  /** The bytes behind a provider's short-lived download URL, or null. Capped. */
+  private async download(url: string, cap: number): Promise<Buffer | null> {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+      if (!res.ok) return null;
+      const buf = Buffer.from(await res.arrayBuffer());
+      return buf.length > cap ? null : buf;
+    } catch (e) {
+      this.logger.warn(`inbound mail: attachment download failed — ${(e as Error).message}`);
+      return null;
+    }
   }
 
   private async inboundBody(mail: InboundMail): Promise<string> {

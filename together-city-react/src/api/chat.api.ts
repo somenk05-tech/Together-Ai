@@ -457,6 +457,10 @@ export function useChatRealtime(
     const landed = new Promise<void>((resolve, reject) => {
       const timer = window.setTimeout(() => {
         pending.current.delete(clientId);
+        // The frame may still be sitting in socket.io's reconnect buffer.
+        // Once this send is reported failed, the buffer must not send it
+        // later behind the citizen's back — see socketClient.forget.
+        socketClient.forget(WS.SEND_MESSAGE, (p) => (p as { clientId?: string } | null)?.clientId === clientId);
         reject(new Error('Message not sent — check your connection.'));
       }, 10_000);
       pending.current.set(clientId, { ok: resolve, fail: reject, timer });

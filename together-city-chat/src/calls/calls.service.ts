@@ -9,7 +9,7 @@ import {
   afterJoin, afterLeave, afterTimeout, durationSeconds, mayEndForAll, ringExpired,
   type CallView, type Transition,
 } from './call-state';
-import { buildIceConfig, type IceConfig } from './ice-config';
+import { buildIceConfig, credentialTtl, mintTurnCredential, withMintedCredential, withoutRelay, type IceConfig, type IceServer } from './ice-config';
 import { reachOf, type Reach } from './reach';
 import type { ListCallsDto, StartCallDto } from './dto/calls.dto';
 
@@ -90,9 +90,67 @@ export class CallsService {
 
   // ── reading ────────────────────────────────────────────
 
-  /** The ICE list, rebuilt per request so a rotated TURN credential takes effect. */
-  ice(): IceConfig {
-    return buildIceConfig(process.env);
+  /**
+   * The ICE list, rebuilt per request so a rotated TURN credential takes effect.
+   *
+   * THE RELAY CREDENTIAL IS THE CITIZEN'S OWN AND IT EXPIRES (5 Sep). The
+   * static pair from ICE_SERVERS was handed to every account and never
+   * changed: one screenshot of the calls screen and anybody could relay
+   * anything through the city's relay, on the city's bill, for as long as the
+   * pair lived. With TURN_SHARED_SECRET the pair is minted here per citizen
+   * for TURN_CREDENTIAL_TTL; with METERED_APP + METERED_API_KEY it is asked
+   * of metered.ca for the same window. When neither is set the static pair is
+   * still served — with the note saying so, because that is a fact the
+   * operator should read in the deploy log, not learn from a bill.
+   *
+   * A minting FAILURE strips the relay rather than falling back to the static
+   * pair: a call that may not connect on office wifi is a smaller harm than
+   * the pair the whole change exists to retire.
+   */
+  async ice(userId: string): Promise<IceConfig> {
+    const base = buildIceConfig(process.env);
+    const env = process.env;
+    if (!base.relayAvailable) return base;
+    const ttl = credentialTtl(env);
+    if (env.TURN_SHARED_SECRET?.trim()) {
+      const minted = mintTurnCredential(env.TURN_SHARED_SECRET.trim(), userId, Math.floor(Date.now() / 1000) + ttl);
+      return { ...base, iceServers: withMintedCredential(base.iceServers, minted) };
+    }
+    if (env.METERED_APP?.trim() && env.METERED_API_KEY?.trim()) {
+      const minted = await this.meteredCredential(userId, env.METERED_APP.trim(), env.METERED_API_KEY.trim(), ttl);
+      if (minted) return { ...base, iceServers: withMintedCredential(base.iceServers, minted) };
+      return {
+        iceServers: withoutRelay(base.iceServers), relayAvailable: false,
+        note: 'The relay credential could not be issued just now — calls on restrictive networks may not connect. Try again in a moment.',
+      };
+    }
+    return {
+      ...base,
+      note: [base.note, 'TURN credentials are a static pair shared by every account — set TURN_SHARED_SECRET or METERED_APP + METERED_API_KEY so each citizen gets one that expires.'].filter(Boolean).join(' '),
+    };
+  }
+
+  /** One minted pair per citizen, kept for a third of its life so the calls
+   *  screen opening ten times is one request to the provider, not ten. */
+  private readonly mintedFor = new Map<string, { username: string; credential: string; until: number }>();
+  private async meteredCredential(userId: string, app: string, apiKey: string, ttl: number): Promise<{ username: string; credential: string } | null> {
+    const now = Date.now();
+    const kept = this.mintedFor.get(userId);
+    if (kept && kept.until > now) return { username: kept.username, credential: kept.credential };
+    if (this.mintedFor.size > 5000) this.mintedFor.clear();
+    try {
+      const url = `https://${app}.metered.live/api/v1/turn/credentials?apiKey=${encodeURIComponent(apiKey)}&expiryInSeconds=${ttl}&label=${encodeURIComponent(userId)}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) throw new Error(`metered ${res.status}`);
+      const list = (await res.json()) as Array<Partial<IceServer> & { username?: string; credential?: string }>;
+      const pair = Array.isArray(list) ? list.find((s) => typeof s.username === 'string' && typeof s.credential === 'string') : null;
+      if (!pair?.username || !pair.credential) throw new Error('metered returned no credential');
+      this.mintedFor.set(userId, { username: pair.username, credential: pair.credential, until: now + Math.floor((ttl * 1000) / 3) });
+      return { username: pair.username, credential: pair.credential };
+    } catch (e) {
+      this.logger.warn(`ice: could not mint a TURN credential for ${userId}: ${(e as Error).message}`);
+      return null;
+    }
   }
 
   private view(row: CallRow): CallView {

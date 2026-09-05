@@ -1,4 +1,5 @@
-import { buildIceConfig, hasRelay, parseIceServers, PUBLIC_STUN } from './ice-config';
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-var-requires */
+import { buildIceConfig, hasRelay, parseIceServers, PUBLIC_STUN, mintTurnCredential, withMintedCredential, withoutRelay, credentialTtl } from './ice-config';
 
 /**
  * A call that rings and then sits in silence is almost always this file.
@@ -71,5 +72,36 @@ describe('ICE configuration', () => {
     const { servers, problems } = parseIceServers({ TURN_URL: 'turn.example.com:3478' });
     expect(servers).toEqual([]);
     expect(problems[0]).toMatch(/TURN_URL/);
+  });
+});
+
+/**
+ * A CREDENTIAL THAT EXPIRES, MINTED PER CITIZEN (5 Sep). The static pair in
+ * ICE_SERVERS was handed to every account, forever. With a shared secret the
+ * relay entries get a TURN-REST pair — `<expiry>:<userId>` and an HMAC — and
+ * the static pair is never sent.
+ */
+describe('a minted relay credential', () => {
+  const servers = [{ urls: ['stun:stun.example:3478'] }, { urls: ['turn:relay.example:3478'], username: 'static', credential: 'shared-by-everyone' }];
+
+  it('is the TURN REST API shape: expiry:user, base64 HMAC-SHA1', () => {
+    const c = mintTurnCredential('s3cret', 'u1', 1_800_000_000);
+    expect(c.username).toBe('1800000000:u1');
+    expect(c.credential).toMatch(/^[A-Za-z0-9+/]+=*$/);
+    expect(c).toEqual(mintTurnCredential('s3cret', 'u1', 1_800_000_000)); // deterministic
+    expect(c.credential).not.toBe(mintTurnCredential('s3cret', 'u2', 1_800_000_000).credential);
+  });
+  it('replaces the static pair on every relay and leaves STUN alone', () => {
+    const out = withMintedCredential(servers, { username: 'x', credential: 'y' });
+    expect(out).toEqual([{ urls: ['stun:stun.example:3478'] }, { urls: ['turn:relay.example:3478'], username: 'x', credential: 'y' }]);
+    expect(JSON.stringify(out)).not.toContain('shared-by-everyone');
+  });
+  it('without a mint the relay is dropped rather than the static pair sent', () => {
+    expect(withoutRelay(servers)).toEqual([{ urls: ['stun:stun.example:3478'] }]);
+  });
+  it('the ttl defaults to four hours and cannot go under ten minutes', () => {
+    expect(credentialTtl({})).toBe(14_400);
+    expect(credentialTtl({ TURN_CREDENTIAL_TTL: '30' })).toBe(14_400);
+    expect(credentialTtl({ TURN_CREDENTIAL_TTL: '900' })).toBe(900);
   });
 });
