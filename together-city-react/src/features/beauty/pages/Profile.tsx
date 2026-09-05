@@ -4,12 +4,23 @@ import { Button, Spinner, EmptyState } from '@/components/ui';
 import { profilePayload, saveFailureMessage } from '../profile-payload';
 import { useBeautyBudget, useBeautyProfile, useSaveBeautyProfile, useAnalyzeBeautyPhotos, useBeautyInsights, useBeautyHistory, useConditionSuggestions, useDeleteLatestAssessment } from '../api';
 import type { BeautyAssessment, BeautyReading, AssessLevel, BeautyProgressEntry } from '../api';
-import { useMasterProfile } from '@/features/profile/hooks';
+import { editQuotaLine, useEditQuota, useMasterProfile } from '@/features/profile/hooks';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
 import { PHOTO_SLOTS, PhotoGrid, missingPhotos, photosReady, requiredCount, type Shot } from '../components/PhotoStudio';
 import { AssessmentPlate } from '../components/AssessmentPlate';
 import { BeautyLeaf, BeautyPlate } from '../components/Plates';
 import { BudgetPanel, budgetSummary } from '../components/BudgetPanel';
+
+/** The server's own sentence when it has one — "Insufficient wallet balance…"
+ *  is the one that matters now that an extra analysis costs ₹100 — and the
+ *  connection line only when there is nothing better to say. */
+function analyseFailureMessage(err: unknown): string {
+  const msg: unknown = (err as { response?: { data?: { message?: unknown } } } | undefined)?.response?.data?.message;
+  const text: unknown = Array.isArray(msg) ? (msg as unknown[])[0] : msg;
+  return typeof text === 'string' && text.trim()
+    ? `The analysis didn't go through — ${text.trim()}`
+    : "The analysis didn't go through — please check your connection and tap Analyse again. If it keeps failing, try re-adding the photos.";
+}
 
 const PHOTOS_NEEDED = PHOTO_SLOTS.filter((s) => s.required).length;
 
@@ -493,6 +504,9 @@ export function Profile() {
   const analyze = useAnalyzeBeautyPhotos();
   const del = useDeleteLatestAssessment();
   const master = useMasterProfile();
+  // FIVE FREE PROFILE CHANGES A MONTH, THEN ₹50 (5 Sep) — one counter across
+  // the whole record. The price rides on the button and in the payload.
+  const quota = useEditQuota();
   const ageLocked = master.data?.age != null;
   // Gender is decided once, in the Master Profile. Beauty shows it and cannot
   // change it — its own select only ever offered Female | Male | Other, so
@@ -590,6 +604,12 @@ export function Profile() {
   const aiEnabled = profile.data?.aiEnabled ?? false;
   const progress = profile.data?.progress ?? [];
   const warning = analyze.data?.warning;
+  const analysisPrice = profile.data?.uploads?.priceInr ?? 0;
+  const changePrice = quota.data?.priceInr ?? 0;
+  const withMethod = (payload: Record<string, unknown>) => (changePrice > 0 ? { ...payload, method: 'wallet' } : payload);
+  const nextFreeOn = profile.data?.uploads?.nextFreeAt
+    ? new Date(profile.data.uploads.nextFreeAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+    : null;
 
   /**
    * A SECTION FOLDS ONCE IT HAS AN ANSWER IN IT, AND AN ASSESSMENT IS THE ANSWER.
@@ -694,7 +714,7 @@ export function Profile() {
     if (!photosComplete || !profileComplete) return; // locked until the required photos + a full profile
     const facePic = pics.face ?? entries[0]?.[1];
     const thumb = facePic ? await makeThumb(facePic.preview) : undefined;
-    analyze.mutate({ photos, thumb: thumb || undefined }, { onSuccess: () => setPics({}) });
+    analyze.mutate({ photos, thumb: thumb || undefined, method: 'wallet' }, { onSuccess: () => setPics({}) });
   };
 
   return (
@@ -748,7 +768,7 @@ export function Profile() {
           <BeautyPlate
             title={<>Your Photos<br />&amp; Details<br />for Analysis</>}
             blurb="Two photos and a few answers — the assessment comes from these."
-            meta={`${picsRequired} / ${PHOTOS_NEEDED} staged · ${profile.data?.uploads?.remaining ?? 0} left this week`}
+            meta={`${picsRequired} / ${PHOTOS_NEEDED} staged · ${analysisPrice ? `₹${analysisPrice} this month` : 'free this month'}`}
             defaultOpen={!analysed || picsCount > 0}
           >
           <div>
@@ -765,7 +785,7 @@ export function Profile() {
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
               <Button variant="accent" disabled={analyze.isPending || !photosComplete || !profileComplete || (profile.data?.uploads?.remaining === 0)} onClick={() => void runAnalysis()}>
-                {analyze.isPending ? 'Analysing…' : `Analyse & save${progress.length ? ' this week' : ''}`}
+                {analyze.isPending ? 'Analysing…' : analysisPrice ? `Analyse & save · ₹${analysisPrice}` : 'Analyse & save'}
               </Button>
               {/* Names what is missing rather than counting it. "Add 1 more
                   photo" on a grid with an empty optional tile in it is a
@@ -776,9 +796,14 @@ export function Profile() {
                   Complete your profile to unlock your assessment →
                 </button>
               )}
+              {/* ONE FREE A MONTH, THEN ₹100 (5 Sep). The price is on the button
+                  and the reason beside it — nobody is charged by a label they
+                  did not read. The weekly ceiling still stands underneath. */}
               {profile.data?.uploads && (
                 <span className="muted" style={{ fontSize: 11.5 }}>
-                  {profile.data.uploads.remaining} of {profile.data.uploads.limit} analyses left this week
+                  {analysisPrice
+                    ? `One free analysis every ${profile.data.uploads.freeWindowDays ?? 30} days — used${nextFreeOn ? `, next free on ${nextFreeOn}` : ''}. Extra analyses are ₹${analysisPrice} from your wallet.`
+                    : `One free analysis every ${profile.data.uploads.freeWindowDays ?? 30} days · ${profile.data.uploads.remaining} of ${profile.data.uploads.limit} left this week`}
                 </span>
               )}
               {progress.length > 0 && (
@@ -791,7 +816,7 @@ export function Profile() {
             </div>
             {analyze.isError && (
               <p style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600, margin: '10px 0 0' }}>
-                ⚠️ The analysis didn't go through — please check your connection and tap Analyse again. If it keeps failing, try re-adding the photos.
+                ⚠️ {analyseFailureMessage(analyze.error)}
               </p>
             )}
           </div>
@@ -984,7 +1009,7 @@ export function Profile() {
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '4px 0 22px', flexWrap: 'wrap' }}>
             {photosComplete && profileComplete && picsCount > 0 ? (
               <Button variant="accent" disabled={save.isPending || analyze.isPending}
-                onClick={() => save.mutate(profilePayload(f as unknown as Record<string, unknown>), { onSuccess: () => { void runAnalysis(); setTab('photos'); window.scrollTo({ top: 0, behavior: 'smooth' }); } })}>
+                onClick={() => save.mutate(withMethod(profilePayload(f as unknown as Record<string, unknown>)), { onSuccess: () => { void runAnalysis(); setTab('photos'); window.scrollTo({ top: 0, behavior: 'smooth' }); } })}>
                 {save.isPending || analyze.isPending ? 'Generating your assessment…' : '✨ Generate my AI assessment'}
               </Button>
             ) : (
@@ -995,10 +1020,11 @@ export function Profile() {
                  answer given so far when the tab closed. A partial profile is
                  saved as it stands; the form folds once the saved copy is
                  complete, and the line beside the button counts what is left. */
-              <Button variant="accent" disabled={save.isPending} onClick={() => save.mutate(profilePayload(f as unknown as Record<string, unknown>), { onSuccess: () => setEditingProfile(false) })}>
-                {save.isPending ? 'Saving…' : 'Save profile'}
+              <Button variant="accent" disabled={save.isPending} onClick={() => save.mutate(withMethod(profilePayload(f as unknown as Record<string, unknown>)), { onSuccess: () => setEditingProfile(false) })}>
+                {save.isPending ? 'Saving…' : changePrice > 0 ? `Save profile · ₹${changePrice}` : 'Save profile'}
               </Button>
             )}
+            {editQuotaLine(quota.data) && <span className="muted">{editQuotaLine(quota.data)}</span>}
             {!profileComplete && <span className="muted" style={{ fontSize: 12 }}>{profileTotal - answered} question{profileTotal - answered === 1 ? '' : 's'} left — "Don't know" counts as an answer.</span>}
             {save.isSuccess && <span style={{ fontSize: 13, color: 'var(--accent-ink)', fontWeight: 700 }}>✓ Saved</span>}
           </div>

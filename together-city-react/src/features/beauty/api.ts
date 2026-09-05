@@ -56,7 +56,11 @@ export interface BeautyProfile {
   progress?: BeautyProgressEntry[];
   analyzedAt?: string | null;
   aiEnabled?: boolean;
-  uploads?: { limit: number; used: number; remaining: number };
+  uploads?: {
+    limit: number; used: number; remaining: number;
+    /** One free accepted analysis per rolling 30 days, ₹100 each after (5 Sep). */
+    priceInr?: number; freeAvailable?: boolean; nextFreeAt?: string | null; freeWindowDays?: number; extraPriceInr?: number;
+  };
   concernOptions?: { key: string; label: string }[];
 }
 export interface BeautyInsight {
@@ -307,8 +311,8 @@ export const beautyApi = {
   profile: () => api.get<BeautyProfile>('/beauty/profile').then((r) => r.data),
   saveProfile: (input: Record<string, unknown>) =>
     api.put<BeautyProfile>('/beauty/profile', input).then((r) => r.data),
-  analyzePhotos: (photos: { slot: string; base64: string; mediaType?: string }[], thumb?: string) =>
-    api.post<BeautyProfile & { photoFindings: string[]; aiUsed: boolean; quality: 'ok' | 'unclear' | 'suspect'; warning: string }>('/beauty/photos/analyze', { photos, thumb }).then((r) => r.data),
+  analyzePhotos: (photos: { slot: string; base64: string; mediaType?: string }[], thumb?: string, method?: 'wallet' | 'card') =>
+    api.post<BeautyProfile & { photoFindings: string[]; aiUsed: boolean; quality: 'ok' | 'unclear' | 'suspect'; warning: string; priceInr: number; payment?: { method: 'wallet' | 'card'; balanceInr: number } }>('/beauty/photos/analyze', { photos, thumb, method }).then((r) => r.data),
   history: () => api.get<BeautyHistory>('/beauty/history').then((r) => r.data),
   deleteLatestAssessment: () => api.delete<BeautyProfile>('/beauty/assessments/latest').then((r) => r.data),
   makeupLook: (occasion?: string) => api.get<MakeupLook>('/beauty/makeup', { params: { occasion } }).then((r) => r.data),
@@ -349,7 +353,7 @@ export function useSaveBeautyProfile() {
 export function useAnalyzeBeautyPhotos() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { photos: { slot: string; base64: string; mediaType?: string }[]; thumb?: string }) => beautyApi.analyzePhotos(v.photos, v.thumb),
+    mutationFn: (v: { photos: { slot: string; base64: string; mediaType?: string }[]; thumb?: string; method?: 'wallet' | 'card' }) => beautyApi.analyzePhotos(v.photos, v.thumb, v.method),
     onSuccess: (p) => { qc.setQueryData(['beauty', 'profile'], p); void qc.invalidateQueries({ queryKey: ['beauty', 'products'] }); void qc.invalidateQueries({ queryKey: ['beauty', 'history'] }); },
   });
 }

@@ -1,5 +1,7 @@
 import { swallow } from '../shared/swallow';
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Optional } from '@nestjs/common';
+import { ProfileEditMeterService } from '../profile/profile-edit-meter.service';
+import { profileChanged } from '../profile/edit-quota';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ORDER_HISTORY_CAP } from '../shared/paging';
 import { MedicalService } from '../medical/medical.service';
@@ -20,6 +22,7 @@ import { buildRoutines } from './routine-engine';
 import { nextReorder, reorderDueFor } from './reorder';
 import { LookAnalysisService } from './look-analysis.service';
 import { carryEstimates } from './profile-save';
+import { analysisQuota, recordAccepted, type AnalysisQuota } from './analysis-quota';
 import { assessBeauty, focusOf, noteOf, type BeautyProfileInput, type BeautyAssessment } from './beauty-analysis';
 import { buildMakeupLook, type FaceAttrs } from './makeup-engine';
 import type { PlaceBeautyOrderDto } from './dto/beauty.dto';
@@ -31,6 +34,7 @@ interface BeautyRow {
   skinType: string; hairType: string; concerns: string;
   extras: string | null; photosJson: string; progressJson: string; analysisJson: string | null; analyzedAt: Date | null;
   analysisLogJson?: string | null; // rolling-week analysis log (new column; offline client can't type it)
+  acceptedAnalysesJson?: string | null; // JSON [iso] — analyses that produced a result; what the free-month counter reads
   faceJson?: string | null;        // AI face-feature read (new column; offline client can't type it)
 }
 /** A permanent, dated skin & hair assessment in the timeline. Each entry keeps a
@@ -76,6 +80,9 @@ export class BeautyService {
     private readonly ai: AiService,
     private readonly masterProfile: MasterProfileService,
     private readonly looks: LookAnalysisService,
+    // Five free profile changes a month, ₹50 each after (5 Sep). Optional so
+    // the specs that build this service by hand need no wallet; Nest provides it.
+    @Optional() private readonly meter?: ProfileEditMeterService,
   ) {}
 
   /** Overlay the Master Profile's shared demographics onto the beauty profile
@@ -280,13 +287,17 @@ export class BeautyService {
       progress: safeJson<ProgressEntry[]>(row.progressJson, []),
       analyzedAt: row.analyzedAt && photosOnFile.length > 0 ? row.analyzedAt.toISOString() : null,
       aiEnabled: this.ai.enabled,
-      uploads: { limit: 5, used: this.analysisLog(row).length, remaining: Math.max(0, 5 - this.analysisLog(row).length) },
+      uploads: { limit: 5, used: this.analysisLog(row).length, remaining: Math.max(0, 5 - this.analysisLog(row).length), ...this.quota(row) },
       concernOptions: Object.entries(CONCERN_TAGS).map(([key, v]) => ({ key, label: v.label })),
     };
   }
 
   /** Save the full skin & hair profile and generate the ONE-TIME assessment. */
-  async saveProfile(userId: string, dto: Record<string, unknown>) {
+  async saveProfile(userId: string, input: Record<string, unknown>) {
+    // `method` is how the ₹50 is paid past the five free changes; it is not an
+    // answer and never reaches extras.
+    const { method: rawMethod, ...dto } = input;
+    const method = rawMethod === 'wallet' || rawMethod === 'card' ? rawMethod : undefined;
     const p = dto as BeautyProfileInput & { skinType?: string; hairType?: string };
     const skinType = String(p.skinType ?? 'normal');
     const hairType = String(p.hairType ?? 'straight');
@@ -318,13 +329,25 @@ export class BeautyService {
     // client echoed back is dropped, the flags on file are carried over, and
     // any answer the citizen changed loses its label. See profile-save.ts for
     // why the form echoing them used to make this whole save a 400.
-    const extras = JSON.stringify(carryEstimates(safeJson<Record<string, unknown>>(existing?.extras, {}), dto));
+    const priorExtras = safeJson<Record<string, unknown>>(existing?.extras, {});
+    const extras = JSON.stringify(carryEstimates(priorExtras, dto));
+    // FIVE FREE CHANGES A MONTH, THEN ₹50 (5 Sep). Priced before the write,
+    // counted after, only when an answer moved — the estimate flags are the
+    // analysis's and are not compared; the first save is never counted.
+    const { aiEstimated: _flags, ...answers } = dto;
+    void _flags;
+    const changed = Boolean(existing?.extras) && profileChanged(
+      { ...priorExtras, skinType: existing?.skinType, hairType: existing?.hairType },
+      { ...answers, skinType, hairType },
+    );
+    const priceInr = changed && this.meter ? await this.meter.assertCanSave(userId, method) : 0;
     await this.beauty.upsert({
       where: { userId },
       update: { skinType, hairType, concerns: concerns.join(','), extras,
         ...(refreshed ? { analysisJson: JSON.stringify(refreshed) } : {}) },
       create: { userId, skinType, hairType, concerns: concerns.join(','), extras, photosJson: '[]', progressJson: '[]' },
     });
+    if (changed && this.meter) await this.meter.record(userId, 'beauty', priceInr, method);
 
     // Master Profile sync — shared demographics flow back to the single source of
     // truth and propagate to every other hub (age lives in the master fallback).
@@ -362,7 +385,7 @@ export class BeautyService {
    * edited or AI-generated photos are rejected with a prompt to re-upload. The
    * detected issues are folded into the deterministic assessment. Runs once.
    */
-  async analyzePhotos(userId: string, photos: { slot: string; base64: string; mediaType?: string }[], thumb?: string) {
+  async analyzePhotos(userId: string, photos: { slot: string; base64: string; mediaType?: string }[], thumb?: string, method?: 'wallet' | 'card') {
     const existing = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
 
     // Rolling-week rate limit: at most 5 photo analyses per 7 days (deleting a
@@ -373,10 +396,19 @@ export class BeautyService {
       const nextAt = new Date(oldest.getTime() + 7 * 86_400_000);
       return {
         ...(await this.getProfile(userId)), photoFindings: [] as string[], aiUsed: false,
-        quality: 'limit' as const,
+        quality: 'limit' as const, priceInr: 0,
         warning: `You've used all 5 photo analyses for this week. You can analyse again after ${nextAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}.`,
       };
     }
+
+    // ONE FREE A MONTH, THEN ₹100 (owner decision, 5 Sep — see analysis-quota.ts).
+    // Priced from the ACCEPTED list before the model is asked, and the wallet
+    // checked before a vision call is spent on somebody who cannot pay for it.
+    // The charge itself lands below, only once there is a result — a rejected
+    // photo costs the citizen nothing and spends nothing.
+    const accepted = safeJson<string[]>(existing?.acceptedAnalysesJson, []);
+    const priceInr = analysisQuota(accepted, Date.now()).priceInr;
+    if (priceInr > 0) await this.financial.assertCanPay(userId, priceInr, method);
 
     const profile = safeJson<BeautyProfileInput>(existing?.extras, {});
     const images = photos.filter((p) => p.base64).map((p) => ({ base64: p.base64, mediaType: p.mediaType || 'image/jpeg' }));
@@ -435,17 +467,42 @@ export class BeautyService {
     // Record this analysis run in the rolling-week log (counts even if rejected —
     // each run costs an AI review). On a rejected photo, keep the prior assessment.
     const newLog = JSON.stringify([...recentLog, now.toISOString()]);
+    // An accepted analysis is recorded on the accepted list — the one the
+    // free-month price is read from. A rejected one is not: it spent a run
+    // (the weekly ceiling counts it) but gave the citizen nothing to pay for.
+    const newAccepted = rejected ? undefined : JSON.stringify(recordAccepted(accepted, now.getTime()));
     const update = rejected
       ? { photosJson: JSON.stringify(photoRows), analysisLogJson: newLog }
       : { photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(nextProgress), analysisJson: JSON.stringify(analysis), analyzedAt: now, analysisLogJson: newLog,
+          acceptedAnalysesJson: newAccepted,
           ...(estKeys.length ? { extras: JSON.stringify(profileForAssess) } : {}),
           ...(review.face ? { faceJson: JSON.stringify(review.face) } : {}) };
-    await this.beauty.upsert({
-      where: { userId },
-      update: update,
-      create: { userId, skinType: String(profile.skinType ?? 'normal'), hairType: String(profile.hairType ?? 'straight'), concerns: (profile.skinConcerns ?? []).join(','), extras: JSON.stringify(profile), photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(rejected ? [] : nextProgress), analysisJson: JSON.stringify(analysis), analyzedAt: now, analysisLogJson: newLog },
-    });
-    return { ...(await this.getProfile(userId)), photoFindings: findings, aiUsed: this.ai.enabled && images.length > 0, quality: review.quality, warning };
+    const create = { userId, skinType: String(profile.skinType ?? 'normal'), hairType: String(profile.hairType ?? 'straight'), concerns: (profile.skinConcerns ?? []).join(','), extras: JSON.stringify(profile), photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(rejected ? [] : nextProgress), analysisJson: JSON.stringify(analysis), analyzedAt: now, analysisLogJson: newLog, ...(newAccepted ? { acceptedAnalysesJson: newAccepted } : {}) };
+
+    // CHARGE AND RECORD TOGETHER, AFTER THE RESULT EXISTS — the same order Ask
+    // the Astrologer settled on: the model call cannot sit inside a
+    // transaction, and charging before it would bill a read that then failed.
+    // A free analysis does not touch the wallet at all (no ₹0 ledger line).
+    let payment: { method: 'wallet' | 'card'; balanceInr: number } | undefined;
+    if (!rejected && priceInr > 0) {
+      payment = await this.financial.paid(
+        userId,
+        { hub: 'Beauty', category: 'beauty', label: 'Photo analysis · extra this month', amountInr: priceInr, method },
+        async (tx) => {
+          await (tx as unknown as { beautyProfile: { upsert(a: unknown): Promise<unknown> } }).beautyProfile
+            .upsert({ where: { userId }, update, create });
+          const wallet = await tx.cityWallet.findUnique({ where: { userId }, select: { balanceInr: true } });
+          return { method: method === 'card' ? 'card' as const : 'wallet' as const, balanceInr: wallet?.balanceInr ?? 0 };
+        },
+      );
+    } else {
+      await this.beauty.upsert({ where: { userId }, update, create });
+    }
+    return {
+      ...(await this.getProfile(userId)), photoFindings: findings, aiUsed: this.ai.enabled && images.length > 0, quality: review.quality, warning,
+      priceInr: rejected ? 0 : priceInr,
+      ...(payment ? { payment } : {}),
+    };
   }
 
   // ─────────────── biomarker insights (consent-gated) ───────────────
@@ -548,13 +605,41 @@ export class BeautyService {
    * Read a reference photo, using the citizen's own allergies and skin type so
    * the products matched to the steps are ones they can actually use.
    */
-  async analyzeLook(userId: string, input: { fileKey?: string; mimeType?: string; base64?: string }) {
+  async analyzeLook(userId: string, input: { fileKey?: string; mimeType?: string; base64?: string }, method?: 'wallet' | 'card') {
     const profile = await this.getProfile(userId);
     const extras = profile.profile as { skinType?: string; allergies?: string[] };
-    return this.looks.analyze(userId, input, {
+    // THE SAME COUNTER AS THE SKIN ANALYSIS (owner decision, 5 Sep): a Look is
+    // the same vision model reading the same kind of photograph. Priced before
+    // the read, charged after it, and only when the model actually read the
+    // face — a fallback Look is not an analysis anybody should pay for.
+    const existing = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
+    const accepted = safeJson<string[]>(existing?.acceptedAnalysesJson, []);
+    const priceInr = analysisQuota(accepted, Date.now()).priceInr;
+    if (priceInr > 0) await this.financial.assertCanPay(userId, priceInr, method);
+
+    const look = await this.looks.analyze(userId, input, {
       allergies: await this.declaredSensitivities(userId, extras.allergies),
       skinType: String(extras.skinType ?? profile.skinType ?? ''),
     });
+    if (look.readBy !== 'ai') return { ...look, priceInr: 0 };
+
+    const acceptedAnalysesJson = JSON.stringify(recordAccepted(accepted, Date.now()));
+    const create = { userId, skinType: 'normal', hairType: 'straight', concerns: '', photosJson: '[]', progressJson: '[]', acceptedAnalysesJson };
+    if (priceInr === 0) {
+      await swallow(this.beauty.upsert({ where: { userId }, update: { acceptedAnalysesJson }, create }), 'beauty: accepted look recorded', { userId });
+      return { ...look, priceInr: 0 };
+    }
+    const payment = await this.financial.paid(
+      userId,
+      { hub: 'Beauty', category: 'beauty', label: 'Look analysis · extra this month', amountInr: priceInr, method },
+      async (tx) => {
+        await (tx as unknown as { beautyProfile: { upsert(a: unknown): Promise<unknown> } }).beautyProfile
+          .upsert({ where: { userId }, update: { acceptedAnalysesJson }, create });
+        const wallet = await tx.cityWallet.findUnique({ where: { userId }, select: { balanceInr: true } });
+        return { method: method === 'card' ? 'card' as const : 'wallet' as const, balanceInr: wallet?.balanceInr ?? 0 };
+      },
+    );
+    return { ...look, priceInr, payment };
   }
 
   /**
@@ -718,6 +803,12 @@ export class BeautyService {
     const log = safeJson<string[]>(row?.analysisLogJson, []);
     const weekAgo = Date.now() - 7 * 86_400_000;
     return log.filter((t) => new Date(t).getTime() > weekAgo);
+  }
+
+  /** One free accepted analysis per rolling 30 days, ₹100 each after — read
+   *  from the accepted list, never from the run log. Shared with Looks. */
+  private quota(row: BeautyRow | null): AnalysisQuota {
+    return analysisQuota(safeJson<string[]>(row?.acceptedAnalysesJson, []), Date.now());
   }
 
   /**

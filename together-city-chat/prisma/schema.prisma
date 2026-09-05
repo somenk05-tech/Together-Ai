@@ -1610,6 +1610,7 @@ model BeautyProfile {
   progressJson String   @default("[]") // JSON [{id, date, findings[], score, thumb}] — weekly progress timeline
   analysisJson String? // JSON: saved one-time assessment (skin + hair attribute readings, issues, recommendations)
   analysisLogJson String? // JSON [iso timestamps] — every photo analysis run (rate-limits re-uploads; survives deletes)
+  acceptedAnalysesJson String? // JSON [iso timestamps] — analyses that produced a result (skin or Look); one free per rolling 30 days, ₹100 each after
   faceJson     String? // JSON: AI face-feature read from the photos (face/eye/brow/lip shape, tone) — powers Makeup Studio
   analyzedAt   DateTime? // when the saved assessment was generated (no re-analysis until re-saved)
   updatedAt    DateTime @updatedAt

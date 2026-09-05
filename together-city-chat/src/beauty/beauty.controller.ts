@@ -44,9 +44,12 @@ export class BeautyController {
       mediaType: z.string().max(40).regex(/^image\//).optional(),
     })).max(8).optional(),
     thumb: z.string().max(4_000_000).optional(),
+    // One free accepted analysis per rolling 30 days, ₹100 each after
+    // (5 Sep). The method is how the ₹100 is paid when it is due.
+    method: z.enum(['wallet', 'card']).optional(),
   })))
-  analyzePhotos(@CurrentUser() user: JwtUser, @Body() dto: { photos?: { slot: string; base64: string; mediaType?: string }[]; thumb?: string }) {
-    return this.beauty.analyzePhotos(user.sub, dto?.photos ?? [], dto?.thumb);
+  analyzePhotos(@CurrentUser() user: JwtUser, @Body() dto: { photos?: { slot: string; base64: string; mediaType?: string }[]; thumb?: string; method?: 'wallet' | 'card' }) {
+    return this.beauty.analyzePhotos(user.sub, dto?.photos ?? [], dto?.thumb, dto?.method);
   }
 
   /**
@@ -148,9 +151,10 @@ export class BeautyController {
     fileKey: z.string().max(300).optional(),
     mimeType: z.string().max(60).regex(/^image\//).optional(),
     base64: z.string().min(16).max(4_000_000).optional(),
+    method: z.enum(['wallet', 'card']).optional(),
   })))
-  analyzeLook(@CurrentUser() user: JwtUser, @Body() dto: { fileKey?: string; mimeType?: string; base64?: string }) {
-    return this.beauty.analyzeLook(user.sub, dto);
+  analyzeLook(@CurrentUser() user: JwtUser, @Body() dto: { fileKey?: string; mimeType?: string; base64?: string; method?: 'wallet' | 'card' }) {
+    return this.beauty.analyzeLook(user.sub, dto, dto?.method);
   }
 
   @Get('looks')
