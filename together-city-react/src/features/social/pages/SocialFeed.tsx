@@ -10,7 +10,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { Avatar, PostCard } from '../PostCard';
 import { Poster } from '../Poster';
 import { ReelsView } from '../ReelsView';
-import { CityTV } from '../CityTV';
 import { useFeed } from '../api';
 import { useFreshPosts, useSocialLive } from '../live';
 import { Tablist } from '../Tablist';
@@ -52,11 +51,9 @@ function WallSkeleton({ phone }: { phone: boolean }) {
  * chrome uses the line set; emoji are for what a citizen writes. These five are
  * tabs, which is chrome, and they carried emoji until now. */
 const FILTERS: ReadonlyArray<{ key: string; label: string; icon?: IconName }> = [
-  // THE FIRST LENS IS A TELEVISION (owner, 5 Sep). For You plays as Together
-  // City TV — one screen, one post at a time, a channel per citizen. The
-  // other four lenses keep the wall; the stream under the set is this same
-  // For You lens, in the same order, with the same pages.
-  { key: 'foryou', label: 'City TV', icon: 'tv' },
+  // The television left this page (owner, 5 Sep: "a full screen TV") for
+  // /social/feed; the wall lives at /social/wall with its five lenses.
+  { key: 'foryou', label: 'For you' },
   { key: 'photos', label: 'Photos', icon: 'camera' },
   { key: 'videos', label: 'Videos', icon: 'video' },
   { key: 'thoughts', label: 'Thoughts', icon: 'chat' },
@@ -202,7 +199,7 @@ export function SocialFeed() {
       <div style={{ position: 'fixed', inset: 0, background: 'var(--card)', zIndex: 1000 }}>
         <button type="button" onClick={() => setFilter('foryou')} className="btn btn-sm"
           style={{ position: 'absolute', top: 14, left: 14, zIndex: 4 }}>
-          <Icon name="back" size={15} /> City TV
+          <Icon name="back" size={15} /> Back to the wall
         </button>
         {feed.isLoading && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}><Spinner label="Loading videos…" /></div>}
         {/* This portal had a loading branch and an empty branch and no error
@@ -246,9 +243,9 @@ export function SocialFeed() {
 
       <div className="sl-head">
         <div className="sl-head-t">
-          <div className="eyebrow">Together City TV</div>
-          <h1>{user ? `What's on, ${informalName(user.name)}?` : 'Together City TV'}</h1>
-          <p>The city, one moment at a time. Every channel is a citizen.</p>
+          <div className="eyebrow">The Wall</div>
+          <h1>{user ? `What's happening, ${informalName(user.name)}?` : 'The Wall'}</h1>
+          <p>People, places and moments from your city.</p>
         </div>
         <Link to="/social/create" className="btn btn-accent">
           <Icon name="plus" size={17} /> Create
@@ -277,7 +274,7 @@ export function SocialFeed() {
       {/* The rail says which of the five real feeds you are reading. It is the
           filter the API actually takes — no tab here is a name with nothing
           behind it. */}
-      <Tablist label="Together City TV" value={filter} onChange={showFilter} panelId="city-feed-panel"
+      <Tablist label="The Wall" value={filter} onChange={showFilter} panelId="city-feed-panel"
         tabs={FILTERS.map((f) => ({ key: f.key, label: <>{f.icon && <Icon name={f.icon} size={15} />}{f.label}</> }))} />
 
       {/* "3 new posts" — counted, never inserted under the reader's thumb. */}
@@ -312,12 +309,8 @@ export function SocialFeed() {
                 : 'This tab shows people you follow. Follow a few and their posts collect here — For You shows the whole city meanwhile.'} />
       )}
 
-      {items.length > 0 && filter === 'foryou' && (
-        <CityTV items={items} onOpenChannel={openAuthor}
-          hasNextPage={feed.hasNextPage} fetchNextPage={() => void feed.fetchNextPage()} />
-      )}
 
-      {items.length > 0 && filter !== 'foryou' && (
+      {items.length > 0 && (
         <>
           {phone ? (
             /* ONE POST AT A TIME, WHOLE. On a phone column the poster tile and

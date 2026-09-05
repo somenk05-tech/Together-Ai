@@ -1,70 +1,82 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Icon } from '@/components/ui/Icon';
 import { isMuted, setMuted, subscribeMuted, playWithSharedSound, releasePlayback } from '@/lib/mediaState';
 import { onStaleMedia } from '@/lib/remint';
 import { Avatar } from './PostCard';
 import type { Post } from './api';
-import { channelsOf, tuneIndex, type Channel } from './city-tv';
+import { channelsOf, tuneIndex } from './city-tv';
 
 /**
- * TOGETHER CITY TV — owner ask, 5 Sep: "create Together City TV here instead
- * of the city feed, and the channel takes them to the profile."
+ * TOGETHER CITY TV — owner, 5 Sep: "create Together City TV instead of the
+ * city feed, and the channel takes them to the profile"; then "it needs to
+ * be a full screen tv, no images on the tv, and autoplay — the whole
+ * Together City TV should be an autoplay TV."
  *
- * One screen, one post at a time, playing on its own. A television, not a
- * wall: the citizen does not choose what to look at next, the city does, and
- * the controls are a remote — previous, pause, next, captions, sound, full
- * screen — under the screen where a remote's buttons are. The reference is a
- * TV set, so the chrome is a set's: a dark screen in a light room.
+ * A television, not a wall. The screen is the whole viewport; a remote sits
+ * over its foot — previous, pause, next, captions, sound, full screen,
+ * channels — and the dial on the right shows whose video is on. The set
+ * plays on its own: one video through to its end, then the next, then the
+ * next page of the stream, and when the stream runs out it starts again
+ * from the top. Nobody scrolls a television.
  *
- * A CHANNEL IS A CITIZEN. The dial on the right shows whose post is on; up
- * and down move to the next citizen with a post in the stream, and tapping
- * the channel opens that citizen's profile — the channel IS the person, and
- * the profile is the channel's page. Nothing on this screen is a second feed:
- * the stream is the For You lens the wall reads, in the same order, with the
- * same pages, so what plays here is exactly what the wall shows.
+ * VIDEOS ONLY. The stream is the city-wide Videos lens, so every post here
+ * carries a video; a post that somehow does not is skipped without a frame
+ * drawn. No photograph, no title card.
  *
- * WHAT PLAYS AND FOR HOW LONG. A video plays through and hands over when it
- * ends. A photograph holds for a few seconds; a post of several photographs
- * shows each in turn. A thought — a post with no media — is a title card in
- * the author's words, held the same way. Nothing is skipped: a feed that
- * played only the videos would be a channel that never shows most of what
- * the city posted.
+ * A CHANNEL IS A CITIZEN. Up and down tune to the next citizen with a video
+ * in the stream; tapping the channel opens the profile — the channel IS the
+ * person. The channels wall is its own page (/social/channels); the grid key
+ * goes there.
  *
- * SOUND is the one shared preference every video surface in the city reads
- * (mediaState), so a set switched to mute stays mute on the reels and back.
- * Autoplay with sound is refused until the citizen has touched the page;
- * playWithSharedSound retries muted, and the speaker button gives it back.
+ * THE REMOTE SLEEPS. Owner: "the player remote disappears until the cursor
+ * goes down." A few seconds after the pointer last moved, the remote and
+ * the row over the screen's head fade and the cursor goes with them; any
+ * movement wakes them. A paused set stays awake, and so does a remote a
+ * keyboard is on — a control that hides under the hand using it is a trap.
+ *
+ * SOUND follows the one shared preference every video surface in the city
+ * reads (mediaState). Autoplay with sound is refused until the citizen has
+ * touched the page; playWithSharedSound retries muted, and the speaker key
+ * gives the sound back.
  *
  * No inline styles: the set is drawn in social.css.
  */
 
-/** How long a still or a title card holds before the next post. */
-const HOLD_MS = 7_000;
+const videoOf = (p: Post | undefined) => p?.media?.find((m) => m.kind === 'video') ?? null;
 
-export function CityTV({ items, hasNextPage, fetchNextPage, onOpenChannel }: {
+export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenChannel, onOpenChannels, head }: {
   items: Post[];
+  /** What sits over the screen's head — the page's way back and its door to posting. Sleeps with the remote. */
+  head?: ReactNode;
+  /** Where the set is tuned when it comes on — a channel's first post, or a shuffle. */
+  startAt?: number;
   hasNextPage?: boolean;
   fetchNextPage?: () => void;
   onOpenChannel: (handle: string) => void;
+  onOpenChannels: () => void;
 }) {
   const qc = useQueryClient();
-  const [at, setAt] = useState(0);
-  const [frame, setFrame] = useState(0);        // which photograph of a many-photo post
+  const [at, setAt] = useState(() => Math.min(Math.max(0, startAt), Math.max(0, items.length - 1)));
   const [paused, setPaused] = useState(false);
   const [captions, setCaptions] = useState(true);
-  // The screen, or the wall of channels the grid key opens (owner, 5 Sep:
-  // "show channels like this but much sleeker and smaller").
-  const [view, setView] = useState<'screen' | 'channels'>('screen');
   const [muted, setMutedState] = useState(isMuted());
   useEffect(() => subscribeMuted(setMutedState), []);
   const screen = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
+  const [awake, setAwake] = useState(true);
+  useEffect(() => {
+    let t = 0;
+    const wake = () => { setAwake(true); window.clearTimeout(t); t = window.setTimeout(() => setAwake(false), 2_800); };
+    wake();
+    window.addEventListener('pointermove', wake);
+    window.addEventListener('pointerdown', wake);
+    window.addEventListener('keydown', wake);
+    return () => { window.clearTimeout(t); window.removeEventListener('pointermove', wake); window.removeEventListener('pointerdown', wake); window.removeEventListener('keydown', wake); };
+  }, []);
 
   const post = items[at];
-  const media = post?.media ?? [];
-  const current = media[Math.min(frame, Math.max(0, media.length - 1))];
-  const isVideo = current?.kind === 'video';
+  const current = videoOf(post);
   const channels = useMemo(() => channelsOf(items), [items]);
   const channel = channels.find((c) => c.handle === post?.author?.handle) ?? null;
 
@@ -75,15 +87,23 @@ export function CityTV({ items, hasNextPage, fetchNextPage, onOpenChannel }: {
     if (hasNextPage && fetchNextPage && items.length - at <= 3) fetchNextPage();
   }, [at, items.length, hasNextPage, fetchNextPage]);
 
+  /* Onwards, and round again: past the last loaded video with no page left
+     to load, the set starts over. A television does not go dark because the
+     evening's programme ended. */
   const go = useCallback((step: 1 | -1) => {
-    setFrame(0);
     setAt((i) => {
       const n = i + step;
-      if (n < 0) return 0;
-      if (n >= items.length) return items.length ? items.length - 1 : 0;
+      if (!items.length) return 0;
+      if (n < 0) return items.length - 1;
+      if (n >= items.length) return hasNextPage ? i : 0;
       return n;
     });
-  }, [items.length]);
+  }, [items.length, hasNextPage]);
+
+  /* A post with no video is not a frame. Skip it without drawing anything. */
+  useEffect(() => {
+    if (post && !current) go(1);
+  }, [post, current, go]);
 
   const fullScreen = useCallback(() => {
     const el = screen.current;
@@ -92,31 +112,15 @@ export function CityTV({ items, hasNextPage, fetchNextPage, onOpenChannel }: {
     else void el.requestFullscreen?.();
   }, []);
 
-  /* The set is still while the channels are up: no clock runs and no video
-     plays behind a wall the citizen is reading. */
-  const still = paused || view !== 'screen';
-
-  /* A photograph, a title card, or the next photograph of the same post:
-     hold, then move on — unless the set is paused. A video moves on when it
-     ends (below), never on a clock. */
-  useEffect(() => {
-    if (still || isVideo || !post) return;
-    const t = window.setTimeout(() => {
-      if (media.length > 1 && frame < media.length - 1) setFrame((f) => f + 1);
-      else go(1);
-    }, HOLD_MS);
-    return () => window.clearTimeout(t);
-  }, [still, isVideo, post, media.length, frame, go]);
-
-  /* The video element follows the pause button, and plays with the shared
-     sound preference whenever the post or the frame changes. */
+  /* The video element follows the pause key, and plays with the shared
+     sound preference whenever the post changes. */
   useEffect(() => {
     const el = video.current;
     if (!el) return;
-    if (still) { el.pause(); return; }
+    if (paused) { el.pause(); return; }
     playWithSharedSound(el);
     return () => { el.pause(); releasePlayback(el); };
-  }, [still, at, frame, current?.url]);
+  }, [paused, at, current?.url]);
 
   /* Keys a remote would have. Arrows move along the stream and the dial,
      space pauses, m mutes, f fills the screen. Ignored inside a field. */
@@ -126,8 +130,8 @@ export function CityTV({ items, hasNextPage, fetchNextPage, onOpenChannel }: {
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
       if (e.key === 'ArrowRight') { e.preventDefault(); go(1); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
-      else if (e.key === 'ArrowUp') { e.preventDefault(); setFrame(0); setAt((i) => tuneIndex(items, i, -1)); }
-      else if (e.key === 'ArrowDown') { e.preventDefault(); setFrame(0); setAt((i) => tuneIndex(items, i, 1)); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); setAt((i) => tuneIndex(items, i, -1)); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); setAt((i) => tuneIndex(items, i, 1)); }
       else if (e.key === ' ') { e.preventDefault(); setPaused((p) => !p); }
       else if (e.key === 'm') setMuted(!isMuted());
       else if (e.key === 'f') fullScreen();
@@ -135,85 +139,37 @@ export function CityTV({ items, hasNextPage, fetchNextPage, onOpenChannel }: {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [go, items, fullScreen]);
-  const tune = (step: 1 | -1) => { setFrame(0); setAt((i) => tuneIndex(items, i, step)); };
-  const tuneTo = (c: Channel) => { setFrame(0); setAt(c.first); setPaused(false); setView('screen'); };
-  /* SHUFFLE ALL: somewhere else in the stream, then onwards from there. The
-     stream keeps its order — a shuffle that re-sorted it would make the
-     previous key a lie. */
-  const shuffle = () => { setFrame(0); setAt(Math.floor(Math.random() * items.length)); setPaused(false); setView('screen'); };
+  const tune = (step: 1 | -1) => setAt((i) => tuneIndex(items, i, step));
 
-  if (!post) return null;
+  if (!post || !current) return null;
   const caption = post.text?.trim() ?? '';
   const stale = () => onStaleMedia(qc, ['social']);
 
   return (
-    <div className="tv">
-      {view === 'channels' && (
-        /* THE CHANNELS. A wall of small square tiles — each citizen's newest
-           picture with their name beneath in small caps — and Shuffle first.
-           Sleeker and smaller than the reference on purpose: a tile is a
-           button to tune, not a poster to admire. Tap one and the set tunes
-           to that citizen; the remote's channel name still opens the profile. */
-        <div className="tv-grid" role="list" aria-label="Channels">
-          <button type="button" className="tv-tile tv-tile-shuffle" role="listitem" onClick={shuffle}>
-            <span className="tv-tile-img"><Icon name="reorder" size={22} /></span>
-            <span className="tv-tile-n">Shuffle all</span>
-          </button>
-          {channels.map((c) => (
-            <button type="button" className={c.handle === channel?.handle ? 'tv-tile on' : 'tv-tile'} role="listitem" key={c.handle}
-              onClick={() => tuneTo(c)} aria-label={`Tune to ${c.name}`} aria-current={c.handle === channel?.handle ? 'true' : undefined}>
-              <span className="tv-tile-img">
-                {c.tile ? <img src={c.tile} alt="" loading="lazy" onError={stale} /> : <Avatar name={c.name} src={c.profileImage} />}
-              </span>
-              <span className="tv-tile-n">{c.name}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      <div className="tv-set" hidden={view !== 'screen'}>
-        <div className="tv-screen" ref={screen} aria-live="off">
-          {current ? (
-            isVideo ? (
-              <video key={current.id} ref={video} className="tv-media" src={current.url} poster={current.thumbUrl ?? undefined}
-                playsInline muted={muted} onEnded={() => go(1)} onError={stale} />
-            ) : (
-              <img key={current.id} className="tv-media" src={current.url} alt={caption || `A photograph by ${post.author.name}`} onError={stale} />
-            )
-          ) : (
-            /* A THOUGHT IS A TITLE CARD. The citizen's own words, large, in
-               their own voice — the one place on this screen the city says
-               nothing of its own. */
-            <div className="tv-card">
-              <p className="tv-card-t">{caption || '…'}</p>
-              <p className="tv-card-a">— {post.author.name}</p>
-            </div>
-          )}
-          {captions && current && (caption || post.placeName) && (
-            <div className="tv-caption">
-              {caption && <p>{caption}</p>}
-              {post.placeName && <p className="tv-caption-p"><Icon name="place" size={13} /> {post.placeName}</p>}
-            </div>
-          )}
-          {media.length > 1 && (
-            <div className="tv-frames" aria-hidden>
-              {media.map((m, i) => <span key={m.id} className={i === frame ? 'on' : undefined} />)}
-            </div>
-          )}
-        </div>
+    <div className={awake || paused ? 'tv' : 'tv asleep'} ref={screen}>
+      {head}
+      <div className="tv-screen" aria-live="off">
+        <video key={current.id} ref={video} className="tv-media" src={current.url} poster={current.thumbUrl ?? undefined}
+          playsInline autoPlay muted={muted} onEnded={() => go(1)} onError={stale} />
+        {captions && (caption || post.placeName) && (
+          <div className="tv-caption">
+            {caption && <p>{caption}</p>}
+            {post.placeName && <p className="tv-caption-p"><Icon name="place" size={13} /> {post.placeName}</p>}
+          </div>
+        )}
       </div>
 
-      {/* THE REMOTE. */}
+      {/* THE REMOTE, over the foot of the screen. */}
       <div className="tv-bar" role="toolbar" aria-label="Together City TV">
         <span className="tv-mark" aria-hidden><Icon name="tv" size={22} /></span>
         <div className="tv-keys">
-          <button type="button" className="tv-key" onClick={() => go(-1)} disabled={at === 0} aria-label="Previous post"><Icon name="skip-back" size={16} /></button>
+          <button type="button" className="tv-key" onClick={() => go(-1)} aria-label="Previous video"><Icon name="skip-back" size={16} /></button>
           <button type="button" className="tv-key" onClick={() => setPaused((p) => !p)} aria-label={paused ? 'Play' : 'Pause'} aria-pressed={paused}><Icon name={paused ? 'play' : 'pause'} size={16} /></button>
-          <button type="button" className="tv-key" onClick={() => go(1)} disabled={at >= items.length - 1 && !hasNextPage} aria-label="Next post"><Icon name="skip-next" size={16} /></button>
+          <button type="button" className="tv-key" onClick={() => go(1)} aria-label="Next video"><Icon name="skip-next" size={16} /></button>
           <button type="button" className="tv-key" onClick={() => setCaptions((c) => !c)} aria-label={captions ? 'Hide the caption' : 'Show the caption'} aria-pressed={captions}><Icon name="captions" size={16} /></button>
           <button type="button" className="tv-key" onClick={() => setMuted(!isMuted())} aria-label={muted ? 'Turn the sound on' : 'Turn the sound off'} aria-pressed={!muted}><Icon name={muted ? 'mute' : 'speak'} size={16} /></button>
           <button type="button" className="tv-key" onClick={fullScreen} aria-label="Full screen"><Icon name="expand" size={16} /></button>
-          <button type="button" className="tv-key" onClick={() => setView((v) => (v === 'channels' ? 'screen' : 'channels'))}
-            aria-label={view === 'channels' ? 'Back to the screen' : 'All channels'} aria-pressed={view === 'channels'}><Icon name="grid" size={16} /></button>
+          <button type="button" className="tv-key" onClick={onOpenChannels} aria-label="Together City Channels"><Icon name="grid" size={16} /></button>
         </div>
         {/* THE CHANNEL IS THE CITIZEN. Up and down tune; the face opens the
             profile, which is the channel's page. */}
@@ -233,9 +189,6 @@ export function CityTV({ items, hasNextPage, fetchNextPage, onOpenChannel }: {
           </div>
         )}
       </div>
-      <p className="tv-foot">
-        {at + 1} of {items.length}{hasNextPage ? '+' : ''} · {channels.length} channel{channels.length === 1 ? '' : 's'} · ← → posts · ↑ ↓ channels · space pauses
-      </p>
     </div>
   );
 }

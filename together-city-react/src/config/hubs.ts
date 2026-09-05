@@ -226,14 +226,17 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // Create Post left the rail by the owner's call (15 Aug): the page
       // stays, reached from the feed's + Create and its composer — a verb
       // does not need a room in the list of places.
-      // The feed became a television (owner, 5 Sep): one screen, one post at
-      // a time, a channel per citizen. Same path, same lens underneath.
-      { path: '/social/feed', index: '01', label: 'City TV', sub: 'One moment at a time' },
+      // The feed became a television (owner, 5 Sep): full screen, videos
+      // only, playing on its own, a channel per citizen. The channels have a
+      // page of their own, and the wall of posts moved one path over.
+      { path: '/social/feed', index: '01', label: 'City TV', sub: 'Videos, playing on their own' },
+      { path: '/social/channels', index: '02', label: 'Together City Channels', sub: 'Every channel is a citizen' },
+      { path: '/social/wall', index: '03', label: 'The Wall', sub: 'Photos, thoughts & friends' },
       // "Post & Earn" and "places" left these two lines (owner, 4 Sep): the
       // rail promises only what exists. The programme is still reachable from
       // the profile chip, labelled not open; places are a caption on a post.
-      { path: '/social/profile', index: '02', label: 'My Profile', sub: 'Story, stats & posts' },
-      { path: '/social/saved', index: '03', label: 'Saved', sub: 'Bookmarked posts' },
+      { path: '/social/profile', index: '04', label: 'My Profile', sub: 'Story, stats & posts' },
+      { path: '/social/saved', index: '05', label: 'Saved', sub: 'Bookmarked posts' },
       // Thoughts was here because it was "built, tested, and listed nowhere" —
       // a journal boarding in the social hub for want of anywhere else. It has
       // a home of its own now (Personal), and a private journal listed inside

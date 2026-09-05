@@ -92,6 +92,8 @@ function DatingMoved({ to }: { to: string }) {
 }
 const DrivePage = lazy(() => import('@/features/drive/pages/Drive').then((m) => ({ default: m.Drive })));
 const SocialFeed = lazy(() => import('@/features/social/pages/SocialFeed').then((m) => ({ default: m.SocialFeed })));
+const CityTVPage = lazy(() => import('@/features/social/pages/CityTVPage').then((m) => ({ default: m.CityTVPage })));
+const SocChannels = lazy(() => import('@/features/social/pages/Channels').then((m) => ({ default: m.Channels })));
 const RecipeLibrary = lazy(() => import('@/features/nutrition/pages/RecipeLibrary').then((m) => ({ default: m.RecipeLibrary })));
 const SavedRecipes = lazy(() => import('@/features/nutrition/pages/SavedRecipes').then((m) => ({ default: m.SavedRecipes })));
 const RecipeDetail = lazy(() => import('@/features/nutrition/pages/RecipeDetail').then((m) => ({ default: m.RecipeDetail })));
@@ -414,7 +416,11 @@ const ROUTE_BLOCKS: RouteObject[] = [
     // Social inner pages.
     element: <HubLayout hub={HUBS.social} />,
     children: [
-      { path: '/social/feed', element: <RequireAuth>{wrap(<SocialFeed />)}</RequireAuth> },
+      /* The feed is a television (owner, 5 Sep): full screen, videos only,
+         autoplay. The wall of posts it replaced lives one path over. */
+      { path: '/social/feed', element: <RequireAuth>{wrap(<CityTVPage />)}</RequireAuth> },
+      { path: '/social/channels', element: <RequireAuth>{wrap(<SocChannels />)}</RequireAuth> },
+      { path: '/social/wall', element: <RequireAuth>{wrap(<SocialFeed />)}</RequireAuth> },
       { path: '/social/create', element: <RequireAuth>{wrap(<SocCreate />)}</RequireAuth> },
       { path: '/social/notifications', element: <RequireAuth>{wrap(<SocNotifications />)}</RequireAuth> },
       { path: '/social/profile', element: <RequireAuth>{wrap(<SocProfile />)}</RequireAuth> },
