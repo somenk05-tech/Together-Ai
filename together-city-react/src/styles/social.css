@@ -667,6 +667,23 @@ textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
   .tv-caption { padding-bottom: 180px; }
   .tv-next { top: calc(58px + var(--safe-top)); bottom: calc(150px + var(--safe-bottom)); }
   .tv-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 12px 8px; }
+  /* ONE LINE, SEE-THROUGH (owner, 6 Sep, with a phone photograph of the
+     remote three rows tall). The row never wraps: the channel keeps its face
+     and its dial and loses its name — the face is the channel, and the name
+     is one tap away on the profile. The card is a translucent strip the
+     width of the screen, keys drawn on the scrim rather than on paper. */
+  .tv-bar {
+    left: 8px; right: 8px; bottom: calc(10px + var(--safe-bottom)); transform: none; width: auto; max-width: none;
+    background: var(--scrim-deep); color: var(--on-accent); box-shadow: none;
+  }
+  .tv-bar-row { flex-wrap: nowrap; justify-content: space-between; }
+  .tv-channel-n { display: none; }
+  .tv-key { background: none; box-shadow: none; color: var(--on-accent); }
+  .tv-key:not(:disabled):active, .tv-key[aria-pressed="true"] { background: var(--scrim-deep); box-shadow: none; }
+  .tv-channel-btn { padding: 0; background: none; box-shadow: none; }
+  .tv-dial { grid-auto-flow: column; gap: 2px; }
+  .tv-seek-t { color: var(--on-accent); opacity: .8; }
+  .tv-scrub { accent-color: var(--on-accent); }
 
   .sl-reel-sheet {
     width: 100%; padding: clamp(50px, 6.5vh, 64px) 16px clamp(12px, 2.6vh, 20px); gap: 10px;
