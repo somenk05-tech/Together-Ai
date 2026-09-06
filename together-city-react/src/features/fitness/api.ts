@@ -227,6 +227,34 @@ export interface TodaySession {
   eased: boolean;
   place: 'home' | 'gym';
   equipmentUsed: string[];
+  /** Which day of the citizen's month this is and what it works — see useProgramme(). */
+  programme?: { day: number; of: number; week: number; phase: string; phaseLabel: string; kind: string; title: string; parts: string; note: string } | null;
+}
+
+/**
+ * ── A MONTH WITH A TRAINER (owner, 6 Sep) ───────────────────────────────────
+ * Twenty-eight days from the day the citizen first opened it: which body part
+ * each day is, which movements from the whole catalogue, in four phases. Built
+ * on the server from the profile, the kit, the conditions and the log — the
+ * page only shows it.
+ */
+export interface ProgrammeExercise {
+  id: string; name: string; muscle: string; works: string; equipment: string;
+  sets: number; reps: [number, number]; restSec: number; steps: string[]; thumb: string; gif: string;
+}
+export interface ProgrammeDay {
+  index: number; date: string; week: 1 | 2 | 3 | 4; phase: 'base' | 'build' | 'peak' | 'deload';
+  kind: 'strength' | 'cardio' | 'rest'; title: string; parts: string; muscles: string[];
+  exercises: ProgrammeExercise[]; cardioMinutes: number; note: string; done: boolean;
+}
+export interface Programme {
+  startDate: string; today: string; todayIndex: number; cycle: number; daysPerWeek: number; splitName: string;
+  phases: { key: string; label: string; note: string }[];
+  days: ProgrammeDay[];
+  why: string[];
+}
+export function useProgramme() {
+  return useQuery({ queryKey: ['fitness', 'programme'], queryFn: () => api.get<Programme>('/fitness/programme').then((r) => r.data) });
 }
 
 /**

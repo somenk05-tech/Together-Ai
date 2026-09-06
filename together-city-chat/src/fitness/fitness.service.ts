@@ -11,10 +11,11 @@ import { MedicalService } from '../medical/medical.service';
 import { flagsFor } from '../nutrition/clinical-engine';
 import { NutritionService } from '../nutrition/nutrition.service';
 import {
-  buildPlan, conditionsFromLabs, conditionsFromDeclared, computeBodyProgram, LEVELS, MODES, BODY_GOALS,
+  buildPlan, conditionsFromLabs, conditionsFromDeclared, computeBodyProgram, levelDef, LEVELS, MODES, BODY_GOALS,
   type ConditionAdjustment,
 } from './fitness-engine';
 import { buildSession, type LevelKey, type BodyGoalKey, type SessionInput, type Intensity } from './session-engine';
+import { buildProgramme, daysBetween, type Muscle } from './programme-engine';
 import { EQUIPMENT_KEYS, type Condition, type Equipment , type Pattern } from './exercise-library';
 import type { SaveFitnessProfileDto, LogWorkoutDto, EditWorkoutDto, TodaySessionQueryDto } from './dto/fitness.dto';
 
@@ -275,7 +276,96 @@ export class FitnessService {
       limitations: profile.limitations ?? null,
       missing,
     };
-    return { ...buildSession(input), place: input.location, equipmentUsed: input.equipment };
+    const built = buildSession(input);
+
+    /**
+     * ── THE MONTH LAYS OVER THE SESSION (owner, 6 Sep) ───────────────────
+     *
+     * A trainer's month says which body part today is and which movements
+     * — from the whole catalogue — so on a strength day the session's
+     * working block IS the month's day: its movements, its sets, its reps,
+     * its phase. The warm-up, the cool-down and the walk are the session's
+     * own, as before. On a rest or cardio day the session keeps its own
+     * work but says what the month has down for today, so a citizen who
+     * presses Start on a rest day is told, not stopped.
+     */
+    const month = await this.programme(userId).catch(swallowed('fitness.session.programme', null));
+    const today = month && month.todayIndex >= 0 && month.todayIndex < month.days.length ? month.days[month.todayIndex] : null;
+    if (month && today) {
+      const phase = month.phases.find((p) => p.key === today.phase);
+      built.programme = {
+        day: today.index + 1, of: month.days.length, week: today.week, phase: today.phase, phaseLabel: phase?.label ?? today.phase,
+        kind: today.kind, title: today.title, parts: today.parts, note: today.note,
+      };
+      if (today.kind === 'strength' && today.exercises.length) {
+        const work = built.blocks.find((b) => b.title === 'The work');
+        if (work) {
+          const first = today.exercises[0];
+          work.note = `${first.sets} sets each, ${first.restSec}s rest · ${phase?.label ?? today.phase} week.`;
+          work.exercises = today.exercises.map((e) => ({
+            id: `cat-${e.id}`, name: e.name, pattern: patternOfMuscle(e.muscle), sets: e.sets, reps: e.reps, restSec: e.restSec,
+            steps: e.steps, muscles: [e.works], thumb: e.thumb, gif: e.gif, video: '',
+          }));
+        }
+        built.headline = `${built.minutes} min ${today.title.toLowerCase()} — ${today.parts} + ${built.walkMinutes} min walk`;
+        built.why.day = `Day ${today.index + 1} of ${month.days.length}: your month has today as ${today.title} — ${today.parts} — in the ${(phase?.label ?? today.phase).toLowerCase()} week. ${today.note}`;
+      } else if (today.kind === 'rest') {
+        built.why.day = `Day ${today.index + 1} of ${month.days.length}: your month has today as a rest day. ${today.note} If you train anyway, keep it to this and the walk.`;
+      } else {
+        built.why.day = `Day ${today.index + 1} of ${month.days.length}: your month has today as ${today.title.toLowerCase()} — ${today.cardioMinutes} minutes. ${today.note}`;
+      }
+    } else {
+      built.programme = null;
+    }
+    return { ...built, place: input.location, equipmentUsed: input.equipment };
+  }
+
+  /**
+   * ── A MONTH WITH A TRAINER (owner, 6 Sep) ─────────────────────────────────
+   *
+   * Twenty-eight days from the day the citizen first opened it, built by
+   * programme-engine.ts from the profile, the kit, the conditions and the
+   * whole catalogue, and rolled into a fresh cycle when the month is up. The
+   * only thing stored is the start date: the month itself is a pure function
+   * of the profile and the day, so it is the same on every open and moves
+   * the moment the profile does. Done marks come from the workout log.
+   */
+  async programme(userId: string) {
+    const profile = await this.getProfile(userId);
+    const today = cityDay(new Date());
+    const row = await this.prisma.fitnessProfile.findUnique({ where: { userId }, select: { programmeStart: true } })
+      .catch(swallowed('fitness.programme: read start', null));
+    let start = row?.programmeStart ? cityDay(new Date(row.programmeStart)) : null;
+    if (!start) {
+      start = today;
+      await this.prisma.fitnessProfile.upsert({
+        where: { userId },
+        update: { programmeStart: new Date(`${today}T00:00:00Z`) },
+        create: { userId, programmeStart: new Date(`${today}T00:00:00Z`) },
+      }).catch(swallowed('fitness.programme: write start', undefined));
+    }
+    let cycle = 0;
+    while (daysBetween(start, today) >= 28) { start = addDaysIso(start, 28); cycle += 1; }
+
+    const recordKeys = await this.recordConditions(userId).catch(swallowed('fitness.programme.records', [] as string[]));
+    const declared = [...profile.conditions, ...recordKeys];
+    const conditions = (['hypertension', 'diabetes', 'pregnancy', 'jointPain'] as Condition[]).filter((c) => declared.includes(c));
+    const own = (profile.equipment as string[]).filter((k): k is Equipment => (EQUIPMENT_KEYS as readonly string[]).includes(k));
+    const equipment = profile.place === 'gym'
+      ? [...new Set<Equipment>([...own, 'dumbbells', 'barbell', 'machines', 'bench', 'cardioMachine', 'mat'])]
+      : own;
+    const built = buildProgramme({
+      startDate: start, today,
+      daysPerWeek: profile.daysPerWeek ?? levelDef(profile.level).days,
+      level: profile.level as LevelKey, mode: profile.mode, bodyGoal: profile.bodyGoal as BodyGoalKey,
+      equipment, conditions, seed: userId, cycle,
+    });
+    const logs = await this.prisma.workoutLog.findMany({
+      where: { userId, doneAt: { gte: new Date(`${start}T00:00:00Z`), lt: new Date(`${addDaysIso(start, 28)}T00:00:00Z`) } },
+      select: { doneAt: true },
+    }).catch(swallowed('fitness.programme.logs', [] as { doneAt: Date }[]));
+    const done = new Set(logs.map((l) => cityDay(l.doneAt)));
+    return { ...built, cycle, today, days: built.days.map((d) => ({ ...d, done: done.has(d.date) })) };
   }
 
   // ─────────────── body goal ↔ nutrition (the reverse-connect) ───────────────
@@ -476,4 +566,23 @@ export class FitnessService {
     if (count === 0) throw new NotFoundException('No workout of yours with that id');
     return this.log(userId);
   }
+}
+
+/** The city's day — India's, not the server's. A session logged at 11 pm in
+ *  Bengaluru belongs to that day, not to the next one in Greenwich. */
+function cityDay(d: Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
+function addDaysIso(iso: string, n: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+/** The library's pattern a catalogue muscle answers to, for the session's rows. */
+function patternOfMuscle(m: Muscle): Pattern {
+  if (m === 'pectorals' || m === 'delts' || m === 'triceps') return 'push';
+  if (m === 'lats' || m === 'upper back' || m === 'biceps' || m === 'traps' || m === 'forearms') return 'pull';
+  if (m === 'quads' || m === 'calves') return 'squat';
+  if (m === 'hamstrings' || m === 'glutes') return 'hinge';
+  return 'core';
 }

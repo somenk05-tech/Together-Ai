@@ -57,8 +57,9 @@ export type LevelKey = 'basic' | 'beginner' | 'intermediate' | 'advanced' | 'ath
 export type BodyGoalKey = 'buildMuscle' | 'leanDefine' | 'athletic' | 'fatLoss';
 export type Intensity = 'light' | 'moderate' | 'vigorous';
 
-/** Sets, reps and rest, by body goal. The character of the work. */
-const GOAL_PRESCRIPTION: Record<BodyGoalKey, { sets: number; reps: [number, number]; restSec: number; emphasis: Pattern[] }> = {
+/** Sets, reps and rest, by body goal. The character of the work. Exported for
+ *  the month (programme-engine.ts), which phases the same prescription. */
+export const GOAL_PRESCRIPTION: Record<BodyGoalKey, { sets: number; reps: [number, number]; restSec: number; emphasis: Pattern[] }> = {
   // Hypertrophy: moderate reps, longer rest, pushing and pulling lead.
   buildMuscle: { sets: 4, reps: [8, 12], restSec: 75, emphasis: ['push', 'pull', 'squat', 'hinge'] },
   // Definition on a mild deficit: the volume that protects muscle, less rest.
@@ -72,7 +73,7 @@ const GOAL_PRESCRIPTION: Record<BodyGoalKey, { sets: number; reps: [number, numb
 
 /** How much a body at this ability is asked to do. Sets adjust, and the ceiling
  *  is a floor under the ceiling — a lab can lower it, nothing raises it. */
-const LEVEL_ADJUST: Record<LevelKey, { sets: number; restSec: number; cap: Intensity; exercises: number }> = {
+export const LEVEL_ADJUST: Record<LevelKey, { sets: number; restSec: number; cap: Intensity; exercises: number }> = {
   basic: { sets: -1, restSec: +20, cap: 'light', exercises: -2 },
   beginner: { sets: -1, restSec: +10, cap: 'moderate', exercises: -1 },
   intermediate: { sets: 0, restSec: 0, cap: 'vigorous', exercises: 0 },
@@ -204,6 +205,12 @@ export interface TodaySession {
   };
   /** Movements swapped for a declared condition — every one, always shown. */
   substitutions: { from: string; to: string; because: Condition }[];
+  /**
+   * THE MONTH'S DAY (6 Sep) — which day of the citizen's programme this is
+   * and what it works, when the service has laid one over the session. Null
+   * when there is no programme (no profile yet). See programme-engine.ts.
+   */
+  programme?: { day: number; of: number; week: number; phase: string; phaseLabel: string; kind: string; title: string; parts: string; note: string } | null;
   /** Things the citizen should read before starting. */
   cautions: string[];
   /** True when the session was made SHORTER or gentler on purpose. Rule 3. */

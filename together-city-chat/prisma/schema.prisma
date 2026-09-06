@@ -1739,6 +1739,12 @@ model FitnessProfile {
   /// cage — the page can still change either for today.
   place      String?  // home | gym
   sessionMinutes Int?
+  /// DAY ONE OF THE CITIZEN'S MONTH WITH A TRAINER (6 Sep) — set the first
+  /// time the programme is opened, and the only thing stored about it: the
+  /// 28 days are a pure function of the profile and the day (see
+  /// fitness/programme-engine.ts), and roll into a new cycle every 28 days.
+  /// Null until the citizen has opened it.
+  programmeStart DateTime?
   updatedAt  DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

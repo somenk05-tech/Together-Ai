@@ -19,6 +19,7 @@ import {
 import {
   SupplementBagSchema, type SupplementBagDto,
   PlaceSupplementOrderSchema, type PlaceSupplementOrderDto,
+  SupplementBudgetSchema, type SupplementBudgetDto,
 } from './dto/supplements.dto';
 
 @Controller('fitness')
@@ -61,6 +62,18 @@ export class FitnessController {
   @UsePipes(new ZodValidationPipe(TodaySessionQuerySchema))
   session(@CurrentUser() user: JwtUser, @Query() q: TodaySessionQueryDto) {
     return this.fitness.session(user.sub, q);
+  }
+
+  /**
+   * GET /api/fitness/programme — the citizen's month with a trainer: 28 days
+   * from the day they first opened it, which body part each day is, which
+   * movements from the catalogue, in four phases. See programme-engine.ts.
+   * Not a Mira capability yet: a capability is a decorator AND an executor
+   * branch, and the ledger records the gap between them.
+   */
+  @Get('programme')
+  programme(@CurrentUser() user: JwtUser) {
+    return this.fitness.programme(user.sub);
   }
 
   @Get('body-goal')
@@ -179,6 +192,17 @@ export class FitnessController {
   @UsePipes(new ZodValidationPipe(SupplementBagSchema))
   saveSupplementBag(@CurrentUser() user: JwtUser, @Body() dto: SupplementBagDto) {
     return this.supplements.saveBag(user.sub, dto.lines);
+  }
+
+  /**
+   * THE BUDGET FOR THE KIT — the one number the citizen sets on this shelf.
+   * A PUT of the whole value (null clears it), not a Mira capability: "spend
+   * less on supplements" is a sentence, and a cap is a decision.
+   */
+  @Put('store/budget')
+  @UsePipes(new ZodValidationPipe(SupplementBudgetSchema))
+  setSupplementBudget(@CurrentUser() user: JwtUser, @Body() dto: SupplementBudgetDto) {
+    return this.supplements.setBudget(user.sub, dto.monthlyInr);
   }
 
   @Get('store/orders')
