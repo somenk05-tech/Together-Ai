@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -24,7 +24,6 @@ const code = (p: string) => read(p).replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^
  */
 describe('the gemstone marketplace', () => {
   const gems = code('features/astrology/pages/AstroGemstones.tsx');
-  const remedies = code('features/astrology/pages/AstroRemedies.tsx');
   const hubs = code('config/hubs.ts');
   const router = code('app/router.tsx');
 
@@ -34,13 +33,20 @@ describe('the gemstone marketplace', () => {
     expect(code('features/astrology/shared.tsx')).toMatch(/\/astrology\/gemstones/);
   });
 
-  it('leaves the remedies page with no stones on it at all', () => {
-    // Not a shorter list of stones — none. The page keeps the practices and
-    // points across, which is why it also stopped calling itself "Gems &".
-    expect(remedies).not.toMatch(/useAstroGems\b/);
-    expect(remedies).not.toMatch(/GemCard/);
-    expect(remedies).toMatch(/\/astrology\/gemstones/);
-    expect(remedies).not.toMatch(/Gems &amp; Remedies|Gems & Remedies/);
+  it('is the one surface in the zone that prescribes a stone', () => {
+    /* THE PAGE THIS ASSERTION WATCHED IS GONE (owner, 6 Sep: remove this
+       page). It was Gems & Remedies, and the rule was that the stones half
+       left it and never came back — checked by reading the file for
+       `useAstroGems` and a link across to the marketplace.
+       There is no file to read now, which is a stronger form of the same
+       guarantee: nothing in the zone can answer "which stone is mine" except
+       the marketplace, because nothing else in the zone exists to. */
+    expect(existsSync(join(SRC, 'features/astrology/pages/AstroRemedies.tsx'))).toBe(false);
+    expect(code('config/hubs.ts')).not.toMatch(/astrology\/remedies/);
+    expect(code('features/astrology/shared.tsx')).not.toMatch(/astrology\/remedies/);
+    expect(code('app/router.tsx')).not.toMatch(/AstroRemedies/);
+    // And an old link lands on the nearest surviving page rather than a 404.
+    expect(code('config/labels.ts')).toMatch(/'\/astrology\/remedies': '\/astrology\/monthly'/);
   });
 
   it('says which finger, which hand, which metal and which day', () => {
@@ -173,39 +179,6 @@ describe('the gemstone marketplace', () => {
   });
 });
 
-/**
- * ONE PRACTICE AT A TIME.
- *
- * The remedies page listed six at once — six cards, equal weight, each a small
- * worthwhile thing. Nobody does six things. A list that long is read as a menu,
- * and a menu of self-improvement is a menu people close.
- */
-describe('the remedies page', () => {
-  const remedies = code('features/astrology/pages/AstroRemedies.tsx');
-
-  it('names one practice for this week, and says which week', () => {
-    expect(remedies).toMatch(/thisWeek/);
-    expect(remedies).toMatch(/This week ·/);
-    expect(remedies).toMatch(/weekLabel\(/);
-  });
-
-  it('lets the week choose it rather than the citizen or a shuffle', () => {
-    // The rotation is arithmetic on the server: same practice Monday to Sunday,
-    // turns over on its own, works through the list before repeating. A pick
-    // made here would differ per device and reset on every reload.
-    expect(remedies).not.toMatch(/Math\.random/);
-    expect(remedies).not.toMatch(/localStorage/);
-    expect(remedies).not.toMatch(/useState.*[Ww]eek/);
-  });
-
-  it('shows the rotation rather than hiding the rest', () => {
-    // Seeing next Monday's practice is what makes this week's read as a turn
-    // rather than a fragment.
-    expect(remedies).toMatch(/upcoming/);
-    expect(remedies).toMatch(/After that/);
-    expect(remedies).toMatch(/Everything for this season/);
-  });
-});
 
 /**
  * THE SHELF, AND WHY THE SHEET LEFT THE INDEX.

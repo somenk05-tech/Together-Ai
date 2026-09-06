@@ -173,8 +173,13 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // and it needs somewhere to be waiting. Without a door in the menu the
       // cart is a page you can only reach from the page you just left.
       { path: '/astrology/gem-checkout', index: '05', label: 'Checkout', sub: 'Stones you have locked' },
-      { path: '/astrology/remedies', index: '06', label: 'Remedies', sub: 'Practices for the season you are in' },
-      { path: '/profile/astrology', index: '07', label: 'Astrology Profile', sub: 'Birth details, entered once' },
+      /* REMEDIES IS GONE (owner, 6 Sep). One practice a week, rotating on the
+         server — a good page that nobody was asked for and nothing else in the
+         zone pointed at. The route redirects to This Month; see REMOVED_ROUTES.
+         The profile takes 06 rather than leaving a hole at it: these numbers
+         are a reading order, not identifiers, and a rail that counts 05, 07 is
+         a rail advertising a room that is not there. */
+      { path: '/profile/astrology', index: '06', label: 'Astrology Profile', sub: 'Birth details, entered once' },
     ],
   },
   nutrition: {

@@ -126,9 +126,10 @@ export function useDrawTarot() {
   });
 }
 
-export function useAstroGems() {
-  return useQuery({ queryKey: ['astrology', 'gems'], queryFn: () => astrologyApi.gems() });
-}
+/* `useAstroGems` LEFT WITH THE REMEDIES PAGE (6 Sep). It read the old Gems &
+   Remedies stone — one prescribed from the running period alone — and that
+   page was the only caller it ever had. The marketplace's own read is
+   `useAstroGemstones` below, and it always was the one that matters. */
 /** The marketplace's opening read. `retry: false` — "no birth details yet" is
  *  an answer, not a failure to retry into. */
 export function useAstroGemstones() {
@@ -186,20 +187,3 @@ export function useGemQuote() {
   });
 }
 
-/**
- * `useGemCommission` stood here and nothing imported it.
- *
- * It was a SECOND way to buy a gemstone, beside `useGemCheckout` above — and
- * it spent from the city wallet. Its `astrologyApi.commissionGem` posted to
- * `POST /astrology/gemstones/:gemId/commission`, which has no controller route
- * and no service method: wiring that hook to a button would have produced a
- * pay action that 404s.
- *
- * This is the exact case `scripts/dead-export-audit.mjs` was written after —
- * two ways to do one thing, one of them unreachable, and nothing in the build
- * able to say which. Deleted rather than repaired, because the reachable path
- * is `requestGemQuote` (5 Sep: the counter quotes, it does not charge) and that flow should have one door.
- */
-export function useAstroRemedies() {
-  return useQuery({ queryKey: ['astrology', 'remedies'], queryFn: () => astrologyApi.remedies() });
-}

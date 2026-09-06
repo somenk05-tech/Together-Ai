@@ -370,7 +370,6 @@ export const astrologyApi = {
   deleteTarotReading: (id: string) =>
     api.delete<{ deleted: boolean }>(`/astrology/tarot/${id}`).then((r) => r.data),
 
-  gems: () => api.get<GemResponse>('/astrology/gems').then((r) => r.data),
   gemstones: () => api.get<GemstonesResponse>('/astrology/gemstones').then((r) => r.data),
   gemCatalog: () => api.get<GemCatalog>('/astrology/gem-catalog').then((r) => r.data),
   gemDesign: (id: string) => api.get<GemDesign>(`/astrology/gemstones/${id}/design`).then((r) => r.data),
@@ -394,5 +393,4 @@ export const astrologyApi = {
       .then((r) => r.data),
   /** The choices, never the price — the server prices them from the same
    *  catalogue and weight rule the studio was rendered from. */
-  remedies: () => api.get<RemedyResponse>('/astrology/remedies').then((r) => r.data),
 };

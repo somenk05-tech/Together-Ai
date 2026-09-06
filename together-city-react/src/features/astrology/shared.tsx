@@ -21,7 +21,6 @@ const TABS = [
   { path: '/astrology/tarot', label: '03 · Tarot' },
   { path: '/astrology/gemstones', label: '04 · Gemstones' },
   { path: '/astrology/gem-checkout', label: '05 · Checkout' },
-  { path: '/astrology/remedies', label: '06 · Remedies' },
 ];
 
 /** Shared tab bar for the three Astrology Zone tabs. */

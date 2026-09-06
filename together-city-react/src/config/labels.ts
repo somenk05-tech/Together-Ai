@@ -43,6 +43,11 @@ export const REMOVED_ROUTES: Readonly<Record<string, string>> = {
   // the largest line in what a free member cost to serve, and the owner dropped
   // it. The month's letter is the nearest surviving page.
   '/astrology/today': '/astrology/monthly',
+  // Remedies (6 Sep, owner). One practice a week for the season you are in,
+  // rotating on the server. The month's letter is the nearest surviving page:
+  // it is the other thing in this zone that speaks about a stretch of time
+  // rather than about a stone.
+  '/astrology/remedies': '/astrology/monthly',
   // Trainer Mode, the camera form coach (20 Aug). Workout is the nearest
   // surviving page — a guided session with a timer, which is what somebody
   // following an old Trainer link was after.

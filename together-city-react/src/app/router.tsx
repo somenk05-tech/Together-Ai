@@ -49,7 +49,6 @@ const AstroMonthly = lazy(() => import('@/features/astrology/pages/AstroMonthly'
 const AstroAsk = lazy(() => import('@/features/astrology/pages/AstroAsk').then((m) => ({ default: m.AstroAsk })));
 const AstroProfilePage = lazy(() => import('@/features/astrology/pages/AstroProfilePage').then((m) => ({ default: m.AstroProfilePage })));
 const AstroTarot = lazy(() => import('@/features/astrology/pages/AstroTarot').then((m) => ({ default: m.AstroTarot })));
-const AstroRemedies = lazy(() => import('@/features/astrology/pages/AstroRemedies').then((m) => ({ default: m.AstroRemedies })));
 const AstroGemstones = lazy(() => import('@/features/astrology/pages/AstroGemstones').then((m) => ({ default: m.AstroGemstones })));
 const AstroGemstone = lazy(() => import('@/features/astrology/pages/AstroGemstone').then((m) => ({ default: m.AstroGemstone })));
 const GemStudio = lazy(() => import('@/features/astrology/pages/GemStudio').then((m) => ({ default: m.GemStudio })));
@@ -592,7 +591,6 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/astrology/gemstones/:gemId', element: <RequireAuth>{wrap(<AstroGemstone />)}</RequireAuth> },
       { path: '/astrology/gemstones/:gemId/design', element: <RequireAuth>{wrap(<GemStudio />)}</RequireAuth> },
       { path: '/astrology/gem-checkout', element: <RequireAuth>{wrap(<GemCheckout />)}</RequireAuth> },
-      { path: '/astrology/remedies', element: <RequireAuth>{wrap(<AstroRemedies />)}</RequireAuth> },
       { path: '/profile/astrology', element: <RequireAuth>{wrap(<AstroProfilePage />)}</RequireAuth> },
     ],
   },
