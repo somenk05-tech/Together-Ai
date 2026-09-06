@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Spinner, EmptyState } from '@/components/ui';
 import { profilePayload, saveFailureMessage } from '../profile-payload';
-import { useBeautyBudget, useBeautyProfile, useSaveBeautyProfile, useAnalyzeBeautyPhotos, useBeautyInsights, useBeautyHistory, useConditionSuggestions, useDeleteLatestAssessment } from '../api';
+import { useBeautyBudget, useBeautyProfile, useSaveBeautyProfile, useAnalyzeBeautyPhotos, useBeautyInsights, useBeautyHistory, useConditionSuggestions, useDeleteLatestAssessment, useSaveBreakdown } from '../api';
 import type { BeautyAssessment, BeautyReading, AssessLevel, BeautyProgressEntry } from '../api';
 import { editQuotaLine, useEditQuota, useMasterProfile } from '@/features/profile/hooks';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
@@ -10,6 +10,7 @@ import { PHOTO_SLOTS, PhotoGrid, missingPhotos, photosReady, requiredCount, type
 import { AssessmentPlate } from '../components/AssessmentPlate';
 import { BeautyLeaf, BeautyPlate } from '../components/Plates';
 import { BudgetPanel, budgetSummary } from '../components/BudgetPanel';
+import { drawBreakdown } from '../breakdown';
 
 /** The server's own sentence when it has one — "Insufficient wallet balance…"
  *  is the one that matters now that an extra analysis costs ₹100 — and the
@@ -432,6 +433,16 @@ function ProgressView({ entries }: { entries: BeautyProgressEntry[] }) {
         <span />
         <span>{sorted.length} check-in{sorted.length === 1 ? '' : 's'} · re-upload weekly</span>
       </div>
+      {/* THE BREAKDOWN (owner, 6 Sep): the latest photo with what the review
+          saw drawn on it — the framed zoom, the finding, the likely causes.
+          Drawn in the browser from the citizen's own photograph the moment
+          the assessment came back; see breakdown.ts. */}
+      {sorted[sorted.length - 1].breakdown && (
+        <figure className="beauty-breakdown">
+          <img src={sorted[sorted.length - 1].breakdown as string} alt="Your latest photo, with what the assessment saw marked on it" />
+          <figcaption className="muted">Your skin, read · {fmtDate(sorted[sorted.length - 1].date)}</figcaption>
+        </figure>
+      )}
       <div style={{ display: 'flex', gap: 10, overflowX: 'auto', padding: '12px 0 4px' }}>
         {sorted.map((e) => (
           <div key={e.id} style={{ flex: 'none', width: 84, textAlign: 'center' }}>
@@ -502,6 +513,7 @@ export function Profile() {
   const profile = useBeautyProfile();
   const save = useSaveBeautyProfile();
   const analyze = useAnalyzeBeautyPhotos();
+  const breakdown = useSaveBreakdown();
   const del = useDeleteLatestAssessment();
   const master = useMasterProfile();
   // FIVE FREE PROFILE CHANGES A MONTH, THEN ₹50 (5 Sep) — one counter across
@@ -717,7 +729,20 @@ export function Profile() {
     if (!photosComplete || !profileComplete) return; // locked until the required photos + a full profile
     const facePic = pics.face ?? entries[0]?.[1];
     const thumb = facePic ? await makeThumb(facePic.preview) : undefined;
-    analyze.mutate({ photos, thumb: thumb || undefined, method: 'wallet' }, { onSuccess: () => setPics({}) });
+    analyze.mutate({ photos, thumb: thumb || undefined, method: 'wallet' }, {
+      onSuccess: (p) => {
+        setPics({});
+        // THE BREAKDOWN (6 Sep): the review said where on the front photo each
+        // finding is; draw them over the photo the page still holds and send
+        // the picture back to sit beside this assessment. Best effort — an
+        // assessment without its picture is still an assessment.
+        if (facePic && p.entryId && p.marks?.length) {
+          void drawBreakdown(facePic.preview, p.marks, p.photoFindings).then((image) => {
+            if (image) breakdown.mutate({ entryId: p.entryId as string, image });
+          });
+        }
+      },
+    });
   };
 
   return (

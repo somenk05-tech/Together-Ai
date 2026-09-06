@@ -1607,6 +1607,17 @@
   .beauty-leaf .s { margin-left: auto; }
 }
 
+/* ── THE BREAKDOWN (6 Sep) ──────────────────────────────────────────────────
+   The citizen's latest photo with the findings drawn on it, on the progress
+   sheet. A print, so it keeps the photo's own proportions and never grows past
+   a hand's width; the caption is the sheet's small type. */
+.beauty-breakdown { margin: 12px 0 0; }
+.beauty-breakdown img {
+  display: block; width: 100%; max-width: 360px;
+  border-radius: var(--r-2); border: 1px solid var(--line);
+}
+.beauty-breakdown figcaption { margin-top: 6px; font-size: var(--fs-3); }
+
 /* ── THE MARKET (24 Aug; re-laid as a collection page 3 Sep — see .mk-*) ──
    The grid is the one thing here that needs breakpoints; the rail, the crumb
    and the head are in the shop-floor block at the foot of this file. */
