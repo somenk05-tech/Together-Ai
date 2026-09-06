@@ -250,11 +250,14 @@ describe('the fold itself', () => {
       'components/SearchSelect.tsx',
       'components/ui/Fold.tsx',
       'features/beauty/components/Plates.tsx',
-      // Market's Details drawer on the store card (24 Aug): a per-tile
-      // disclosure inside a shop grid, not a titled section of the page — the
-      // same argument as Compose's three-dot key. It gained aria-expanded the
-      // day the tile took the store's card anatomy.
-      'features/beauty/pages/Market.tsx',
+      // MARKET LEFT THIS LIST ON 6 SEP, which is the direction it is supposed
+      // to move in. Its Details drawer was a hand-rolled toggle — the entry
+      // above used to argue that a per-tile disclosure inside a shop grid was
+      // not a titled section of a page, the same argument as Compose's
+      // three-dot key. Then the owner's shop reference asked for the card's
+      // text behind rows you open, and a row with a name on it IS a titled
+      // section. It is a Fold now, so there is one fewer implementation of the
+      // four lines this whole guard exists to count.
       'features/mail/MoveToProject.tsx',
       'features/mail/pages/Compose.tsx',
       'features/mail/pages/MessageView.tsx',
@@ -516,4 +519,49 @@ describe('the beauty hub prints on its own paper', () => {
      it is a panel on paper, the same as every other rail in the city, and the
      frost it floated in went with the picture it was floating on. */
 
+});
+
+/**
+ * THE PHOTOGRAPHS ARE NOT ONE OF THE TABS — owner, 6 Sep: "create your details
+ * as a tab below the photo."
+ *
+ * The tab row sat under the masthead, which put the two photographs — the
+ * thing the page is FOR, and the only step that cannot be skipped — behind a
+ * switch, level with a form. They stand at the top now for everybody, with the
+ * progress they make under them, and the tabs choose what to do next: read the
+ * assessment, or answer the questions it is read against.
+ */
+describe('the skin and hair page opens on the photographs', () => {
+  const page = stripTs(read('features/beauty/pages/Profile.tsx'));
+  const at = (needle: string) => page.indexOf(needle);
+
+  it('draws the photographs above the tab row, not inside a tab', () => {
+    const photos = at('Your photos');
+    const tabs = at('className="beauty-tabs"');
+    const firstPanel = at("{tab === 'photos' && (");
+    expect(photos).toBeGreaterThan(-1);
+    expect(tabs).toBeGreaterThan(photos);
+    expect(firstPanel).toBeGreaterThan(tabs);
+  });
+
+  it('keeps the before-and-after above the tabs with them', () => {
+    // The progress a photograph makes belongs beside the photograph, not
+    // behind the switch that chooses what to read about it.
+    expect(at('<ProgressView entries={progress} />')).toBeLessThan(at('className="beauty-tabs"'));
+  });
+
+  it('counts the steps once, above everything', () => {
+    // It stood on both tabs while the tabs were the first thing under the
+    // masthead. One counter now, on the page whichever tab is open.
+    expect((page.match(/<OnboardingProgress \/>/g) ?? []).length).toBe(1);
+    expect(at('<OnboardingProgress />')).toBeLessThan(at('className="beauty-tabs"'));
+  });
+
+  it('labels the first tab for what is behind it', () => {
+    // The panel holds the assessment, the budget and the history — no
+    // photograph. A tab called "Photos & Analysis" over none of the first is a
+    // label describing where things used to be.
+    expect(page).toMatch(/'Your Analysis' : 'Your Details'/);
+    expect(page).not.toMatch(/Photos & Analysis/);
+  });
 });

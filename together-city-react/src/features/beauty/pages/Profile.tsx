@@ -735,22 +735,17 @@ export function Profile() {
         blurb="Your skin and hair, read — and a routine built from the reading."
       />
 
-      {/* The tabs, set as a rule rather than a pill switch: two tracked words
-          on a hairline, the live one underscored. A rounded segmented control
-          in the middle of a set of printed plates is the one object on the
-          page that came from a different design. */}
-      <div className="beauty-tabs" role="tablist" aria-label="Skin and hair profile">
-        {(['photos', 'profile'] as const).map((t) => (
-          <button key={t} type="button" role="tab" aria-selected={tab === t}
-            className={tab === t ? 'is-on' : undefined} onClick={() => setTab(t)}>
-            {t === 'photos' ? 'Photos & Analysis' : 'Your Details'}
-          </button>
-        ))}
-      </div>
+      {/* ── THE PHOTOS ARE NOT ONE OF THE TABS ANY MORE (owner, 6 Sep) ─────
+          "Create your details as a tab below the photo." The tab row used to
+          sit under the masthead, which put the two photographs — the thing the
+          whole page is FOR, and the only step that cannot be skipped — behind
+          a switch, level with a form.
 
-      {tab === 'photos' && (
-        <div>
-          <OnboardingProgress />
+          So the photographs, the progress they make and the step counter come
+          out of the tabs and stand at the top of the page for everybody. What
+          the tabs choose between is what to do NEXT with them: read the
+          assessment, or answer the questions it is read against. */}
+      <OnboardingProgress />
           {/* ONCE THE PROFILE IS DONE, THE FORM FOLDS AWAY.
               Everything on this page is an INPUT: the photos, the answers, the
               assessment they produce. Before this, every return visit began
@@ -825,6 +820,28 @@ export function Profile() {
           {/* OPEN. The before and after is the reason to come back. */}
           {progress.length > 0 && <ProgressView entries={progress} />}
 
+      {/* The tabs, set as a rule rather than a pill switch: two tracked words
+          on a hairline, the live one underscored. A rounded segmented control
+          in the middle of a set of printed plates is the one object on the
+          page that came from a different design.
+
+          THE KEYS ARE STILL `photos` AND `profile` though the first panel no
+          longer holds a photograph: the auto-advance, the "complete your
+          profile" button and the deep links all speak them, and renaming a
+          state key to match a label is a rename with nothing under it. The
+          LABELS say what is actually behind each one. */}
+      <div className="beauty-tabs" role="tablist" aria-label="Skin and hair profile">
+        {(['photos', 'profile'] as const).map((t) => (
+          <button key={t} type="button" role="tab" aria-selected={tab === t}
+            className={tab === t ? 'is-on' : undefined} onClick={() => setTab(t)}>
+            {t === 'photos' ? 'Your Analysis' : 'Your Details'}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'photos' && (
+        <div>
+
           {/* NOT WRAPPED IN A COLLAPSIBLE OF ITS OWN ANY MORE. Skin, Hair &
               scalp and Ingredients each fold individually now, and one fold
               around three folds means two clicks to read one reading, with the
@@ -898,7 +915,9 @@ export function Profile() {
               <button type="button" onClick={() => setPhotoBanner(false)} aria-label="Dismiss this message" style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--ok-ink)' }}>✕</button>
             </div>
           )}
-          <OnboardingProgress />
+          {/* NO SECOND STEP COUNTER. It stood on both tabs while the tabs
+              were the first thing under the masthead; there is one now, above
+              the photographs, and it is on the page whichever tab is open. */}
           {collapsedProfile ? (
             <BeautyProfileSummary f={f} onEdit={() => setEditingProfile(true)} />
           ) : (
