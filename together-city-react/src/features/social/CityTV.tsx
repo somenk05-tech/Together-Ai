@@ -106,6 +106,16 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
   // WHAT'S NEXT (owner, 6 Sep): a list down the right of the screen of the
   // videos to come, in the order the set will play them; a tap jumps there.
   const [queue, setQueue] = useState(false);
+  // THE VOLUME (owner, 6 Sep: "the volume button should increase or
+  // decrease"). The speaker key opens a small slider; 0 is mute. On an
+  // iPhone the element's volume is the phone's and cannot be set from a page
+  // — the slider still shows, and the mute half still works.
+  const [volume, setVolume] = useState(1);
+  const [vol, setVol] = useState(false);
+  // ROTATE (owner, 6 Sep): a wide video on a tall phone is a strip across
+  // the middle; turned a quarter it fills the screen. A key on the remote
+  // turns it and turns it back; the set turns it back itself on the next video.
+  const [rotated, setRotated] = useState(false);
   // THE SLIDER (owner, 6 Sep): where the video is and how long it is, and a
   // slider to move it. Read off the element four times a second.
   const [clock, setClock] = useState({ time: 0, duration: 0 });
@@ -201,6 +211,7 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
   useEffect(() => {
     setReady(false);
     setElMuted(false);
+    setRotated(false);
     setClock({ time: 0, duration: 0 });
     screen.current?.style.setProperty('--tv-progress', '0');
   }, [currentId]);
@@ -228,9 +239,10 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
     const el = video.current;
     if (!el) return;
     if (paused) { el.pause(); return; }
+    el.volume = volume;
     playWithSharedSound(el);
     return () => { el.pause(); releasePlayback(el); };
-  }, [paused, at, current?.url]);
+  }, [paused, at, current?.url, volume]);
 
   /* Keys a remote would have. Arrows move along the stream and the dial,
      space pauses, m mutes, f fills the screen. Ignored inside a field. */
@@ -269,9 +281,9 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
   const stale = () => onStaleMedia(qc, ['social']);
 
   return (
-    <div className={awake || paused || queue ? 'tv' : 'tv asleep'} ref={screen}>
+    <div className={awake || paused || queue || vol ? 'tv' : 'tv asleep'} ref={screen}>
       {head}
-      <div className="tv-screen" aria-live="off">
+      <div className={rotated ? 'tv-screen rotated' : 'tv-screen'} aria-live="off">
         <video key={current.id} ref={video} className="tv-media" src={current.url} poster={current.thumbUrl ?? undefined}
           playsInline autoPlay muted={muted} preload="auto"
           onLoadedMetadata={(e) => { setReady(true); setClock({ time: e.currentTarget.currentTime, duration: e.currentTarget.duration || 0 }); }}
@@ -334,6 +346,23 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
         </aside>
       )}
 
+      {vol && (
+        <div id="tv-vol" className="tv-vol" role="group" aria-label="Volume">
+          <button type="button" className="tv-key sm" aria-label={muted || elMuted ? 'Turn the sound on' : 'Turn the sound off'} aria-pressed={!(muted || elMuted)}
+            onClick={() => { const on = muted || elMuted; setMuted(!on); const el = video.current; if (el) { el.muted = !on; if (on) void el.play().catch(() => {}); } }}>
+            <Icon name={muted || elMuted ? 'mute' : 'speak'} size={14} />
+          </button>
+          <input type="range" className="tv-vol-r" min={0} max={100} step={1} value={Math.round(volume * 100)} aria-label="Volume level"
+            onChange={(e) => {
+              const v = Math.min(1, Math.max(0, Number(e.currentTarget.value) / 100));
+              setVolume(v);
+              const el = video.current;
+              if (el) { el.volume = v; if (v > 0 && el.muted) { el.muted = false; setMuted(false); } }
+            }} />
+          <span className="tv-vol-t">{Math.round(volume * 100)}</span>
+        </div>
+      )}
+
       {/* THE REMOTE, over the foot of the screen: the slider along its top —
           where the video is, and how long it is — and the keys beneath. */}
       <div className="tv-bar" role="toolbar" aria-label="Together City TV">
@@ -357,7 +386,8 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
               own words on and off; they are on, which is what it defaulted to
               and what nearly nobody changed. One key fewer is one row on a
               phone. */}
-          <button type="button" className="tv-key" onClick={() => { const on = muted || elMuted; setMuted(!on); const el = video.current; if (el) { el.muted = !on; if (!on) return; void el.play().catch(() => {}); } }} aria-label={muted || elMuted ? 'Turn the sound on' : 'Turn the sound off'} aria-pressed={!(muted || elMuted)}><Icon name={muted || elMuted ? 'mute' : 'speak'} size={16} /></button>
+          <button type="button" className="tv-key" onClick={() => setVol((v) => !v)} aria-label="Volume" aria-pressed={vol} aria-expanded={vol} aria-controls="tv-vol"><Icon name={muted || elMuted || volume === 0 ? 'mute' : 'speak'} size={16} /></button>
+          <button type="button" className="tv-key" onClick={() => setRotated((r) => !r)} aria-label={rotated ? 'Turn the video back' : 'Turn the video upright'} aria-pressed={rotated}><Icon name="rotate" size={16} /></button>
           <button type="button" className="tv-key" onClick={fullScreen} aria-label={fs ? 'Leave full screen' : 'Full screen'} aria-pressed={fs}><Icon name="expand" size={16} /></button>
           <button type="button" className="tv-key" onClick={onOpenChannels} aria-label="Together City Channels"><Icon name="grid" size={16} /></button>
           <button type="button" className="tv-key" onClick={() => setQueue((q) => !q)} aria-label={queue ? 'Hide what is next' : "What's next"} aria-pressed={queue} aria-controls="tv-next" aria-expanded={queue}><Icon name="queue" size={16} /></button>

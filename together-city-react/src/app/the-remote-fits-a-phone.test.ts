@@ -38,22 +38,26 @@ describe('the television remote', () => {
     expect(tv).toMatch(/\{\(caption \|\| post\.placeName\) && \(/);
   });
 
-  it('keeps the seven keys that do something', () => {
+  it('keeps the eight keys that do something', () => {
     for (const label of ['Previous video', 'Next video', 'Full screen',
-      'Together City Channels', "What's next"]) {
+      'Together City Channels', "What's next", 'Volume', 'Turn the video upright']) {
       expect({ label, kept: tv.includes(label) }).toEqual({ label, kept: true });
     }
-    // Play/pause and sound are written as expressions, so they are counted
-    // rather than matched: seven keys in the row, and no eighth.
+    // Play/pause is written as an expression, so the keys are counted rather
+    // than matched: eight in the row (the rotate key joined on 6 Sep), no ninth.
     const row = tv.slice(tv.indexOf('<div className="tv-keys">'), tv.indexOf('</div>', tv.indexOf('<div className="tv-keys">')));
-    expect((row.match(/className="tv-key"/g) ?? []).length).toBe(7);
+    expect((row.match(/className="tv-key"/g) ?? []).length).toBe(8);
   });
 
-  it('sizes the keys so seven fit one row on the narrowest phone', () => {
-    // 7 x 38 + 6 x 4 = 290px, inside a 360px screen's bar. 44px keys are
-    // 332 + the bar's padding, which is what wrapped.
-    expect(phone).toMatch(/\.tv-key \{ width: 38px; height: 38px; \}/);
-    expect(phone).toMatch(/\.tv-keys \{ gap: 4px; \}/);
+  it('sizes the keys so eight fit one row on the narrowest phone', () => {
+    // 8 x 36 + 7 x 3 = 309px, plus the channel's face, inside a 360px
+    // screen's bar with its padding. 44px keys are 380 + padding, which is
+    // what wrapped; 38px keys fitted seven and not the eighth.
+    expect(phone).toMatch(/\.tv-key \{ width: 36px; height: 36px; \}/);
+    expect(phone).toMatch(/\.tv-keys \{ gap: 3px; \}/);
+    // The up/down dial does not fit beside eight keys and a face; it goes on
+    // a phone, and the channels page and the arrow keys still tune.
+    expect(phone).toMatch(/\.tv-dial \{ display: none; \}/);
   });
 
   it('spends no line of the remote on a label', () => {
