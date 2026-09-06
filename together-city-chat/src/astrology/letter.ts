@@ -48,11 +48,29 @@ export const DAILY_WORDS = { min: 80, max: 150 } as const;
  * was the daily's discipline applied to a longer period, and it undersold what
  * a month actually contains: a day has one thing worth saying, a month has a
  * shape — what it is asking, where the judgement is sharpest, what to protect.
- * Three hundred words is room for that and still nowhere near the 820–1500 it
- * replaced. The test that it fits one letter composition is the page, not the
- * count.
+ *
+ * ── AND THREE HUNDRED WAS NOT THE MONTH EITHER (owner, 6 Sep) ───────────────
+ *
+ * "Make the monthly horoscope more detailed and close to 500 words, with
+ * details of dates and other details which can affect the user — a holistic
+ * approach, they should know everything that can happen the entire month, date
+ * wise."
+ *
+ * Three hundred words buys the month's SHAPE and nothing else: an arc, a
+ * strongest-days sentence, a closing thought. What it cannot buy is the thing
+ * somebody opens a monthly letter for — a walk through the weeks with the days
+ * named, so a reader can put their own diary beside it. That is a different
+ * brief, not a longer one, and it needs the room to be honest in: work, money,
+ * the people close to them, the body, and where in the month each of those
+ * actually lands.
+ *
+ * FIVE HUNDRED, NOT EIGHT. The 820–1500 this range replaced was an article
+ * about you rather than a letter to you, and the second half of a long letter
+ * is where a writer with nothing left to say restates the first half. The cap
+ * still has to bite; it now bites at the point where a month has genuinely
+ * been walked rather than summarised.
  */
-export const MONTHLY_WORDS = { min: 240, max: 320 } as const;
+export const MONTHLY_WORDS = { min: 440, max: 560 } as const;
 
 /** The letter's own title. Short enough to set as one display line. */
 export const TITLE_WORDS = { min: 3, max: 7 } as const;
@@ -389,12 +407,27 @@ export function letterRules(kind: 'daily' | 'monthly', firstName?: string | null
     '3. Never signal a change of subject. Career, relationships, health, money and growth may all be',
     '   in here, but they must arrive as one person\'s train of thought, not as topics being covered.',
     '   If a sentence could be preceded by a heading, rewrite it.',
-    `4. Between ${range.min} and ${range.max} words, not counting the opening line. This is short on`,
-    '   purpose and it is the hardest rule here. You cannot cover several areas of a life in that',
-    '   space, so do not try: choose the ONE thing worth saying and say it properly. Every sentence',
-    '   must earn its place — if a sentence restates the one before it in different words, or could',
-    '   be deleted without the reader losing anything, delete it. Do not solve length by writing',
-    '   faster or vaguer; solve it by having less to say and meaning all of it.',
+    `4. Between ${range.min} and ${range.max} words, not counting the opening line.`,
+    ...(kind === 'daily' ? [
+      '   This is short on purpose and it is the hardest rule here. You cannot cover several areas of',
+      '   a life in that space, so do not try: choose the ONE thing worth saying and say it properly.',
+      '   Every sentence must earn its place — if a sentence restates the one before it in different',
+      '   words, or could be deleted without the reader losing anything, delete it. Do not solve',
+      '   length by writing faster or vaguer; solve it by having less to say and meaning all of it.',
+    ] : [
+      '   A MONTH IS WALKED, NOT SUMMARISED. This is the length at which a reader can put their own',
+      '   diary beside the letter, so use it that way: move through the month roughly in time order —',
+      '   how it opens, where it turns, how it ends — and let the specific days you are given do real',
+      '   work inside that. Name them the way a person does in a letter ("the 12th and 13th", "around',
+      '   the 24th"), never as a list, never as a schedule, never two dates in a row without the',
+      '   sentence between them earning its place.',
+      '   COVER THEIR LIFE, NOT ONE CORNER OF IT. Over the month, work, money, the people closest to',
+      '   them, their body and their own steadiness should each be spoken to once, properly — a',
+      '   sentence or two that says something true about where in the month it lands and what to do',
+      '   about it. Once each. A second pass over the same ground in new words is the failure this',
+      '   length exists to avoid, and it is the one to watch for after the halfway mark.',
+      '   Every sentence must still earn its place: if it restates the one before it, delete it.',
+    ]),
     '5. End by finishing the thought, gently. Never "good luck", never "have a wonderful day",',
     '   never "stay positive", never a sign-off phrase of any kind — the letter is signed for you.',
     '',

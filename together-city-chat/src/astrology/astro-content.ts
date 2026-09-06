@@ -219,6 +219,33 @@ export function composeMonthlyBrief(
   const tough = hits.filter((h) => !h.harmonious);
   const jupiter = tr('Jupiter'), saturn = tr('Saturn'), venus = tr('Venus'), mars = tr('Mars'), mercury = tr('Mercury');
   const turningDays = astro.events.filter((e) => e.kind === 'lunation').map((e) => e.day);
+  /**
+   * ── THE DAYS THE MONTH ACTUALLY TURNS ON (owner, 6 Sep) ───────────────────
+   *
+   * `scanMonth` has always found more dated events than the letter was told
+   * about: the two lunations, every ingress, and every station. Only the
+   * lunations reached the brief, so a letter asked for "everything that can
+   * happen, date wise" had four numbers to work with — two turning points,
+   * five strong days, four slow ones — and nothing at all about WHEN the month
+   * changes character.
+   *
+   * These are the rest of them, translated. The kind never travels: a station
+   * becomes "arrangements need more slack from the 9th", an ingress becomes
+   * "the month changes gear around the 22nd". A reader must be able to put
+   * their diary beside the letter without ever meeting the machinery that
+   * produced it — which is the same rule as everywhere else in this file, just
+   * applied to a date rather than a sentence.
+   */
+  const dayList = (days: number[]) => fmtList(days.map(ordinal));
+  const stations = astro.events.filter((e) => e.kind === 'retrograde').map((e) => e.day);
+  const gearChanges = astro.events.filter((e) => e.kind === 'ingress').map((e) => e.day)
+    .filter((d, i, a) => a.indexOf(d) === i);
+  /** Where the named days fall, so the letter can be walked in time order. */
+  const daysIn = new Date(Date.UTC(astro.year, astro.month, 0)).getUTCDate();
+  const inWindow = (days: number[], from: number, to: number) => days.filter((d) => d >= from && d <= to);
+  const third = Math.round(daysIn / 3);
+  const opens = [...astro.bestDates, ...turningDays].filter((d) => d <= third).sort((a, b) => a - b);
+  const closes = [...astro.bestDates, ...turningDays].filter((d) => d > daysIn - third).sort((a, b) => a - b);
 
   const observations: string[] = [
     `The month ahead asks them for ${tough.length > harm.length ? 'patience before ambition' : 'deliberate, confident movement'}.`,
@@ -255,10 +282,26 @@ export function composeMonthlyBrief(
       ? `Two points in the month — around the ${fmtList(turningDays.map(ordinal))} — tend to mark the emotional turning points at home, when something already present becomes visible rather than something new appearing.`
       : 'This is an emotionally even month at home, with no single obvious turning point.',
     astro.bestDates.length
-      ? `Their strongest days this month are the ${fmtList(astro.bestDates.map(ordinal))} — worth using for the pitch, the ask, the signature, the conversation that needs its best odds. A strong day is a tailwind, not a guarantee.`
+      ? `Their strongest days this month are the ${dayList(astro.bestDates)} — worth using for the pitch, the ask, the signature, the conversation that needs its best odds. A strong day is a tailwind, not a guarantee.`
       : 'No days stand out as especially favourable this month, so preparation rather than timing is where their advantage comes from.',
+    // ── how the month opens, turns and closes, in days ──────────────────────
+    opens.length
+      ? `The opening stretch of the month carries ${opens.length > 1 ? `its own good days — the ${dayList(opens)}` : `one day worth using, the ${ordinal(opens[0])}`}, which makes the first week or so better for starting something than for tidying up after it.`
+      : 'The first week of the month is unremarkable, which makes it the right place to prepare rather than to launch.',
+    closes.length
+      ? `The last stretch of the month has weight in it too — the ${dayList(closes)} — so what is left unfinished until then is not necessarily left too late.`
+      : 'The month thins out toward the end, so anything that needs other people should be settled before the final week.',
+    stations.length
+      ? `From around the ${dayList(stations)} the pace of arrangements changes: replies come slower, plans want re-reading, and anything signed in a hurry that week tends to need revisiting. It is a week for confirming rather than assuming.`
+      : 'Arrangements hold their shape this month; what is agreed tends to stay agreed.',
+    gearChanges.length
+      ? `The month does not run at one speed. Around the ${dayList(gearChanges.slice(0, 3))} the tone changes — what mattered the week before quietly stops being the point, and it is worth noticing rather than pushing through.`
+      : 'The month runs at one steady temperature from beginning to end, which is rarer than it sounds and worth using.',
+    inWindow(astro.cautionDates, third + 1, daysIn - third).length
+      ? `The middle of the month is where their judgement is sharpest and also where it is most tested — the ${dayList(inWindow(astro.cautionDates, third + 1, daysIn - third))} in particular reward a slower hand.`
+      : 'The middle of the month is the steadiest part of it, which makes it the right place for the decision that actually matters.',
     astro.cautionDates.length
-      ? `The ${fmtList(astro.cautionDates.map(ordinal))} deserve a slower hand — not dangerous, simply poor value for launches, confrontations and irreversible signatures. Maintenance and rest belong there instead.`
+      ? `The ${dayList(astro.cautionDates)} deserve a slower hand — not dangerous, simply poor value for launches, confrontations and irreversible signatures. Maintenance and rest belong there instead.`
       : 'No days this month press on them particularly hard; ordinary prudence is enough.',
     `${cap(st.strength)} is the quality they can rely on this month, and they may underrate it precisely because it costs them so little effort.`,
     `The one-line brief for the month: ${pick(rng, [
@@ -273,10 +316,16 @@ export function composeMonthlyBrief(
   return {
     month: monthName,
     observations,
-    note: `This is a letter about ${monthName} as a whole. Where specific days are named, name them as days ` +
-      'of the month in ordinary prose — never as a list, never as a table, never as anything a reader ' +
-      'could mistake for a schedule. It should read as one person thinking about the weeks ahead for ' +
-      'someone they know well, not as a month broken into topics.',
+    note: `This is a letter about ${monthName} as a whole, and it should walk the month roughly in ` +
+      'time order — how it opens, where it turns, how it ends — rather than summarising it from ' +
+      'above. The days you have been given are the spine of that: name them as days of the month in ' +
+      'ordinary prose ("the 12th and 13th", "around the 24th"), never as a list, never as a table, ' +
+      'never as anything a reader could mistake for a schedule, and never two of them in a row ' +
+      'without a sentence between that says what to do about the first. Over the month their work, ' +
+      'their money, the people closest to them and their body should each be spoken to once and ' +
+      'properly, in the place in the month where each one actually lands. It should read as one ' +
+      'person thinking about the weeks ahead for someone they know well, not as a month broken into ' +
+      'topics.',
   };
 }
 

@@ -99,6 +99,53 @@ describe('astro-content', () => {
       }
     });
 
+    /**
+     * ── THE MONTH, DATE BY DATE (owner, 6 Sep) ────────────────────────────
+     *
+     * "They should know everything that can happen the entire month, date
+     * wise." `scanMonth` had always found more dated events than the brief was
+     * told about — every ingress and every station — and only the two lunations
+     * reached it. A letter asked to walk the month had four numbers to work
+     * with and nothing about WHEN the month changes character.
+     */
+    it('tells the writer when the month opens, turns, slows and closes', () => {
+      for (const month of [1, 4, 7, 11]) {
+        const text = monthlyOn(chart, born1, 'user-1', month).observations.join('\n');
+        // Days of the month, written as days — the only numbers that reach a
+        // citizen, and the spine the letter is walked along.
+        expect({ month, dated: /\b\d{1,2}(?:st|nd|rd|th)\b/.test(text) }).toEqual({ month, dated: true });
+        /* EACH WINDOW IS SPOKEN TO EITHER WAY. A month with no strong day in
+           its last third does not get silence there — it gets the sentence
+           that says so, which is the more useful half of the pair. April 2026
+           is that month, and it is why this reads for both. */
+        const windows: Array<[string, RegExp]> = [
+          ['opens', /opening stretch|first week of the month is unremarkable/],
+          ['closes', /last stretch|month thins out toward the end/],
+          ['middles', /middle of the month/],
+        ];
+        for (const [window, re] of windows) {
+          expect({ month, window, said: re.test(text) }).toEqual({ month, window, said: true });
+        }
+      }
+    });
+
+    it('translates a station and an ingress instead of naming them', () => {
+      // The kind never travels. A station is "replies come slower"; an ingress
+      // is "the tone changes". A reader must be able to put their diary beside
+      // the letter without ever meeting what produced it — which the banned
+      // vocabulary sweep above enforces for these lines too.
+      const text = monthlyOn(chart, born1, 'user-1', 7).observations.join('\n');
+      expect(/replies come slower|Arrangements hold their shape/.test(text)).toBe(true);
+      expect(/the tone changes|one steady temperature/.test(text)).toBe(true);
+    });
+
+    it('asks for the month walked in order, and for a life covered once', () => {
+      const note = monthlyOn(chart, born1, 'user-1', 7).note;
+      expect(note).toContain('time order');
+      expect(note).toContain('never as a list');
+      expect(note).toMatch(/work, .*money, .*people closest to them and their body/);
+    });
+
     it('the consultation brief is safe to hand to a writer, across every topic', () => {
       const astro = scanMonth(chart, 2026, 7);
       const topics = ['Career', 'Marriage', 'Relationships', 'Business', 'Investments', 'Education',

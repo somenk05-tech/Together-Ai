@@ -593,7 +593,15 @@ export class AstrologyService {
      * material (see letterPrompt). Fewer on each retry: if the last draft could
      * not fit, the answer is less to say, not the same amount said faster.
      */
-    const leadFor = (attempt: number) => Math.max(1, (kind === 'daily' ? 3 : 6) - (attempt - 1));
+    /**
+     * THE MONTHLY LEAD ROSE WITH ITS LENGTH (6 Sep). Six observations was the
+     * right subject for a 300-word month; at 500 the owner asked for the whole
+     * month walked, date by date, across work, money, people and body — and
+     * six leaves the dated material and half the life in the optional pile,
+     * where the brief tells the writer to leave it out. It is the same
+     * contradiction letter-fits.spec was written about, pointing the other way.
+     */
+    const leadFor = (attempt: number) => Math.max(1, (kind === 'daily' ? 3 : 12) - (attempt - 1));
     let feedback = '';
     for (let attempt = 1; attempt <= 3; attempt++) {
       // Title and letter in ONE pass, not two. A title written by a second call
@@ -949,7 +957,8 @@ export class AstrologyService {
     const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, when.at);
     const brief = composeMonthlyBrief(chart, userId, astro, num, dasha);
     const previous = (await this.recentLetters(userId, 'monthly', 2)).map((l) => l.body);
-    const letter = await this.writeLetter('monthly', brief, await this.firstName(userId), previous, 800);
+    // 1400 rather than 800: a 560-word ceiling plus a title does not fit in 800.
+    const letter = await this.writeLetter('monthly', brief, await this.firstName(userId), previous, 1400);
     return letter
       ? { date: AstrologyService.periodKeysAt(when.local).monthly, month: brief.month, ...letter }
       : null;

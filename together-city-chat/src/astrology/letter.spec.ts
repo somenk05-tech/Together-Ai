@@ -1,4 +1,4 @@
-import { DAILY_WORDS, MONTHLY_WORDS, TITLE_WORDS, bannedVocabulary, letterProblems, salutationFor, shingleOverlap, titleProblems, toLetter } from './letter';
+import { DAILY_WORDS, MONTHLY_WORDS, TITLE_WORDS, bannedVocabulary, letterProblems, letterRules, salutationFor, shingleOverlap, titleProblems, toLetter } from './letter';
 
 /**
  * The letter contract, checked.
@@ -77,22 +77,37 @@ const MONTH_BODY = [
   'already committed to actually hold their shape. That is not retreat. It is the month you find out',
   'what is real, which is the only thing that makes the next round of building worth doing.',
   '',
-  'Pay attention to what moves easily and what you keep having to push. The heaviness is rarely a',
-  'sign to try harder; more often it is a sign you are working the wrong angle, and the honest thing',
-  'is to change the angle rather than the effort. Growth here arrives through patience and attention',
-  'rather than force, and it will show up in small ways first — a conversation that goes differently',
-  'because you listened rather than steered it, an old piece of work asking for something you had',
-  'not considered. Those signals are worth more this month than any plan you make at the start of',
-  'it.',
+  'The first week or so is better for starting than for tidying up after, and the 4th and 6th are',
+  'the two days in it worth spending on something that matters rather than something that merely',
+  'feels urgent. Pay attention to what moves easily and what you keep having to push. The heaviness',
+  'is rarely a sign to try harder; more often it is a sign you are working the wrong angle, and the',
+  'honest thing is to change the angle rather than the effort.',
   '',
-  'The middle of the month is where your judgement is sharpest, and it is worth saving the',
-  'conversation that genuinely matters for then rather than spending it early on something that only',
-  'feels urgent. Money and commitments both reward the slower read. With the people close to you,',
-  'the small attentive thing lands better than the grand one, as it nearly always does with you.',
+  'Around the 11th the month quietly changes gear. What mattered the week before stops being the',
+  'point, and it is worth noticing that rather than pushing through it. From about the 14th replies',
+  'come slower and plans want re-reading — anything agreed in a hurry that week tends to want',
+  'revisiting, so confirm rather than assume, and leave a day of slack where you would normally',
+  'leave none. The 12th and 13th are the sharpest days you get for the conversation that genuinely',
+  'needs its best odds; save it for then rather than spending it early.',
   '',
-  'Keep one evening a week genuinely free. It is the first thing you will cut, and by September it',
-  'will have been the thing that made the difference — not because rest is virtuous, but because you',
-  'think better when you are not owed to anybody.',
+  'At work, the thing that pays this month is proving that what you have already made can be relied',
+  'on. Close the oldest open promise on your list before you accept a new one — that single act will',
+  'do more for how you are seen than anything you could start instead. Money rewards the slower read',
+  'here too. Expansion is worth it on things that keep their value and expensive on things that',
+  'merely feel like progress, and the purchase that supposedly cannot wait until the 24th is exactly',
+  'the one that should.',
+  '',
+  'With the people closest to you, the small attentive thing lands better than the grand one, as it',
+  'nearly always does with you. Around the 18th something already present at home becomes visible',
+  'rather than something new appearing; it is a good week to say the plain version of what you want',
+  'instead of hoping it is guessed. Your own steadiness is the quality carrying all of this, and you',
+  'will probably underrate it because it costs you so little effort.',
+  '',
+  'Keep one evening a week genuinely free, and keep your body in the arrangement rather than paying',
+  'for the month afterwards — three honest walks a week will hold you better than one heroic',
+  'weekend. That free evening is the first thing you will cut, and by September it will have been',
+  'the thing that made the difference: not because rest is virtuous, but because you think better',
+  'when you are not owed to anybody.',
 ].join('\n');
 
 const good = (name = 'Somen') => `${salutationFor(name)}\n\n${DAILY_BODY}`;
@@ -243,9 +258,31 @@ describe('the letter contract', () => {
      * A later edit that quietly restores 430-word dailies would otherwise pass
      * every test in this file — each one is written against the constants.
      */
+    /**
+     * THE TWO KINDS ARE WRITTEN TO DIFFERENT BRIEFS, and the rule that says so
+     * is the one most likely to be lost in an edit: a daily has 150 words and
+     * must choose ONE thing; a month has 560 and must walk the weeks with the
+     * days named. Handing the daily's discipline to the month is exactly how
+     * this page ended up summarising a month in three hundred words.
+     */
+    it('asks a day for one thing and a month for the whole of it', () => {
+      const day = letterRules('daily', 'Somen');
+      const month = letterRules('monthly', 'Somen');
+      expect(day).toContain('choose the ONE thing worth saying');
+      expect(month).not.toContain('choose the ONE thing worth saying');
+      expect(month).toContain('A MONTH IS WALKED, NOT SUMMARISED');
+      expect(month).toContain('roughly in time order');
+      expect(month).toContain('COVER THEIR LIFE, NOT ONE CORNER OF IT');
+      // The dates are named the way a person names them, never as a schedule.
+      expect(month).toContain('never as a list, never as a schedule');
+      // And the length each is held to travels with the rules.
+      expect(day).toContain(`Between ${DAILY_WORDS.min} and ${DAILY_WORDS.max} words`);
+      expect(month).toContain(`Between ${MONTHLY_WORDS.min} and ${MONTHLY_WORDS.max} words`);
+    });
+
     it('is holding the short letter the owner asked for', () => {
       expect(DAILY_WORDS).toEqual({ min: 80, max: 150 });
-      expect(MONTHLY_WORDS).toEqual({ min: 240, max: 320 });
+      expect(MONTHLY_WORDS).toEqual({ min: 440, max: 560 });
     });
   });
 
