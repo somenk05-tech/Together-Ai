@@ -108,11 +108,26 @@ export const fitnessApi = {
 export function useFitnessProfile() {
   return useQuery({ queryKey: ['fitness', 'profile'], queryFn: () => fitnessApi.profile() });
 }
+/**
+ * THE PLAN FOLLOWS THE PROFILE (owner, 6 Sep: "updating profile does not
+ * update the workout plan"). This invalidated the week and nothing else, and
+ * queries are fresh for thirty seconds: save Advanced + Weight training +
+ * Strength, walk to Workout, and today's session — built from the very
+ * profile just saved, and from the week the save just re-cut — came back out
+ * of the cache as it was. Everything in this hub that is BUILT FROM the
+ * profile is stale the moment the profile changes: the week, today's
+ * session, the body programme. Only the profile itself is written, not
+ * refetched, because the server has just returned it.
+ */
 export function useSaveFitnessProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: fitnessApi.saveProfile,
-    onSuccess: (p) => { qc.setQueryData(['fitness', 'profile'], p); void qc.invalidateQueries({ queryKey: ['fitness', 'plan'] }); void qc.invalidateQueries({ queryKey: ['profile'] }); },
+    onSuccess: (p) => {
+      qc.setQueryData(['fitness', 'profile'], p);
+      void qc.invalidateQueries({ queryKey: ['fitness'], predicate: (q) => q.queryKey[1] !== 'profile' });
+      void qc.invalidateQueries({ queryKey: ['profile'] });
+    },
   });
 }
 export function useFitnessPlan() {
@@ -136,7 +151,9 @@ export function useAddWorkout() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: fitnessApi.addLog,
-    onSuccess: (l) => qc.setQueryData(['fitness', 'log'], l),
+    // The session reads the log — "you have not logged a session in the last
+    // week" and the easing that follows from it — so a new entry re-cuts it.
+    onSuccess: (l) => { qc.setQueryData(['fitness', 'log'], l); void qc.invalidateQueries({ queryKey: ['fitness', 'session'] }); },
   });
 }
 /* AN ENTRY IS ITS OWNER'S TO CHANGE (owner, 17 Aug). Both write the whole fresh
@@ -148,14 +165,14 @@ export function useEditWorkout() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: fitnessApi.editLog,
-    onSuccess: (l) => qc.setQueryData(['fitness', 'log'], l),
+    onSuccess: (l) => { qc.setQueryData(['fitness', 'log'], l); void qc.invalidateQueries({ queryKey: ['fitness', 'session'] }); },
   });
 }
 export function useRemoveWorkout() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: fitnessApi.removeLog,
-    onSuccess: (l) => qc.setQueryData(['fitness', 'log'], l),
+    onSuccess: (l) => { qc.setQueryData(['fitness', 'log'], l); void qc.invalidateQueries({ queryKey: ['fitness', 'session'] }); },
   });
 }
 

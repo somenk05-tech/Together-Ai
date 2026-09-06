@@ -76,8 +76,10 @@ describe('a workout has a place', () => {
     // The week's minutes are the server's answer after every mutation, so the
     // total and the row that changed can never disagree. This page has never
     // computed a target and must not start.
-    expect(api).toMatch(/mutationFn: fitnessApi\.editLog,\s*onSuccess: \(l\) => qc\.setQueryData\(\['fitness', 'log'\], l\)/);
-    expect(api).toMatch(/mutationFn: fitnessApi\.removeLog,\s*onSuccess: \(l\) => qc\.setQueryData\(\['fitness', 'log'\], l\)/);
+    // The log is written straight from the server's answer; the session that
+    // reads it is invalidated beside it (6 Sep) rather than summed here.
+    expect(api).toMatch(/mutationFn: fitnessApi\.editLog,\s*onSuccess: \(l\) => \{ qc\.setQueryData\(\['fitness', 'log'\], l\);/);
+    expect(api).toMatch(/mutationFn: fitnessApi\.removeLog,\s*onSuccess: \(l\) => \{ qc\.setQueryData\(\['fitness', 'log'\], l\);/);
     expect(page).not.toMatch(/reduce\(/);
   });
 
