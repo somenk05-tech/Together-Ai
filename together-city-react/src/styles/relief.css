@@ -1455,11 +1455,80 @@ img[src$=".svg"], .no-case {
   max-width: 1800px; margin: 0 auto;
   padding: clamp(20px, 2.2vw, 34px) clamp(16px, 2vw, 36px) clamp(8px, 1.1vw, 14px);
 }
+/* ── THREE TO A ROW (owner's card reference, 6 Sep) ──────────────────────
+   The run was one full-bleed billboard per row, stacked: fourteen
+   commissioned pictures at their own height, which is twelve thousand pixels
+   of scroll to see a city that fits on one screen. It is a grid of cards now,
+   three across, on the owner's reference — a photograph inset on a white
+   card with a small tracked label and one sentence under it.
+
+   1240 rather than 1800: three cards on an 1800px row are 580px each, which
+   is a billboard again with two friends. The measure that makes a card read
+   as a card is the card being smaller than the thing it is a picture of. */
 .district-run {
-  display: flex; flex-direction: column; gap: clamp(16px, 1.8vw, 28px);
-  max-width: 1800px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(16px, 1.8vw, 26px);
+  max-width: 1240px; margin: 0 auto;
   padding: 0 clamp(16px, 2vw, 36px) clamp(28px, 3vw, 48px);
 }
+/* Two, then one, in ONE block rather than two. Three cards on a phone is three
+   columns of thumbnail — a picture stops being a picture somewhere around
+   200px and the sentence under it breaks every second word — but a second
+   boundary at 560 to say so costs a breakpoint the ceiling is not willing to
+   spend, and `auto-fill` already knows: 230px is the width below which a card
+   is not one, so the row holds two on a tablet and one on a phone without
+   being told where the phone starts. */
+@media (max-width: 899px) {
+  .district-run { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+}
+/* The head sits over the cards rather than over a 1800px billboard. */
+.district-head { max-width: 1240px; }
+
+/* ── THE CARD ─────────────────────────────────────────────────────────────
+   White paper, one soft depth, and the photograph inset on all four sides so
+   the paper shows around it. That inset is the entire idea: full-bleed art
+   makes the picture the card, and the reference's card is a card WITH a
+   picture on it — which is what lets a small tracked label and one sentence
+   sit underneath without looking like a caption bar bolted to a billboard. */
+.district-card {
+  display: flex; flex-direction: column; box-sizing: border-box;
+  padding: clamp(9px, .8vw, 12px);
+  border-radius: clamp(20px, 2vw, 28px);
+  background: var(--paper); box-shadow: var(--e2);
+  color: inherit; text-decoration: none;
+  transition: box-shadow var(--dur-base) var(--ease), transform var(--dur-base) var(--ease);
+}
+.district-card:hover { box-shadow: var(--e3); transform: translateY(-3px); }
+.district-card:focus-visible { outline: none; box-shadow: var(--e3), 0 0 0 3px rgba(0,0,0,.16); }
+/* Not a door: a card you cannot open must not lift under a finger. */
+.district-card.is-soon { cursor: default; }
+.district-card.is-soon:hover { box-shadow: var(--e2); transform: none; }
+/* ONE FIXED RATIO, AND IT IS THE TILE'S OWN — 560x239, every one of the
+   fourteen. A fixed ratio is what a grid needs: uncropped was right when each
+   picture had a row to itself, and in a row of three, fourteen different
+   heights is fourteen different cards.
+
+   IT IS THE TILE'S RATIO RATHER THAN A NICER ONE BECAUSE THESE ARE
+   BILLBOARDS. A 16:10 box was tried first and `cover` took the sides off every
+   plate — "Talk to ASTRA" arrived as "alk to ASTRA". The art has words painted
+   in it, so the box is the art's shape and nothing is cropped at all. */
+.district-card-art {
+  display: block; position: relative; overflow: hidden;
+  border-radius: clamp(14px, 1.4vw, 20px);
+  aspect-ratio: 560 / 239; background: var(--well);
+  box-shadow: var(--e1);
+}
+.district-card-art img {
+  display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit;
+}
+.district-card-foot { display: block; padding: clamp(14px, 1.3vw, 18px) clamp(8px, .7vw, 10px) clamp(10px, 1vw, 14px); }
+.district-card-name {
+  display: block; font-size: 11px; font-weight: 800; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
+}
+/* The sentence, in the reference's two weights: the setup steps back, the
+   payoff is the ink. `.district-card-lead` is the half that steps back. */
+.district-card-line { display: block; font-size: 15px; line-height: 1.45; font-weight: 600; color: var(--ink); }
+.district-card-lead { font-weight: 500; color: var(--muted); }
 /* ── THE DISTRICTS GO EDITORIAL ──────────────────────────────────────────
    The owner's reference is a fashion hero: one full-bleed photograph, the
    words set ON it at the left, and a single white pill. This REVERSES a
@@ -1527,31 +1596,12 @@ img[src$=".svg"], .no-case {
    phone foot — the blur band stayed put and the white line landed underneath
    it on grey. Caught in the harness, not in review. */
 
-/* ── what stays the DISTRICT'S own: its shape and its link behaviour ── */
-.district-plate { display: block; color: inherit; text-decoration: none; animation: none; }
-/* The districts take the picture's own height too. This was 21/9 with the crop
-   anchored at 26% from the top — a rule whose entire job was to keep each
-   hub's painted NAME out of the bite, because a centred crop was eating it on
-   Medical, Beauty, Financial and Jobs. Nothing is being cropped now, so there
-   is nothing to anchor.
-
-   TWELVE UNCROPPED PANELS ARE A LONGER PAGE, and that was the original
-   argument for 21:9 — twelve thresholds at full height is a lot of scroll. It
-   is the owner's call and it is the right one: the alternative is showing
-   eleven twelfths of twelve commissioned pictures in order to save a swipe. */
-.district-plate .hub-plate-art img { height: auto; }
-.district-plate:hover { box-shadow: var(--e3), 0 30px 70px rgba(0,0,0,.06); }
-.district-plate:hover .hub-plate-go { box-shadow: var(--loud-case); }
-@media (hover: hover) and (pointer: fine) {
-  .district-plate:hover .hub-plate-go { background: var(--calm-face-hover); color: var(--ink); }
-}
-.district-plate:focus-visible { outline: none; box-shadow: var(--e3), 0 0 0 3px rgba(0,0,0,.16); }
-
-/* Not a door. A plate you cannot open must not offer a button that looks
-   pressable — the CTA reads as a label and the whole plate stops lifting. */
-.district-plate.is-soon { cursor: default; }
-.district-plate.is-soon:hover { box-shadow: var(--e3); }
-.district-plate.is-soon:hover .hub-plate-go { background: var(--calm-face); color: var(--muted); box-shadow: var(--calm-case); }
+/* THE DISTRICT PLATE IS GONE (6 Sep). Everything that stood here dressed the
+   homepage run as a stack of full-bleed billboards — the picture's own height,
+   the hover lift on the plate, the four states of the Explore pill. The run is
+   a grid of cards now and wears `.district-card` above; `.hub-plate` and its
+   art keep every rule they had, because the per-hub landing is still a
+   billboard and always was the one this shape was right for. */
 
 
 /* ══ A WALL OF PICTURES, IN THE HUB'S LANGUAGE ═══════════════════════════
@@ -4470,7 +4520,7 @@ textarea.g-field { resize: none; line-height: 1.55; }
      pill it named is gone; the plate's own lift is what is left to cancel, so
      the guarantee moves onto that rather than leaving with the rule that
      happened to be holding it. Caught by the guard, which is the point of it. */
-  .district-plate:hover { transform: none; }
+  .district-card:hover { transform: none; }
 }
 
 /* ══ THE BEAUTY WALL ════════════════════════════════════════════════════════

@@ -113,6 +113,32 @@ function districtName(key: HubKey): string {
   return DISTRICT_COPY[key]?.name ?? HUBS[key].name;
 }
 
+/** The district's one sentence. The hub's own tag stands in where the master
+ *  list has not given the district a line (Local Services, deliberately). */
+function districtLine(key: HubKey): string {
+  return DISTRICT_COPY[key]?.line ?? HUBS[key].tag;
+}
+
+/**
+ * WHERE THE SENTENCE TAKES ITS WEIGHT (owner's card reference, 6 Sep).
+ *
+ * The reference sets its line in two weights — the setup grey, the payoff
+ * black — and that is what makes a two-line caption read as a caption rather
+ * than a paragraph. These lines are already written for it: "Your stars. Your
+ * journey. Your timing." and "Your food, personalized to you." both end on the
+ * part worth reading twice.
+ *
+ * So the split is the last sentence, or failing that the last clause, and the
+ * emphasis is on what comes after it. A line with neither — one plain sentence
+ * — is set whole in the darker ink rather than being cut somewhere arbitrary,
+ * because a break invented to satisfy a rule is worse than no break.
+ */
+export function splitDistrictLine(line: string): { lead: string; emph: string } {
+  const at = Math.max(line.lastIndexOf('. ', line.length - 2), line.lastIndexOf(', '));
+  if (at < 0) return { lead: '', emph: line };
+  return { lead: line.slice(0, at + 1), emph: line.slice(at + 1).trim() };
+}
+
 interface Panel { key: HubKey; img: string; }
 const PANELS: Panel[] = [
   // No travel plate: the district left the walk (owner, 15 Aug).
@@ -303,42 +329,45 @@ export function Home() {
             const cfg = HUBS[p.key];
             const soon = cfg.items.length === 0;   // a hub with no inner pages is not yet a room
             const name = districtName(p.key);
+            const { lead, emph } = splitDistrictLine(districtLine(p.key));
             // A room nobody can enter is not linked, only labelled. No district
             // is in that state today; the branch stays because the next one to
             // be built will pass through it before its pages exist.
             const to = soon ? null : (cfg.items[0]?.path ?? cfg.backPath);
             const inner = (
               <>
-                <div className="hub-plate-art">
-                  {/* A panel waiting on its photo is a lit stage, not a grey hole
-                      (consumer review #4): the well is already there and the
-                      picture fades onto it when it arrives. */}
-                  <img className="no-case" src={img(p.img)} alt=""
-                    loading={panelIndex < 2 ? 'eager' : 'lazy'} decoding="async"
+                {/* THE PICTURE IS INSET, NOT FULL-BLEED, and that is the whole
+                    difference between this and the billboard it replaces: the
+                    card's own paper shows on all four sides of the photograph,
+                    which is what makes the picture read as a thing resting on
+                    a card rather than as the card itself.
+
+                    THE TILE, NOT THE PLATE. These panels were the full
+                    billboard art — 200KB and 1800px wide — laid out one to a
+                    row. Three to a row they are ~380px across, so the tile
+                    variant is not a compromise, it is the correct file: every
+                    one is under 40KB and `a-grid-tile-is-not-a-photograph`
+                    holds them there. */}
+                <span className="district-card-art">
+                  <img className="no-case" src={img(p.img.replace(/\.webp$/, '-tile.webp'))} alt=""
+                    loading={panelIndex < 3 ? 'eager' : 'lazy'} decoding="async"
                     style={{ opacity: 0, transition: 'opacity .5s ease' }}
                     onLoad={(e) => { e.currentTarget.style.opacity = '1'; }} />
-                </div>
-                {/* ── ONE CONTROL, ON THE PICTURE, NAMING WHERE IT GOES ──
-                    The foot bar went with the gradient (owner, 17 Aug). It
-                    carried the district's name and its line over a white strip
-                    under the photograph — and every hero in this batch paints
-                    its own name across its facade, so the strip was saying it
-                    twice on one screen.
-
-                    THE NAME IS NOT LOST WITH IT. It is inside this button,
-                    which makes it the accessible name of the link as well as
-                    the visible one: "Explore Astrology" rather than the twelfth
-                    identical "Explore" on the page. Which is also why the
-                    photograph keeps `alt=""` — it is decorative HERE, because
-                    the thing it depicts is named a line below it. */}
-                <span className="hub-plate-go">
-                  {soon ? 'Coming soon' : <>Explore <i>{name}</i></>}
+                </span>
+                {/* The district's name is the card's label and the link's own
+                    accessible name — no "Explore" pill to say it a second time,
+                    which is what the reference card does not have either. */}
+                <span className="district-card-foot">
+                  <span className="district-card-name">{soon ? `${name} · coming soon` : name}</span>
+                  <span className="district-card-line">
+                    {lead && <span className="district-card-lead">{lead} </span>}{emph}
+                  </span>
                 </span>
               </>
             );
             return to
-              ? <Link key={p.key} to={to} className="hub-plate district-plate">{inner}</Link>
-              : <div key={p.key} className="hub-plate district-plate is-soon">{inner}</div>;
+              ? <Link key={p.key} to={to} className="district-card">{inner}</Link>
+              : <div key={p.key} className="district-card is-soon">{inner}</div>;
           })}
         </div>
       </section>
