@@ -2258,40 +2258,35 @@
 }
 
 /* ── THE RUNNER IS A TELEVISION (owner, 6 Sep) ─────────────────────────────
-   The set's own room and screen (social.css: .tv-room, .tv-screen, .tv-media)
-   with the film edge to edge on black, and one panel down the right for
-   everything that used to sit over the picture — the same object as the
-   set's What's next: the face, the ink, the third depth. The link on the
-   plan is the hub's accent, small, beside the target. */
-.wk-run .tv-screen { right: min(380px, 42%); }
+   The set's own room, screen, top row, caption band, progress line and
+   remote (social.css: .tv-room, .tv-screen, .tv-media, .tv-room-top,
+   .tv-caption, .tv-progress, .tv-bar), portalled to the body like the set.
+   The film fills the screen; the words and the clock sit in the caption
+   band at the foot; the keys are the remote. Nothing here is a second idiom:
+   every colour is the set's, and the two rules that are the runner's own
+   are the clock's size and the steps' two columns. */
 .wk-screen-shot { position: absolute; inset: 0; margin: 0; display: grid; place-content: center; gap: 10px; text-align: center; }
 .wk-screen-shot img { width: min(60vmin, 420px); height: auto; aspect-ratio: 1; border-radius: var(--r-3); }
-.wk-screen-shot figcaption { font-size: var(--fs-1); color: var(--muted); }
+.wk-screen-shot figcaption { font-size: var(--fs-1); color: var(--on-accent); opacity: .6; }
 .wk-screen-name { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; font-size: clamp(30px, 6vw, 64px); font-weight: 700; letter-spacing: -.02em; }
-.wk-side {
-  position: absolute; top: calc(14px + var(--safe-top)); right: 14px; bottom: calc(14px + var(--safe-bottom));
-  width: min(360px, calc(42% - 28px)); display: flex; flex-direction: column; gap: 8px;
-  padding: 14px 16px; border-radius: var(--r-4); background: var(--face); color: var(--ink); box-shadow: var(--e3);
-  overflow-y: auto;
-}
-.wk-side-top { display: flex; align-items: center; justify-content: space-between; font-size: var(--fs-1); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
-.wk-side-top .tv-key { color: var(--ink); }
-.wk-side-block { font-size: var(--fs-1); letter-spacing: .12em; text-transform: uppercase; color: var(--accent-ink); font-weight: 700; margin-top: 6px; }
-.wk-side-name { font-size: var(--fs-8); font-weight: 700; line-height: 1.1; letter-spacing: -.02em; margin: 0; }
-.wk-side-target { font-size: var(--fs-5); font-weight: 700; color: var(--ok-ink); }
-.wk-side-clock { font-size: clamp(48px, 7vw, 84px); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1; margin: 6px 0 2px; }
-.wk-side-bar { height: 6px; border-radius: var(--r-full); background: var(--line); overflow: hidden; }
-.wk-side-bar span { display: block; height: 100%; background: var(--ok-line); }
-.wk-side-next { font-size: var(--fs-3); color: var(--muted); }
-.wk-side-steps { margin: 8px 0 0; padding-left: 18px; font-size: var(--fs-3); line-height: 1.5; display: grid; gap: 4px; }
-.wk-side-muscles { font-size: var(--fs-1); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-.wk-side-keys { margin-top: auto; padding-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
-.wk-side-keys button {
+.wk-top-step { align-self: center; font-size: var(--fs-1); letter-spacing: .16em; text-transform: uppercase; color: var(--on-accent); opacity: .8; }
+.wk-cap { z-index: 2; padding-bottom: calc(96px + var(--safe-bottom)); }
+.wk-cap-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
+.wk-cap-words { min-width: 0; }
+.wk-cap-name { margin: 0; font-size: clamp(24px, 3.4vw, 40px); font-weight: 700; line-height: 1.1; letter-spacing: -.02em; }
+.wk-cap .wk-cap-target { margin-top: 4px; font-weight: 700; color: var(--ok-line); }
+.wk-cap .wk-cap-next { margin-top: 2px; font-size: var(--fs-3); opacity: .7; }
+.wk-cap-clock { flex: none; font-size: clamp(48px, 8vw, 96px); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1; }
+.wk-cap-steps { margin: 12px 0 0; padding-left: 18px; font-size: var(--fs-3); line-height: 1.5; columns: 2; column-gap: 28px; max-width: 900px; }
+.wk-cap-steps li { break-inside: avoid; }
+.wk-cap .wk-cap-muscles { margin-top: 8px; font-size: var(--fs-1); letter-spacing: .12em; text-transform: uppercase; opacity: .7; }
+.wk-keys button {
   cursor: pointer; font-family: inherit; font-weight: 700; font-size: var(--fs-3);
-  padding: 9px 13px; border-radius: var(--r-full); border: 1px solid var(--line); background: transparent; color: var(--ink);
+  padding: 10px 16px; border-radius: var(--r-full); border: 0; background: none; color: var(--on-accent);
 }
-.wk-side-keys button.is-done { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.wk-side-keys button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wk-keys button:hover { background: var(--scrim-deep); }
+.wk-keys button.is-done { background: var(--on-accent); color: var(--ink); }
+.wk-keys button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .wk-film-link {
   flex: none; font-size: var(--fs-2); font-weight: 700; letter-spacing: .06em;
   text-transform: uppercase; color: var(--accent-ink); text-decoration: none;
@@ -2299,10 +2294,8 @@
 }
 .wk-film-link:hover, .wk-film-link:focus-visible { border-color: var(--accent-ink); outline: none; }
 @media (max-width: 899px) {
-  /* The screen takes the upper half, the panel the lower — a phone is tall. */
-  .wk-run .tv-screen { right: 0; bottom: 52%; }
-  .wk-side { top: 48%; left: 10px; right: 10px; bottom: calc(10px + var(--safe-bottom)); width: auto; }
-  .wk-side-clock { font-size: var(--fs-9); }
+  .wk-cap-steps { columns: 1; }
+  .wk-cap { padding-bottom: calc(150px + var(--safe-bottom)); }
 }
 
 /* ── THE THUMB GETS THE 44px IT WAS PROMISED, WITHOUT THE PILLS GROWING ─────

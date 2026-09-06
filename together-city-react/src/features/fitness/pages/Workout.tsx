@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui';
 import { EXERCISE_MEDIA_ATTRIBUTION, useAddWorkout, useTodaySession, type TodaySession } from '../api';
@@ -534,22 +535,23 @@ export function Workout() {
       </div>
 
       {/* ── THE RUNNER IS A TELEVISION (owner, 6 Sep: "use the Together City
-          TV format for this section, with the timer and the workout text on
-          the side"). The same room the set lives in: the film fills the
-          screen edge to edge on black, and everything that was over it — the
-          block, the name, the target, the clock, the progress, what is next,
-          the steps, the keys — sits in one panel down the right, the way the
-          set's What's next does. A movement with no film shows its animation
-          on the screen instead, or its name. On a phone the panel takes the
-          lower half and the screen the upper. */}
-      {running && s && (
+          TV format for this section", then "no white zone, everything below
+          the full-screen video, uniform, with a timer"). The set's own room,
+          PORTALLED TO THE BODY the way the set is — the shell's column is a
+          containing block, and a fixed room inside it was a television in a
+          box with the header above it and a white gutter beside it. The film
+          fills the screen; the block, the name, the target, the clock, what
+          is next and the steps sit in the caption band at the foot, the way
+          the set's captions do; the keys are the remote. A movement with no
+          film shows its animation on the screen, or its name. */}
+      {running && s && createPortal(
         <div className="tv-room wk-run">
           <div className="tv-screen">
             {filmSrc ? (
               <>
-                {/* Decorative to a screen reader — the steps in the panel are
-                    the instructions — so it carries no track. Keyed on the
-                    clip so the next filmed step starts from the top. */}
+                {/* Decorative to a screen reader — the steps in the caption
+                    are the instructions — so it carries no track. Keyed on
+                    the clip so the next filmed step starts from the top. */}
                 <video key={filmSrc} ref={film} className="tv-media" src={filmSrc} loop playsInline preload="auto" aria-hidden />
                 {needsTap && (
                   <button type="button" className="tv-sound" onClick={() => { setNeedsTap(false); void film.current?.play().catch(() => setNeedsTap(true)); }}>▶ Tap to play</button>
@@ -564,35 +566,43 @@ export function Workout() {
             ) : (
               <div className="wk-screen-name">{s.rest ? 'Rest' : s.name}</div>
             )}
+            <div className="tv-progress" aria-hidden><span style={{ width: `${s.dur ? Math.round((1 - rt.current.remain / s.dur) * 100) : 0}%` }} /></div>
           </div>
 
-          <aside className="wk-side" aria-label="This step">
-            <div className="wk-side-top">
-              <span>Step {rt.current.idx + 1} of {rt.current.seq.length}</span>
-              <button type="button" className="tv-key sm" aria-label="End the workout" onClick={() => finish(true)}>✕</button>
+          <div className="tv-room-top">
+            <span className="wk-top-step">Step {rt.current.idx + 1} of {rt.current.seq.length} · {s.block}{s.round ? ` · round ${s.round}` : ''}</span>
+            <button type="button" className="tv-key" aria-label="End the workout" onClick={() => finish(true)}>✕</button>
+          </div>
+
+          <div className="tv-caption wk-cap" aria-live="off">
+            <div className="wk-cap-row">
+              <div className="wk-cap-words">
+                <h2 className="wk-cap-name">{s.rest ? 'Rest' : s.name}</h2>
+                <p className="wk-cap-target">{s.walk ? s.note : s.note ? `Target ${s.note}` : s.reps ? `Target ${s.reps} reps` : s.rest ? 'Recover' : `Hold / go for ${mmss(s.dur)}`}</p>
+                <p className="wk-cap-next">{next ? `Up next: ${next.rest ? 'Rest' : next.name}` : 'Last one!'}</p>
+              </div>
+              <div className="wk-cap-clock">{mmss(rt.current.remain)}</div>
             </div>
-            <div className="wk-side-block">{s.block}{s.round ? ` · round ${s.round}` : ''}</div>
-            <h2 className="wk-side-name">{s.rest ? 'Rest' : s.name}</h2>
-            <div className="wk-side-target">{s.walk ? s.note : s.note ? `Target ${s.note}` : s.reps ? `Target ${s.reps} reps` : s.rest ? 'Recover' : `Hold / go for ${mmss(s.dur)}`}</div>
-            <div className="wk-side-clock">{mmss(rt.current.remain)}</div>
-            <div className="wk-side-bar"><span style={{ width: `${s.dur ? Math.round((1 - rt.current.remain / s.dur) * 100) : 0}%` }} /></div>
-            <div className="wk-side-next">{next ? `Up next: ${next.rest ? 'Rest' : next.name}` : 'Last one!'}</div>
             {/* NOT ON A REST STEP: "Rest" needs no instructions, and the last
                 movement's over it would start the next set early. */}
             {!s.rest && (s.steps?.length ?? 0) > 0 && (
-              <ol className="wk-side-steps">{s.steps!.map((t) => <li key={t}>{t}</li>)}</ol>
+              <ol className="wk-cap-steps">{s.steps!.map((t) => <li key={t}>{t}</li>)}</ol>
             )}
             {!s.rest && (s.muscles?.length ?? 0) > 0 && (
-              <div className="wk-side-muscles">Works {s.muscles!.join(' · ')}</div>
+              <p className="wk-cap-muscles">Works {s.muscles!.join(' · ')}</p>
             )}
-            <div className="wk-side-keys">
+          </div>
+
+          <div className="tv-bar wk-bar">
+            <div className="tv-bar-row wk-keys">
               <button type="button" onClick={() => { rt.current.paused = !rt.current.paused; force(); }}>{rt.current.paused ? '▶ Resume' : '⏸ Pause'}</button>
               <button type="button" onClick={advance}>⏭ Skip</button>
               <button type="button" onClick={skipToWalk}>🚶 To the walk</button>
               <button type="button" className="is-done" onClick={() => { creditCurrent(); advance(); }}>Done ▸</button>
             </div>
-          </aside>
-        </div>
+          </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

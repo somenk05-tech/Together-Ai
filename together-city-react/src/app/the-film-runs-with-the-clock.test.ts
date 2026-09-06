@@ -28,16 +28,22 @@ describe('on the runner', () => {
     expect(social).toMatch(/\.tv-media \{ position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain/);
   });
 
-  it('puts the timer and the words in one panel down the side', () => {
-    expect(page).toMatch(/<aside className="wk-side" aria-label="This step">/);
-    for (const part of ['wk-side-name', 'wk-side-target', 'wk-side-clock', 'wk-side-bar', 'wk-side-next', 'wk-side-steps', 'wk-side-keys']) {
+  it('is portalled to the body, with the words and the clock in the caption band and the keys on the remote', () => {
+    // Owner, 6 Sep: "no white zone, everything below the full-screen video,
+    // uniform, TV format with a timer." The shell's column is a containing
+    // block; a fixed room inside it was a television in a box.
+    expect(page).toMatch(/running && s && createPortal\(/);
+    expect(page).toMatch(/\n {8}document\.body,\n {6}\)\}/);
+    expect(page).toMatch(/<div className="tv-room-top">/);
+    expect(page).toMatch(/<div className="tv-caption wk-cap"/);
+    for (const part of ['wk-cap-name', 'wk-cap-target', 'wk-cap-next', 'wk-cap-clock', 'wk-cap-steps']) {
       expect(page).toMatch(new RegExp(`className="${part}"`));
     }
+    expect(page).toMatch(/<div className="tv-bar wk-bar">/);
+    expect(page).toMatch(/<div className="tv-progress" aria-hidden>/);
+    // The runner brings no room, screen or remote of its own — the set's are the set's.
     const css = read('styles/layout.css');
-    expect(css).toMatch(/\.wk-run \.tv-screen \{ right: min\(380px, 42%\); \}/);
-    expect(css).toMatch(/\.wk-side \{[^}]*position: absolute;[^}]*right: 14px;/);
-    // A phone is tall: the screen takes the top, the panel the bottom.
-    expect(css).toMatch(/@media \(max-width: 899px\) \{[^@]*\.wk-run \.tv-screen \{ right: 0; bottom: 52%; \}/);
+    expect(css).not.toMatch(/^\.wk-run \{|^\.wk-side \{|^\.wk-film \{/m);
   });
 
   it('keeps step with the clock: never on a rest, paused with it, from the top on the next', () => {
