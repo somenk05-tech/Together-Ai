@@ -52,6 +52,17 @@ export class BeautyController {
     return this.beauty.analyzePhotos(user.sub, dto?.photos ?? [], dto?.thumb, dto?.method);
   }
 
+  /** THE BREAKDOWN (6 Sep): the app draws the findings over the citizen's own
+   *  photo after an analysis and sends the picture back to sit beside it. */
+  @Post('photos/breakdown')
+  @UsePipes(new ZodValidationPipe(z.object({
+    entryId: z.string().min(1).max(64),
+    image: z.string().min(32).max(400_000),
+  })))
+  saveBreakdown(@CurrentUser() user: JwtUser, @Body() dto: { entryId: string; image: string }) {
+    return this.beauty.saveBreakdown(user.sub, dto.entryId, dto.image);
+  }
+
   /**
    * The monthly budget, per part of the routine.
    *

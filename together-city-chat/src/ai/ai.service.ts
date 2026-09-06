@@ -36,6 +36,36 @@ export type MenuSuggestion =
   | { ok: true; picks: Array<{ id: string; qty: number }>; why: string }
   | { ok: false; reason: 'off' | 'failed'; detail?: string };
 
+/**
+ * WHERE ON THE FACE (owner, 6 Sep: "for every user create the image with
+ * breaking down the issue on the user's face photo"). Alongside each finding
+ * the review says where on the FIRST photo it is clearest, as a box in the
+ * photo's own fractions: x, y the top-left corner, w, h the size, all 0–1.
+ * The app draws the breakdown — the framed zoom, the caption, the causes —
+ * over the citizen's own photograph from these; nothing is generated.
+ */
+export interface PhotoMark { finding: string; x: number; y: number; w: number; h: number }
+
+/** The boxes the model returned, kept only where they are sane: a known
+ *  finding, inside the photo, at least a few percent wide, at most four. Pure. */
+export function readMarks(raw: unknown, findings: string[]): PhotoMark[] {
+  if (!Array.isArray(raw)) return [];
+  const out: PhotoMark[] = [];
+  for (const m of raw) {
+    if (!m || typeof m !== 'object') continue;
+    const { finding, x, y, w, h } = m as Record<string, unknown>;
+    if (typeof finding !== 'string' || !findings.includes(finding)) continue;
+    if ([x, y, w, h].some((n) => typeof n !== 'number' || !Number.isFinite(n))) continue;
+    const X = Math.min(Math.max(x as number, 0), 1), Y = Math.min(Math.max(y as number, 0), 1);
+    const W = Math.min(w as number, 1 - X), H = Math.min(h as number, 1 - Y);
+    if (W < 0.03 || H < 0.03) continue;
+    if (out.some((o) => o.finding === finding)) continue;
+    out.push({ finding, x: +X.toFixed(3), y: +Y.toFixed(3), w: +W.toFixed(3), h: +H.toFixed(3) });
+    if (out.length === 4) break;
+  }
+  return out;
+}
+
 @Injectable()
 export class AiService {
   private readonly logger = new Logger('AiService');
@@ -756,9 +786,9 @@ export class AiService {
    * AI-generated, so the analysis is only run on authentic, usable photos.
    * Returns detected-attribute tags the caller folds into its assessment.
    */
-  async reviewSkinPhotos(images: { base64: string; mediaType: string }[]): Promise<{ quality: 'ok' | 'unclear' | 'suspect'; findings: string[]; note: string; face: Record<string, string> | null }> {
-    if (!this.client) return { quality: 'ok', findings: [], note: '', face: null };
-    if (!images.length) return { quality: 'unclear', findings: [], note: 'No photo provided.', face: null };
+  async reviewSkinPhotos(images: { base64: string; mediaType: string }[]): Promise<{ quality: 'ok' | 'unclear' | 'suspect'; findings: string[]; note: string; face: Record<string, string> | null; marks: PhotoMark[] }> {
+    if (!this.client) return { quality: 'ok', findings: [], note: '', face: null, marks: [] };
+    if (!images.length) return { quality: 'unclear', findings: [], note: 'No photo provided.', face: null, marks: [] };
     const ALLOWED = ['acne', 'pigmentation', 'wrinkle', 'texture', 'pore', 'redness', 'dehydration', 'dark-circles', 'density', 'thickness', 'hairline', 'scalp', 'dandruff'];
     const FACE_ENUMS: Record<string, string[]> = {
       faceShape: ['oval', 'round', 'square', 'heart', 'oblong', 'diamond'],
@@ -777,7 +807,8 @@ export class AiService {
       'STEP 1 — judge authenticity & clarity: if a photo is blurry, too dark, heavily cropped, or clearly beauty-filtered / smoothed / AI-generated / heavily edited, do NOT analyse it. ' +
       'STEP 2 — only for a clear, authentic, unfiltered photo, list the visible attribute tags. ' +
       'STEP 3 — from the clear face photos, read the facial features for makeup guidance. ' +
-      'Return ONLY JSON {"quality":"ok"|"unclear"|"suspect","findings":string[],"note":string,"face":object|null}. ' +
+      'STEP 4 — for each finding that is visible on the FIRST photo, say where it is clearest: one box per finding, in fractions of that photo\'s width and height (0–1), x,y the top-left corner, w,h the size, tight around the clearest patch (a cheek, a forehead, the area under one eye), at most 4 boxes. ' +
+      'Return ONLY JSON {"quality":"ok"|"unclear"|"suspect","findings":string[],"note":string,"face":object|null,"marks":[{"finding":string,"x":number,"y":number,"w":number,"h":number}]}. ' +
       'quality="unclear" for blurry/dark/unusable; quality="suspect" if it looks filtered or AI-generated; quality="ok" only for a clear authentic photo. ' +
       'findings use ONLY these tags where genuinely visible: ' + ALLOWED.join(', ') + '. Never invent findings; empty findings unless quality="ok". ' +
       'face: only when quality="ok" and a face is clearly visible — keys ' + Object.keys(FACE_ENUMS).join(', ') + ', each value strictly one of its allowed set: ' +
@@ -789,7 +820,7 @@ export class AiService {
       } as unknown as Anthropic.ContentBlockParam));
       const res = await this.createWithFallback({
         model: this.visionModel,
-        max_tokens: 512,
+        max_tokens: 768,
         system: `${system}\n\nRespond with ONLY valid JSON — no prose, no markdown fences.`,
         messages: [{ role: 'user', content: [...blocks, { type: 'text', text: 'Review these photos and return the JSON.' }] }],
       });
@@ -813,10 +844,11 @@ export class AiService {
       // about their own face — the last place to let through "you're perfectly
       // fine" or a sentence about the assistant.
       const note = acceptOrFallback(typeof parsed?.note === 'string' ? parsed.note : '', '', 0);
-      return { quality, findings, note, face };
+      const marks = quality === 'ok' ? readMarks((parsed as { marks?: unknown } | null)?.marks, findings) : [];
+      return { quality, findings, note, face, marks };
     } catch (e) {
       this.logger.warn(`Skin photo review failed: ${(e as Error).message}`);
-      return { quality: 'ok', findings: [], note: '', face: null };
+      return { quality: 'ok', findings: [], note: '', face: null, marks: [] };
     }
   }
 

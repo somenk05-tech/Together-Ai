@@ -486,44 +486,30 @@
    sibling. The guard was written by somebody who had already made this
    mistake; it caught the same one again today, before it shipped. */
 .letter-page {
+  /* THE PAGE IS PLAIN (owner, 6 Sep: "make the astrology page this clean",
+     with a studio's homepage as the reference — white ground, one large
+     headline, air, and nothing else on the page). The photographed paper,
+     the moulded corner and the dialog's shadow all went: a sheet resting on
+     the ground is one more object, and the reference has none. What is left
+     is the ground itself, the label and the title set on the centre line
+     with room above them, and the letter in its measure underneath. The
+     padding stays the way the guard below insists on. */
   background-color: var(--letter-paper);
-  background-image: url('/assets/img/letter-paper.webp');
-  background-size: 512px 512px;
   color: var(--letter-ink);
   min-height: calc(100dvh - var(--header-h) - var(--safe-top, 0px));
   /* Loses to the override below inside the shell, which is where this always
      renders; it is here so the surface is never flush against its own edge if
      it is ever mounted outside one. */
-  padding: clamp(52px, 6.5vw, 96px) 32px clamp(64px, 8vw, 120px);
-  /* THE LETTER JOINS THE MOULDED CITY (owner, 24 Aug: "add neumorphism to
-     these pages too"). The sheet was the one large surface still lying flat
-     after the re-cut — paper pasted onto the page rather than a sheet
-     resting on it. It takes the overlay depth, not the panel one: a letter
-     is the page's single object and has to stand off it the way a dialog
-     does, and the twin relief is cut at the root like every other shadow
-     here, so the day the material moves again this sheet moves with it.
-     The soft corner is the ladder's own fourth step. Nothing else
-     changes — not the measure, the paper texture, the type, or the padding
-     the guard below watches.
-
-     --e2 WAS TRIED FIRST AND READ FLAT (owner, 24 Aug: "the neumorphism
-     for the astrology section", sent with a screenshot of the sheet lying
-     flush). Rendered against the white ground, the panel depth's bright
-     side vanishes into the page and its .18 shade is thinner than the
-     paper's own tint — the sheet read as a cream rectangle with soft
-     corners, which is exactly the flatness the note was about. --e3 is the
-     dialog's cut, and a full-page letter is nearer a dialog than a card:
-     one object, alone on the ground, meant to sit above it. */
-  border-radius: var(--r-4);
-  box-shadow: var(--e3);
+  padding: clamp(72px, 10vw, 150px) 32px clamp(64px, 8vw, 120px);
 }
 .tc-shell .tc-main > .letter-page {
-  padding: clamp(52px, 6.5vw, 96px) 32px clamp(64px, 8vw, 120px);
+  padding: clamp(72px, 10vw, 150px) 32px clamp(64px, 8vw, 120px);
 }
 .letter-inner { max-width: 640px; margin: 0 auto; }
 .letter-label {
   font-size: var(--fs-2); letter-spacing: .3em; text-transform: uppercase;
   color: var(--letter-faint); font-weight: 500; margin: 0 0 28px;
+  text-align: center;
 }
 /* THE ONE PLACE OUTSIDE THE NUTRITION PRESS THAT READS THE DISPLAY SERIF, and
    it is one rule rather than two so the letter's title and the same title in
@@ -532,16 +518,17 @@
 /* The grant moved to the foot of this file when the routine masthead became
    its third place — one rule, three selectors, so none of them can drift. */
 .letter-title {
-  font-size: clamp(36px, 4.4vw, 56px); line-height: 1.06; letter-spacing: -.01em;
-  color: var(--letter-ink); margin: 0 0 46px; text-wrap: balance;
+  font-size: clamp(40px, 5.6vw, 72px); line-height: 1.04; letter-spacing: -.025em;
+  color: var(--letter-ink); margin: 0 0 clamp(56px, 7vw, 96px); text-wrap: balance;
+  text-align: center;
 }
 .letter-page .letter-open { font-size: var(--fs-6); line-height: 1.78; color: var(--letter-ink); margin: 0 0 24px; }
 .letter-page .letter-p { font-size: var(--fs-6); line-height: 1.82; color: var(--letter-ink-soft); margin: 0 0 24px; }
 .letter-page .letter-sign { font-size: var(--fs-6); line-height: 1.78; color: var(--letter-ink-soft); margin: 44px 0 0; }
 .letter-page .letter-link { color: var(--letter-ink); }
 @media (max-width: 640px) {
-  .letter-page { padding: 40px 22px 72px; }
-  .letter-title { font-size: var(--fs-9); margin-bottom: 34px; }
+  .letter-page { padding: 56px 22px 72px; }
+  .letter-title { font-size: var(--fs-9); margin-bottom: 40px; }
   .letter-label { margin-bottom: 20px; }
   .letter-page .letter-open, .letter-page .letter-p, .letter-page .letter-sign { font-size: 16px; }
 }

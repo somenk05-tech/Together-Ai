@@ -6,7 +6,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { ORDER_HISTORY_CAP } from '../shared/paging';
 import { MedicalService } from '../medical/medical.service';
 import { FinancialService } from '../financial/financial.service';
-import { AiService } from '../ai/ai.service';
+import { AiService, type PhotoMark } from '../ai/ai.service';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { beautyGender } from '../profile/sex-and-gender';
 import { clampBudget, planForWire, planWithinBudget, type StoredBudget } from './budget-routine';
@@ -43,9 +43,16 @@ interface BeautyRow {
 export interface AttrSnapshot { key: string; label: string; level: string }
 export interface ProgressEntry {
   id: string; date: string; findings: string[]; score: number; thumb: string | null;
+  /** THE BREAKDOWN (6 Sep): the citizen's own face photo with the findings
+   *  drawn on it — the framed zoom, the caption, the causes — composed by the
+   *  app after the analysis and sent back to sit beside the assessment. A
+   *  JPEG data URL, capped; null until it arrives, and for every older entry. */
+  breakdown?: string | null;
   skinScore?: number; hairScore?: number;
   skin?: AttrSnapshot[]; hair?: AttrSnapshot[]; baseline?: boolean;
 }
+/** A breakdown is a ~720px JPEG; 400 KB of data URL is room for one and not for a photograph. */
+const BREAKDOWN_CAP = 400_000;
 const safeJson = <T>(s: string | null | undefined, fb: T): T => { try { return s ? (JSON.parse(s) as T) : fb; } catch { return fb; } };
 
 /**
@@ -158,6 +165,7 @@ export class BeautyService {
       beautyProfile: {
         findUnique(a: unknown): Promise<BeautyRow | null>;
         upsert(a: unknown): Promise<BeautyRow>;
+        update(a: unknown): Promise<BeautyRow>;
       };
     }).beautyProfile;
   }
@@ -417,7 +425,7 @@ export class BeautyService {
     // other (2 Sep). It is charged at the model call itself now, for every
     // route in the city — AiService.meter(), 4 Sep — so nothing is spent
     // here: a second charge would bill a photo twice.
-    const review = images.length ? await this.ai.reviewSkinPhotos(images) : { quality: 'ok' as const, findings: [] as string[], note: '', face: null as Record<string, string> | null };
+    const review = images.length ? await this.ai.reviewSkinPhotos(images) : { quality: 'ok' as const, findings: [] as string[], note: '', face: null as Record<string, string> | null, marks: [] as PhotoMark[] };
     const rejected = review.quality === 'suspect' || review.quality === 'unclear';
     const warning = review.quality === 'suspect'
       ? 'These photos look filtered or AI-generated — please upload clear, unedited photos of yourself for an accurate analysis.'
@@ -502,7 +510,27 @@ export class BeautyService {
       ...(await this.getProfile(userId)), photoFindings: findings, aiUsed: this.ai.enabled && images.length > 0, quality: review.quality, warning,
       priceInr: rejected ? 0 : priceInr,
       ...(payment ? { payment } : {}),
+      // WHERE ON THE FACE (6 Sep): the boxes the review drew on the first
+      // photo, and the entry they belong to, so the app can compose the
+      // breakdown from the photo it still holds and send it back.
+      marks: rejected ? [] : review.marks ?? [],
+      entryId: rejected ? null : nextProgress[nextProgress.length - 1]?.id ?? null,
     };
+  }
+
+  /** The composed breakdown, kept beside the assessment it was drawn for.
+   *  Only the citizen's own entry, only a JPEG data URL, only once — the first
+   *  image to arrive for an entry is the one that stays. */
+  async saveBreakdown(userId: string, entryId: string, image: string) {
+    if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(image) || image.length > BREAKDOWN_CAP) throw new BadRequestException('The breakdown must be a JPEG under 400 KB.');
+    const existing = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
+    const progress = safeJson<ProgressEntry[]>(existing?.progressJson, []);
+    const entry = progress.find((e) => e.id === entryId);
+    if (!existing || !entry) throw new BadRequestException('That assessment is not on your timeline.');
+    if (entry.breakdown) return { ok: true, kept: false };
+    entry.breakdown = image;
+    await this.beauty.update({ where: { userId }, data: { progressJson: JSON.stringify(progress) } });
+    return { ok: true, kept: true };
   }
 
   // ─────────────── biomarker insights (consent-gated) ───────────────

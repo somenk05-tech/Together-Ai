@@ -34,13 +34,16 @@ export interface BeautyAssessment {
   cautions: string[];
 }
 export interface BeautyPhotoRow { slot: string; analyzedAt: string; findings: string[] }
-export interface BeautyProgressEntry { id: string; date: string; findings: string[]; score: number; thumb: string | null }
+/** `breakdown` (6 Sep): the citizen's own photo with the findings drawn on it, a JPEG data URL — see breakdown.ts. */
+export interface BeautyProgressEntry { id: string; date: string; findings: string[]; score: number; thumb: string | null; breakdown?: string | null }
+/** Where on the front photo a finding is clearest, in the photo's own fractions (0–1). */
+export interface BeautyPhotoMark { finding: string; x: number; y: number; w: number; h: number }
 /** Permanent skin & hair timeline (baseline + follow-ups, never overwritten). */
 export interface BeautyAttrSnapshot { key: string; label: string; level: string }
 export interface BeautyTimelineEntry {
   id: string; date: string; index: number; label: string; baseline: boolean;
   score: number; skinScore?: number; hairScore?: number;
-  skin?: BeautyAttrSnapshot[]; hair?: BeautyAttrSnapshot[]; thumb: string | null; findings: string[];
+  skin?: BeautyAttrSnapshot[]; hair?: BeautyAttrSnapshot[]; thumb: string | null; findings: string[]; breakdown?: string | null;
 }
 export interface BeautyAttrCompare { key: string; label: string; from: string | null; to: string; direction: string; delta: number }
 export interface BeautyComparison { skin: BeautyAttrCompare[]; hair: BeautyAttrCompare[]; skinDelta: number; hairDelta: number; summary: string }
@@ -312,7 +315,10 @@ export const beautyApi = {
   saveProfile: (input: Record<string, unknown>) =>
     api.put<BeautyProfile>('/beauty/profile', input).then((r) => r.data),
   analyzePhotos: (photos: { slot: string; base64: string; mediaType?: string }[], thumb?: string, method?: 'wallet' | 'card') =>
-    api.post<BeautyProfile & { photoFindings: string[]; aiUsed: boolean; quality: 'ok' | 'unclear' | 'suspect'; warning: string; priceInr: number; payment?: { method: 'wallet' | 'card'; balanceInr: number } }>('/beauty/photos/analyze', { photos, thumb, method }).then((r) => r.data),
+    api.post<BeautyProfile & { photoFindings: string[]; aiUsed: boolean; quality: 'ok' | 'unclear' | 'suspect'; warning: string; priceInr: number; payment?: { method: 'wallet' | 'card'; balanceInr: number }; marks: BeautyPhotoMark[]; entryId: string | null }>('/beauty/photos/analyze', { photos, thumb, method }).then((r) => r.data),
+  /** The composed breakdown, sent back to sit beside the assessment it was drawn for. */
+  saveBreakdown: (entryId: string, image: string) =>
+    api.post<{ ok: true; kept: boolean }>('/beauty/photos/breakdown', { entryId, image }).then((r) => r.data),
   history: () => api.get<BeautyHistory>('/beauty/history').then((r) => r.data),
   deleteLatestAssessment: () => api.delete<BeautyProfile>('/beauty/assessments/latest').then((r) => r.data),
   makeupLook: (occasion?: string) => api.get<MakeupLook>('/beauty/makeup', { params: { occasion } }).then((r) => r.data),
@@ -355,6 +361,13 @@ export function useAnalyzeBeautyPhotos() {
   return useMutation({
     mutationFn: (v: { photos: { slot: string; base64: string; mediaType?: string }[]; thumb?: string; method?: 'wallet' | 'card' }) => beautyApi.analyzePhotos(v.photos, v.thumb, v.method),
     onSuccess: (p) => { qc.setQueryData(['beauty', 'profile'], p); void qc.invalidateQueries({ queryKey: ['beauty', 'products'] }); void qc.invalidateQueries({ queryKey: ['beauty', 'history'] }); },
+  });
+}
+export function useSaveBreakdown() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { entryId: string; image: string }) => beautyApi.saveBreakdown(v.entryId, v.image),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['beauty', 'profile'] }); void qc.invalidateQueries({ queryKey: ['beauty', 'history'] }); },
   });
 }
 export function useDeleteLatestAssessment() {
