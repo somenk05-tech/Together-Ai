@@ -296,7 +296,12 @@ export function Home() {
       <div className="wrap" style={{ maxWidth: 1240, margin: '0 auto', padding: '88px 32px 24px' }}>
         {/* ============ WELCOME ============ */}
         <div className="center rise" style={{ textAlign: 'center' }}>
-          <h1 style={{ maxWidth: '30ch', margin: '0 auto', fontSize: 'clamp(34px, 5.2vw, 64px)', lineHeight: 1.1 }}>The world's Largest Digital City, personalized for you, powered by your trusted local vendors.</h1>
+          {/* SET IN CAPS, NOT TYPED IN THEM (owner, 6 Sep). The sentence stays
+              a sentence in the markup, so a screen reader says it rather than
+              spelling it, and a search engine indexes it as written. The caps
+              are how it is PRINTED, which is a decision about the masthead
+              rather than about the words. */}
+          <h1 style={{ maxWidth: '30ch', margin: '0 auto', fontSize: 'clamp(34px, 5.2vw, 64px)', lineHeight: 1.1, textTransform: 'uppercase' }}>The world's Largest Digital City, personalized for you, powered by your trusted local vendors.</h1>
           <p className="lede" style={{ margin: '22px auto 0', fontSize: 'clamp(18px, 1.9vw, 23px)', lineHeight: 1.6, maxWidth: '58ch' }}>
             Set your preferences once. Every hub personalizes to you.
           </p>
