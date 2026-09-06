@@ -15,6 +15,18 @@
  */
 const listOf = (v: string[] | undefined | null): string[] => (Array.isArray(v) ? v : []);
 
+/**
+ * WHETHER THERE IS A ROW TO DRAW AT ALL (6 Sep).
+ *
+ * The chips moved off the face of the card and behind a fold, on the owner's
+ * reference — but the 4 Sep call that took the old ingredients tab out stands
+ * and is the reason this exists: "a fold that opens on 'No ingredient list on
+ * file' is a drawer with nothing in it". So the card asks first, and draws no
+ * row where there is no list. The component still returns null on its own; a
+ * fold's FACE is drawn before its panel and cannot find that out for itself.
+ */
+export const hasIngredients = (raw?: string[] | null): boolean => listOf(raw).length > 0;
+
 export function IngredientChips({ ingredients: raw, max = 4 }: { ingredients?: string[] | null; max?: number }) {
   const ingredients = listOf(raw);
   if (!ingredients.length) return null;

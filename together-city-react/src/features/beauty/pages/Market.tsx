@@ -5,7 +5,8 @@ import { useBagActions, useBeautyProducts, useBeautyRoutine, type RecommendedPro
 import { BeautyBagBar } from '../components/BeautyBagBar';
 import { ShareToChat } from '@/features/chat/share';
 import { ProductShot } from '../components/ProductShot';
-import { IngredientChips } from '../components/Ingredients';
+import { Fold } from '@/components/ui/Fold';
+import { IngredientChips, hasIngredients } from '../components/Ingredients';
 
 /**
  * The whole shelf, laid out as a shop.
@@ -64,7 +65,6 @@ function Tile(
   { p, inRoutine, qty, onAdd, onRemove }:
   { p: RecommendedProduct; inRoutine: string[]; qty: number; onAdd: () => void; onRemove: () => void },
 ) {
-  const [open, setOpen] = useState(false);
   return (
     /*
       THE SAME CARD AS THE E-COMMERCE SHELF (owner, 24 Aug: "match the beauty
@@ -94,15 +94,17 @@ function Tile(
         ₹{p.priceInr.toLocaleString('en-IN')}
         {p.tier && <span className="st-keep"> · {p.tier}</span>}
       </div>
-      <IngredientChips ingredients={p.ingredients} />
       {p.matched && <p className="st-why">{p.matchScore}% match</p>}
 
-      <button type="button" className="st-details" onClick={() => setOpen(!open)}
-        aria-expanded={open}>
-        {open ? '▴ Less' : '▾ Details'}
-      </button>
-
-      {open && (
+      {/* ── TWO ROWS YOU OPEN, AND NOTHING ELSE ON THE FACE (owner, 6 Sep,
+          with a shop reference) ──────────────────────────────────────────
+          The chips were four capsules of chemistry between the price and the
+          button, and Details was a hand-rolled toggle that said Details — the
+          one word a row can carry that tells you nothing about what is behind
+          it. Both are folds now, the same fold the routine step wears, so the
+          same product opens the same way on both floors. */}
+      <div className="st-folds">
+      <Fold face="st-fold" panel="st-fold-open" title="Why this one" meta={p.keyIngredient}>
         <div className="st-dossier">
           <p className="st-dossier-blurb">{p.blurb}</p>
           <div className="muted st-dossier-meta">
@@ -129,7 +131,14 @@ function Tile(
             </span>
           </div>
         </div>
+      </Fold>
+
+      {hasIngredients(p.ingredients) && (
+        <Fold face="st-fold" panel="st-fold-open" title="What is in it" meta={p.ingredients?.[0]}>
+          <IngredientChips ingredients={p.ingredients} max={12} />
+        </Fold>
       )}
+      </div>
 
       {qty > 0 ? (
         <div className="st-qty">

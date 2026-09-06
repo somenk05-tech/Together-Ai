@@ -8,7 +8,7 @@ import {
 import { BeautyBagBar } from '../components/BeautyBagBar';
 import { NextOrder } from '../components/NextOrder';
 import { ProductShot } from '../components/ProductShot';
-import { IngredientChips } from '../components/Ingredients';
+import { IngredientChips, hasIngredients } from '../components/Ingredients';
 
 /**
  * The routine, as a thing you could print and pin up.
@@ -173,11 +173,19 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: {
       </div>
 
       <div className="routine-body">
+        {/* ── THE FACE SAYS FOUR THINGS (owner, 6 Sep, with a shop
+            reference): the step, the name, the maker, the price. Everything
+            else is behind a row you open.
+
+            WHAT CAME OFF IT. The "you told us you already have a cleanser"
+            paragraph — four lines of explanation above the name of the thing
+            being explained — and the ingredient chips, which were four
+            capsules of chemistry between the price and the button. Neither is
+            deleted; both are one tap down, where somebody who wants them will
+            go looking. */}
         <div className="st-role">{s.step}</div>
-        {s.owned && s.ownedWhy && <p className="muted routine-owned">{s.ownedWhy}</p>}
         <h3 className="st-name routine-name">{s.name}</h3>
         <div className="st-brand">{s.brand}</div>
-        <IngredientChips ingredients={s.ingredients} />
         {/* A REPEATED BOTTLE IS NOT A SECOND PRICE: the evening cleanser is the
             morning cleanser, and the money is said once, where it is spent. */}
         {alreadyIn ? (
@@ -189,9 +197,19 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: {
           </div>
         )}
 
-        <Fold face="routine-why" panel="routine-why-open"
+        {/* THE ROWS ARE ONE BLOCK, NOT TWO LOOSE LINES. The reference closes
+            its stack of openable rows with a hairline and then leaves air
+            before the button; without the wrapper the last row's underside is
+            the top of the pill, and two rows a hairline apart read as one
+            broken rule. */}
+        <div className="st-folds">
+        <Fold face="st-fold" panel="st-fold-open"
           title="Why this step"
           meta={pick?.packLabel || s.frequency.toLowerCase()}>
+          {/* THE OWNED NOTE OPENS THE PANEL, because it is the answer to the
+              question the row asks: why is this step here when I told you I
+              already have one. */}
+          {s.owned && s.ownedWhy && <p className="muted routine-owned">{s.ownedWhy}</p>}
           {pick && pick.reasons && pick.reasons.length > 0 && (
             <ul className="routine-why-list">
               {pick.reasons.map((r) => <li key={r}>{r}</li>)}
@@ -211,6 +229,16 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: {
             </>
           )}
         </Fold>
+
+        {/* WHAT IS IN IT, in the second row. The 4 Sep call that removed the
+            old ingredients tab stands and is why this asks first: a fold that
+            opens on "no list on file" is a drawer with nothing in it. */}
+        {hasIngredients(s.ingredients) && (
+          <Fold face="st-fold" panel="st-fold-open" title="What is in it" meta={s.ingredients?.[0]}>
+            <IngredientChips ingredients={s.ingredients} max={12} />
+          </Fold>
+        )}
+        </div>
 
         {/* The one alarm this hub allows itself, and never behind a fold. */}
         {s.warnings.length > 0 && (
@@ -438,7 +466,7 @@ function BudgetCard(
           not have. Folded, because an offer on the face of a limit reads as
           the limit being argued with. */}
       {!short && c.upgrades.length > 0 && (
-        <Fold face="routine-why" panel="routine-why-open" title="Optional, if you want it" meta={`${c.upgrades.length} offer${c.upgrades.length === 1 ? '' : 's'}`}>
+        <Fold face="st-fold" panel="st-fold-open" title="Optional, if you want it" meta={`${c.upgrades.length} offer${c.upgrades.length === 1 ? '' : 's'}`}>
           <ul className="routine-why-list">
             {c.upgrades.slice(0, 3).map((u) => (
               <li key={u.productId}>
@@ -820,6 +848,14 @@ export function Routine() {
 
           {addWhole}
 
+          {/* THE BAG SITS ABOVE THE ASSURANCES (owner, 6 Sep). It was the last
+              thing on the page, under the four assurances and the foot links —
+              which put the running total, and the way to pay it, below two
+              blocks that are there to be read once and never acted on. What
+              somebody scrolling a routine wants at the end of it is what they
+              have picked up on the way down. */}
+          <BeautyBagBar />
+
           <div className="routine-assure beauty-sheet">
             {ASSURANCES.map(([mark, text]) => (
               <div key={text} className="rt-assure">
@@ -837,8 +873,6 @@ export function Routine() {
           <p className="muted rt-disclaimer">{data.disclaimer}</p>
         </>
       )}
-
-      <BeautyBagBar />
     </div>
   );
 }

@@ -74,9 +74,12 @@ describe('the whole routine goes in at once', () => {
 
   it('is one element rendered twice — the card and the foot', () => {
     expect(page.match(/\{addWhole\}/g)?.length).toBe(2);
-    // The foot copy sits directly above the assurance strip, which is the last
-    // thing before the market links.
-    expect(page).toMatch(/\{addWhole\}\s*\n\s*<div className="routine-assure beauty-sheet">/);
+    /* THE BAG CAME BETWEEN THEM ON 6 SEP, at the owner's word: the running
+       total and the way to pay it were the LAST things on the page, under the
+       four assurances and the market links — two blocks that are read once and
+       never acted on. The order this pins is the one that matters: add the
+       whole routine, then what you have picked up, then the assurances. */
+    expect(page).toMatch(/\{addWhole\}\s*\n[\s\S]{0,600}?<BeautyBagBar \/>\s*\n\s*\n\s*<div className="routine-assure beauty-sheet">/);
     // Both boxes are styled, or the foot copy inherits the card's full-width
     // button in the middle of the page.
     expect(css).toMatch(/\.routine-addall \{/);

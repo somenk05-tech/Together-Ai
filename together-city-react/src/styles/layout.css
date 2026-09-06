@@ -2217,16 +2217,34 @@
    skin — and it is a skin, not a second implementation. The behaviour, the id
    and both ARIA attributes are the shared component's, as they are for the
    other two. */
-.routine-why {
+/* ── THE ROW YOU OPEN, ON BOTH FLOORS (owner, 6 Sep, with a shop reference)
+   ──────────────────────────────────────────────────────────────────────────
+   The reference sets everything a card has to say beyond its name, its maker
+   and its price on two hairline rows with a + at the end of each. This card
+   already had one — the routine's "why this step" — so the work was not to
+   design a row but to stop the OTHER things being printed on the face: four
+   lines of "you told us you already have a cleanser", four capsules of
+   chemistry, and a hand-rolled Details toggle on the market tile.
+
+   `.st-fold` RATHER THAN `.routine-why`, because it is now worn by the market
+   tile as well, and `.st-*` is the name the shared card anatomy already goes
+   by on both floors. Same rule, same tracking, same word on the right; only
+   the name stopped claiming one page owns it. */
+.st-fold {
   display: flex; align-items: baseline; gap: 8px; width: 100%;
-  margin-top: 2px; padding: 7px 0 0; cursor: pointer;
+  margin-top: 0; padding: 11px 0; cursor: pointer;
   background: none; border: 0; border-top: 1px solid var(--line); text-align: left;
 }
-.routine-why .t { font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; flex: none; }
-.routine-why .m { font-size: var(--fs-1); color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.routine-why .s { margin-left: auto; flex: none; font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
-.routine-why:hover .t, .routine-why:hover .s { color: var(--accent-ink); }
-.routine-why-open { padding: 8px 0 2px; }
+/* THE STACK OF ROWS IS ONE BLOCK. A hairline under the last row closes it, and
+   the air beneath is the gap the button used to take from `.st-why`'s bottom
+   margin — which is no longer there to give it, because that paragraph is now
+   inside the first fold. */
+.st-folds { margin-top: 14px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+.st-fold .t { font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; flex: none; }
+.st-fold .m { font-size: var(--fs-1); color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-fold .s { margin-left: auto; flex: none; font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.st-fold:hover .t, .st-fold:hover .s { color: var(--accent-ink); }
+.st-fold-open { padding: 2px 0 12px; }
 .routine-why-head {
   font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
   color: var(--muted); margin-top: 9px;
@@ -2772,19 +2790,10 @@
   font-weight: 700;
   cursor: pointer;
 }
-.st-details {
-  /* The Beauty Market's one extra: the dossier drawer the plain store does not
-     have. Styled as a quiet inline link so the card stays the store's card. */
-  align-self: flex-start;
-  background: none;
-  border: 0;
-  cursor: pointer;
-  font: inherit;
-  font-size: var(--fs-2);
-  font-weight: 700;
-  color: var(--accent-ink);
-  padding: 6px 0 10px;
-}
+/* `.st-details` LEFT WITH THE TOGGLE IT DRESSED (6 Sep). The market tile's
+   dossier was a hand-rolled button reading "▾ Details" — the one word a row
+   can carry that says nothing about what is behind it. It is a `.st-fold`
+   row now, the same one the routine step wears, and it says "Why this one". */
 
 .st-qty {
   margin-top: auto;
@@ -3200,7 +3209,7 @@
 .rt-meter-foot { display: flex; gap: 8px; font-size: var(--fs-2); }
 .rt-meter-left { margin-left: auto; font-weight: 700; color: var(--ink); }
 .rt-meter-note { font-size: var(--fs-2); line-height: 1.5; margin: 8px 0 0; }
-.rt-meter .routine-why { margin-top: 8px; }
+.rt-meter .st-fold { margin-top: 8px; }
 .rt-ask { margin-top: 12px; padding: 10px 12px; background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: var(--r-1); }
 .rt-ask p { margin: 0; font-size: var(--fs-3); line-height: 1.55; }
 /* TWO EQUAL DOORS, ALWAYS SIDE BY SIDE. As a wrapping flex row the wider
