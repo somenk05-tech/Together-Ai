@@ -248,15 +248,39 @@ describe('the gemstone shelf', () => {
     expect(layout).toMatch(/\.gem-tiles\s*\{[^}]*auto-fit/);
   });
 
-  it('puts three things on a card and no fourth', () => {
-    // The role it plays, the name, and the weight it is worn at. The price,
-    // the finger, the metal and the reasons are one tap away — a card that
-    // starts explaining has stopped being one of a row.
+  it('says three things about the stone, and offers one action', () => {
+    /**
+     * The role it plays, the name, and the weight it is worn at — then the
+     * way in (owner, 6 Sep: "add an add to cart button below the stones
+     * too"). The price, the finger, the metal and the reasons stay one tap
+     * away: a card that starts explaining has stopped being one of a row.
+     */
     expect(tile).toMatch(/ROLE_LABEL\[rec\.role\]/);
     expect(tile).toMatch(/gem\.name/);
     expect(tile).toMatch(/rec\.weight/);
+    expect(tile).toMatch(/Add to cart/);
     expect(tile).not.toMatch(/rupees\(/);
     expect(tile).not.toMatch(/gem\.description|whyRecommended|reasons/);
+  });
+
+  it('sends the card\'s button to the studio, like every other add-to-cart', () => {
+    // One door. Nothing in this hub is locked without somebody having chosen
+    // ring or pendant, the cut, the mount and the size — a button on a shelf
+    // that skipped all of that would invent every one of those answers.
+    expect(tile).toMatch(/\/astrology\/gemstones\/\$\{gem\.id\}\/design/);
+  });
+
+  it('nests no anchor inside an anchor to do it', () => {
+    /**
+     * The card used to BE the link, and a link inside a link is markup no
+     * browser agrees on. The tile is a plain box now: one anchor stretched
+     * over the whole of it by `.gem-tile-open::after`, and the button above
+     * that sheet on its own z-index. Both are real links.
+     */
+    expect(tile).toMatch(/<div\s+className="gem-tile"/);
+    expect(tile).toMatch(/className="gem-tile-open"/);
+    expect(layout).toMatch(/\.gem-tile-open::after \{[^}]*position: absolute/);
+    expect(layout).toMatch(/\.gem-tile-cart \{[^}]*z-index: 1/);
   });
 
   it('never invents a carat figure on the shelf either', () => {

@@ -1723,16 +1723,46 @@
    look of the row. */
 .gem-tile {
   box-sizing: border-box; position: relative; display: flex; flex-direction: column;
-  aspect-ratio: 3 / 4.4; padding: 18px 18px 20px;
+  aspect-ratio: 3 / 4; padding: 18px 18px 20px;
   background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-2);
   box-shadow: var(--e1); color: var(--ink); text-decoration: none;
   transition: box-shadow .2s ease, transform .2s ease;
 }
-.gem-tile:hover, .gem-tile:focus-visible { box-shadow: var(--e2); transform: translateY(-4px); }
+.gem-tile:hover, .gem-tile:focus-within { box-shadow: var(--e2); transform: translateY(-4px); }
+/* ── THE CARD IS NOT THE LINK; A SHEET OVER IT IS ────────────────────────────
+   The tile carries a button now (owner, 6 Sep), and an anchor inside an anchor
+   is not valid markup. So the tile is a plain box and this link is stretched
+   over the whole of it by a pseudo-element — the card still opens the stone
+   from anywhere, and the button below sits above the sheet on its own z-index.
+   `::after` rather than the anchor itself, because the anchor also has to lay
+   out the stone and the foot in the flow. */
+.gem-tile-open {
+  display: flex; flex-direction: column; flex: 1; min-height: 0;
+  color: inherit; text-decoration: none;
+}
+.gem-tile-open::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+/* THE BUTTON WEARS THE CITY'S BUTTON AND IS RESIZED TO THE CARD. `.btn-sm`
+   is 35px tall with 16px of padding and 13px display tracking — about 150px
+   of "ADD TO CART" in a tile whose inside is 136px, so it wrapped to two lines
+   and burst out of its own capsule. Full width, one line, a shade smaller:
+   the same material at the size a shelf card has room for.
+
+   `text-decoration: none` because this is an anchor rather than a <button>,
+   and the underline every link in the city wears would draw straight through
+   the capsule. */
+.gem-tile-cart {
+  /* `box-sizing` again, and for the same reason as the tile: no global
+     border-box, so width:100% plus 10px of padding a side is a capsule 20px
+     wider than the card it sits in, hanging over the right edge. */
+  box-sizing: border-box;
+  position: relative; z-index: 1; margin-top: 12px;
+  display: flex; width: 100%; height: 32px; padding: 0 10px;
+  font-size: 11px; letter-spacing: .08em; white-space: nowrap; text-decoration: none;
+}
 /* Nobody who asked for less motion gets a card that lifts. */
 @media (prefers-reduced-motion: reduce) {
   .gem-tile { transition: none; }
-  .gem-tile:hover, .gem-tile:focus-visible { transform: none; }
+  .gem-tile:hover, .gem-tile:focus-within { transform: none; }
 }
 /* The buying order, kept from the sheet at a quarter of the size — the one
    number on the card, and it is about the chart rather than the catalogue. */

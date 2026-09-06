@@ -164,8 +164,7 @@ function Fact({ label, value }: { label: string; value: string }) {
 function GemTile({ rec }: { rec: GemRecommendation }) {
   const { gem } = rec;
   return (
-    <Link
-      to={`/astrology/gemstones/${gem.id}`}
+    <div
       className="gem-tile"
       style={{
         '--gem-title': gem.theme.title,
@@ -179,25 +178,46 @@ function GemTile({ rec }: { rec: GemRecommendation }) {
         {rec.rank}
       </span>
 
-      {/* `no-case` for the same reason the sheet uses it: these are cut-out
-          stones, composed not to need a frame around them. */}
-      <span className="gem-tile-stone">
-        <img className="no-case" src={gem.image} alt={gem.imageAlt} loading="lazy" width={200} height={200} />
-      </span>
+      {/* ── TWO DOORS, AND ONLY ONE OF THEM WRAPS THE CARD ──────────────────
+          The card used to BE the link. It cannot be one any more and also
+          carry a button: an anchor inside an anchor is not valid markup, and
+          browsers unnest it in ways nothing here would predict.
 
-      <span className="gem-tile-foot">
-        <span className="gem-tile-role">{ROLE_LABEL[rec.role]}</span>
-        <span className="gem-tile-line">
-          <span className="gem-tile-name">{gem.name}</span>
-          {/* NO FIGURE WITHOUT A BODY WEIGHT, on the card as on the sheet —
-              the carats are worked out from the wearer, and a shelf is not a
-              place to start guessing at one. */}
-          <span className="gem-tile-meta">
-            {rec.weight ? `${rec.weight.carats} ct` : 'Weight needed'}
+          So the card is a plain box, this link covers it (`.gem-tile-open`
+          draws an invisible sheet over the whole tile in the stylesheet), and
+          the way to the cart sits above that sheet. Tapping anywhere opens the
+          stone; tapping the button starts the commission. */}
+      <Link className="gem-tile-open" to={`/astrology/gemstones/${gem.id}`}>
+        {/* `no-case` for the same reason the sheet uses it: these are cut-out
+            stones, composed not to need a frame around them. */}
+        <span className="gem-tile-stone">
+          <img className="no-case" src={gem.image} alt={gem.imageAlt} loading="lazy" width={200} height={200} />
+        </span>
+
+        <span className="gem-tile-foot">
+          <span className="gem-tile-role">{ROLE_LABEL[rec.role]}</span>
+          <span className="gem-tile-line">
+            <span className="gem-tile-name">{gem.name}</span>
+            {/* NO FIGURE WITHOUT A BODY WEIGHT, on the card as on the sheet —
+                the carats are worked out from the wearer, and a shelf is not a
+                place to start guessing at one. */}
+            <span className="gem-tile-meta">
+              {rec.weight ? `${rec.weight.carats} ct` : 'Weight needed'}
+            </span>
           </span>
         </span>
-      </span>
-    </Link>
+      </Link>
+
+      {/* THE SAME DOOR AS EVERY OTHER ADD TO CART IN THIS HUB (owner, 6 Sep:
+          "add an add to cart button below the stones too"). It goes to the
+          studio, not into a basket — nothing is ever locked without somebody
+          having chosen ring or pendant, the cut, the mount and the size, and
+          a button here that skipped all of that would be inventing every one
+          of those answers on their behalf. */}
+      <Link className="btn btn-line btn-sm gem-tile-cart" to={`/astrology/gemstones/${gem.id}/design`}>
+        Add to cart
+      </Link>
+    </div>
   );
 }
 
