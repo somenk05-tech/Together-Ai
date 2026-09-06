@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -41,7 +41,10 @@ describe('the gemstone masthead claims what the room does', () => {
   });
 
   it('says what each one is for, and the page prints every reason', () => {
-    expect(copy()).toMatch(/What each one is for/);
+    // Lower-cased 6 Sep with the picture: the masthead had split the lede at
+    // its dash and capitalised the half that became the small line. The dash
+    // is back, so the word is mid-sentence again — the same words either way.
+    expect(copy()).toMatch(/what each one is for/i);
     // The stone came up for a reason — the ascendant, the ninth lord, the
     // running dasha — and the page prints all of them rather than asserting a
     // fit. A stone with no reason on it would be a shop pretending to be a
@@ -79,80 +82,55 @@ describe('the gemstone masthead claims what the room does', () => {
   });
 });
 
-describe('the gemstone band', () => {
+describe('the gemstone header', () => {
   /**
-   * THREE ROOMS, ONE BLOCK. The whole point of reusing `.astra-*` is that the
-   * mastheads in this zone cannot drift apart, so the test that matters is that
-   * no page brings masthead rules of its own.
+   * THE PICTURE IS GONE — owner, 6 Sep: "remove the gemstone image."
+   *
+   * This room had a masthead of its own: a photograph of a jewelled field,
+   * the words on the bright half of it, no wash, and a scrim shadow under
+   * every line to buy back what the wash was buying. It opens on the shared
+   * header now, like the other five screens in the zone.
+   *
+   * WHAT THIS BLOCK IS FOR, STILL. The rule it was written to protect has not
+   * changed: no page in this zone brings masthead rules of its own. It is
+   * asserted from the other side now — this room has no band at all.
    */
-  it('is the third room on the same block, not a third copy of it', () => {
-    expect(copy()).toMatch(/<header className="astra has-tabs is-clear">/);
+  it('opens on the header five other screens share', () => {
+    expect(read(PAGE)).toMatch(/^import .*AstroHeader/m);
+    expect(copy()).toMatch(/<AstroHeader/);
+    expect(copy()).not.toMatch(/className="astra/);
+    expect(copy()).not.toMatch(/gem-field/);
+  });
+
+  it('brings no masthead rules of its own, and takes its own away with it', () => {
     const css = readFileSync(join(SRC, 'styles/layout.css'), 'utf8');
     expect(css).not.toMatch(/\.gem-astra|\.gem-masthead|\.gem-band/);
     expect((css.match(/^\.astra \{/gm) ?? []).length).toBe(1);
-    // The one rule this room did add: air under the band, because the tab row
-    // sits directly beneath it and the header it replaced carried 18px.
-    expect(css).toMatch(/\.astra\.has-tabs \{ margin-bottom: 18px; \}/);
-  });
-
-  it('no longer draws the header five other screens share', () => {
-    expect(read(PAGE)).not.toMatch(/^import .*AstroHeader/m);
-    expect(copy()).not.toMatch(/<AstroHeader/);
-  });
-
-  /**
-   * NOT ONE WORD MOVED. The lede is broken at its dash and nothing else — this
-   * asserts every word of the original survives, in order, across the break.
-   */
-  it('says exactly what the lede said, split at its own dash', () => {
-    const c = copy();
-    const lead = /Only the stones your own chart calls for\./.test(c);
-    const body = /What each one is for, which finger it is worn on, and what it costs\./.test(c);
-    expect({ lead, body }).toEqual({ lead: true, body: true });
-  });
-
-  it('ships the photograph it draws, at the weight of a masthead', () => {
-    const file = join(APP, 'public/assets/img/gem-field.webp');
-    expect(existsSync(file)).toBe(true);
-    // Heavier than the other two bands and knowingly so: this one is shown
-    // whole rather than half-covered, so it is real detail rather than an
-    // upscale, and it is the only picture on the page.
-    expect(Math.round(statSync(file).size / 1024)).toBeLessThanOrEqual(140);
-    expect(copy()).toMatch(/className="astra-sky"[^>]*alt=""/);
+    // A rule nobody wears is a rule that comes back on the next page that
+    // half-remembers it. Both were this room's alone.
+    // The RULES, not the mentions — the comment that replaced them names both
+    // so the next person knows where they went.
+    expect(css).not.toMatch(/^\.astra\.is-clear/m);
+    expect(css).not.toMatch(/^\.astra\.has-tabs/m);
   });
 
   /**
-   * ── NO BLACK GRADING ──────────────────────────────────────────────────────
-   *
-   * Owner, 23 Aug. This room draws no wash: the element is simply not
-   * rendered, and the type carries its own shadow instead. Both halves are
-   * asserted, because either one alone is a bug — the veil back would cover
-   * the picture, and the shadow gone would leave white 15px type on a lit
-   * orange petal.
+   * NOT ONE WORD MOVED, EITHER WAY. The band split the lede at its own dash
+   * because a masthead needs a large line and a small one. Nothing here does,
+   * so the dash is back and the sentence is the sentence it was written as.
    */
-  it('draws no wash over the picture, and the type carries its own shadow', () => {
-    expect(copy()).toMatch(/<header className="astra has-tabs is-clear">/);
-    expect(copy()).not.toMatch(/astra-veil/);
-
-    const css = readFileSync(join(SRC, 'styles/layout.css'), 'utf8');
-    const at = css.indexOf('.astra.is-clear');
-    const clear = css.slice(at, css.indexOf('@media (max-width: 640px)', at));
-    expect(clear).toMatch(/text-shadow:/);
-    // Scrim tokens only — an invented rgba here would fail
-    // colour-literal-ceiling, which is at its ceiling.
-    expect(clear).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
-    // The kicker and body drop the opacity they wear over a wash; at .62 and
-    // .78 they go missing over a photograph.
-    expect(clear).toMatch(/opacity: 1;/);
+  it('says exactly what the lede said, whole', () => {
+    expect(copy()).toMatch(
+      /Only the stones your own chart calls for — what each one is for, which finger it is worn on, and what it costs\./,
+    );
   });
 
-  it('leaves the wash alone in the two rooms that need it', () => {
+  it('leaves the band alone in the two rooms that still draw one', () => {
     const css = readFileSync(join(SRC, 'styles/layout.css'), 'utf8');
     // The shared veil is untouched: still a gradient, still clearing at 60%.
     expect(css).toMatch(/\.astra-veil \{[\s\S]{0,600}?linear-gradient\(96deg/);
     for (const page of ['AstroAsk', 'AstroTarot']) {
       expect(read(`features/astrology/pages/${page}.tsx`)).toMatch(/className="astra-veil"/);
-      expect(read(`features/astrology/pages/${page}.tsx`)).not.toMatch(/is-clear/);
     }
   });
 });
