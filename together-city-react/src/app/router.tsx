@@ -94,6 +94,7 @@ function DatingMoved({ to }: { to: string }) {
 const DrivePage = lazy(() => import('@/features/drive/pages/Drive').then((m) => ({ default: m.Drive })));
 const SocialFeed = lazy(() => import('@/features/social/pages/SocialFeed').then((m) => ({ default: m.SocialFeed })));
 const CityTVPage = lazy(() => import('@/features/social/pages/CityTVPage').then((m) => ({ default: m.CityTVPage })));
+const ChannelAddress = lazy(() => import('@/features/social/pages/CityTVPage').then((m) => ({ default: m.ChannelAddress })));
 const SocChannels = lazy(() => import('@/features/social/pages/Channels').then((m) => ({ default: m.Channels })));
 const RecipeLibrary = lazy(() => import('@/features/nutrition/pages/RecipeLibrary').then((m) => ({ default: m.RecipeLibrary })));
 const SavedRecipes = lazy(() => import('@/features/nutrition/pages/SavedRecipes').then((m) => ({ default: m.SavedRecipes })));
@@ -725,6 +726,21 @@ const ROUTE_BLOCKS: RouteObject[] = [
     path: from,
     element: <Navigate to={to} replace />,
   })),
+
+  /* ── A CHANNEL HAS A SHORT ADDRESS (owner, 6 Sep) ─────────────────────────
+     "togethercity.app/social/feed?channel=somen — rename this to
+     togethercity.app/@somen." A link somebody puts in a bio has to be sayable
+     out loud, and a query string on an internal route is neither. The '@' is
+     the convention every citizen already reads as a person, and it keeps
+     handles clear of the hub names at the root — nobody can take a handle that
+     shadows /astrology.
+
+     LAST OF THE REAL ROUTES AND ONE ABOVE THE 404. A param is a whole segment,
+     so this is `/:vanity` rather than `/@:handle` — the ranking gives every
+     static path above it the win, and `ChannelAddress` sends anything without
+     an '@' on to NotFound. The old address still answers: links already sent
+     and cards already shared are not ours to break. */
+  { element: <AppShell />, children: [{ path: '/:vanity', element: <RequireAuth>{wrap(<ChannelAddress />)}</RequireAuth> }] },
 
   // The 404 renders INSIDE the app shell (consumer review #8): full header,
   // menu and search — a wrong turn, not a locked exit.

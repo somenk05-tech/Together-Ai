@@ -68,7 +68,7 @@ export function Channels() {
           </button>
           {channels.map((c) => (
             <button type="button" className="tv-tile" role="listitem" key={c.handle}
-              onClick={() => navigate(`/social/feed?channel=${encodeURIComponent(c.handle)}`)} aria-label={`Watch ${c.name}`}>
+              onClick={() => navigate(`/@${encodeURIComponent(c.handle)}`)} aria-label={`Watch ${c.name}`}>
               <span className="tv-tile-img">
                 {c.tile ? <img src={c.tile} alt="" loading="lazy" onError={stale} /> : <Avatar name={c.name} src={c.profileImage} />}
               </span>

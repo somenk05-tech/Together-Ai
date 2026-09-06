@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { matchPath, matchRoutes } from 'react-router-dom';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -79,5 +83,88 @@ describe('the screen', () => {
     const html = draw(items, 1);
     expect(html).toContain('src="https://x/c.mp4"');
     expect(html).not.toContain('<img class="tv-media"');
+  });
+});
+
+/**
+ * WHERE THE SET LETS YOU OUT — owner, 6 Sep: "the together city button should
+ * take them to the together city social media profile page."
+ *
+ * It used to land on the hub, which is a rail of doors read by somebody who
+ * has just spent ten minutes watching the city and is one tap from posting to
+ * it. The profile is where their own posts, their stats and the door to a new
+ * one already are.
+ */
+describe('the way out of the set', () => {
+  const page = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), '../features/social/pages/CityTVPage.tsx'), 'utf8',
+  ).replace(/\/\*[\s\S]*?\*\//g, ' ');
+
+  it('lands on the profile rather than the hub', () => {
+    expect(page).toMatch(/navigate\('\/social\/profile'\)/);
+    expect(page).not.toMatch(/navigate\('\/social'\)/);
+  });
+
+  it('leaves by one door — the button and Escape arrive in the same place', () => {
+    // Two ways out of one room that land somewhere different is two rooms.
+    expect(page).toMatch(/onClick=\{leave\}/);
+    expect(page).toMatch(/onLeave=\{leave\}/);
+  });
+});
+
+/**
+ * A CHANNEL HAS A SHORT ADDRESS — owner, 6 Sep: "togethercity.app/social/feed
+ * ?channel=somen — rename this to togethercity.app/@somen."
+ *
+ * A link somebody puts in a bio has to be sayable out loud. The '@' is the
+ * convention every citizen already reads as a person, and it keeps handles
+ * clear of the hub names at the root — nobody can take a handle that shadows
+ * /astrology.
+ */
+describe('the short address of a channel', () => {
+  const router = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), 'router.tsx'), 'utf8',
+  ).replace(/\/\*[\s\S]*?\*\//g, ' ');
+  const page = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), '../features/social/pages/CityTVPage.tsx'), 'utf8',
+  ).replace(/\/\*[\s\S]*?\*\//g, ' ');
+  const channels = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), '../features/social/pages/Channels.tsx'), 'utf8',
+  ).replace(/\/\*[\s\S]*?\*\//g, ' ');
+
+  it('answers on /@handle, and the router really matches it', () => {
+    expect(router).toMatch(/path: '\/:vanity'/);
+    /* NOT A SOURCE ASSERTION ALONE, and this is the one that earned its keep:
+       the first version of this route was `/@:handle`, which reads perfectly
+       and matches NOTHING — a router param is a whole segment. It compiled,
+       it type-checked, and the channel link 404'd. */
+    expect(matchPath('/@:handle', '/@somen')).toBeNull();
+    expect(matchPath('/:vanity', '/@somen')?.params).toEqual({ vanity: '@somen' });
+  });
+
+  it('lets every hub name win the segment it shares with a handle', () => {
+    // Static beats dynamic in the ranking, so /astrology is never a channel.
+    const ranked = matchRoutes(
+      [{ path: '/astrology' }, { path: '/:vanity' }],
+      '/astrology',
+    );
+    expect(ranked?.[0].route.path).toBe('/astrology');
+  });
+
+  it('sends a wrong turn to the 404 rather than to a set tuned to nobody', () => {
+    expect(page).toMatch(/startsWith\('@'\)/);
+    expect(page).toMatch(/<NotFound \/>/);
+  });
+
+  it('tunes the set from the path, and still from the old query', () => {
+    // Links already sent and cards already shared are not ours to break.
+    expect(page).toMatch(/pathHandle \?\? params\.get\('channel'\)/);
+    expect(page).toMatch(/vanity\?\.startsWith\('@'\) \? vanity\.slice\(1\)/);
+    expect(router).toMatch(/path: '\/social\/feed'/);
+  });
+
+  it('hands out the short address from the channels page', () => {
+    expect(channels).toMatch(/`\/@\$\{encodeURIComponent\(c\.handle\)\}`/);
+    expect(channels).not.toMatch(/social\/feed\?channel=/);
   });
 });

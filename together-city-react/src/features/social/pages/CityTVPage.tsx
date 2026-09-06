@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Spinner } from '@/components/ui';
+import { NotFound } from '@/pages/NotFound';
 import { Icon } from '@/components/ui/Icon';
 import { useScrollLock } from '@/hooks/useScrollLock';
 import { CityTV } from '../CityTV';
@@ -10,10 +11,10 @@ import { useFeed } from '../api';
 /**
  * THE TV PAGE — owner, 5 Sep: "remove all this from the TV page, it needs to
  * be a full screen TV." No heading, no composer, no tabs, no wall: the
- * viewport is the screen. Two small things sit over it — a way back to the
- * hub, and the one door to posting — and the remote the set draws itself.
+ * viewport is the screen. Two small things sit over it — a way back into the
+ * city, and the one door to posting — and the remote the set draws itself.
  *
- * WHEN THE CHANNEL IS FURTHER DOWN. `?channel=` names a citizen; if their
+ * WHEN THE CHANNEL IS FURTHER DOWN. `/@handle` names a citizen; if their
  * first video is not in the pages loaded yet, the page keeps loading pages
  * until it is, or until there are none, and only then switches the set on —
  * a set switched on early would open on the wrong channel.
@@ -23,18 +24,37 @@ import { useFeed } from '../api';
  * screen feel before the full-screen key is ever pressed.
  *
  * The stream is the city-wide Videos lens, the same pages the Videos tab of
- * the wall reads. `?channel=<handle>` tunes the set to that citizen's first
- * video (the channels page sends people here); `?shuffle` starts somewhere
- * else in what is loaded.
+ * the wall reads. `/@<handle>` tunes the set to that citizen's first video
+ * (the channels page sends people there), and `?channel=<handle>` on this
+ * path does the same for every link shared before the short address existed;
+ * `?shuffle` starts somewhere else in what is loaded.
  */
 export function CityTVPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  /* THE HANDLE ARRIVES TWO WAYS AND MEANS ONE THING. `/@somen` is the address
+     a citizen shares; `?channel=somen` is what every link sent before today
+     carries, and the channels page's own tiles used to build it. The path wins
+     where both are present, because that is the address in the bar.
+
+     THE '@' IS SLICED HERE RATHER THAN MATCHED IN THE ROUTE, because a router
+     param is a WHOLE segment: `/@:handle` compiles to a path that matches
+     nothing, silently, and the channel link would 404 with every test on this
+     page still green. `ChannelAddress` below is what refuses the segments that
+     are not a handle. */
+  const { vanity } = useParams();
+  const pathHandle = vanity?.startsWith('@') ? vanity.slice(1) : undefined;
   const feed = useFeed('videos');
   const items = useMemo(() => feed.data?.pages.flatMap((p) => p.items) ?? [], [feed.data]);
   const openAuthor = useCallback((h: string) => navigate(`/social/u/${encodeURIComponent(h)}`), [navigate]);
   const openChannels = useCallback(() => navigate('/social/channels'), [navigate]);
-  const leave = useCallback(() => navigate('/social'), [navigate]);
+  /* WHERE LEAVING THE SET LANDS (owner, 6 Sep): "the together city button
+     should take them to the together city social media profile page." Not the
+     hub landing — somebody who has been watching the city is one tap from
+     posting to it, and the profile is where their own posts, their stats and
+     the door to a new one are. Escape lands in the same place, because two
+     ways out of one room that arrive somewhere different is two rooms. */
+  const leave = useCallback(() => navigate('/social/profile'), [navigate]);
   const { fetchNextPage } = feed;
   const more = useCallback(() => { void fetchNextPage(); }, [fetchNextPage]);
   useScrollLock(true);
@@ -51,7 +71,7 @@ export function CityTVPage() {
       <Link to="/social/create" className="btn btn-sm"><Icon name="plus" size={15} /> Create</Link>
     </div>
   );
-  const channel = params.get('channel');
+  const channel = pathHandle ?? params.get('channel');
   const found = channel ? items.findIndex((p) => p.author?.handle === channel) : -1;
   const { hasNextPage, isFetchingNextPage } = feed;
   // Six pages is as far as the stream keeps; past that a search would run forever.
@@ -92,4 +112,22 @@ export function CityTVPage() {
     </div>,
     document.body,
   );
+}
+
+/**
+ * ── THE SHORT ADDRESS (owner, 6 Sep) ────────────────────────────────────────
+ *
+ * "togethercity.app/social/feed?channel=somen — rename this to
+ * togethercity.app/@somen." A link somebody puts in a bio has to be sayable
+ * out loud, and a query string on an internal route is neither.
+ *
+ * IT SITS AT THE ROOT, WHICH IS WHY IT IS GUARDED. A router param is a whole
+ * segment, so the route is `/:vanity` and it is the LAST single-segment route
+ * the ranking reaches — every hub name still wins it. Anything arriving here
+ * that does not begin with '@' is a wrong turn rather than a citizen, and gets
+ * the city's own 404 instead of a television tuned to nobody.
+ */
+export function ChannelAddress() {
+  const { vanity } = useParams();
+  return vanity && vanity.length > 1 && vanity.startsWith('@') ? <CityTVPage /> : <NotFound />;
 }
