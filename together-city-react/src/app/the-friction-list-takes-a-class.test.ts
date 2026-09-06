@@ -107,7 +107,12 @@ describe('the friction list takes a class', () => {
     // with classes where the search list had been a hand-styled button per
     // row, and the two edit-quota notes wear `.muted` alone. 6545 → 6540,
     // 3540 → 3538.
-    expect(s).toMatch(/inlineStyleBlocks: 6540,/);
+    // And 5 Sep, with the gemstone shelf: the stone's palette — three values
+    // from the catalogue payload, set as custom properties on the card — was
+    // written out as `style={{ color: 'var(--gem-body)' }}` at seventeen
+    // elements of one page. It is four scoped rules in layout.css now, which
+    // is what that file's own comment had claimed all along. 6540 → 6528.
+    expect(s).toMatch(/inlineStyleBlocks: 6528,/);
     expect(s).toMatch(/rawSpacing: 3538,/);
     // The two the script prints beside them, pinned for the same reason: a
     // number nothing reads is a number that drifts back up.

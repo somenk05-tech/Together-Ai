@@ -105,7 +105,7 @@ import { join } from 'node:path';
  */
 const CEILING = {
   rawRadii: 315,
-  inlineStyleBlocks: 6540,
+  inlineStyleBlocks: 6528,
   distinctFontSizes: 35,
   rawSpacing: 3538,
   /* Added 2 Sep. Today's readings, recorded so they can only fall.

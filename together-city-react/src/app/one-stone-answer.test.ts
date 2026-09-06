@@ -208,6 +208,99 @@ describe('the remedies page', () => {
 });
 
 /**
+ * THE SHELF, AND WHY THE SHEET LEFT THE INDEX.
+ *
+ * The sheet is written to be read about ONE stone, closely — a capsule, an
+ * arc, an engraved name, four hundred pixels of centred prose and a fold with
+ * eight sections in it. Printed once per recommendation it made the index four
+ * screens of reference before the reader had chosen anything, and the thing
+ * they came to do — pick between four stones — happened somewhere in the
+ * scroll.
+ *
+ * So the index is the owner's gallery reference: a row of tall cards, ONE
+ * SHAPE AND ONE SIZE, a photograph and a name each. The sheet is unchanged and
+ * lives on the stone's own route. These assertions hold both halves of that.
+ */
+describe('the gemstone shelf', () => {
+  const gems = code('features/astrology/pages/AstroGemstones.tsx');
+  const one = code('features/astrology/pages/AstroGemstone.tsx');
+  const router = code('app/router.tsx');
+  const layout = read('styles/layout.css');
+  const tile = gems.slice(gems.indexOf('function GemTile'), gems.indexOf('export function StoneSheet'));
+
+  it('lays the stones out as a row of cards rather than a stack of sheets', () => {
+    expect(gems).toMatch(/gem-tiles/);
+    expect(gems).toMatch(/<GemTile/);
+    // The sheet is no longer printed on the index at all — that is the change.
+    expect(gems).not.toMatch(/<StoneSheet/);
+  });
+
+  it('gives every stone the same card at the same size', () => {
+    /**
+     * A shelf where one card is bigger than the next has already chosen for
+     * the reader. The chart chooses the set; the reader chooses inside it, and
+     * a rank badge is the only thing that ranks anything here.
+     */
+    expect(layout).toMatch(/\.gem-tile\s*\{[^}]*aspect-ratio/);
+    expect(layout).not.toMatch(/\.gem-tile:(first|nth)-child/);
+    // Auto-fit rather than a fixed three: the number of stones changes with
+    // the birth time, and a fixed column count strands the last card.
+    expect(layout).toMatch(/\.gem-tiles\s*\{[^}]*auto-fit/);
+  });
+
+  it('puts three things on a card and no fourth', () => {
+    // The role it plays, the name, and the weight it is worn at. The price,
+    // the finger, the metal and the reasons are one tap away — a card that
+    // starts explaining has stopped being one of a row.
+    expect(tile).toMatch(/ROLE_LABEL\[rec\.role\]/);
+    expect(tile).toMatch(/gem\.name/);
+    expect(tile).toMatch(/rec\.weight/);
+    expect(tile).not.toMatch(/rupees\(/);
+    expect(tile).not.toMatch(/gem\.description|whyRecommended|reasons/);
+  });
+
+  it('never invents a carat figure on the shelf either', () => {
+    // The weight comes from the wearer's body weight. No body weight, no
+    // number — the same refusal the sheet makes, made one surface earlier.
+    expect(tile).toMatch(/Weight needed/);
+    expect(tile).not.toMatch(/carats:\s*\d/);
+  });
+
+  it('opens the stone on its own route when the card is tapped', () => {
+    expect(tile).toMatch(/\/astrology\/gemstones\/\$\{gem\.id\}/);
+    expect(router).toMatch(/'\/astrology\/gemstones\/:gemId'/);
+    expect(router).toMatch(/AstroGemstone\b/);
+  });
+
+  it('reads the stone out of the same payload the shelf read', () => {
+    /**
+     * A second endpoint for "one stone" would be a second engine deciding
+     * which stones are yours, at what weight and at what price — two confident
+     * answers to one question, disagreeing in public. That is the failure this
+     * marketplace was built to end, and it is not being rebuilt one route
+     * later.
+     */
+    expect(one).toMatch(/useAstroGemstones/);
+    expect(one).toMatch(/recommendations/);
+    expect(one).toMatch(/find\(\(r\) => r\.gem\.id === gemId\)/);
+    expect(one).not.toMatch(/useQuery|fetch\(/);
+  });
+
+  it('prints the owner\'s sheet on it, unchanged', () => {
+    expect(one).toMatch(/<StoneSheet rec=\{rec\} \/>/);
+    expect(gems).toMatch(/export function StoneSheet/);
+  });
+
+  it('refuses to write a prescription for a stone nobody was prescribed', () => {
+    // Thirty stones exist and this route answers for the four or five the
+    // chart called for. Anything else is a link from somewhere it should not
+    // have been, and is told so rather than quietly prescribed.
+    expect(one).toMatch(/isn’t one of yours|isn't one of yours/);
+    expect(one).toMatch(/\/astrology\/gemstones/);
+  });
+});
+
+/**
  * WHAT CAN I ACTUALLY BUY.
  *
  * Four sheets, each honestly priced, still leaves the citizen doing arithmetic

@@ -1692,6 +1692,138 @@
    THE TRAIT ARC IS AN SVG textPath, from the reference, at the reference's own
    geometry — a 130-radius arc across a 360×170 box, pulled down over the photo
    by a negative margin so the words sit ON the stone rather than above it. */
+/* ══ THE STONE'S OWN PALETTE, APPLIED BY RULE ═══════════════════════════════
+   Every sheet and every card is themed to its stone — a ruby's name in
+   oxblood, an emerald's in deep green — and the three values arrive in the
+   catalogue payload, are set as custom properties on the card element, and are
+   read here. THIS IS THE PART THAT WAS WRITTEN OUT LONGHAND: the page repeated
+   `style={{ color: 'var(--gem-body)' }}` at two dozen elements, which is a
+   rule written twenty-four times in the file that can least afford it. The
+   variables are the owner's data; where they land is the stylesheet's business.
+
+   SCOPED TO THE SHEET AND THE CARD, because `.gem-num` also appears in the
+   budget list on a plain card with no stone behind it, and would inherit
+   whatever theme the last sheet happened to set. */
+.gem-sheet .gem-display,
+.gem-sheet .gem-weight,
+.gem-sheet .gem-num,
+.gem-sheet .gem-cap,
+.gem-sheet .gem-price { color: var(--gem-title); }
+.gem-sheet .gem-num { border-color: var(--gem-title); }
+.gem-sheet .gem-cap,
+.gem-sheet .gem-price { border-color: var(--gem-accent); }
+.gem-sheet .gem-body { color: var(--gem-body); }
+.gem-sheet .gem-sub { color: var(--gem-accent); }
+.gem-tile-rank { color: var(--gem-title); border-color: var(--gem-accent); }
+.gem-tile-role { color: var(--gem-accent); }
+.gem-tile-name { color: var(--gem-title); }
+.gem-tile-meta { color: var(--gem-body); }
+
+/* The stone on its own page: the sheet, unchanged, under a back link. */
+.gem-one-note { padding: 18px 22px; }
+.gem-one-note p { font-size: var(--fs-4); line-height: 1.7; margin: 0 0 12px; }
+.gem-one-back { font-size: 12.5px; font-weight: 700; }
+.gem-one-sheet { margin-top: 14px; }
+.gem-tiles-note { font-size: 12.5px; margin: 4px 0 0; }
+
+/* ══ THE SHELF ══════════════════════════════════════════════════════════════
+   The owner's gallery reference (5 Sep): a row of tall portrait cards, one
+   photograph and one name each, identical in shape and size. EVERY STONE GETS
+   THE SAME CARD, and that is the instruction rather than a convenience — a
+   shelf where one card is larger than the next has already chosen for the
+   reader, and here the chart chooses the set and the reader chooses inside it.
+
+   `auto-fit` WITH A 200px FLOOR, NOT A FIXED THREE. The reference photographs
+   three cards because it had three trips; a chart calls for four or five and
+   the number changes with the birth time. A fixed column count would print a
+   lonely fourth card on its own row on the one screen it was measured on.
+
+   `box-sizing` IS LOAD-BEARING HERE. This application has no global
+   border-box, so without it the 18px of padding is added OUTSIDE the grid
+   track and every card in the row overflows its column by 36px — visible as a
+   row that will not sit inside its gutters at any width. */
+.gem-tiles {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
+  gap: 24px; max-width: 1000px; margin: 0 auto 30px;
+}
+/* 3:4.4 IS THE REFERENCE'S OWN PROPORTION, measured off its cards rather than
+   rounded to a friendly ratio. A 3:4 card is a photo frame; this one is the
+   tall gallery print the reference is made of, and the difference is the whole
+   look of the row. */
+.gem-tile {
+  box-sizing: border-box; position: relative; display: flex; flex-direction: column;
+  aspect-ratio: 3 / 4.4; padding: 18px 18px 20px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-2);
+  box-shadow: var(--e1); color: var(--ink); text-decoration: none;
+  transition: box-shadow .2s ease, transform .2s ease;
+}
+.gem-tile:hover, .gem-tile:focus-visible { box-shadow: var(--e2); transform: translateY(-4px); }
+/* Nobody who asked for less motion gets a card that lifts. */
+@media (prefers-reduced-motion: reduce) {
+  .gem-tile { transition: none; }
+  .gem-tile:hover, .gem-tile:focus-visible { transform: none; }
+}
+/* The buying order, kept from the sheet at a quarter of the size — the one
+   number on the card, and it is about the chart rather than the catalogue. */
+.gem-tile-rank {
+  position: absolute; top: 13px; left: 13px; width: 23px; height: 23px;
+  border: 1px solid; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+/* `min-height: 0` so the stone gives way before the name does: without it a
+   flex child refuses to shrink past its content and a tall photograph pushes
+   the foot out through the bottom of the card. */
+.gem-tile-stone {
+  flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
+  padding: 14px 4px 12px;
+}
+.gem-tile-stone img {
+  max-width: 88%; max-height: 100%; width: auto; height: auto; mix-blend-mode: multiply;
+}
+.gem-tile-foot { display: block; }
+.gem-tile-role {
+  display: block; font-size: 9px; letter-spacing: .2em; text-transform: uppercase;
+  font-weight: 700; margin-bottom: 7px;
+}
+/* The reference's own foot: the name on the left, the small figure on the
+   right, sharing one baseline. */
+/* TWO DECLARATIONS, AND THE SECOND IS THE ONE THAT MATTERS. `baseline` aligns
+   the figure with the FIRST line of the name, so "3.4 ct" floats beside BLUE
+   while SAPPHIRE sits alone underneath it — the reference's one clean rule
+   turned into two things at two heights. `last baseline` puts it on the last
+   line, which is the rule the reference actually draws. Browsers without it
+   fall back to the line above and lose nothing they had. */
+.gem-tile-line {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px;
+  align-items: baseline; align-items: last baseline;
+}
+/* The engraved capitals of `.gem-display` at shelf size. `text-indent` matches
+   the tracking because letter-spacing is applied after the last glyph too, and
+   without it the name sits half a space right of the rule it is aligned to.
+
+   A FLAT 14px RATHER THAN A CLAMP, and the clamp is why: a viewport-scaled
+   name grows with the SCREEN while the card it sits in shrinks with the NUMBER
+   OF STONES. On a wide screen with five stones that is 16px of tracked capitals
+   in a 172px card, and every name in the row breaks onto two lines. */
+.gem-tile-name {
+  font-size: 14px; letter-spacing: .1em; text-indent: .1em;
+  text-transform: uppercase; line-height: 1.25; min-width: 0;
+}
+/* `margin-left: auto` KEEPS IT RIGHT WHEN THE ROW WRAPS. A long name and a
+   long figure — "YELLOW TOPAZ" beside "Weight needed" — do not share 172px,
+   and `space-between` alone drops the figure onto its own line hard LEFT,
+   under the name, where it reads as a second title. */
+.gem-tile-meta {
+  font-size: 10.5px; letter-spacing: .08em; white-space: nowrap; flex: none;
+  margin-left: auto; font-variant-numeric: tabular-nums;
+}
+@media (max-width: 620px) {
+  .gem-tiles { grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 14px; }
+  .gem-tile { padding: 14px 13px 16px; }
+  .gem-tile-role { font-size: 8.5px; letter-spacing: .16em; }
+}
+
 /* 440 IS A CONTENT WIDTH, NOT THE SHEET'S. This application has no global
    `box-sizing: border-box`, so max-width here is the box INSIDE the padding —
    440 + 40 + 40 makes a 520px sheet, which is the reference's own width, and
@@ -2448,6 +2580,98 @@
   margin: 12px 0 0;
 }
 .st-from a { color: var(--ink); }
+/* ── THE NUMBER BEFORE THE SHELF (owner, 5 Sep) ─────────────────────────────
+   The supplement shop's monthly budget: one row — label, ₹ field, Set, Clear —
+   then the total against the number, the shelf's own note, and what the number
+   could not reach. Same 44px seat as every other control in the store. */
+.st-budget {
+  max-width: 1180px;
+  margin: 18px auto 0;
+  padding: 16px 24px 0;
+  border-top: 1px solid var(--line-2);
+}
+.st-budget-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+.st-budget-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.st-budget-field {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-5);
+  background: var(--card);
+  gap: 6px;
+}
+.st-budget-cur,
+.st-budget-unit {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.st-budget-input {
+  width: 7ch;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  -moz-appearance: textfield;
+}
+.st-budget-input::-webkit-outer-spin-button,
+.st-budget-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.st-budget-input:focus { outline: none; }
+.st-budget-field:focus-within { border-color: var(--ink); }
+.st-budget-save,
+.st-budget-clear {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--ink);
+  border-radius: var(--r-5);
+  background: var(--ink);
+  color: var(--card);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.st-budget-clear {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line);
+}
+.st-budget-save:disabled,
+.st-budget-clear:disabled { opacity: .5; cursor: default; }
+.st-budget-sum {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.st-budget-note { color: var(--muted); }
+.st-budget-dropped {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.st-budget-dropped li::before { content: '– '; }
+@media (max-width: 899px) {
+  .st-budget { padding: 14px 18px 0; }
+}
 .st-grid {
   max-width: 1180px;
   margin: 0 auto;

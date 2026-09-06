@@ -23,6 +23,18 @@ import type { GemAtWeight, GemPriority, GemRecommendation, GemRole, GemstonesRes
  * operations is chart → recommendation → stone, and the shelf is never the
  * first thing anybody sees.
  *
+ * ── TWO SURFACES, AS OF 5 SEP ───────────────────────────────────────────────
+ *
+ * The sheet above was printed once per stone down this page, so a chart with
+ * four stones opened on four screens of reference before the reader had chosen
+ * anything — and the sheet is written to be read about ONE stone, closely.
+ *
+ * So the index is now a shelf, in the owner's second reference: a row of tall
+ * portrait cards, identical in shape and size, one photograph and one name
+ * each. Tapping one opens `AstroGemstone` — the same `StoneSheet`, unchanged,
+ * on the stone's own route. The composition below is exactly what it was; what
+ * changed is how many of them a reader meets at once.
+ *
  * ── WHERE THE COLOUR COMES FROM, BECAUSE IT MATTERS ─────────────────────────
  *
  * Every card in the reference is themed to its own stone — a ruby's title in
@@ -94,7 +106,7 @@ const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
 /** A tracked label. Every section on the sheet is introduced by one of these. */
 function Sub({ children }: { children: string }) {
-  return <div className="gem-sub" style={{ color: 'var(--gem-accent)' }}>{children}</div>;
+  return <div className="gem-sub">{children}</div>;
 }
 
 /**
@@ -131,7 +143,75 @@ function Fact({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StoneSheet({ rec }: { rec: GemRecommendation }) {
+/**
+ * ── THE SHELF, IN THE OWNER'S SECOND REFERENCE ──────────────────────────────
+ *
+ * A row of tall portrait cards, each one photograph and a name, and nothing
+ * else on it — the travel gallery the owner handed over on 5 Sep. Every stone
+ * gets the SAME card at the SAME size, which is the whole instruction: a shelf
+ * where one thing is bigger than the next is a shelf that has already chosen
+ * for you, and the choosing here belongs to the chart and then to the reader.
+ *
+ * WHAT IT MAY SAY IS FIXED AT THREE THINGS, because the reference says three:
+ * the role this stone plays (where the gallery put a section label), the name
+ * (its "Greenland"), and the weight prescribed (its date). The price, the
+ * finger, the metal, the reasons and the way in are one tap away on the sheet.
+ * A card that starts explaining is a card that has stopped being one of a row.
+ *
+ * The stone's own palette rides in as it does on the sheet — from the
+ * catalogue, applied as custom properties, never typed here.
+ */
+function GemTile({ rec }: { rec: GemRecommendation }) {
+  const { gem } = rec;
+  return (
+    <Link
+      to={`/astrology/gemstones/${gem.id}`}
+      className="gem-tile"
+      style={{
+        '--gem-title': gem.theme.title,
+        '--gem-body': gem.theme.body,
+        '--gem-accent': gem.theme.accent,
+      } as React.CSSProperties}
+    >
+      {/* The buying order, kept from the sheet. It is the one number on the
+          card and it is about the reader's chart rather than the database. */}
+      <span className="gem-tile-rank">
+        {rec.rank}
+      </span>
+
+      {/* `no-case` for the same reason the sheet uses it: these are cut-out
+          stones, composed not to need a frame around them. */}
+      <span className="gem-tile-stone">
+        <img className="no-case" src={gem.image} alt={gem.imageAlt} loading="lazy" width={200} height={200} />
+      </span>
+
+      <span className="gem-tile-foot">
+        <span className="gem-tile-role">{ROLE_LABEL[rec.role]}</span>
+        <span className="gem-tile-line">
+          <span className="gem-tile-name">{gem.name}</span>
+          {/* NO FIGURE WITHOUT A BODY WEIGHT, on the card as on the sheet —
+              the carats are worked out from the wearer, and a shelf is not a
+              place to start guessing at one. */}
+          <span className="gem-tile-meta">
+            {rec.weight ? `${rec.weight.carats} ct` : 'Weight needed'}
+          </span>
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+/**
+ * ONE STONE, ONE PAGE — AND NOW LITERALLY SO.
+ *
+ * This sheet was printed four and five times down the index, which made the
+ * index four screens of prose before anybody had chosen anything. It is now
+ * exported and rendered by `AstroGemstone` on the stone's own route; the index
+ * carries the shelf and this carries the answer. Not a line of the composition
+ * changed in the move — the capsule, the arc, the engraved name, the price
+ * ring and the fold are the owner's reference and stay exactly as they were.
+ */
+export function StoneSheet({ rec }: { rec: GemRecommendation }) {
   const { gem, wearing } = rec;
   return (
     <Card
@@ -149,8 +229,8 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
           nobody asked. It carries the buying order instead — 1 is the one to
           have if you have one — and the capsule beside it says how strongly. */}
       <div className="gem-rank">
-        <span className="gem-num" style={{ color: 'var(--gem-title)', borderColor: 'var(--gem-title)' }}>{rec.rank}</span>
-        <span className="gem-cap" style={{ color: 'var(--gem-title)', borderColor: 'var(--gem-accent)' }}>
+        <span className="gem-num">{rec.rank}</span>
+        <span className="gem-cap">
           {PRIORITY_LABEL[rec.priority]} · {ROLE_LABEL[rec.role]}
         </span>
       </div>
@@ -165,8 +245,8 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
         <img className="no-case" src={gem.image} alt={gem.imageAlt} loading="lazy" width={250} height={220} />
       </div>
 
-      <h2 className="gem-display" style={{ color: 'var(--gem-title)' }}>{gem.name}</h2>
-      <p className="gem-body" style={{ color: 'var(--gem-body)' }}>{gem.description}</p>
+      <h2 className="gem-display">{gem.name}</h2>
+      <p className="gem-body">{gem.description}</p>
 
       {/* ── the reference, folded ───────────────────────────────────────────
           EIGHT LABELLED SECTIONS TIMES FOUR STONES IS A WALL. Everything from
@@ -201,18 +281,18 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
           about the reader rather than about the stone. */}
       <Sub>Why this stone, for you</Sub>
       {rec.reasons.map((r) => (
-        <p key={r} className="gem-body" style={{ color: 'var(--gem-body)', marginTop: 8 }}>{r}</p>
+        <p key={r} className="gem-body" style={{ marginTop: 8 }}>{r}</p>
       ))}
-      <p className="gem-body" style={{ color: 'var(--gem-body)', marginTop: 8, fontStyle: 'italic' }}>
+      <p className="gem-body" style={{ marginTop: 8, fontStyle: 'italic' }}>
         {ROLE_NOTE[rec.role]}
       </p>
 
       {/* Said plainly, because "which of these do I actually buy" is the
           question somebody leaves this page with otherwise. */}
       <Sub>{`Number ${rec.rank} of the stones for you`}</Sub>
-      <p className="gem-body" style={{ color: 'var(--gem-body)' }}>{PRIORITY_NOTE[rec.priority]}</p>
+      <p className="gem-body">{PRIORITY_NOTE[rec.priority]}</p>
       {rec.wornWith.length > 0 && (
-        <p className="gem-body" style={{ color: 'var(--gem-body)', marginTop: 8 }}>
+        <p className="gem-body" style={{ marginTop: 8 }}>
           Traditionally worn together with {rec.wornWith.join(' and ').toLowerCase()}.
         </p>
       )}
@@ -228,19 +308,19 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
       {/* No "when you wear it" (5 Sep): a sold stone may not promise what the
           wearer's body or mind will do. The tradition speaks in the sections
           above and below; the note stays. */}
-      <p className="gem-body" style={{ color: 'var(--gem-body)', fontSize: 11.5, marginTop: 8, opacity: .85 }}>
+      <p className="gem-body" style={{ fontSize: 11.5, marginTop: 8, opacity: .85 }}>
         {gem.wearingNote}
       </p>
 
       <Sub>Why it is recommended</Sub>
-      <p className="gem-body" style={{ color: 'var(--gem-body)' }}>{gem.whyRecommended}</p>
+      <p className="gem-body">{gem.whyRecommended}</p>
 
       {/* Only on the three stones traditionally worn on trial — and they are,
           not coincidentally, three of the dearest things in the catalogue. */}
       {rec.trialNote && (
         <>
           <Sub>Worn on trial first</Sub>
-          <p className="gem-body" style={{ color: 'var(--gem-body)' }}>{rec.trialNote}</p>
+          <p className="gem-body">{rec.trialNote}</p>
         </>
       )}
 
@@ -273,7 +353,7 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
               </span>
             ))}
           </div>
-          <p className="gem-body" style={{ color: 'var(--gem-body)', fontSize: 11.5, marginTop: 10 }}>
+          <p className="gem-body" style={{ fontSize: 11.5, marginTop: 10 }}>
             The same planet at a fraction of the price, worn heavier — the tradition asks about
             three-quarters again the weight of the primary stone.
           </p>
@@ -294,7 +374,7 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
       <Sub>How much to wear</Sub>
       {rec.weight ? (
         <>
-          <div className="gem-weight" style={{ color: 'var(--gem-title)' }}>
+          <div className="gem-weight">
             {rec.weight.carats} <span style={{ fontSize: '.42em', letterSpacing: '.2em' }}>CARATS</span>
           </div>
           {/* THE STONE HAS A SAY IN ITS OWN WEIGHT, and saying which rule bound
@@ -302,7 +382,7 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
               recommendation. One rule for all thirty prescribed a hundred-kilo
               citizen nine carats of blue sapphire — the one stone practice is
               most careful about, and the one worn smallest. */}
-          <p className="gem-body" style={{ color: 'var(--gem-body)' }}>
+          <p className="gem-body">
             About {rec.weight.ratti} ratti. {gem.name.toLowerCase().replace(/^./, (c) => c.toUpperCase())} is
             customarily worn between {rec.weight.fromRatti} and {rec.weight.toRatti} ratti
             ({rec.weight.fromCt}–{rec.weight.toCt} ct), and{' '}
@@ -312,15 +392,15 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
                 ? 'this is the top of it — the general rule of a ratti per ten kilos would go higher, and this stone is not worn that heavy.'
                 : 'this is the bottom of it — the general rule would go lower, and the stone is not worn lighter than this.'}
           </p>
-          <p className="gem-body" style={{ color: 'var(--gem-body)', fontSize: 12, marginTop: 8 }}>
+          <p className="gem-body" style={{ fontSize: 12, marginTop: 8 }}>
             Your body weight, against the weight this stone is traditionally worn at.
           </p>
           <div>
-            <span className="gem-price" style={{ color: 'var(--gem-title)', borderColor: 'var(--gem-accent)' }}>
+            <span className="gem-price">
               {rupees(rec.fromInr ?? 0)} – {rupees(rec.toInr ?? 0)} AT THIS WEIGHT
             </span>
           </div>
-          <p className="gem-body" style={{ color: 'var(--gem-body)', fontSize: 11, marginTop: 10 }}>
+          <p className="gem-body" style={{ fontSize: 11, marginTop: 10 }}>
             {rupees(gem.perCaratMinInr)} – {rupees(gem.perCaratMaxInr)} per carat. Where you land inside
             that is the quality of the stone, which you choose next.
           </p>
@@ -339,12 +419,12 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
         <>
           {/* NO BODY WEIGHT, NO FIGURE — the same refusal the ascendant gets
               without a birth time, and for a larger sum of money. */}
-          <p className="gem-body" style={{ color: 'var(--gem-body)' }}>
+          <p className="gem-body">
             The weight is worked out from your body weight, which we don’t have. Add it to your
             profile and the carats and the price appear — we won’t guess at it.
           </p>
           <div>
-            <span className="gem-price" style={{ color: 'var(--gem-title)', borderColor: 'var(--gem-accent)' }}>
+            <span className="gem-price">
               {rupees(gem.perCaratMinInr)} – {rupees(gem.perCaratMaxInr)} PER CARAT
             </span>
           </div>
@@ -637,9 +717,19 @@ export function AstroGemstones() {
               {data.recommendations.length} stone{data.recommendations.length === 1 ? '' : 's'} out of thirty. The rest of the
               catalogue is not shown, because it isn’t yours.
             </p>
+            <p className="muted gem-tiles-note">
+              Open a stone for the reading, the weight it is worn at and what it costs.
+            </p>
           </div>
 
-          {data.recommendations.map((rec) => <StoneSheet key={rec.gem.id} rec={rec} />)}
+          {/* ── the shelf ──────────────────────────────────────────────
+              ONE ROW, ONE SIZE, ONE TAP TO THE ANSWER. Four full sheets
+              stacked down this page put four screens of reference in front of
+              a decision nobody had made yet. The cards are the choosing; the
+              sheet behind each one is the reading. */}
+          <div className="gem-tiles">
+            {data.recommendations.map((rec) => <GemTile key={rec.gem.id} rec={rec} />)}
+          </div>
 
           {/* Last on the page on purpose: the question "what can I afford"
               only makes sense once somebody has read what they are choosing
