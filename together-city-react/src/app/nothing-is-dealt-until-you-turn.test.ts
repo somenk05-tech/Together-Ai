@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -105,10 +105,8 @@ describe('the tarot band', () => {
     expect(copy()).not.toMatch(/<AstroHeader/);
   });
 
-  it('ships the spread it draws, at the weight of a masthead', () => {
-    const file = join(APP, 'public/assets/img/tarot-spread.webp');
-    expect(existsSync(file)).toBe(true);
-    expect(Math.round(statSync(file).size / 1024)).toBeLessThanOrEqual(110);
-    expect(copy()).toMatch(/className="astra-sky"[^>]*alt=""/);
+  it('draws no spread behind the type any more (6 Sep: the hub is plain)', () => {
+    expect(existsSync(join(APP, 'public/assets/img/tarot-spread.webp'))).toBe(false);
+    expect(copy()).not.toMatch(/astra-sky|astra-veil/);
   });
 });

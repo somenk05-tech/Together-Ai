@@ -348,18 +348,15 @@ export function AstroTarot() {
           written for and it is now doing double duty — worth renaming to
           something neutral one day, worth nothing to rename twice.
 
-          THE PICTURE IS THE APP'S OWN DECK. Three majors from
-          /assets/img/tarot — the Chariot, the Moon and the Wheel — dealt as a
-          spread rather than a stock photograph of cards we do not sell. The
-          Moon leads because it is the one card here that is a night landscape,
-          which is what a masthead behind type wants to be.
+          THE PICTURE WENT (6 Sep). The band carried three majors from the
+          app's own deck dealt as a spread; the owner asked for the hub to be
+          plain and white like the letter, so the masthead is type on the
+          ground now, here and in the consultation room alike.
 
           NOT `AstroHeader`. That component is on six screens — both gem
           checkouts, the gemstone shelf, the studio — and restyling it would
           have redesigned all of them to change this one. */}
       <header className="astra">
-        <img className="astra-sky" src="/assets/img/tarot-spread.webp" alt="" />
-        <span className="astra-veil" aria-hidden />
         <div className="astra-in">
           <p className="astra-kicker">Astrology Zone</p>
           <h1 className="astra-title">Tarot</h1>

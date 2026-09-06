@@ -616,106 +616,61 @@
   text-shadow: 0 1px 0 #fff, 0 2px 1px rgba(0,0,0,.055), 0 4px 10px rgba(0,0,0,.05); }
 .ask-lede { font-size: var(--fs-6); line-height: 1.55; color: var(--muted); max-width: 56ch; margin-top: 14px; }
 
-/* ── THE NIGHT BAND (owner, 23 Aug) ─────────────────────────────────────────
-   Two references: a starfield figure, and a poster whose whole typographic
-   idea is a small label, one large line, and a quieter line under it, set on
-   the dark half of a photograph.
-
-   IT IS A BAND, NOT A THEME. This hub is cream paper with black ink and the
-   note in relief.css argues that at length — "there is no version of this hub
-   where the chrome floats and stays dark". So the night is contained: one
-   bordered element, its own background, nothing else on the page touched.
-
-   NO ORANGE. The poster's labels are orange and this design system has no
-   orange to lend — colour-literal-ceiling.mjs is at its ceiling, so inventing
-   one here would fail the build rather than ship. The poster's STRUCTURE is
-   what was asked for and the structure is what this takes: the quiet label and
-   the quiet line are the same white at lower opacity, which needs no token at
-   all.
-
-   THE TEXT SITS ON THE DARK SIDE. `object-position` holds the figure to the
-   right and the veil runs opaque-to-clear across it, so the type has black
-   under it at every width and the photograph is still a photograph. Below
-   640px there is no room for two halves, so the veil turns vertical and the
-   figure sits behind the text rather than beside it. */
+/* ── THE MASTHEAD (owner, 23 Aug, as a night band; plain since 6 Sep) ───
+   The 23 Aug references were a starfield figure and a poster whose whole
+   typographic idea is a small label, one large line, and a quieter line under
+   it. The structure stays; the photograph, the wash and the dark ground went
+   on 6 Sep when the owner asked for the hub to be as plain as the letter. */
 .astra {
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--r-5);
-  background: var(--media-bg);
-  min-height: clamp(340px, 40vw, 480px);
-  display: flex;
-  align-items: flex-end;
-}
-.astra-sky {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  /* THE HEAD, NOT THE RIBS. The first cut of this asset was square and `cover`
-     inside a wide band threw most of it away vertically — the band opened on
-     the figure's chest with the silhouette's head above the frame, which is the
-     one part of this photograph that reads as a person. The asset is cut to the
-     band's own proportion now, so `cover` barely crops and the position is
-     doing almost nothing. */
-  object-position: 50% 30%;
-}
-.astra-veil {
-  position: absolute;
-  inset: 0;
-  /* CLEAR BY 60%, not 84%. The first pass ran the wash three-quarters of the
-     way across and the figure — which is faint starlight to begin with —
-     disappeared into it, leaving a photograph nobody could see behind type
-     that did not need the help. The type has opaque black under it for the
-     whole of its column; past that the picture is the picture. */
-  background: linear-gradient(96deg, var(--media-bg) 4%, var(--scrim-deep) 38%, var(--scrim-clear) 60%);
+  /* THE BAND IS PLAIN (owner, 6 Sep: "change this page too, complete white,
+     remove the image", after the letter). The night, the photograph and the
+     wash all went; what is left is the poster's typographic idea — a small
+     label, one large line, a quieter line — set on the centre line of the
+     white ground with air above it, the way the letter now opens. One block,
+     two rooms still: the consultation room and the tarot table draw this
+     same masthead, so neither can drift from the other. */
+  padding: clamp(40px, 6vw, 88px) 0 clamp(20px, 3vw, 40px);
+  text-align: center;
 }
 .astra-in {
-  position: relative;
-  z-index: 1;
-  /* Wide enough for the big line to break in two, not four. `46ch` measured
-     against --fs-5 came out around 380px, which turned a three-sentence
-     headline into a column of single words. */
-  flex: 0 1 auto;
-  max-width: min(600px, 56%);
-  padding: clamp(24px, 3vw, 44px);
+  max-width: 640px;
+  margin: 0 auto;
 }
 .astra-kicker {
   font-size: var(--fs-1);
   font-weight: 700;
-  letter-spacing: .15em;
+  letter-spacing: .3em;
   text-transform: uppercase;
-  color: var(--on-accent);
-  opacity: .62;
+  color: var(--muted);
   margin: 0;
 }
 /* The poster's big line. `clamp()` rather than a token because this is a
-   masthead that has to hold three sentences on one band — and because a
-   clamp is invisible to the distinct-font-size count, which is at its
-   ceiling. `.ask-title` sets the same precedent two rules up. */
+   masthead that has to hold three sentences — and because a clamp is
+   invisible to the distinct-font-size count, which is at its ceiling.
+   `.ask-title` sets the same precedent. */
 .astra-lead {
-  font-size: clamp(24px, 3.1vw, 40px);
+  font-size: clamp(30px, 4.4vw, 56px);
   font-weight: 700;
   letter-spacing: -.03em;
-  line-height: 1.08;
-  color: var(--on-accent);
-  margin: 14px 0 0;
+  line-height: 1.06;
+  color: var(--ink);
+  margin: 22px 0 0;
+  text-wrap: balance;
 }
 .astra-title {
   font-size: clamp(28px, 3.6vw, 46px);
   font-weight: 700;
   letter-spacing: -.035em;
   line-height: 1.05;
-  color: var(--on-accent);
-  margin: 26px 0 0;
+  color: var(--ink);
+  margin: 40px 0 0;
 }
 .astra-body {
   font-size: var(--fs-5);
   line-height: 1.6;
-  color: var(--on-accent);
-  opacity: .78;
-  margin: 12px 0 0;
+  color: var(--ink-soft);
+  margin: 14px auto 0;
+  max-width: 520px;
 }
 /* THE BAND ABOVE A TAB ROW. Two of the four rooms in this zone put `AstroTabs`
    directly under the masthead, and `AstroHeader` — which the band replaced —
@@ -845,14 +800,6 @@
    The two rooms that still draw a band, the consultation room and the tarot
    table, are dark photographs and keep their wash untouched. */
 
-@media (max-width: 640px) {
-  /* One column, so the wash runs down instead of across and the figure reads
-     behind the type rather than beside it. */
-  .astra { min-height: 0; }
-  .astra-sky { object-position: 62% 22%; }
-  .astra-veil { background: linear-gradient(180deg, var(--scrim-top), var(--scrim-deep) 42%, var(--media-bg) 88%); }
-  .astra-in { max-width: none; }
-}
 
 .ask-card {
   margin-top: clamp(20px, 2.4vw, 32px); padding: clamp(20px, 2.2vw, 30px);

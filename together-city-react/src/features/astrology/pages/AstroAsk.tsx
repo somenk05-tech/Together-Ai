@@ -130,14 +130,11 @@ export function AstroAsk() {
               back two readings, and that the thing this room is FOR is giving
               one answer instead.
 
-              A BAND OF ITS OWN, NOT A RETHEME. This hub is cream paper with
-              black ink, and the note in relief.css defends that at length:
-              "there is no version of this hub where the chrome floats and stays
-              dark." So the night is inside a bordered band the page contains,
-              and every other surface on the page is untouched. */}
+              PLAIN, SINCE 6 SEP. It was a night band with a starfield behind
+              the type; the owner asked for the hub to be as plain as the
+              letter — "complete white, remove the image" — so the masthead is
+              type on the white ground now, on the centre line. */}
           <header className="astra">
-            <img className="astra-sky" src="/assets/img/astra-sky.webp" alt="" />
-            <span className="astra-veil" aria-hidden />
             <div className="astra-in">
               <p className="astra-kicker">Astrology Zone</p>
               <p className="astra-lead">One question. Three astrologers. Three different answers.</p>

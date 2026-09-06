@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -86,28 +86,27 @@ describe('the masthead claims what the engine does', () => {
   });
 });
 
-describe('the night band', () => {
-  it('is a band this page contains, not a retheme of the hub', () => {
+describe('the masthead', () => {
+  /**
+   * PLAIN SINCE 6 SEP. It was a night band — a starfield behind the type in a
+   * dark, bordered element the page contained — and the owner asked for the
+   * hub to be as plain as the letter: "complete white, remove the image". So
+   * the masthead is type on the white ground now, and the tests that shipped
+   * a photograph at the weight of a masthead ship nothing.
+   */
+  it('is type on the ground: no photograph, no wash, no dark surface', () => {
     const css = readFileSync(join(SRC, 'styles/layout.css'), 'utf8');
-    const block = css.slice(css.indexOf('.astra {'), css.indexOf('.ask-card {'));
-    expect(block).toMatch(/background: var\(--media-bg\)/);
-    /* The hub is cream paper and relief.css argues that at length. A dark
-       masthead is allowed to be dark; it is not allowed to re-point --ground,
-       --paper or --card, which is what would take the rest of the page with
-       it. */
+    // The masthead's own rules: from `.astra {` to the end of `.astra-body {`.
+    const from = css.indexOf('.astra {');
+    const block = css.slice(from, css.indexOf('}', css.indexOf('.astra-body {')) + 1).replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(block).not.toMatch(/background|\.astra-sky|\.astra-veil|--media-bg|--scrim/);
+    expect(block).toMatch(/text-align: center/);
+    expect(copy()).not.toMatch(/astra-sky|astra-veil|astra-sky\.webp/);
+    expect(existsSync(join(APP, 'public/assets/img/astra-sky.webp'))).toBe(false);
+    // Colours from tokens only, still.
+    expect(block).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
     for (const token of ['--ground:', '--paper:', '--card:']) {
       expect({ token, repointed: block.includes(token) }).toEqual({ token, repointed: false });
     }
-    // Colours from tokens only — the reference poster's orange is not in this
-    // system and inventing one would fail colour-literal-ceiling anyway.
-    expect(block).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
-  });
-
-  it('ships the photograph it draws, at the weight of a masthead', () => {
-    const file = join(APP, 'public/assets/img/astra-sky.webp');
-    expect(existsSync(file)).toBe(true);
-    expect(Math.round(statSync(file).size / 1024)).toBeLessThanOrEqual(110);
-    // Decorative: the heading beside it is what a screen reader should read.
-    expect(copy()).toMatch(/className="astra-sky"[^>]*alt=""/);
   });
 });

@@ -125,12 +125,11 @@ describe('the gemstone header', () => {
     );
   });
 
-  it('leaves the band alone in the two rooms that still draw one', () => {
+  it('draws no band of its own, now that the two rooms are plain too (6 Sep)', () => {
+    // The veil this once left alone is gone from the whole hub; the gemstone
+    // header must not be where it comes back.
     const css = readFileSync(join(SRC, 'styles/layout.css'), 'utf8');
-    // The shared veil is untouched: still a gradient, still clearing at 60%.
-    expect(css).toMatch(/\.astra-veil \{[\s\S]{0,600}?linear-gradient\(96deg/);
-    for (const page of ['AstroAsk', 'AstroTarot']) {
-      expect(read(`features/astrology/pages/${page}.tsx`)).toMatch(/className="astra-veil"/);
-    }
+    expect(css).not.toMatch(/\.astra-veil \{/);
+    expect(copy()).not.toMatch(/astra-veil|astra-sky/);
   });
 });
