@@ -2057,12 +2057,20 @@ textarea.g-field { resize: none; line-height: 1.55; }
      dawn wash and three pearls declared in --press-grain, two of which can
      only add white — so the composite is arithmetic, not hope, and the AA
      guard measures the computed stops the eye actually gets. The sheet
-     paints one translucent white (--press-glass, via its veil) and frosts
-     what floats behind it; the edge is the pane's own light, all the way
-     round now, because a pane has four edges and paper had a top. */
+     painted one translucent white and frosted what floated behind it; the edge
+     is the pane's own light, all the way round, because a pane has four edges
+     and paper had a top.
+
+     THE PANE WENT OPAQUE ON 6 SEP. The owner looked at the composite the
+     arithmetic above was so careful about — somewhere between #f2f3f5 and
+     #ebedf1 — and called it what it is on a screen: a grey card. What is left
+     of the glass is its edge and its fall; the surface is white. */
   border: 1px solid var(--press-recto-lift);
-  -webkit-backdrop-filter: blur(18px) saturate(1.2);
-  backdrop-filter: blur(18px) saturate(1.2);
+  /* NOTHING TO FROST BEHIND AN OPAQUE SHEET (owner, 6 Sep: "remove the grey
+     card, make it complete white card"). The blur was the other half of the
+     glass, and it earned its cost while the pane was .58 white and you could
+     see the room through it. The pane is paper now; a backdrop-filter under it
+     is a compositing layer per sheet, drawn for nobody. */
   /* The pane still sits ON the room — --shadow is the city's first depth,
      not a new one. A glass card with no fall reads as a region, not a card. */
   box-shadow: var(--shadow);

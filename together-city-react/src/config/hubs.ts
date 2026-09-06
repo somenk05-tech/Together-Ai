@@ -61,7 +61,11 @@ export const NAV: NavItem[] = [
      here. `localeCompare` weighs the hyphen below the letters, so the list
      reads "ECommerce" and 'c' lands before 'n'. a-drawer-of-ones-own.test.ts
      holds the whole run to that order. */
-  { key: 'ecommerce', label: 'E-Commerce', path: '/ecommerce' },
+  /* DIGITAL STORE, NOT E-COMMERCE (owner, 6 Sep). The route, the key and every
+     path under it stay `ecommerce` — a citizen never reads a key, and renaming
+     one costs every link already sent. What changes is the word on the street:
+     "e-commerce" is what the industry calls the category, and this is a shop. */
+  { key: 'ecommerce', label: 'Digital Store', path: '/ecommerce' },
   { key: 'entertainment', label: 'Entertainment', path: '/entertainment' },
   /* FINANCIAL LEFT THE STREET (owner, 22 Aug), NOT THE CITY — the same move
      Travel made on 15 Aug, and for a reason that is easier to say: money is
@@ -294,7 +298,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
      table behind it; see features/ecommerce/README.md for why that is the
      design rather than a first version of one. */
   ecommerce: {
-    key: 'ecommerce', name: 'E-Commerce', tag: 'Every shop in the city, through one door', backPath: '/ecommerce',
+    key: 'ecommerce', name: 'Digital Store', tag: 'Every shop in the city, through one door', backPath: '/ecommerce',
     items: [
       { path: '/ecommerce/store', index: '01', label: 'Personalized Store', sub: 'The shelves that read your profiles' },
       { path: '/ecommerce/market', index: '02', label: 'Open Market', sub: 'Every category, nothing ranked for you' },

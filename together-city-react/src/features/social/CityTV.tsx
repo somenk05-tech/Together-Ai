@@ -14,7 +14,7 @@ import { channelsOf, tuneIndex } from './city-tv';
  * Together City TV should be an autoplay TV."
  *
  * A television, not a wall. The screen is the whole viewport; a remote sits
- * over its foot — previous, pause, next, captions, sound, full screen,
+ * over its foot — previous, pause, next, sound, full screen,
  * channels — and the dial on the right shows whose video is on. The set
  * plays on its own: one video through to its end, then the next, then the
  * next page of the stream, and when the stream runs out it starts again
@@ -101,7 +101,6 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
   const qc = useQueryClient();
   const [at, setAt] = useState(() => Math.min(Math.max(0, startAt), Math.max(0, items.length - 1)));
   const [paused, setPaused] = useState(false);
-  const [captions, setCaptions] = useState(true);
   // WHAT'S NEXT (owner, 6 Sep): a list down the right of the screen of the
   // videos to come, in the order the set will play them; a tap jumps there.
   const [queue, setQueue] = useState(false);
@@ -296,7 +295,7 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
           </button>
         )}
         <div className="tv-progress" aria-hidden><span /></div>
-        {captions && (caption || post.placeName) && (
+        {(caption || post.placeName) && (
           <div className="tv-caption">
             {caption && <p>{caption}</p>}
             {post.placeName && <p className="tv-caption-p"><Icon name="place" size={13} /> {post.placeName}</p>}
@@ -341,12 +340,18 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
           <span className="tv-seek-t">{clockText(clock.duration)}</span>
         </div>
         <div className="tv-bar-row">
-        <span className="tv-mark" aria-hidden><Icon name="tv" size={22} /></span>
+        {/* THE TV GLYPH IS GONE (owner, 6 Sep). It was a 44px decorative mark
+            at the head of the keys — a picture of a television, on a
+            television — and on a phone it took a whole line of the remote to
+            say what the citizen was already looking at. */}
         <div className="tv-keys">
           <button type="button" className="tv-key" onClick={() => go(-1)} aria-label="Previous video"><Icon name="skip-back" size={16} /></button>
           <button type="button" className="tv-key" onClick={() => setPaused((p) => !p)} aria-label={paused ? 'Play' : 'Pause'} aria-pressed={paused}><Icon name={paused ? 'play' : 'pause'} size={16} /></button>
           <button type="button" className="tv-key" onClick={() => go(1)} aria-label="Next video"><Icon name="skip-next" size={16} /></button>
-          <button type="button" className="tv-key" onClick={() => setCaptions((c) => !c)} aria-label={captions ? 'Hide the caption' : 'Show the caption'} aria-pressed={captions}><Icon name="captions" size={16} /></button>
+          {/* AND THE CAPTION KEY WITH IT (owner, 6 Sep). It toggled the poster's
+              own words on and off; they are on, which is what it defaulted to
+              and what nearly nobody changed. One key fewer is one row on a
+              phone. */}
           <button type="button" className="tv-key" onClick={() => { const on = muted || elMuted; setMuted(!on); const el = video.current; if (el) { el.muted = !on; if (!on) return; void el.play().catch(() => {}); } }} aria-label={muted || elMuted ? 'Turn the sound on' : 'Turn the sound off'} aria-pressed={!(muted || elMuted)}><Icon name={muted || elMuted ? 'mute' : 'speak'} size={16} /></button>
           <button type="button" className="tv-key" onClick={fullScreen} aria-label={fs ? 'Leave full screen' : 'Full screen'} aria-pressed={fs}><Icon name="expand" size={16} /></button>
           <button type="button" className="tv-key" onClick={onOpenChannels} aria-label="Together City Channels"><Icon name="grid" size={16} /></button>

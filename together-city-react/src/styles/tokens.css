@@ -1483,7 +1483,8 @@
      one. It keeps white. Nothing about it changes here. */
   /* THE SKY IS NOW WHAT THE EYE GETS THROUGH THE GLASS (owner, 24 Aug).
      The sheets stopped printing this gradient and became translucent white
-     over the room — see --press-glass — so these stops are the COMPOSITE,
+     over the room — see --press-sheet-white, which was that pane until 6 Sep
+     and is opaque now — so these stops are the COMPOSITE,
      computed, not sampled: .58 white over the dawn wash the grain carries
      (#cbe8d2 / #bfe2c9 / #b0d8bd → the three below, channel by channel).
      The pearls above that wash only add white, so the worst stop stays the
@@ -1495,10 +1496,22 @@
     #eff0f3 46%,
     #ebedf1 100%);
   --press-sky-worst: #ebedf1;
-  /* The pane itself: what a sheet paints, and the whole of why the stops
-     above are light. One alpha, declared once, so the composite arithmetic
-     has exactly one input that can move. */
-  --press-glass: rgba(255, 255, 255, .58);
+  /* ── THE PANE IS PAPER AGAIN (owner, 6 Sep) ─────────────────────────────
+     "Remove the grey card, make it complete white card."
+
+     --press-glass was one translucent white — .58 over the room's dawn wash —
+     and the arithmetic above is the record of what that composited to: a sheet
+     that renders somewhere between #f2f3f5 and #ebedf1. Correct, measured, and
+     grey, which is the one thing the owner does not want the day printed on.
+
+     So the day's sheet is opaque white and the alpha is gone with it. There is
+     no composite left to compute for it: white is white on every backdrop, at
+     every viewport, whatever floats behind the pane.
+
+     --press-sky ABOVE STAYS EXACTLY AS IT IS, because the grocery sheet still
+     paints it and the AA guard still measures every ink against its stops. It
+     describes that sheet now rather than this one. */
+  --press-sheet-white: #ffffff;
 
   /* ── THE SHEET'S SCALE IS WRITTEN OUT, NOT DERIVED ────────────────────────
      THIS COST 192 UNREADABLE NODES AND IT IS WORTH THE PARAGRAPH.
@@ -1521,8 +1534,8 @@
      two-layer declaration in relief.css keeps its shape and the veil is the
      only paint. */
   --press-recto-sheet: none;
-  --press-recto-veil:  var(--press-glass);
-  --press-recto-ground:var(--press-sky-worst);
+  --press-recto-veil:  var(--press-sheet-white);
+  --press-recto-ground:var(--press-sheet-white);
   --press-recto-ink:   #171b21;   /* 14.7:1 on the glass's darkest stop */
   --press-recto-ink-2: #333b47;   /*  9.7:1 */
   --press-recto-ink-3: #4f5967;   /*  6.1:1 — labels and metadata ONLY */
@@ -1530,8 +1543,8 @@
   --press-recto-lift:  rgba(255, 255, 255, .72);
 
   --press-verso-sheet: none;
-  --press-verso-veil:  var(--press-glass);
-  --press-verso-ground:var(--press-sky-worst);
+  --press-verso-veil:  var(--press-sheet-white);
+  --press-verso-ground:var(--press-sheet-white);
   --press-verso-ink:   #171b21;
   --press-verso-ink-2: #333b47;
   --press-verso-ink-3: #4f5967;

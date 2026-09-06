@@ -71,33 +71,71 @@ const FALLBACK = PAVILIONS;
  * hubs.ts so a hub's interior label and its billboard line can differ without
  * either pretending to be the other.
  *
- * Local Services is absent DELIBERATELY: the master list names CARS, and this
- * city has no cars hub — /cars redirects into Local Services. A plate that
- * announced a room the app does not have would be the one thing the golden
- * rule forbids, so Services keeps its config copy until it is given a line.
+ * Local Services was absent from the first list DELIBERATELY — it named CARS,
+ * and this city has no cars hub — and the owner's second list (6 Sep) gives
+ * Services a line of its own, so it has one.
  */
 const DISTRICT_COPY: Partial<Record<HubKey, { name: string; line: string }>> = {
-  nutrition: { name: 'Nutrition', line: 'Your food, personalized to you.' },
-  dating: { name: 'Matchmaking', line: 'Matched by your birth charts, then by what you both want.' },
+  /* ── THE OWNER'S SECOND MASTER LIST (6 Sep) ───────────────────────────────
+     Eleven districts rewritten in one message, against the billboards as they
+     now stand on the walk. Where the card's line and the picture behind it
+     disagreed, the picture was right: Fitness's board says trainer,
+     nutritionist and friend, and the card said "Your body. Your goals. Your
+     journey." Medical's board says records in one place AND nutrition and
+     fitness informed by them; the card said half of that.
+
+     THE FOUR NOT ON THE LIST KEEP WHAT THEY HAD — Beauty, Entertainment, Jobs
+     and Pets were not mentioned, and a line nobody asked to change is a line
+     that is working. */
+  nutrition: { name: 'Nutrition', line: 'Your body. Your data. Your nutrition. Personalized exclusively for you.' },
+  dating: { name: 'Matchmaking', line: 'Compatibility first. Attraction next. Intention follows.' },
   entertainment: { name: 'Entertainment', line: 'Your world of things you love.' },
   jobs: { name: 'Jobs', line: 'Your career, your next move.' },
-  medical: { name: 'Medical', line: 'Your health, all in one place.' },
-  financial: { name: 'Financial', line: 'Your money, working toward your goals.' },
-  realestate: { name: 'Real Estate', line: 'Your perfect space, found for you.' },
-  fitness: { name: 'Fitness', line: 'Your body. Your goals. Your journey.' },
+  medical: { name: 'Medical', line: 'All your medical records. One place. Personalized nutrition & fitness, informed by your health.' },
+  financial: { name: 'Financial', line: 'Your money. All in one place. From everyday spending to insurance & investments.' },
+  realestate: { name: 'Real Estate', line: 'Find your next home. Connect directly with the owner.' },
+  fitness: { name: 'Fitness', line: 'Your personal trainer, nutritionist & friend — all in one.' },
   beauty: { name: 'Beauty', line: 'Your look, your way.' },
-  social: { name: 'Together City TV', line: 'Your people. Your city. Your moments.' },
-  astrology: { name: 'Astrology', line: 'Your stars. Your journey. Your timing.' },
-  /* THE ONE DISTRICT WHOSE PLATE IS NOT ITS HUB'S NAME, and the override exists
+  /* THE NAME STAYS TOGETHER CITY TV. The owner's list heads this one SOCIAL,
+     which is what the district IS — but the hub was renamed on 5 Sep and the
+     tab bar, the rail and the breadcrumb all say Together City TV. A card that
+     said Social would be the only place in the city that did. The LINE is the
+     owner's, and it is the one painted on the board. */
+  /* AND ITS LINE IS THE CHANNEL, NOT THE NEIGHBOURHOOD (owner, 6 Sep, an hour
+     after the list): "Together City TV — your own personal channel for your
+     viewers." The line the list gave it was the old social feed's promise, and
+     this room stopped being a feed on 5 Sep. What it is now is a television
+     where every citizen has a channel, and that is what the card says.
+
+     THE COMMA IS OURS. The card sets its line in two weights and splits at the
+     last clause; without one the whole sentence is set in the ink and the
+     payoff has nothing to be a payoff to. Not a word is added or dropped. */
+  social: { name: 'Together City TV', line: 'Your own personal channel, for your viewers.' },
+  /* ASTRA IS THE BILLBOARD'S OWN NAME, and this is the one card where the
+     district's name is not enough on its own: the picture says "Talk to
+     ASTRA", so a card labelled only Astrology is a label beside a name it
+     never explains. Both, in the owner's order. */
+  astrology: { name: 'ASTRA — Astrology', line: 'Billions of patterns. One future. Yours.' },
+  /* THE DISTRICT WHOSE PLATE IS NOT ITS HUB'S NAME, and the override exists
      for exactly that: the hub is Pet Care in the tab bar, the rail and the
      breadcrumb, because that is what the district IS. On the walk it says Pet
-     Products, on the owner's instruction — the walk is a shop window, and the
-     plate that reads "Explore Pet Products" says what is behind it more
-     usefully than one reading "Explore Pet Care". Nothing else moves: this map
-     is read by the home run alone. */
-  pets: { name: 'Pet Products', line: 'Everything your pet needs. All in one place.' },
-  ecommerce: { name: 'E-Commerce', line: 'Your shopping, personalized or wide open.' },
+     Products, on the owner's instruction — the walk is a shop window, and a
+     plate reading Pet Products says what is behind it more usefully than one
+     reading Pet Care. Nothing else moves: this map is read by the home run
+     alone. */
+  pets: { name: 'Pet Products', line: 'Your pets are your babies. Everything they need, all in one place.' },
+  /* SINGULAR, MATCHING THE TAB. The owner's list heads this one DIGITAL
+     STORES; the nav, the hub and the breadcrumb say Digital Store, renamed the
+     same afternoon. One of the two spellings has to be the city's, and it is
+     the one on every other surface. */
+  ecommerce: { name: 'Digital Store', line: 'Everything personalized. Infinite possibilities. Powered by local shops.' },
+  /* SERVICES HAD NO LINE UNTIL NOW, and the absence was deliberate: the first
+     master list named CARS, this city has no cars hub, and a plate announcing
+     a room the app does not have is the one thing the golden rule forbids. The
+     owner has given it its own line, so it takes it. */
+  services: { name: 'Local Services', line: 'Everyone you need, right in your neighborhood.' },
 };
+
 
 /**
  * THE NAME A DISTRICT WEARS, IN ONE PLACE.

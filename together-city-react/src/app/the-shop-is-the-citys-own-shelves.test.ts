@@ -25,7 +25,11 @@ const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
  */
 describe('E-Commerce is a district with rooms behind it', () => {
   it('has a tab on the street and its rooms in the rail', () => {
-    expect(NAV.find((n) => n.key === 'ecommerce')?.label).toBe('E-Commerce');
+    /* DIGITAL STORE ON THE STREET, `ecommerce` IN THE CODE (owner, 6 Sep).
+       The key, the route and every path under it are unchanged — a citizen
+       never reads a key, and renaming one costs every link already sent. */
+    expect(NAV.find((n) => n.key === 'ecommerce')?.label).toBe('Digital Store');
+    expect(NAV.find((n) => n.key === 'ecommerce')?.path).toBe('/ecommerce');
     /* TWO ROOMS ON 22 AUG, THREE BY THE EVENING: the cart joined them at the
        owner's word — "keep individual carts and also a cross-hub cart in
        e-commerce". The facade's two doors are still the first two, and the

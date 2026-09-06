@@ -37,7 +37,7 @@ export function PersonalizedStore() {
   return (
     <>
       <PageHeader
-        eyebrow="E-Commerce"
+        eyebrow="Digital Store"
         title="Personalized Store"
         sub="Each shelf reads one profile and answers with a shortlist, not a catalogue."
       />

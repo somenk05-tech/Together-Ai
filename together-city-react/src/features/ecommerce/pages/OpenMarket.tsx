@@ -39,7 +39,7 @@ export function OpenMarket() {
   return (
     <>
       <PageHeader
-        eyebrow="E-Commerce"
+        eyebrow="Digital Store"
         title="Open Market"
         sub="Everything the city sells, by category."
       />

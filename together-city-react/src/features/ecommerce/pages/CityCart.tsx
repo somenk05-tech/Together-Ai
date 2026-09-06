@@ -40,7 +40,7 @@ export function CityCart() {
   return (
     <>
       <PageHeader
-        eyebrow="E-Commerce"
+        eyebrow="Digital Store"
         title="Your Cart"
         sub="Every shop's bag, one total."
       />
