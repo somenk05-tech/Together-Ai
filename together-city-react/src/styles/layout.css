@@ -1607,42 +1607,6 @@
   .beauty-leaf .s { margin-left: auto; }
 }
 
-/* ── THE TWO TABS, NOW AS BUTTONS ───────────────────────────────────────────
-   THEY WERE A RULE AND NOT A PILL, on the argument that one rounded control in
-   a set of printed plates is the single object on the page that came from
-   another design. That argument was about a SEGMENTED control — the iOS switch,
-   a grey trough with a sliding white lozenge in it — and it still holds against
-   that.
-
-   It did not hold against these. Ten-and-a-half-point tracked capitals with a
-   one-pixel underline is a caption that happens to be clickable: at the owner's
-   word, nothing about it said "press me", and the live one was distinguishable
-   from the dead one only by being slightly darker.
-
-   AND THE HUB ALREADY OWNS THIS BUTTON. The market's category filters are
-   exactly this object — a 999-radius chip, a 1.5px edge, the accent as a fill
-   when it is the live one and the accent's own foreground on top. Borrowing it
-   is the opposite of importing a control from another design; it is using the
-   one this hub already has, which is why the pair pass the same contrast check
-   the chips do rather than needing a new one.
-
-   The strip loses its underline with them. A rule beneath a row of filled
-   buttons is the leftover of the idiom they replaced. */
-.beauty-tabs {
-  display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
-  margin: 0 0 20px;
-}
-.beauty-tabs button {
-  cursor: pointer; font-family: inherit; border-radius: var(--r-full);
-  border: 1.5px solid var(--line); background: transparent;
-  padding: 11px 22px;
-  font-size: var(--fs-3); font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
-  color: var(--ink-soft);
-}
-.beauty-tabs button.is-on {
-  background: var(--accent); border-color: var(--accent); color: var(--on-accent);
-}
-
 /* ── THE MARKET (24 Aug; re-laid as a collection page 3 Sep — see .mk-*) ──
    The grid is the one thing here that needs breakpoints; the rail, the crumb
    and the head are in the shop-floor block at the foot of this file. */

@@ -124,33 +124,6 @@ describe('the beauty profile folds what it has already answered', () => {
     expect(profile).toMatch(/defaultOpen=\{!analysed \|\| picsCount > 0\}/);
   });
 
-  it('gives the two tabs a face somebody can see is pressable', () => {
-    // THEY WERE 10.5px TRACKED CAPITALS WITH A ONE-PIXEL UNDERLINE — a caption
-    // that happened to be clickable, with the live one distinguishable from the
-    // dead one only by being slightly darker.
-    //
-    // The object they became is the market's own category chip, which is the
-    // point: the hub already owns this button, so borrowing it is not importing
-    // a control from another design. The accent pair is the one relief.spec
-    // already measures, which is why this needed no new contrast argument.
-    const layout = read('styles/layout.css');
-    const strip = layout.slice(layout.indexOf('.beauty-tabs {'));
-    const on = strip.slice(strip.indexOf('.beauty-tabs button.is-on'));
-    // THE PILL, BY EITHER NAME. This pinned the literal `999px`, and the radius
-    // sweep pointed 485 raw values at the tokens that already held them —
-    // `--r-full` IS 999px, so the assertion's subject is unchanged and only its
-    // spelling moved. An assertion that reads source as text is exactly the kind
-    // a value-preserving codemod breaks; it should name the intent, not the digits.
-    expect(strip).toMatch(/border-radius:\s*(?:999px|var\(--r-full\))/);
-    expect(on).toMatch(/background: var\(--accent\)/);
-    expect(on).toMatch(/color: var\(--on-accent\)/);
-    // And the rule under the strip went with the idiom it belonged to. A
-    // hairline beneath a row of filled buttons is the leftover of the thing
-    // they replaced.
-    expect(strip.slice(0, strip.indexOf('}'))).not.toMatch(/border-bottom/);
-    expect(layout).not.toMatch(/\.beauty-tabs button\.is-on::after/);
-  });
-
   it('folds nothing behind two taps', () => {
     // A Collapsible around the assessment, whose parts are themselves
     // Collapsibles, means two headers between somebody and one reading — and
@@ -522,46 +495,52 @@ describe('the beauty hub prints on its own paper', () => {
 });
 
 /**
- * THE PHOTOGRAPHS ARE NOT ONE OF THE TABS — owner, 6 Sep: "create your details
- * as a tab below the photo."
+ * ONE SCROLL, NO TABS — owner, 6 Sep: "your details page needs to be below
+ * the images."
  *
- * The tab row sat under the masthead, which put the two photographs — the
- * thing the page is FOR, and the only step that cannot be skipped — behind a
- * switch, level with a form. They stand at the top now for everybody, with the
- * progress they make under them, and the tabs choose what to do next: read the
- * assessment, or answer the questions it is read against.
+ * The photographs stood at the top and a tab row under them chose between the
+ * assessment and the questions it is read against. The row is gone: the
+ * details follow the photographs directly, folded to a summary once they are
+ * saved, and the analysis follows the details — the order the assessment is
+ * made in. The two places that used to switch a tab glide to the section.
  */
-describe('the skin and hair page opens on the photographs', () => {
+describe('the skin and hair page is one scroll', () => {
   const page = stripTs(read('features/beauty/pages/Profile.tsx'));
   const at = (needle: string) => page.indexOf(needle);
 
-  it('draws the photographs above the tab row, not inside a tab', () => {
+  it('draws the photographs, then the details, then the analysis', () => {
     const photos = at('Your photos');
-    const tabs = at('className="beauty-tabs"');
-    const firstPanel = at("{tab === 'photos' && (");
+    const details = at('<div id="beauty-details">');
+    const analysis = at('<div id="beauty-analysis">');
     expect(photos).toBeGreaterThan(-1);
-    expect(tabs).toBeGreaterThan(photos);
-    expect(firstPanel).toBeGreaterThan(tabs);
+    expect(details).toBeGreaterThan(photos);
+    expect(analysis).toBeGreaterThan(details);
+    expect(page).not.toMatch(/beauty-tabs|setTab|tab === '/);
+    expect(read('styles/layout.css')).not.toMatch(/\.beauty-tabs/);
   });
 
-  it('keeps the before-and-after above the tabs with them', () => {
+  it('keeps the before-and-after with the photographs', () => {
     // The progress a photograph makes belongs beside the photograph, not
-    // behind the switch that chooses what to read about it.
-    expect(at('<ProgressView entries={progress} />')).toBeLessThan(at('className="beauty-tabs"'));
+    // under eighteen questions.
+    expect(at('<ProgressView entries={progress} />')).toBeLessThan(at('<div id="beauty-details">'));
   });
 
   it('counts the steps once, above everything', () => {
-    // It stood on both tabs while the tabs were the first thing under the
-    // masthead. One counter now, on the page whichever tab is open.
     expect((page.match(/<OnboardingProgress \/>/g) ?? []).length).toBe(1);
-    expect(at('<OnboardingProgress />')).toBeLessThan(at('className="beauty-tabs"'));
+    expect(at('<OnboardingProgress />')).toBeLessThan(at('Your photos'));
   });
 
-  it('labels the first tab for what is behind it', () => {
-    // The panel holds the assessment, the budget and the history — no
-    // photograph. A tab called "Photos & Analysis" over none of the first is a
-    // label describing where things used to be.
-    expect(page).toMatch(/'Your Analysis' : 'Your Details'/);
-    expect(page).not.toMatch(/Photos & Analysis/);
+  it('glides to a section where it used to switch a tab', () => {
+    // The last required photo landing, and "Complete your profile", go down
+    // to the details; a generated assessment goes down to the analysis.
+    expect(page).toMatch(/glideTo\('beauty-details'\)/);
+    expect(page).toMatch(/onSuccess: \(\) => \{ void runAnalysis\(\); glideTo\('beauty-analysis'\); \}/);
+  });
+
+  it('draws the assessment once', () => {
+    // The details tab used to close with its own copy of the assessment, for
+    // somebody who had just saved. On one page that would be the same reading
+    // twice, one screen apart.
+    expect((page.match(/<AssessmentView a=\{analysis\}/g) ?? []).length).toBe(1);
   });
 });

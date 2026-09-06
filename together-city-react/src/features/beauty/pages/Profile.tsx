@@ -526,7 +526,11 @@ export function Profile() {
     : masterGender === 'other' && masterGenderFreeText ? masterGenderFreeText
     : null;
   const budget = useBeautyBudget();
-  const [tab, setTab] = useState<'photos' | 'profile'>('photos');
+  /** ONE SCROLL, NO TABS (owner, 6 Sep: "your details page needs to be below
+      the images"). Photos, then the details, then the analysis, in the order
+      the assessment is made. The two places that used to switch a tab now
+      glide to the section instead. */
+  const glideTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const [f, setF] = useState<Form>(EMPTY);
   const [editingProfile, setEditingProfile] = useState(false);
   const [pics, setPics] = useState<Record<string, Shot>>({});
@@ -580,18 +584,17 @@ export function Profile() {
     ...REQUIRED_MULTI.map((k) => ((f[k] as string[]) ?? []).length > 0),
   ].filter(Boolean).length;
   const profileCompleteH = answeredH >= REQUIRED_SINGLE.length + REQUIRED_MULTI.length;
-  // Auto-advance: the moment the last REQUIRED photo lands, glide to the
-  // Profile tab. It fires on the required pair rather than on a full grid,
-  // because the optional third may never arrive and waiting for it would strand
-  // somebody on a tab they have finished with.
+  // Auto-advance: the moment the last REQUIRED photo lands, glide down to the
+  // details. It fires on the required pair rather than on a full grid, because
+  // the optional third may never arrive and waiting for it would strand
+  // somebody on a step they have finished with.
   const [photoBanner, setPhotoBanner] = useState(false);
   const autoSwitched = useRef(false);
   useEffect(() => {
     if (photosCompleteH && !autoSwitched.current && !profileCompleteH) {
       autoSwitched.current = true;
       setPhotoBanner(true);
-      setTab('profile');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      glideTo('beauty-details');
     }
     if (!photosCompleteH) autoSwitched.current = false;
   }, [photosCompleteH, profileCompleteH]);
@@ -658,7 +661,7 @@ export function Profile() {
     ...REQUIRED_MULTI.filter((k) => (((f[k] as string[]) ?? []).length === 0)),
   ].map((k) => REQUIRED_LABEL[k] ?? String(k));
 
-  /** Step indicator shown on both tabs while onboarding is incomplete. */
+  /** Step indicator shown at the top of the page while onboarding is incomplete. */
   const OnboardingProgress = () => {
     if (photosComplete && profileComplete) return null;
     if (analysis && picsCount === 0) return null; // returning user, nothing staged
@@ -679,7 +682,7 @@ export function Profile() {
             {profileComplete ? '✅' : '2️⃣'} Profile: {answered} / {profileTotal}
           </span>
         </div>
-        {!profileComplete && missing.length > 0 && tab === 'profile' && (
+        {!profileComplete && missing.length > 0 && (
           <p className="muted" style={{ fontSize: 11.5, margin: '8px 0 0' }}>Still to answer: {missing.slice(0, 6).join(', ')}{missing.length > 6 ? ` +${missing.length - 6} more` : ''} — "Don't know" and "None of these" count.</p>
         )}
       </div>
@@ -742,9 +745,10 @@ export function Profile() {
           a switch, level with a form.
 
           So the photographs, the progress they make and the step counter come
-          out of the tabs and stand at the top of the page for everybody. What
-          the tabs choose between is what to do NEXT with them: read the
-          assessment, or answer the questions it is read against. */}
+          out of the tabs and stand at the top of the page for everybody. The
+          tabs themselves went on 6 Sep ("your details page needs to be below
+          the images"): the details follow the photographs, and the analysis
+          follows the details. */}
       <OnboardingProgress />
           {/* ONCE THE PROFILE IS DONE, THE FORM FOLDS AWAY.
               Everything on this page is an INPUT: the photos, the answers, the
@@ -787,7 +791,7 @@ export function Profile() {
                   sentence somebody can satisfy and still be locked out. */}
               {!photosComplete && picsCount > 0 && <span className="muted" style={{ fontSize: 11.5 }}>Still needed: {missingPhotos(pics).join(' and ')}</span>}
               {photosComplete && !profileComplete && (
-                <button type="button" onClick={() => setTab('profile')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, color: 'var(--accent-ink)', padding: 0 }}>
+                <button type="button" onClick={() => glideTo('beauty-details')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, color: 'var(--accent-ink)', padding: 0 }}>
                   Complete your profile to unlock your assessment →
                 </button>
               )}
@@ -820,85 +824,9 @@ export function Profile() {
           {/* OPEN. The before and after is the reason to come back. */}
           {progress.length > 0 && <ProgressView entries={progress} />}
 
-      {/* The tabs, set as a rule rather than a pill switch: two tracked words
-          on a hairline, the live one underscored. A rounded segmented control
-          in the middle of a set of printed plates is the one object on the
-          page that came from a different design.
-
-          THE KEYS ARE STILL `photos` AND `profile` though the first panel no
-          longer holds a photograph: the auto-advance, the "complete your
-          profile" button and the deep links all speak them, and renaming a
-          state key to match a label is a rename with nothing under it. The
-          LABELS say what is actually behind each one. */}
-      <div className="beauty-tabs" role="tablist" aria-label="Skin and hair profile">
-        {(['photos', 'profile'] as const).map((t) => (
-          <button key={t} type="button" role="tab" aria-selected={tab === t}
-            className={tab === t ? 'is-on' : undefined} onClick={() => setTab(t)}>
-            {t === 'photos' ? 'Your Analysis' : 'Your Details'}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'photos' && (
-        <div>
-
-          {/* NOT WRAPPED IN A COLLAPSIBLE OF ITS OWN ANY MORE. Skin, Hair &
-              scalp and Ingredients each fold individually now, and one fold
-              around three folds means two clicks to read one reading, with the
-              outer header able to say nothing more specific than the name of
-              the thing inside it. What is left outside is the summary
-              paragraph, which is the one part somebody wants without asking. */}
-          {analysis ? (
-            <AssessmentView a={analysis} analyzedAt={analyzedAt} />
-          ) : (
-            <EmptyState icon="✨" title="No assessment yet" hint="Add photos and analyse, or fill in your profile and save — your assessment appears here." />
-          )}
-
-          {/* DIRECTLY UNDER THE ANALYSIS, because it is step two of three and the
-              assessment is what the money is being spent against. This is the
-              only place it lives — it had a page and a sidebar tab for an
-              afternoon, and that was a second location for one decision.
-
-              OPEN UNTIL IT IS SET, then folded with the rest. The header keeps
-              the answer visible while it is closed, so somebody can see what
-              they chose without opening anything. */}
-          {analysis && (budget.data ? (
-            <BeautyPlate
-              title={<>Create<br />Your Budget</>}
-              blurb="Your routine is built inside this number — never over it."
-              meta={budgetSummary(budget.data)}
-            >
-              <BudgetPanel compact priorities={priorities} />
-              <p style={{ margin: '14px 0 0', fontSize: 11.5 }}>
-                <Link to="/beauty/routine" style={{ fontWeight: 700, color: 'var(--accent-ink)' }}>See my routine →</Link>
-              </p>
-            </BeautyPlate>
-          ) : (
-            /* NOT A PLATE UNTIL THERE IS AN ANSWER IN IT. A budget that has
-               never been set is the next thing to do, and a poster you have to
-               open first is a poster in front of the only unfinished step. */
-            <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--accent)' }}>
-              <BudgetPanel compact priorities={priorities} />
-            </div>
-          ))}
-
-          {/* Permanent, dated assessment history + progress comparison. */}
-          {analysed
-            ? <BeautyPlate title="Your Timeline" blurb="Every assessment you have saved, in order, with what changed between them."><SkinHairTimeline /></BeautyPlate>
-            : <SkinHairTimeline />}
-
-          {/* Medical Hub biomarkers → skin & hair, right here on the profile tab. */}
-          <BiomarkerCorrelation />
-        </div>
-      )}
-
-      {tab === 'profile' && (
-        <div>
-          {/* THE DETAILS TAB GETS THE SECOND POSTER'S OTHER HALF. The plate on
-              the photos tab is titled "Your Photos & Details for Analysis"
-              because the owner's print is, and the details are on this tab —
-              so a citizen who lands here from the auto-advance arrives at a
-              page with no masthead on it at all.
+      <div id="beauty-details">
+          {/* THE DETAILS KEEP THEIR OWN PLATE, directly under the photographs
+              the plate above promised them with.
 
               NO PANEL BEHIND IT. What follows is eighteen questions somebody
               came here to answer; putting them behind a fold would be folding
@@ -915,9 +843,7 @@ export function Profile() {
               <button type="button" onClick={() => setPhotoBanner(false)} aria-label="Dismiss this message" style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--ok-ink)' }}>✕</button>
             </div>
           )}
-          {/* NO SECOND STEP COUNTER. It stood on both tabs while the tabs
-              were the first thing under the masthead; there is one now, above
-              the photographs, and it is on the page whichever tab is open. */}
+          {/* NO SECOND STEP COUNTER. There is one, above the photographs. */}
           {collapsedProfile ? (
             <BeautyProfileSummary f={f} onEdit={() => setEditingProfile(true)} />
           ) : (
@@ -1028,7 +954,7 @@ export function Profile() {
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '4px 0 22px', flexWrap: 'wrap' }}>
             {photosComplete && profileComplete && picsCount > 0 ? (
               <Button variant="accent" disabled={save.isPending || analyze.isPending}
-                onClick={() => save.mutate(withMethod(profilePayload(f as unknown as Record<string, unknown>)), { onSuccess: () => { void runAnalysis(); setTab('photos'); window.scrollTo({ top: 0, behavior: 'smooth' }); } })}>
+                onClick={() => save.mutate(withMethod(profilePayload(f as unknown as Record<string, unknown>)), { onSuccess: () => { void runAnalysis(); glideTo('beauty-analysis'); } })}>
                 {save.isPending || analyze.isPending ? 'Generating your assessment…' : '✨ Generate my AI assessment'}
               </Button>
             ) : (
@@ -1055,9 +981,63 @@ export function Profile() {
           </>
           )}
 
-          {analysis && <AssessmentView a={analysis} analyzedAt={analyzedAt} />}
         </div>
-      )}
+
+      {/* ── ONE SCROLL, NO TABS (owner, 6 Sep: "your details page needs to be
+          below the images"). The tab row that chose between the assessment
+          and the questions is gone: the details stand directly under the
+          photographs, folded to a summary once they are saved, and the
+          analysis reads below them — the order the assessment is made in. */}
+      <div id="beauty-analysis">
+
+          {/* NOT WRAPPED IN A COLLAPSIBLE OF ITS OWN ANY MORE. Skin, Hair &
+              scalp and Ingredients each fold individually now, and one fold
+              around three folds means two clicks to read one reading, with the
+              outer header able to say nothing more specific than the name of
+              the thing inside it. What is left outside is the summary
+              paragraph, which is the one part somebody wants without asking. */}
+          {analysis ? (
+            <AssessmentView a={analysis} analyzedAt={analyzedAt} />
+          ) : (
+            <EmptyState icon="✨" title="No assessment yet" hint="Add photos and analyse, or fill in your profile and save — your assessment appears here." />
+          )}
+
+          {/* DIRECTLY UNDER THE ANALYSIS, because it is step two of three and the
+              assessment is what the money is being spent against. This is the
+              only place it lives — it had a page and a sidebar tab for an
+              afternoon, and that was a second location for one decision.
+
+              OPEN UNTIL IT IS SET, then folded with the rest. The header keeps
+              the answer visible while it is closed, so somebody can see what
+              they chose without opening anything. */}
+          {analysis && (budget.data ? (
+            <BeautyPlate
+              title={<>Create<br />Your Budget</>}
+              blurb="Your routine is built inside this number — never over it."
+              meta={budgetSummary(budget.data)}
+            >
+              <BudgetPanel compact priorities={priorities} />
+              <p style={{ margin: '14px 0 0', fontSize: 11.5 }}>
+                <Link to="/beauty/routine" style={{ fontWeight: 700, color: 'var(--accent-ink)' }}>See my routine →</Link>
+              </p>
+            </BeautyPlate>
+          ) : (
+            /* NOT A PLATE UNTIL THERE IS AN ANSWER IN IT. A budget that has
+               never been set is the next thing to do, and a poster you have to
+               open first is a poster in front of the only unfinished step. */
+            <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--accent)' }}>
+              <BudgetPanel compact priorities={priorities} />
+            </div>
+          ))}
+
+          {/* Permanent, dated assessment history + progress comparison. */}
+          {analysed
+            ? <BeautyPlate title="Your Timeline" blurb="Every assessment you have saved, in order, with what changed between them."><SkinHairTimeline /></BeautyPlate>
+            : <SkinHairTimeline />}
+
+          {/* Medical Hub biomarkers → skin & hair, right here on the profile tab. */}
+          <BiomarkerCorrelation />
+        </div>
     </div>
   );
 }
