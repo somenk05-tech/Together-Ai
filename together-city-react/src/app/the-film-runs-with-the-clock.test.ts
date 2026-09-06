@@ -22,7 +22,7 @@ describe('on the runner', () => {
     // Owner, 6 Sep: "use the Together City TV format for this section, with
     // the timer and the workout text on the side."
     expect(page).toMatch(/<div className="tv-room wk-run">/);
-    expect(page).toMatch(/<video key=\{filmSrc\} ref=\{film\} className="tv-media" src=\{filmSrc\} loop playsInline/);
+    expect(page).toMatch(/<video ref=\{film\} className="tv-media" loop playsInline preload="auto" aria-hidden hidden=\{!filmSrc\} \/>/);
     expect(page).not.toMatch(/<video[^>]*\bmuted\b/);
     const social = read('styles/social.css');
     expect(social).toMatch(/\.tv-media \{ position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain/);
@@ -50,9 +50,13 @@ describe('on the runner', () => {
     expect(page).toMatch(/const filmSrc = running && s && !s\.rest \? s\.video : undefined;/);
     expect(page).toMatch(/if \(paused\) \{ el\.pause\(\); return; \}/);
     expect(page).toMatch(/el\.play\(\)\.catch\(\(\) => setNeedsTap\(true\)\)/);
-    // `key={filmSrc}` remounts the element when the film changes, so a new
-    // step's clip starts at zero rather than wherever the last one was.
-    expect(page).toMatch(/key=\{filmSrc\}/);
+    // One element for the whole session (owner, 6 Sep: "play the video for
+    // all the sets"): the source is swapped when the film changes and left
+    // alone when the next set is the same clip; never remounted, because a
+    // new element has never been played from the citizen's tap.
+    expect(page).not.toMatch(/<video key=/);
+    expect(page).toMatch(/if \(el\.src !== want\) \{ el\.src = filmSrc; el\.load\(\); \}/);
+    expect(page).toMatch(/if \(!filmSrc\) \{ el\.pause\(\); return; \}/);
   });
 
   it('asks for the whole screen from the tap on Start, and gives it back at the end', () => {

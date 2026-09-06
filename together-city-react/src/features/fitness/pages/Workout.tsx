@@ -2,7 +2,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui';
-import { EXERCISE_MEDIA_ATTRIBUTION, useAddWorkout, useTodaySession, type TodaySession } from '../api';
+import { EXERCISE_MEDIA_ATTRIBUTION, useAddWorkout, useProgramme, useTodaySession, type TodaySession } from '../api';
 import { useFoodPref, useNutritionTargets } from '@/features/nutrition/hooks';
 
 /* ---------- shared body profile (from the Nutrition food-preference profile) ---------- */
@@ -191,6 +191,12 @@ export function Workout() {
   const [log, setLog] = useState<Record<string, DayLog>>({});
   const todays = useTodaySession(dur, loc);
   const session = todays.data;
+  const programme = useProgramme();
+  const month = programme.data;
+  const monthDay = month && month.todayIndex >= 0 && month.todayIndex < month.days.length ? month.days[month.todayIndex] : null;
+  const monthNext = month && monthDay ? month.days.slice(monthDay.index + 1).find((d) => d.kind !== 'rest') : undefined;
+  const dayWord = (d: { kind: string; title: string; parts: string; cardioMinutes: number }) =>
+    d.kind === 'strength' ? `${d.title} — ${d.parts}` : d.kind === 'rest' ? 'Rest' : `${d.title} · ${d.cardioMinutes} min`;
 
   // Body profile is shared with the Nutrition food-preference profile — no re-typing.
   const health = useMemo(() => healthFromPref(foodPref.data), [foodPref.data]);
@@ -302,10 +308,22 @@ export function Workout() {
   const [needsTap, setNeedsTap] = useState(false);
   const paused = rt.current.paused;
   const filmSrc = running && s && !s.rest ? s.video : undefined;
+  /* ONE ELEMENT FOR THE WHOLE SESSION (owner, 6 Sep: "if a workout is shown
+     in 3 sets, play the video for all the sets"). The element used to be
+     mounted per filmed step and unmounted on the rest between sets — so set
+     two and set three each arrived with a NEW element that had never been
+     played from the citizen's tap, and Safari will not start sound on one
+     of those by itself. The element lives for the whole session now: the
+     tap on Start played it once, the same element carries every film after,
+     its source swapped when the film changes and left alone when the next
+     set is the same clip, and it is hidden and paused on a step with none. */
   useEffect(() => {
     const el = film.current;
-    if (!el || !filmSrc) return;
+    if (!el) return;
+    if (!filmSrc) { el.pause(); return; }
     if (paused) { el.pause(); return; }
+    const want = new URL(filmSrc, window.location.origin).href;
+    if (el.src !== want) { el.src = filmSrc; el.load(); }
     setNeedsTap(false);
     el.play().catch(() => setNeedsTap(true));
   }, [filmSrc, paused, rt.current.idx]);
@@ -403,6 +421,41 @@ export function Workout() {
           </div>
         </div>
       </section>
+
+      {/* ── A MONTH WITH A TRAINER (owner, 6 Sep) ──────────────────────────
+          "Imagine a personal trainer telling you which body part you are
+          working on that day, showing you the workout, and moving you to the
+          next body part the next day." The month is built on the server from
+          the profile, the kit, the conditions and the whole catalogue; this
+          is the whiteboard: today's day and body part, the note for the
+          phase, what comes next, and the 28 days with the ones done ticked. */}
+      {month && monthDay && (
+        <section className="blk wk-month">
+          <div className="blk-head">
+            <h2>Your month</h2>
+            <span className="muted wk-month-split">{month.splitName} · {month.daysPerWeek} days a week</span>
+          </div>
+          <div className="card">
+            <div className="eyebrow">Day {monthDay.index + 1} of {month.days.length} · week {monthDay.week} · {month.phases.find((p) => p.key === monthDay.phase)?.label ?? monthDay.phase}</div>
+            <h3 className="wk-month-title">{dayWord(monthDay)}</h3>
+            <p className="wk-month-note">{monthDay.note}</p>
+            {monthNext && <p className="muted wk-month-next">Next: {dayWord(monthNext)}{monthNext.index === monthDay.index + 1 ? ', tomorrow' : ` on day ${monthNext.index + 1}`}.</p>}
+            <ol className="wk-month-grid" aria-label="The twenty-eight days">
+              {month.days.map((d) => (
+                <li key={d.index} className={[d.index === monthDay.index ? 'is-today' : '', d.done ? 'is-done' : '', d.index < monthDay.index ? 'is-past' : '', `is-${d.kind}`].filter(Boolean).join(' ')}>
+                  <span className="n">{d.index + 1}</span>
+                  <span className="t">{d.kind === 'rest' ? 'Rest' : d.title}</span>
+                  {d.done && <span className="d" aria-label="done">✓</span>}
+                </li>
+              ))}
+            </ol>
+            <details className="wk-month-why">
+              <summary>Why this month</summary>
+              <ul>{month.why.map((w) => <li key={w}>{w}</li>)}</ul>
+            </details>
+          </div>
+        </section>
+      )}
 
       {/* plan + controls */}
       <section className="blk">
@@ -547,17 +600,15 @@ export function Workout() {
       {running && s && createPortal(
         <div className="tv-room wk-run">
           <div className="tv-screen">
-            {filmSrc ? (
-              <>
-                {/* Decorative to a screen reader — the steps in the caption
-                    are the instructions — so it carries no track. Keyed on
-                    the clip so the next filmed step starts from the top. */}
-                <video key={filmSrc} ref={film} className="tv-media" src={filmSrc} loop playsInline preload="auto" aria-hidden />
-                {needsTap && (
-                  <button type="button" className="tv-sound" onClick={() => { setNeedsTap(false); void film.current?.play().catch(() => setNeedsTap(true)); }}>▶ Tap to play</button>
-                )}
-              </>
-            ) : s.gif && !s.rest ? (
+            {/* Decorative to a screen reader — the steps in the caption are
+                the instructions — so it carries no track. Always mounted
+                while the session runs (see the effect above); hidden on a
+                step with no film. */}
+            <video ref={film} className="tv-media" loop playsInline preload="auto" aria-hidden hidden={!filmSrc} />
+            {filmSrc && needsTap && (
+              <button type="button" className="tv-sound" onClick={() => { setNeedsTap(false); void film.current?.play().catch(() => setNeedsTap(true)); }}>▶ Tap to play</button>
+            )}
+            {filmSrc ? null : s.gif && !s.rest ? (
               <figure className="wk-screen-shot">
                 {/* 180×180 is the size this media is licensed at. */}
                 <img src={s.gif} alt="" width={180} height={180} />

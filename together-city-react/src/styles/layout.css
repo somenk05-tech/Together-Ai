@@ -2298,6 +2298,39 @@
   .wk-cap { padding-bottom: calc(150px + var(--safe-bottom)); }
 }
 
+/* ── A MONTH WITH A TRAINER (6 Sep) ────────────────────────────────────────
+   The whiteboard: today's day and body part, the phase's note, what is
+   next, and the twenty-eight days in four rows of seven — the ones done
+   ticked, today ringed in the hub's accent, rest days quiet. */
+.wk-month-title { margin: 6px 0 0; font-size: var(--fs-8); font-weight: 700; line-height: 1.15; letter-spacing: -.02em; }
+.wk-month-note { margin: 8px 0 0; font-size: var(--fs-4); line-height: 1.6; }
+.wk-month-next { margin: 6px 0 0; font-size: var(--fs-3); }
+.wk-month-grid {
+  list-style: none; margin: 14px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px;
+}
+.wk-month-grid li {
+  position: relative; display: grid; gap: 2px; padding: 8px 6px; min-height: 52px;
+  border: 1px solid var(--line); border-radius: var(--r-1); background: var(--card);
+}
+.wk-month-grid .n { font-size: var(--fs-1); color: var(--muted); font-variant-numeric: tabular-nums; }
+.wk-month-grid .t { font-size: var(--fs-2); font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wk-month-grid .d { position: absolute; top: 6px; right: 7px; font-size: var(--fs-2); font-weight: 700; color: var(--ok-ink); }
+.wk-month-grid li.is-rest .t { color: var(--muted); font-weight: 500; }
+.wk-month-grid li.is-cardio .t { color: var(--ink-soft); }
+.wk-month-grid li.is-past { opacity: .6; }
+.wk-month-grid li.is-done { border-color: var(--ok-line); background: var(--ok-soft); opacity: 1; }
+.wk-month-grid li.is-today { border: 2px solid var(--accent); opacity: 1; }
+.wk-month-grid li.is-today .t { color: var(--accent-ink); }
+.wk-month-why { margin-top: 12px; font-size: var(--fs-3); }
+.wk-month-why summary { cursor: pointer; font-weight: 700; color: var(--accent-ink); }
+.wk-month-why ul { margin: 8px 0 0; padding-left: 18px; line-height: 1.55; display: grid; gap: 4px; }
+@media (max-width: 560px) {
+  .wk-month-grid { gap: 4px; }
+  .wk-month-grid li { padding: 6px 4px; min-height: 44px; }
+  .wk-month-grid .t { font-size: var(--fs-1); }
+}
+
 /* ── THE THUMB GETS THE 44px IT WAS PROMISED, WITHOUT THE PILLS GROWING ─────
    Apple and Android both put the minimum comfortable target at ~44px. The
    header's five doors draw at 32px tall, the breadcrumb's Back pill at 27px,
