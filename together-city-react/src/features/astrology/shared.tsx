@@ -43,12 +43,26 @@ export function AstroTabs() {
   );
 }
 
+/**
+ * THE POSTER, ON THE SIX SCREENS THAT SHARE THIS HEADER (owner, 6 Sep: "make
+ * the other text on top too in the same design as the other"). The same
+ * `.astra` block the consultation room and the tarot table wear: the corners,
+ * the title as the large line with its last word in the italic, the lede as
+ * the tracked line beneath. No labels — these rooms have nothing to tuck
+ * around the title — and one word alone stays in capitals.
+ */
 export function AstroHeader({ title, lede }: { title: string; lede: string }) {
+  const words = title.trim().split(/\s+/);
+  const last = words.length > 1 ? words.pop() : null;
   return (
-    <div className="rise" style={{ marginBottom: 18 }}>
-      <div className="eyebrow">Astrology Zone</div>
-      <h1 style={{ fontSize: 'clamp(24px,3vw,34px)' }}>{title}</h1>
-      <p className="lede">{lede}</p>
-    </div>
+    <header className="astra rise">
+      <div className="astra-in">
+        <p className="astra-corners" aria-hidden><span>Astrology Zone</span><span>Together City</span></p>
+        <div className="astra-stage">
+          <h1 className="astra-line">{words.join(' ')}{last && <> <em className="i">{last}</em></>}</h1>
+        </div>
+        <p className="astra-after">{lede}</p>
+      </div>
+    </header>
   );
 }
