@@ -1233,13 +1233,28 @@
    the two bands what they actually need and gives both the larger answer. Where
    it is not supported the rule is dropped and the bands lay out exactly as they
    did before — the old, misaligned, entirely legible page. */
+/* AND THE STEPS SHARE ROWS TOO (owner, 6 Sep: "fix the misalignment for
+   morning to evening"). Heading and note lined up; the cards under them did
+   not, because each band's grid of steps was its own grid with its own rows —
+   a repeated-bottle card in the evening is shorter than a priced one in the
+   morning, so the evening's second row began wherever its first row ended,
+   and the two columns drifted apart card by card. The day now owns the card
+   rows as well: `--rt-rows` (set by the page to the larger step count, so
+   there are always enough) after the two rows for head and note, each band
+   spans all of them, and each band's step grid is a subgrid of the rest. A
+   row is as tall as the taller card on either side, so morning's third step
+   and evening's third step sit on the same line whatever is in them. Rows
+   nothing lands in are zero-height; the space between cards is on the card,
+   not on the row, so empty rows cost nothing. */
 .routine-day {
   display: grid; grid-template-columns: 1fr 1fr; gap: 0 26px;
-  grid-template-rows: auto auto 1fr; align-items: start;
+  grid-template-rows: auto auto repeat(var(--rt-rows, 8), auto); align-items: start;
 }
 .routine-band {
-  display: grid; grid-row: span 3; grid-template-rows: subgrid; min-width: 0;
+  display: grid; grid-row: 1 / -1; grid-template-rows: subgrid; min-width: 0;
 }
+.routine-day .routine-grid { grid-row: 3 / -1; grid-template-rows: subgrid; row-gap: 0; }
+.routine-day .routine-card { margin-bottom: 30px; }
 /* The divider IS the composition: one hairline between morning and night is
    what makes them read as two halves of a day rather than two lists that
    happen to be adjacent. It is drawn on the second column so it never appears
@@ -1251,6 +1266,8 @@
      and a band still spanning three of the parent's rows would reserve the
      other band's note height above its own steps. */
   .routine-band { display: block; grid-row: auto; }
+  .routine-day .routine-grid { grid-template-rows: none; row-gap: 30px; }
+  .routine-day .routine-card { margin-bottom: 0; }
   .routine-day > :nth-child(2) { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 18px; }
 }
 /* The weekly and body bands stand alone in their own sheet, with nothing to

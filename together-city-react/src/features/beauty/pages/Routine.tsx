@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Fold, Spinner } from '@/components/ui';
 import {
@@ -836,7 +836,10 @@ export function Routine() {
           {/* AM and PM abreast, as in the reference; the divider between them is
               the only rule on the page and it is what makes them read as two
               halves of one day rather than two lists. */}
-          <div className="beauty-sheet is-shop routine-day">
+          {/* `--rt-rows` is how many card rows the day reserves for both
+              bands to share — the larger step count, which is enough at any
+              width; see .routine-day in layout.css. */}
+          <div className="beauty-sheet is-shop routine-day" style={{ ['--rt-rows' as string]: Math.max(1, ...day.map((r) => r.steps.length)) } as CSSProperties}>
             {day.map((r) => <Band key={r.timeOfDay} r={r} picks={picks} bagged={bagged} seen={firstSeen} />)}
           </div>
 
