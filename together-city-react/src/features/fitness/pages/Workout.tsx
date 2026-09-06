@@ -83,6 +83,9 @@ interface Step {
   steps?: string[];
   muscles?: string[];
   gif?: string;
+  /** The city's own film of the movement (owner, 6 Sep) — played full-screen,
+   *  on a loop, with its sound, for as long as this step's clock runs. */
+  video?: string;
 }
 
 /** A reasonable clock for one working set, so the timer has something to count
@@ -109,7 +112,7 @@ function stepsFrom(session: TodaySession | undefined, includeWalk: boolean): Ste
           reps: ex.reps ? ex.reps[1] : null,
           note: ex.reps ? `${ex.reps[0]}–${ex.reps[1]} reps${ex.unilateral ? ' each side' : ''}` : undefined,
           ...(ex.sets > 1 ? { round: i } : {}),
-          steps: ex.steps, muscles: ex.muscles, gif: ex.gif,
+          steps: ex.steps, muscles: ex.muscles, gif: ex.gif, video: ex.video || undefined,
         });
         if (i < ex.sets && ex.restSec > 0) out.push({ name: 'Rest', block: block.title, dur: ex.restSec, reps: null, rest: true });
       }
@@ -254,10 +257,15 @@ export function Workout() {
     rt.current = { seq, idx: 0, remain: seq[0]?.dur ?? 0, paused: false, running: true, workoutSec: 0, walkSec: 0, mode };
     force();
     speak(seq[0] ? seq[0].name : 'Start');
+    // THE WHOLE SCREEN (owner, 6 Sep). Asked for here, inside the tap on
+    // Start, because that is the only place a browser grants it; iOS Safari
+    // has no such call and the overlay already fills the viewport there.
+    void document.documentElement.requestFullscreen?.().catch(() => undefined);
   };
   const finish = (early: boolean) => {
     const t = rt.current; t.running = false;
     try { speechSynthesis.cancel(); } catch { /* ignore */ }
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
     const wMin = t.workoutSec / 60, kMin = t.walkSec / 60;
     const status: Status = (wMin >= 30 && kMin >= 15) ? 'complete' : wMin >= 15 ? 'workout' : kMin >= 10 ? 'walk' : (wMin > 0 || kMin > 0) ? 'light' : 'none';
     const kcal = kcalWorkout(wMin, WEIGHT) + kcalWalk(kMin, WEIGHT);
@@ -282,6 +290,25 @@ export function Workout() {
   const running = rt.current.running; const s = rt.current.seq[rt.current.idx];
   const next = rt.current.seq[rt.current.idx + 1];
 
+  /* ── THE FILM RUNS WITH THE CLOCK (owner, 6 Sep) ──────────────────────────
+     Where a movement has been filmed, the runner plays the city's own clip
+     behind the countdown: full-screen, looping, with its sound, for as long as
+     the step runs — paused when the clock is paused, from the top on the next
+     step that has one. Browsers let sound play because the session began
+     with a tap on Start; where one still refuses (an older Safari), the chip
+     under the clock asks for the tap and plays from it. */
+  const film = useRef<HTMLVideoElement>(null);
+  const [needsTap, setNeedsTap] = useState(false);
+  const paused = rt.current.paused;
+  const filmSrc = running && s && !s.rest ? s.video : undefined;
+  useEffect(() => {
+    const el = film.current;
+    if (!el || !filmSrc) return;
+    if (paused) { el.pause(); return; }
+    setNeedsTap(false);
+    el.play().catch(() => setNeedsTap(true));
+  }, [filmSrc, paused, rt.current.idx]);
+
   const weekCells = useMemo(() => {
     const out: { day: string; status: string; kcal: string }[] = [];
     for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); const e = log[dayKey(d)]; out.push({ day: DAYNAMES[d.getDay()], status: e ? e.status : '', kcal: e ? inr(e.kcal) : '—' }); }
@@ -291,10 +318,14 @@ export function Workout() {
   const Seg = ({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) => (
     <button type="button" onClick={onClick} style={{ border: `1px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'var(--card)', color: on ? 'var(--on-accent)' : 'var(--ink)', borderRadius: 'var(--r-full)', padding: '8px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{children}</button>
   );
-  const exRow = (i: number, name: string, meta: string, tgt: string) => (
+  const exRow = (i: number, name: string, meta: string, tgt: string, video?: string) => (
     <div key={`${name}-${i}`} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '9px 4px', borderBottom: '1px solid var(--line)' }}>
       <span style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--accent-soft)', color: 'var(--accent-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flex: '0 0 auto' }}>{i}</span>
       <div className="flex-min"><div style={{ fontSize: 13.5, fontWeight: 600 }}>{name}</div><div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{meta}</div></div>
+      {/* THE FILM, AS A LINK (owner, 6 Sep: "next to the workout as a video
+          link"). Only where one has been shot; it opens on its own so the plan
+          stays where it is. */}
+      {video && <a className="wk-film-link" href={video} target="_blank" rel="noopener" aria-label={`Watch ${name}`}>▶ Video</a>}
       <span style={{ fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--accent-ink)' }}>{tgt}</span>
     </div>
   );
@@ -462,6 +493,7 @@ export function Workout() {
                 ex.name,
                 ex.insteadOf ? `instead of ${ex.insteadOf.name}` : ex.seconds ? 'hold / go for the time' : `rest ${ex.restSec}s between sets`,
                 ex.seconds ? (ex.sets > 1 ? `${ex.sets} × ${mmss(ex.seconds)}` : mmss(ex.seconds)) : `${ex.sets} × ${ex.reps?.[0]}–${ex.reps?.[1]}${ex.unilateral ? ' /side' : ''}`,
+                ex.video || undefined,
               ))}
             </div>
           ))}
@@ -501,65 +533,68 @@ export function Workout() {
         <span>◈ Nutrition-linked Goals</span><span>◈ Guided Live Timer</span><span>◈ Private by Default</span>
       </div>
 
-      {/* live timer overlay */}
+      {/* ── THE RUNNER IS A TELEVISION (owner, 6 Sep: "use the Together City
+          TV format for this section, with the timer and the workout text on
+          the side"). The same room the set lives in: the film fills the
+          screen edge to edge on black, and everything that was over it — the
+          block, the name, the target, the clock, the progress, what is next,
+          the steps, the keys — sits in one panel down the right, the way the
+          set's What's next does. A movement with no film shows its animation
+          on the screen instead, or its name. On a phone the panel takes the
+          lower half and the screen the upper. */}
       {running && s && (
-        <div style={{ position: 'fixed', inset: 0, background: 'linear-gradient(160deg,var(--ink),var(--ink))', color: 'var(--on-accent)', display: 'flex', flexDirection: 'column', zIndex: 9999, padding: 22 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: 'rgba(255,255,255,.7)' }}>
-            <span>Step {rt.current.idx + 1} of {rt.current.seq.length}</span>
-            <button type="button" onClick={() => finish(true)} className="btn btn-sm" style={{ background: 'rgba(255,255,255,.14)', color: 'var(--on-accent)', border: '1px solid rgba(255,255,255,.3)' }}>✕ End</button>
-          </div>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 6 }}>
-            <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--accent-ink)', fontWeight: 700 }}>{s.block}{s.round ? ` · round ${s.round}` : ''}</div>
-            <div style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(30px,7vw,54px)', lineHeight: 1.1 }}>{s.rest ? 'Rest' : s.name}</div>
-            <div style={{ fontSize: 20, color: 'var(--ok-line)', fontWeight: 700 }}>{s.walk ? s.note : s.note ? `Target ${s.note}` : s.reps ? `Target ${s.reps} reps` : s.rest ? 'Recover' : `Hold / go for ${mmss(s.dur)}`}</div>
-            <div style={{ fontSize: 'clamp(52px,16vw,120px)', fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.02em' }}>{mmss(rt.current.remain)}</div>
-            <div style={{ height: 6, borderRadius: 'var(--r-full)', background: 'rgba(255,255,255,.15)', overflow: 'hidden', marginTop: 8, width: 240 }}>
-              <div style={{ height: '100%', background: 'var(--ok-line)', width: `${s.dur ? Math.round((1 - rt.current.remain / s.dur) * 100) : 0}%` }} />
-            </div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>{next ? `Up next: ${next.rest ? 'Rest' : next.name}` : 'Last one!'}</div>
-
-            {/* ── HOW IT IS DONE, WHILE IT IS BEING DONE ───────────────
-                UNDER THE CLOCK, NOT BESIDE IT. The countdown is what somebody
-                glances at from two metres away mid-set; the instructions are
-                what they read in the first seconds and during the rest before
-                it. One column keeps one reading order on a phone, and costs
-                nothing on a laptop — measured on the live page, this screen was
-                two thirds empty below the progress bar.
-
-                NOT ON A REST STEP. "Rest" needs no instructions, and printing
-                the last movement's over it would have somebody starting the
-                next set during their recovery. */}
-            {!s.rest && (s.gif || (s.steps?.length ?? 0) > 0) && (
-              <div className="wk-how">
-                {s.gif && (
-                  <figure className="wk-how-shot">
-                    {/* 180×180 is the size this media is licensed at — not a
-                        layout choice, and not one to "improve" later. */}
-                    <img src={s.gif} alt="" width={180} height={180} loading="lazy" />
-                    <figcaption>{EXERCISE_MEDIA_ATTRIBUTION}</figcaption>
-                  </figure>
+        <div className="tv-room wk-run">
+          <div className="tv-screen">
+            {filmSrc ? (
+              <>
+                {/* Decorative to a screen reader — the steps in the panel are
+                    the instructions — so it carries no track. Keyed on the
+                    clip so the next filmed step starts from the top. */}
+                <video key={filmSrc} ref={film} className="tv-media" src={filmSrc} loop playsInline preload="auto" aria-hidden />
+                {needsTap && (
+                  <button type="button" className="tv-sound" onClick={() => { setNeedsTap(false); void film.current?.play().catch(() => setNeedsTap(true)); }}>▶ Tap to play</button>
                 )}
-                <div className="wk-how-words">
-                  {(s.steps?.length ?? 0) > 0 && (
-                    <ol className="wk-how-steps">{s.steps!.map((t) => <li key={t}>{t}</li>)}</ol>
-                  )}
-                  {(s.muscles?.length ?? 0) > 0 && (
-                    <div className="wk-how-muscles">Works {s.muscles!.join(' · ')}</div>
-                  )}
-                </div>
-              </div>
+              </>
+            ) : s.gif && !s.rest ? (
+              <figure className="wk-screen-shot">
+                {/* 180×180 is the size this media is licensed at. */}
+                <img src={s.gif} alt="" width={180} height={180} />
+                <figcaption>{EXERCISE_MEDIA_ATTRIBUTION}</figcaption>
+              </figure>
+            ) : (
+              <div className="wk-screen-name">{s.rest ? 'Rest' : s.name}</div>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginTop: 16 }}>
-            <button type="button" style={ctrl} onClick={() => { rt.current.paused = !rt.current.paused; force(); }}>{rt.current.paused ? '▶ Resume' : '⏸ Pause'}</button>
-            <button type="button" style={ctrl} onClick={advance}>⏭ Skip exercise</button>
-            <button type="button" style={ctrl} onClick={skipToWalk}>🚶 Skip to walk</button>
-            <button type="button" style={{ ...ctrl, background: 'var(--ok-line)', color: 'var(--ok-ink)', borderColor: 'var(--ok-line)' }} onClick={() => { creditCurrent(); advance(); }}>Done ▸</button>
-          </div>
+
+          <aside className="wk-side" aria-label="This step">
+            <div className="wk-side-top">
+              <span>Step {rt.current.idx + 1} of {rt.current.seq.length}</span>
+              <button type="button" className="tv-key sm" aria-label="End the workout" onClick={() => finish(true)}>✕</button>
+            </div>
+            <div className="wk-side-block">{s.block}{s.round ? ` · round ${s.round}` : ''}</div>
+            <h2 className="wk-side-name">{s.rest ? 'Rest' : s.name}</h2>
+            <div className="wk-side-target">{s.walk ? s.note : s.note ? `Target ${s.note}` : s.reps ? `Target ${s.reps} reps` : s.rest ? 'Recover' : `Hold / go for ${mmss(s.dur)}`}</div>
+            <div className="wk-side-clock">{mmss(rt.current.remain)}</div>
+            <div className="wk-side-bar"><span style={{ width: `${s.dur ? Math.round((1 - rt.current.remain / s.dur) * 100) : 0}%` }} /></div>
+            <div className="wk-side-next">{next ? `Up next: ${next.rest ? 'Rest' : next.name}` : 'Last one!'}</div>
+            {/* NOT ON A REST STEP: "Rest" needs no instructions, and the last
+                movement's over it would start the next set early. */}
+            {!s.rest && (s.steps?.length ?? 0) > 0 && (
+              <ol className="wk-side-steps">{s.steps!.map((t) => <li key={t}>{t}</li>)}</ol>
+            )}
+            {!s.rest && (s.muscles?.length ?? 0) > 0 && (
+              <div className="wk-side-muscles">Works {s.muscles!.join(' · ')}</div>
+            )}
+            <div className="wk-side-keys">
+              <button type="button" onClick={() => { rt.current.paused = !rt.current.paused; force(); }}>{rt.current.paused ? '▶ Resume' : '⏸ Pause'}</button>
+              <button type="button" onClick={advance}>⏭ Skip</button>
+              <button type="button" onClick={skipToWalk}>🚶 To the walk</button>
+              <button type="button" className="is-done" onClick={() => { creditCurrent(); advance(); }}>Done ▸</button>
+            </div>
+          </aside>
         </div>
       )}
     </div>
   );
 }
 
-const ctrl: React.CSSProperties = { borderRadius: 'var(--r-full)', padding: '12px 20px', fontSize: 14, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: 'var(--on-accent)' };

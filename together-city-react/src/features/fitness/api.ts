@@ -184,6 +184,8 @@ export interface SessionExercise {
    *  describe. © Gym visual — see EXERCISE_MEDIA_ATTRIBUTION. */
   thumb: string;
   gif: string;
+  /** The city's own film of the movement, with sound, or ''. */
+  video: string;
 }
 
 /**

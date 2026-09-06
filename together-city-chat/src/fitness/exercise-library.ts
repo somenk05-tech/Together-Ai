@@ -96,6 +96,16 @@ export interface Exercise {
    */
   datasetId?: string;
   steps?: string[];
+  /**
+   * ── THE CITY'S OWN FILM OF THE MOVEMENT (owner, 6 Sep) ───────────────────
+   *
+   * A short clip shot for this hub, under /assets/workout/ on the web app,
+   * with its own sound. The runner plays it full-screen on a loop for as long
+   * as the step's clock runs, and the plan lists it as a link beside the
+   * movement. Only the movements that have been filmed carry one; the spec
+   * checks every path names a file that ships.
+   */
+  video?: string;
 }
 
 /**
@@ -174,9 +184,9 @@ export const LIBRARY: Exercise[] = [
 
   // ── mobility ─────────────────────────────────────────────────────────────
   { id: 'cat-cow', name: 'Cat–cow', pattern: 'mobility', muscles: ['spine'], equipment: ['mat'], impact: 'low', seconds: 40, steps: ['Kneel on all fours with your hands under your shoulders and knees under your hips.', 'Breathe out and round your back toward the ceiling, dropping your head.', 'Breathe in and let your stomach sink as your chest and tailbone lift.', 'Move slowly between the two for the time.'] },
-  { id: 'hip-opener', name: 'Standing hip opener', pattern: 'mobility', muscles: ['hips'], equipment: [], impact: 'low', seconds: 40, steps: ['Stand tall and hold something steady with one hand.', 'Lift one knee to hip height, then open it out to the side and circle it back down.', 'Move through as much range as you have without twisting your lower back.', 'Do half the time on one leg and half on the other.'] },
+  { id: 'hip-opener', name: 'Standing hip opener', pattern: 'mobility', muscles: ['hips'], equipment: [], impact: 'low', seconds: 40, video: '/assets/workout/hip-opener.mp4', steps: ['Stand tall and hold something steady with one hand.', 'Lift one knee to hip height, then open it out to the side and circle it back down.', 'Move through as much range as you have without twisting your lower back.', 'Do half the time on one leg and half on the other.'] },
   { id: 'shoulder-circles', name: 'Shoulder circles', pattern: 'mobility', muscles: ['shoulders'], equipment: [], impact: 'low', seconds: 30, steps: ['Stand tall with your arms relaxed at your sides.', 'Roll both shoulders forward in big slow circles for half the time.', 'Reverse and roll them backwards for the rest.', 'Keep your neck long and your jaw loose.'] },
-  { id: 'calf-stretch', name: 'Calf stretch', pattern: 'mobility', muscles: ['calves'], equipment: [], impact: 'low', seconds: 30, unilateral: true, datasetId: '1377' },
+  { id: 'calf-stretch', name: 'Calf stretch', pattern: 'mobility', muscles: ['calves'], equipment: [], impact: 'low', seconds: 30, unilateral: true, datasetId: '1377', video: '/assets/workout/calf-stretch.mp4' },
   { id: 'chest-opener', name: 'Doorway chest opener', pattern: 'mobility', muscles: ['chest', 'shoulders'], equipment: [], impact: 'low', seconds: 30, steps: ['Stand in a doorway and place a forearm flat on the frame, elbow at shoulder height.', 'Step gently forward with the same-side foot until you feel a stretch across the chest.', 'Hold without bouncing, breathing normally.', 'Swap sides for the second half of the time.'] },
 ];
 

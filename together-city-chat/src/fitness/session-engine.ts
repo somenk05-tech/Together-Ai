@@ -172,6 +172,8 @@ export interface SessionExercise {
    *  hand-written ones the dataset does not describe. © Gym visual. */
   thumb: string;
   gif: string;
+  /** The city's own film of the movement, with sound, or '' — see Exercise.video. */
+  video: string;
 }
 
 export interface SessionBlock {
@@ -248,9 +250,9 @@ function pick(
  * cool-down and the walk alike — so there is no block a citizen can reach that
  * knows what to do and no block that doesn't.
  */
-const describe = (e: Exercise): Pick<SessionExercise, 'steps' | 'muscles' | 'thumb' | 'gif'> => {
+const describe = (e: Exercise): Pick<SessionExercise, 'steps' | 'muscles' | 'thumb' | 'gif' | 'video'> => {
   const { thumb, gif } = mediaFor(e);
-  return { steps: howTo(e), muscles: e.muscles, thumb, gif };
+  return { steps: howTo(e), muscles: e.muscles, thumb, gif, video: e.video ?? '' };
 };
 
 export function buildSession(input: SessionInput): TodaySession {
