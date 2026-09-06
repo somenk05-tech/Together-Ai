@@ -80,7 +80,9 @@
 /* the remote sleeps: a few seconds after the pointer last moved, the chrome
    and the cursor go; a remote a keyboard is on stays */
 .tv .tv-bar, .tv .tv-room-top { transition: opacity var(--dur-fast) var(--ease); }
-.tv.asleep { cursor: none; }
+/* asleep — which is how the set comes on — the chrome is gone and the cursor
+   stays: nothing wakes on a moving mouse, so a hidden cursor would only
+   hide the hand that has to click */
 .tv.asleep .tv-bar:not(:focus-within), .tv.asleep .tv-room-top:not(:focus-within) { opacity: 0; pointer-events: none; }
 .tv-screen { overflow: hidden; background: var(--media-bg); color: var(--on-accent); }
 .tv-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
@@ -133,17 +135,19 @@
 .tv.asleep .tv-next { opacity: 1; }
 
 /* the remote, floating over the foot of the screen */
+/* SEE-THROUGH everywhere (owner, 6 Sep): a translucent strip on the scrim,
+   keys drawn on it rather than on paper. What the phone had first. */
 .tv-bar {
   position: absolute; left: 50%; bottom: calc(18px + var(--safe-bottom)); transform: translateX(-50%); z-index: 3;
   display: grid; gap: 6px; justify-items: stretch;
-  padding: 10px 14px 10px; border-radius: var(--r-5); background: var(--face); color: var(--ink); box-shadow: var(--e3);
+  padding: 10px 14px 10px; border-radius: var(--r-5); background: var(--scrim-deep); color: var(--on-accent); box-shadow: none;
   width: max-content; max-width: calc(100% - 28px);
 }
 .tv-bar-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; }
 /* the slider along the top of the remote: time, a range, duration */
 .tv-seek { display: flex; align-items: center; gap: 10px; padding: 0 4px; }
-.tv-seek-t { flex: 0 0 auto; min-width: 4ch; font-size: var(--fs-2); font-variant-numeric: tabular-nums; text-align: center; color: var(--muted); }
-.tv-scrub { flex: 1 1 auto; width: 100%; height: 20px; margin: 0; background: none; cursor: pointer; accent-color: var(--accent); }
+.tv-seek-t { flex: 0 0 auto; min-width: 4ch; font-size: var(--fs-2); font-variant-numeric: tabular-nums; text-align: center; color: var(--on-accent); opacity: .8; }
+.tv-scrub { flex: 1 1 auto; width: 100%; height: 20px; margin: 0; background: none; cursor: pointer; accent-color: var(--on-accent); }
 .tv-scrub:disabled { opacity: .4; cursor: default; }
 .tv-scrub:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-full); }
 /* `.tv-mark` — a 44px television glyph at the head of the keys — went with
@@ -152,21 +156,21 @@
 .tv-keys { display: flex; align-items: center; gap: 6px; }
 .tv-key {
   display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: var(--r-full);
-  background: var(--face); box-shadow: var(--e1); color: var(--ink); cursor: pointer; font-family: inherit;
+  background: none; box-shadow: none; color: var(--on-accent); cursor: pointer; font-family: inherit;
 }
 .tv-key.sm { width: 32px; height: 32px; }
-.tv-key:not(:disabled):hover { box-shadow: var(--e2); }
-.tv-key:not(:disabled):active, .tv-key[aria-pressed="true"] { background: var(--well); box-shadow: var(--press); }
+.tv-key:not(:disabled):hover { background: var(--scrim-deep); }
+.tv-key:not(:disabled):active, .tv-key[aria-pressed="true"] { background: var(--scrim-deep); box-shadow: none; }
 .tv-key:disabled { opacity: .4; cursor: default; }
 .tv-key:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.tv-channel { display: grid; gap: 2px; padding-left: 12px; border-left: 1px solid var(--line); }
-.tv-channel-l { font-size: var(--fs-1); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); text-align: center; }
+.tv-channel { display: grid; gap: 2px; padding-left: 12px; border-left: 1px solid var(--scrim-deep); }
+.tv-channel-l { font-size: var(--fs-1); letter-spacing: .16em; text-transform: uppercase; color: var(--on-accent); opacity: .7; text-align: center; }
 .tv-channel-row { display: flex; align-items: center; gap: 8px; }
 .tv-channel-btn {
   display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 2px 10px 2px 2px; border: 0; border-radius: var(--r-full);
-  background: var(--face); box-shadow: var(--e1); color: var(--ink); cursor: pointer; font-family: inherit;
+  background: none; box-shadow: none; color: var(--on-accent); cursor: pointer; font-family: inherit;
 }
-.tv-channel-btn:hover { box-shadow: var(--e2); }
+.tv-channel-btn:hover { background: var(--scrim-deep); }
 .tv-channel-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .tv-channel-n { font-size: var(--fs-3); font-weight: 600; max-width: 14ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tv-dial { display: grid; gap: 4px; }
@@ -674,16 +678,11 @@ textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
      width of the screen, keys drawn on the scrim rather than on paper. */
   .tv-bar {
     left: 8px; right: 8px; bottom: calc(10px + var(--safe-bottom)); transform: none; width: auto; max-width: none;
-    background: var(--scrim-deep); color: var(--on-accent); box-shadow: none;
   }
   .tv-bar-row { flex-wrap: nowrap; justify-content: space-between; }
   .tv-channel-n { display: none; }
-  .tv-key { background: none; box-shadow: none; color: var(--on-accent); }
-  .tv-key:not(:disabled):active, .tv-key[aria-pressed="true"] { background: var(--scrim-deep); box-shadow: none; }
   .tv-channel-btn { padding: 0; background: none; box-shadow: none; }
   .tv-dial { grid-auto-flow: column; gap: 2px; }
-  .tv-seek-t { color: var(--on-accent); opacity: .8; }
-  .tv-scrub { accent-color: var(--on-accent); }
 
   .sl-reel-sheet {
     width: 100%; padding: clamp(50px, 6.5vh, 64px) 16px clamp(12px, 2.6vh, 20px); gap: 10px;

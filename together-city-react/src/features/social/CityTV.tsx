@@ -29,11 +29,12 @@ import { channelsOf, tuneIndex } from './city-tv';
  * person. The channels wall is its own page (/social/channels); the grid key
  * goes there.
  *
- * THE REMOTE SLEEPS. Owner: "the player remote disappears until the cursor
- * goes down"; then, "let the player vanish when the video is playing." Two
- * seconds after the hand last moved — and two seconds after a video starts
- * playing, whether or not the hand moved — the remote and the row over the
- * screen's head fade and the cursor goes with them; any movement wakes them. A paused set stays awake, and so does a remote a
+ * THE REMOTE IS HIDDEN UNTIL TOUCHED. Owner, in three steps: "the remote
+ * disappears until the cursor goes down"; "let the player vanish when the
+ * video is playing"; "the remote only appears when someone clicks on the
+ * video — until clicked it remains hidden." So: the set comes on with no
+ * remote and no row over its head. A click or tap on the screen, or a key,
+ * brings them up for two seconds; a moving mouse does not. A paused set stays awake, and so does a remote a
  * keyboard is on — a control that hides under the hand using it is a trap.
  *
  * SOUND follows the one shared preference every video surface in the city
@@ -59,8 +60,9 @@ import { channelsOf, tuneIndex } from './city-tv';
  * WHAT'S NEXT (owner, 6 Sep): a key on the remote opens a list down the
  * right of the screen — the videos to come, in the order the set will
  * play them, each with its poster, its citizen and its first words; a tap
- * jumps the set there. The list is what is loaded, so it grows as pages
- * arrive, and the set stays awake while it is open.
+ * jumps the set there and closes the list — the citizen chose a video, so
+ * the video is what they see (owner, 6 Sep). The list is what is loaded,
+ * so it grows as pages arrive, and the set stays awake while it is open.
  *
  * No inline styles: the set is drawn in social.css.
  */
@@ -111,7 +113,12 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
   useEffect(() => subscribeMuted(setMutedState), []);
   const screen = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
-  const [awake, setAwake] = useState(true);
+  // HIDDEN UNTIL TOUCHED (owner, 6 Sep: "the remote only appears when
+  // someone clicks on the video; until clicked it remains hidden"). The set
+  // comes on with no remote; a click or tap on the screen, or a key, brings
+  // it up for two seconds. A moving mouse does not — a television is
+  // watched, not hovered.
+  const [awake, setAwake] = useState(false);
   const sleepTimer = useRef(0);
   const wake = useCallback(() => {
     setAwake(true);
@@ -119,10 +126,9 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
     sleepTimer.current = window.setTimeout(() => setAwake(false), SLEEP_MS);
   }, []);
   useEffect(() => {
-    wake();
     // Every way a hand can announce itself: a mouse, a pen, a finger, a key,
     // a wheel. One of them not firing is a citizen who cannot find the door.
-    const EVENTS = ['pointermove', 'mousemove', 'pointerdown', 'touchstart', 'keydown', 'wheel'] as const;
+    const EVENTS = ['pointerdown', 'touchstart', 'keydown'] as const;
     for (const e of EVENTS) window.addEventListener(e, wake, { passive: true });
     return () => { window.clearTimeout(sleepTimer.current); for (const e of EVENTS) window.removeEventListener(e, wake); };
   }, [wake]);
@@ -268,7 +274,6 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
       <div className="tv-screen" aria-live="off">
         <video key={current.id} ref={video} className="tv-media" src={current.url} poster={current.thumbUrl ?? undefined}
           playsInline autoPlay muted={muted} preload="auto"
-          onPlaying={wake}
           onLoadedMetadata={(e) => { setReady(true); setClock({ time: e.currentTarget.currentTime, duration: e.currentTarget.duration || 0 }); }}
           onDurationChange={(e) => {
             // Read the element NOW: inside a state updater the event's
@@ -314,7 +319,7 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
               const v = videoOf(p)!;
               return (
                 <li key={p.id}>
-                  <button type="button" className="tv-next-i" onClick={() => { setAt(index); setPaused(false); }}>
+                  <button type="button" className="tv-next-i" onClick={() => { setAt(index); setPaused(false); setQueue(false); }}>
                     <span className="tv-next-p">{v.thumbUrl ? <img src={v.thumbUrl} alt="" loading="lazy" onError={stale} /> : <Icon name="video" size={18} />}</span>
                     <span className="tv-next-t">
                       <span className="tv-next-n">{p.author.name}</span>
