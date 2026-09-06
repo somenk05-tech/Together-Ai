@@ -96,9 +96,9 @@ describe('the masthead', () => {
    */
   it('is type on the ground: no photograph, no wash, no dark surface', () => {
     const css = readFileSync(join(SRC, 'styles/layout.css'), 'utf8');
-    // The masthead's own rules: from `.astra {` to the end of `.astra-body {`.
+    // The masthead's own rules: from `.astra {` to the end of `.astra-after {`.
     const from = css.indexOf('.astra {');
-    const block = css.slice(from, css.indexOf('}', css.indexOf('.astra-body {')) + 1).replace(/\/\*[\s\S]*?\*\//g, '');
+    const block = css.slice(from, css.indexOf('}', css.indexOf('.astra-after {')) + 1).replace(/\/\*[\s\S]*?\*\//g, '');
     expect(block).not.toMatch(/background|\.astra-sky|\.astra-veil|--media-bg|--scrim/);
     expect(block).toMatch(/text-align: center/);
     expect(copy()).not.toMatch(/astra-sky|astra-veil|astra-sky\.webp/);

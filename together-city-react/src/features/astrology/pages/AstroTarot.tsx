@@ -358,12 +358,28 @@ export function AstroTarot() {
           have redesigned all of them to change this one. */}
       <header className="astra">
         <div className="astra-in">
-          <p className="astra-kicker">Astrology Zone</p>
-          <h1 className="astra-title">Tarot</h1>
-          <p className="astra-lead">A card a day, free &mdash; or ask a question and turn a full spread yourself.</p>
-          <p className="astra-body">
-            Nothing is dealt until you have turned every card.
-          </p>
+          {/* THE POSTER (owner, 6 Sep: "this too in the new design"). The same
+              shape as the consultation room's: corners, a small line, the
+              headline with its italic words, four labels for the four things
+              on this table, a line beneath. Every claim is one the tests
+              below read: the daily card is free, you turn the spread
+              yourself, and nothing is dealt until the last card is turned. */}
+          <p className="astra-corners" aria-hidden><span>Tarot</span><span>Astrology Zone</span></p>
+          <p className="astra-kicker">A card a day, free &mdash; or ask a question and turn a full spread yourself.</p>
+          <div className="astra-stage">
+            <h1 className="astra-line">
+              <span className="w">One</span> <em className="i">card</em> <span className="w">a day,</span><br />
+              <span className="w">or the</span> <em className="i">whole spread?</em>
+            </h1>
+            <ul className="astra-tags" aria-label="What is on the table">
+              <li className="t1">Card of the day</li>
+              <li className="t2">Past &middot; Present &middot; Future</li>
+              <li className="t3">The Celtic cross</li>
+              <li className="t4">Turned by your own hand</li>
+            </ul>
+          </div>
+          <p className="astra-after">Nothing is dealt until you have turned every card.</p>
+          <p className="astra-corners astra-foot" aria-hidden><span>The daily card is free</span><span>A spread is priced only when dealt</span></p>
         </div>
       </header>
 

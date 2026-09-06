@@ -622,56 +622,62 @@
    it. The structure stays; the photograph, the wash and the dark ground went
    on 6 Sep when the owner asked for the hub to be as plain as the letter. */
 .astra {
-  /* THE BAND IS PLAIN (owner, 6 Sep: "change this page too, complete white,
-     remove the image", after the letter). The night, the photograph and the
-     wash all went; what is left is the poster's typographic idea — a small
-     label, one large line, a quieter line — set on the centre line of the
-     white ground with air above it, the way the letter now opens. One block,
-     two rooms still: the consultation room and the tarot table draw this
-     same masthead, so neither can drift from the other. */
-  padding: clamp(40px, 6vw, 88px) 0 clamp(20px, 3vw, 40px);
+  /* THE POSTER (owner, 6 Sep). First "complete white, remove the image",
+     then "write the text in this look", with a studio's type poster as the
+     reference, and "this too in the new design" of the tarot table. So both
+     rooms wear it: tracked capitals in the four corners, a small tracked
+     line, one large headline that sets an italic word inside the capitals,
+     small labels tucked around it, a line beneath. All on the white ground,
+     all in the one typeface — the poster's italic serif is Avenir's own
+     italic here, light and a size up, which is the closest this system can
+     honestly get and closer than a second family would be worth. One block,
+     two rooms still, and every line on either poster is a claim a test reads. */
+  padding: clamp(28px, 4vw, 56px) 0 clamp(20px, 3vw, 40px);
   text-align: center;
 }
-.astra-in {
-  max-width: 640px;
-  margin: 0 auto;
+.astra-in { max-width: 760px; margin: 0 auto; }
+.astra-corners {
+  display: flex; justify-content: space-between; gap: 16px;
+  font-size: var(--fs-1); font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--muted); margin: 0 0 clamp(36px, 6vw, 84px);
 }
 .astra-kicker {
-  font-size: var(--fs-1);
-  font-weight: 700;
-  letter-spacing: .3em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin: 0;
+  font-size: var(--fs-1); font-weight: 700; letter-spacing: .24em; text-transform: uppercase;
+  color: var(--muted); margin: 0;
 }
-/* The poster's big line. `clamp()` rather than a token because this is a
-   masthead that has to hold three sentences — and because a clamp is
-   invisible to the distinct-font-size count, which is at its ceiling.
-   `.ask-title` sets the same precedent. */
-.astra-lead {
-  font-size: clamp(30px, 4.4vw, 56px);
-  font-weight: 700;
-  letter-spacing: -.03em;
-  line-height: 1.06;
-  color: var(--ink);
-  margin: 22px 0 0;
-  text-wrap: balance;
+.astra-stage { position: relative; margin: clamp(28px, 4vw, 56px) 0; }
+/* `clamp()` rather than a token: a masthead line this large has no step on
+   the scale, and a clamp is invisible to the distinct-size count. */
+.astra-line {
+  font-size: clamp(40px, 7.4vw, 96px); line-height: .98; margin: 0;
+  color: var(--ink); text-transform: uppercase; letter-spacing: -.01em; font-weight: 500;
 }
-.astra-title {
-  font-size: clamp(28px, 3.6vw, 46px);
-  font-weight: 700;
-  letter-spacing: -.035em;
-  line-height: 1.05;
-  color: var(--ink);
-  margin: 40px 0 0;
+.astra-line .i {
+  font-style: italic; font-weight: 300; text-transform: none; letter-spacing: -.03em;
+  font-size: 1.12em; line-height: .9; margin: 0 -.04em;
 }
-.astra-body {
-  font-size: var(--fs-5);
-  line-height: 1.6;
-  color: var(--ink-soft);
-  margin: 14px auto 0;
-  max-width: 520px;
+.astra-tags {
+  list-style: none; margin: 0; padding: 0;
+  font-size: var(--fs-1); font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--muted); line-height: 1.35;
 }
+.astra-tags li { position: absolute; max-width: 12em; }
+.astra-tags .t1 { left: 4%; top: 42%; text-align: right; }
+.astra-tags .t2 { right: 3%; top: 14%; text-align: left; }
+.astra-tags .t3 { left: 8%; bottom: -4%; text-align: right; }
+.astra-tags .t4 { right: 6%; bottom: 4%; text-align: left; }
+.astra-after {
+  font-size: var(--fs-2); font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--ink); margin: clamp(28px, 4vw, 56px) 0 0;
+}
+.astra-foot { margin: clamp(36px, 6vw, 84px) 0 0; }
+@media (max-width: 720px) {
+  /* No room around the headline for labels: they become a row under it. */
+  .astra-tags { position: static; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px; margin-top: 18px; }
+  .astra-tags li { position: static; max-width: none; text-align: center; }
+  .astra-corners { letter-spacing: .12em; }
+}
+
 /* THE BAND ABOVE A TAB ROW. Two of the four rooms in this zone put `AstroTabs`
    directly under the masthead, and `AstroHeader` — which the band replaced —
    carried 18px of air below it. The band has none of its own, so the pages that

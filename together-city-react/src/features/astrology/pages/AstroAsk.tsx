@@ -136,25 +136,36 @@ export function AstroAsk() {
               type on the white ground now, on the centre line. */}
           <header className="astra">
             <div className="astra-in">
-              <p className="astra-kicker">Astrology Zone</p>
-              <p className="astra-lead">One question. Three astrologers. Three different answers.</p>
-              <p className="astra-body">
-                Different astrologers can interpret the same birth chart differently &mdash; sometimes
-                giving you completely contradictory predictions.
-              </p>
-              <h1 className="astra-title">Ask Astra</h1>
-              {/* WHAT IT ACTUALLY READS, because a claim on a masthead is still
-                  a claim. Every item in this sentence is a thing `ask()` puts in
-                  front of the model: the natal chart, the transiting positions
-                  at the moment of asking, the aspects between them on the
-                  question's own ruling planets, the month's best and slowest
-                  days, and the last five questions with the last three answers.
-                  Nothing here is a number nobody counted. */}
-              <p className="astra-body">
-                Astra reads your birth chart against the sky as it stands right now &mdash; the
-                transits, the aspects on your subject, the month&rsquo;s timing and every question
-                you have asked before &mdash; to give you one personalised answer, powered by AI.
-              </p>
+              {/* THE POSTER (owner, 6 Sep: "write the text in this look", with
+                  a studio's type poster as the reference). One typeface still —
+                  the poster's italic serif word is Avenir's own italic, light,
+                  a size up, set inside the tracked capitals; the four small
+                  labels tucked around the headline are the four things ask()
+                  puts in front of the model, so the masthead still claims only
+                  what it does — the-masthead-claims-what-it-does.test.ts reads
+                  every one of them. */}
+              <p className="astra-corners" aria-hidden><span>One question</span><span>One answer</span></p>
+              <p className="astra-kicker">Different astrologers read one chart differently</p>
+              <div className="astra-stage">
+                <h1 className="astra-line">
+                  <span className="w">Needing</span> <em className="i">one</em><br />
+                  <span className="w">answer, not</span> <em className="i">three?</em>
+                </h1>
+                {/* WHAT IT ACTUALLY READS, because a claim on a masthead is
+                    still a claim. Every item is a thing `ask()` puts in front
+                    of the model: the transiting positions at the moment of
+                    asking, the aspects between them on the question's own
+                    ruling planets, the month's best and slowest days, and the
+                    last five questions with the last three answers. */}
+                <ul className="astra-tags" aria-label="What Astra reads">
+                  <li className="t1">The transits</li>
+                  <li className="t2">The aspects on your subject</li>
+                  <li className="t3">The month&rsquo;s timing</li>
+                  <li className="t4">Every question you have asked before</li>
+                </ul>
+              </div>
+              <p className="astra-after">Ask Astra &mdash; one personalised answer, powered by AI</p>
+              <p className="astra-corners astra-foot" aria-hidden><span>Reads your birth chart</span><span>Against the sky right now</span></p>
             </div>
           </header>
 
