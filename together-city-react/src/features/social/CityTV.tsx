@@ -24,8 +24,10 @@ import { channelsOf, tuneIndex } from './city-tv';
  * carries a video; a post that somehow does not is skipped without a frame
  * drawn. No photograph, no title card.
  *
- * A CHANNEL IS A CITIZEN. Up and down tune to the next citizen with a video
- * in the stream; tapping the channel opens the profile — the channel IS the
+ * A CHANNEL IS A CITIZEN. The face on the remote is whose video is on;
+ * tapping it opens the profile. (The up/down dial beside it went on 6 Sep —
+ * owner: "the arrow keys, remove these two"; ↑ ↓ on a keyboard still tune,
+ * and Together City Channels is one key away.) Tapping the channel opens the profile — the channel IS the
  * person. The channels wall is its own page (/social/channels); the grid key
  * goes there.
  *
@@ -265,7 +267,6 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [go, items, fullScreen, onLeave]);
-  const tune = (step: 1 | -1) => setAt((i) => tuneIndex(items, i, step));
 
   /* The videos to come, in play order: after this one to the end of what is
      loaded, then — with nothing more to load — round from the top. */
@@ -402,10 +403,6 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
                 <Avatar name={channel.name} src={channel.profileImage} />
                 <span className="tv-channel-n">{channel.name}</span>
               </button>
-              <div className="tv-dial">
-                <button type="button" className="tv-key sm" onClick={() => tune(-1)} disabled={channels.length < 2} aria-label="Previous channel"><Icon name="up" size={14} /></button>
-                <button type="button" className="tv-key sm" onClick={() => tune(1)} disabled={channels.length < 2} aria-label="Next channel"><Icon name="down" size={14} /></button>
-              </div>
             </div>
           </div>
         )}

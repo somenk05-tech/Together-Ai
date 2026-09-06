@@ -55,15 +55,15 @@ describe('the television remote', () => {
     // what wrapped; 38px keys fitted seven and not the eighth.
     expect(phone).toMatch(/\.tv-key \{ width: 36px; height: 36px; \}/);
     expect(phone).toMatch(/\.tv-keys \{ gap: 3px; \}/);
-    // The up/down dial does not fit beside eight keys and a face; it goes on
-    // a phone, and the channels page and the arrow keys still tune.
-    expect(phone).toMatch(/\.tv-dial \{ display: none; \}/);
+    // The up/down dial is gone everywhere (owner, 6 Sep: "the arrow keys,
+    // remove these two"); the channels page and ↑ ↓ on a keyboard still tune.
+    expect(tv).not.toMatch(/tv-dial|Previous channel|Next channel/);
   });
 
   it('spends no line of the remote on a label', () => {
     // CHANNEL over a face and a name. The keys beside it keep their own
     // aria-labels, so this is hidden from the eye and not from a reader.
     expect(phone).toMatch(/\.tv-channel-l \{ display: none; \}/);
-    expect(tv).toMatch(/aria-label="Previous channel"/);
+    expect(tv).toMatch(/aria-label=\{`Open \$\{channel\.name\}'s profile`\}/);
   });
 });

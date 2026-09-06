@@ -185,7 +185,6 @@
 .tv-channel-btn:hover { background: var(--scrim-deep); }
 .tv-channel-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .tv-channel-n { font-size: var(--fs-3); font-weight: 600; max-width: 14ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tv-dial { display: grid; gap: 4px; }
 
 /* the channels: small square tiles, a name in small caps beneath each */
 .tv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 14px 10px; padding: 4px 2px; }
@@ -694,10 +693,7 @@ textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
   .tv-bar-row { flex-wrap: nowrap; justify-content: space-between; }
   .tv-channel-n { display: none; }
   .tv-channel-btn { padding: 0; background: none; box-shadow: none; }
-  /* eight keys and the channel's face are the row; the up/down dial does not
-     fit beside them on 360px and goes — Together City Channels is one key
-     away, and ↑ ↓ still tune on a keyboard */
-  .tv-dial { display: none; }
+
 
   .sl-reel-sheet {
     width: 100%; padding: clamp(50px, 6.5vh, 64px) 16px clamp(12px, 2.6vh, 20px); gap: 10px;
