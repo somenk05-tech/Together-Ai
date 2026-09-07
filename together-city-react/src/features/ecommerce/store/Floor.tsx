@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { HUBS } from '@/config/hubs';
 import type { FloorTab, ShelfCard } from '../shelves';
+import type { CityCart } from './useCityCart';
 
 /**
  * ── A FLOOR OF THE STORE ────────────────────────────────────────────────────
@@ -20,29 +21,44 @@ import type { FloorTab, ShelfCard } from '../shelves';
  * sidebar of the room each one belongs to (shelves.ts), and the tab that is
  * on is whatever `?tab=` says, so a category is a link somebody can send.
  *
- * `FloorBar` IS `StoreBar` WITHOUT A SHOP. The storefront's bar takes the
- * shop it is drawing, because the bag on it is that shop's. A tab that opens
- * no shop — the grocery list, a room in another hub, a shelf not built yet —
- * has no bag, and a bar that needed one would have had to invent it.
+ * `FloorBar` IS `StoreBar` WITHOUT A SHOP, AND WITH THE WHOLE STORE ON IT.
+ * The storefront's bar takes the shop it is drawing, because the bag on it is
+ * that shop's. The floor's bar carries the two sections of the Digital Store
+ * as a switch — Personalized Store, Open Market — and ONE cart on the right,
+ * which is the city cart every shop already feeds (owner, 7 Sep: "the
+ * checkout needs to be common for all sectors"). No shop's own bag is drawn
+ * on a floor: what you add anywhere is counted once, up there.
  */
 
 export interface Floor {
-  /** The room's own name — "Personalized Store", "Open Market" — from `HUBS`. */
-  name: string;
+  /** Which room of the district this is — the section switch marks it. */
+  path: string;
   /** The rendered tab row, drawn once by `TabbedFloor` and worn by every pane. */
   tabs: ReactNode;
+  /** The city cart — one count, one total, for every shop on every floor. */
+  cart: Pick<CityCart, 'count' | 'totalInr'>;
 }
 
-export function FloorBar({ name, bag }: { name: string; bag?: { count: number; to: string } | null }) {
+/* THE THREE ROOMS OF THE DISTRICT, from the rail: two sections and the cart.
+   `the-shop-is-the-citys-own-shelves.test.ts` pins the order. */
+const [STORE, MARKET, CART] = HUBS.ecommerce.items;
+const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+
+export function FloorBar({ floor }: { floor: Floor }) {
   return (
-    <div className="st-bar">
-      <Link to={HUBS.ecommerce.backPath} className="st-back"><span aria-hidden>←</span> {HUBS.ecommerce.name}</Link>
-      <span className="st-bar-name">{name}</span>
-      {bag && (
-        <Link to={bag.to} className="st-bar-bag">
-          Bag{bag.count > 0 ? ` · ${bag.count}` : ''}
-        </Link>
-      )}
+    <div className="st-bar sf-bar">
+      <nav className="sf-sections" aria-label={HUBS.ecommerce.name}>
+        {[STORE, MARKET].map((room) => (
+          <Link key={room.path} to={room.path}
+            className={`sf-section${room.path === floor.path ? ' on' : ''}`}
+            aria-current={room.path === floor.path ? 'page' : undefined}>
+            {room.label}
+          </Link>
+        ))}
+      </nav>
+      <Link to={CART.path} className="st-bar-bag" aria-current={floor.path === CART.path ? 'page' : undefined}>
+        Cart{floor.cart.count > 0 ? ` · ${floor.cart.count}` : ''}
+      </Link>
     </div>
   );
 }
@@ -79,15 +95,29 @@ export function FloorTabs({ tabs, active }: { tabs: FloorTab[]; active: string }
   );
 }
 
-/** The page every pane on a floor stands in: bar, tabs, and whatever is under them. */
-export function FloorPage({ floor, bag, children }: { floor: Floor; bag?: { count: number; to: string } | null; children: ReactNode }) {
+/**
+ * The page every pane on a floor stands in: bar, tabs, whatever is under them,
+ * and — when the city cart has anything in it — ONE checkout bar at the foot,
+ * the same on every tab of both sections, going to the one cart. The cart
+ * page itself passes `baglet={false}`: its Pay button is the checkout.
+ */
+export function FloorPage({ floor, baglet = true, children }: { floor: Floor; baglet?: boolean; children: ReactNode }) {
   return (
     <div className="st-page">
       <div className="sf-top">
-        <FloorBar name={floor.name} bag={bag} />
+        <FloorBar floor={floor} />
         {floor.tabs}
       </div>
       {children}
+      {baglet && floor.cart.count > 0 && (
+        <div className="st-baglet">
+          <div className="st-baglet-in">
+            <span className="st-baglet-n">{floor.cart.count} item{floor.cart.count === 1 ? '' : 's'}</span>
+            <span className="st-total">{rupees(floor.cart.totalInr)}</span>
+            <Link to={CART.path} className="st-cta">Checkout</Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

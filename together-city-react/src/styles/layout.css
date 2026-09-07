@@ -2393,6 +2393,33 @@
   border-bottom: 1px solid var(--line);
 }
 .sf-top .st-bar { position: static; border-bottom: 0; }
+/* THE TWO SECTIONS OF THE STORE ON THE BAR (owner, 7 Sep) — Personalized
+   Store and Open Market as one switch where the way back used to be, and
+   the one cart on the right. The switch wears the aisle chip's shape, lit
+   the same way, so the bar and the shelf read as one instrument. */
+.sf-sections {
+  display: flex;
+  gap: 4px;
+}
+.sf-section {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--card);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.sf-section.on {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--card);
+}
 .sf-tabs {
   overflow-x: auto;
   scrollbar-width: none;
@@ -2458,6 +2485,7 @@
 }
 .sf-room-act { margin: 18px 0 0; }
 @media (max-width: 899px) {
+  .sf-section { padding: 0 12px; }
   .sf-tabs-in { padding: 0 18px; }
   .sf-head { padding-top: 20px; }
   .sf-room { padding: 20px 18px 36px; }

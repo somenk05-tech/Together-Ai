@@ -4,6 +4,7 @@ import { FloorPage, FloorTabs, RoomPane, type Floor } from './Floor';
 import { GroceryDownloadPane } from './GroceryDownloadPane';
 import { StoreFront } from './StoreFront';
 import type { Shop } from './types';
+import { useCityCart } from './useCityCart';
 
 /**
  * ── ONE FLOOR, ITS SHELVES AS TABS ──────────────────────────────────────────
@@ -32,17 +33,23 @@ function ShopPane({ useShop, floor }: { useShop: () => Shop; floor: Floor }) {
   return <StoreFront shop={shop} floor={floor} />;
 }
 
-export function TabbedFloor({ name, shelves, shopOf }: {
-  name: string;
+export function TabbedFloor({ path, shelves, shopOf }: {
+  /** This floor's own route — the section switch marks it. */
+  path: string;
   shelves: ShelfCard[];
   /** The adapter that opens each shelf's shop, by the shelf's `shop` key. */
   shopOf: Record<string, () => Shop>;
 }) {
   const [params] = useSearchParams();
+  /* ONE CART FOR THE WHOLE STORE (owner, 7 Sep). The floor reads the city
+     cart — the view over every shop's bag that /ecommerce/cart already
+     draws — so the count on the bar and the checkout at the foot are the
+     same number on every tab of both sections. */
+  const cart = useCityCart();
   const tabs = shelves.map(tabOf);
   const wanted = params.get('tab');
   const active = tabs.find((t) => t.key === wanted) ?? tabs[0];
-  const floor: Floor = { name, tabs: <FloorTabs tabs={tabs} active={active.key} /> };
+  const floor: Floor = { path, tabs: <FloorTabs tabs={tabs} active={active.key} />, cart };
   const shelf = active.shelf;
 
   const useShop = shelf.shop ? shopOf[shelf.shop] : undefined;

@@ -10,7 +10,6 @@ import { Home } from '@/pages/Home';
 import { Dashboard } from '@/pages/Dashboard';
 import { HubLanding } from '@/pages/HubLanding';
 import { petsRoutes } from '@/features/pets/routes';
-import { ecommerceRoutes } from '@/features/ecommerce/routes';
 import { RequireAuth } from '@/features/auth/AuthGate';
 import { NotFound } from '@/pages/NotFound';
 
@@ -225,6 +224,7 @@ const Investor = lazy(() => import('@/pages/Investor').then((m) => ({ default: m
    the owner asked for a shop with no rail and one way back. A sidebar is not
    something a page can opt out of once it is inside that layout. */
 const PersonalizedStore = lazy(() => import('@/features/ecommerce/pages/PersonalizedStore').then((m) => ({ default: m.PersonalizedStore })));
+const CityCart = lazy(() => import('@/features/ecommerce/pages/CityCart').then((m) => ({ default: m.CityCart })));
 const OpenMarket = lazy(() => import('@/features/ecommerce/pages/OpenMarket').then((m) => ({ default: m.OpenMarket })));
 const BeautyShop = lazy(() => import('@/features/ecommerce/pages/BeautyShop').then((m) => ({ default: m.BeautyShop })));
 const BeautyShopBag = lazy(() => import('@/features/ecommerce/pages/BeautyShop').then((m) => ({ default: m.BeautyShopBag })));
@@ -275,7 +275,10 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/beauty', element: <HubLanding hub="beauty" /> },
       { path: '/fitness', element: <HubLanding hub="fitness" /> },
       { path: '/pets', element: <HubLanding hub="pets" /> },
-      { path: '/ecommerce', element: <HubLanding hub="ecommerce" /> },
+      /* THE DIGITAL STORE'S DOOR OPENS ON THE STORE (owner, 7 Sep: "all
+         digital store in the same look"). No landing plate: the district IS
+         the storefront, and its first section is where you land. */
+      { path: '/ecommerce', element: <Navigate to="/ecommerce/store" replace /> },
       /* The white storefronts. Behind RequireAuth because a shortlist is built
          from somebody's own profile and a bag is their money.
          THE TWO FLOORS ARE STOREFRONTS TOO (owner, 6 Sep): the Personalized
@@ -284,6 +287,9 @@ const ROUTE_BLOCKS: RouteObject[] = [
          than under the district's rail. */
       { path: '/ecommerce/store', element: <RequireAuth>{wrap(<PersonalizedStore />)}</RequireAuth> },
       { path: '/ecommerce/market', element: <RequireAuth>{wrap(<OpenMarket />)}</RequireAuth> },
+      /* And the one checkout, in the same look (7 Sep) — it left the
+         district's rail with the floors, so the district has no rail block. */
+      { path: '/ecommerce/cart', element: <RequireAuth>{wrap(<CityCart />)}</RequireAuth> },
       { path: '/ecommerce/shop/beauty', element: <RequireAuth>{wrap(<BeautyShop />)}</RequireAuth> },
       { path: '/ecommerce/shop/beauty/bag', element: <RequireAuth>{wrap(<BeautyShopBag />)}</RequireAuth> },
       { path: '/ecommerce/shop/supplements', element: <RequireAuth>{wrap(<SupplementsShop />)}</RequireAuth> },
@@ -520,17 +526,6 @@ const ROUTE_BLOCKS: RouteObject[] = [
        profile, and this is the shape that makes forgetting impossible. */
     element: <HubLayout hub={HUBS.pets} />,
     children: petsRoutes.map((route) => ({
-      ...route,
-      element: <RequireAuth>{wrap(route.element as JSX.Element)}</RequireAuth>,
-    })),
-  },
-  {
-    /* DIGITAL STORE. The cart under the rail — the Pet district's shape: the
-       feature exports plain route objects and the auth gate and the chunk
-       boundary are applied here, once. The two floors left this block on
-       6 Sep for the storefront block above: a store wears no rail. */
-    element: <HubLayout hub={HUBS.ecommerce} />,
-    children: ecommerceRoutes.map((route) => ({
       ...route,
       element: <RequireAuth>{wrap(route.element as JSX.Element)}</RequireAuth>,
     })),

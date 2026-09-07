@@ -120,13 +120,13 @@ export function StoreFront({ shop, floor }: { shop: Shop; floor?: Floor }) {
   const bag = shop.bag;
 
   /* ON A FLOOR OF THE DISTRICT (owner, 6 Sep) the shop is one tab of a store
-     rather than a page of its own: the bar is the floor's, with the district
-     as the way back and the tab row under it, and this shop's bag on it. Off
+     rather than a page of its own: the bar is the floor's, with the store's
+     two sections and the one city cart on it, and the tab row under it. Off
      a floor it is exactly what it was — its own bar, its own way back. The
      three states below wear the same frame so a shelf that is loading, or
      could not be read, does not lose the tabs that lead off it. */
   const frame = (children: ReactNode) => (floor ? (
-    <FloorPage floor={floor} bag={bag && { count: bag.count, to: shop.screens.bag }}>{children}</FloorPage>
+    <FloorPage floor={floor}>{children}</FloorPage>
   ) : (
     <div className="st-page">
       <StoreBar shop={shop} back={shop.back.path} backLabel={shop.back.label} />
@@ -275,7 +275,10 @@ export function StoreFront({ shop, floor }: { shop: Shop; floor?: Floor }) {
       {shop.note && <p className="st-blocked">{shop.note}</p>}
       {shop.blocked && <p className="st-blocked">{shop.blocked}</p>}
 
-      {bag && bag.count > 0 && (
+      {/* THE SHOP'S OWN CHECKOUT, OFF A FLOOR ONLY. On a floor the bar and
+          the foot carry the city cart (owner, 7 Sep: one checkout for every
+          sector), so this shop's bag is not drawn twice. */}
+      {!floor && bag && bag.count > 0 && (
         <div className="st-baglet">
           <div className="st-baglet-in">
             <span className="st-baglet-n">{bag.count} item{bag.count === 1 ? '' : 's'}</span>

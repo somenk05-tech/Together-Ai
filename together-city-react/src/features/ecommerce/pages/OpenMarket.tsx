@@ -1,5 +1,5 @@
 import { useHubTheme } from '@/hooks/useHubTheme';
-import { openShelves, shelfName } from '../shelves';
+import { openShelves } from '../shelves';
 import { TabbedFloor } from '../store/TabbedFloor';
 import { useGemCounterShop } from '../store/useGemCounterShop';
 import { useBeautyMarketShop, usePetMarketShop, useSupplementsMarketShop } from '../store/useMarketShops';
@@ -32,7 +32,7 @@ export function OpenMarket() {
   useHubTheme(null);
   return (
     <TabbedFloor
-      name={shelfName('ecommerce', '/ecommerce/market')}
+      path="/ecommerce/market"
       shelves={openShelves()}
       shopOf={{ 'skin-hair': useBeautyMarketShop, supplements: useSupplementsMarketShop, pets: usePetMarketShop, gemstones: useGemCounterShop }}
     />

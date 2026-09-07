@@ -163,7 +163,7 @@ describe('The shop is the city’s own shelves', () => {
    * came from somebody's imagination rather than from a shelf.
    */
   it('holds no catalogue of its own', () => {
-    const feature = ['features/ecommerce/shelves.ts', 'features/ecommerce/routes.tsx',
+    const feature = ['features/ecommerce/shelves.ts',
       'features/ecommerce/pages/PersonalizedStore.tsx', 'features/ecommerce/pages/OpenMarket.tsx']
       .map(read).join('\n')
       .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');

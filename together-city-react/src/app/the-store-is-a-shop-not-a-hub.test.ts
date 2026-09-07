@@ -45,11 +45,15 @@ describe('The storefront is white, railless, and has one way back', () => {
     expect(router.indexOf("path: '/ecommerce/shop/beauty'")).toBeLessThan(firstHubLayout);
     /* AND THE TWO FLOORS WITH THEM (owner, 6 Sep): the Personalized Store and
        the Open Market are storefronts now, with the shelves as tabs on top,
-       and a storefront wears no rail. They left the district's HubLayout
-       block for this one; only the cart is still under the rail. */
+       and a storefront wears no rail. AND THE CART (7 Sep): one checkout for
+       every sector, in the same look — so the district has no HubLayout
+       block at all, and its door opens straight onto the store. */
     expect(router.indexOf("path: '/ecommerce/store'")).toBeLessThan(firstHubLayout);
     expect(router.indexOf("path: '/ecommerce/market'")).toBeLessThan(firstHubLayout);
-    expect(code('features/ecommerce/routes.tsx')).not.toMatch(/\/ecommerce\/store|\/ecommerce\/market/);
+    expect(router.indexOf("path: '/ecommerce/cart'")).toBeLessThan(firstHubLayout);
+    expect(router).not.toMatch(/HubLayout hub=\{HUBS\.ecommerce\}/);
+    expect(router).toMatch(/path: '\/ecommerce', element: <Navigate to="\/ecommerce\/store" replace \/>/);
+    expect(existsSync(join(SRC, 'features/ecommerce/routes.tsx'))).toBe(false);
   });
 
   it('clears the district lamp on the way in', () => {
@@ -222,6 +226,30 @@ describe('The city cart is a view, not a fourth bag', () => {
     // POST /fitness/store/orders charges the city wallet whatever method it is
     // handed, so a card option here would be kept for two thirds of a total.
     expect(page).toMatch(/walletOnly/);
+  });
+
+  /**
+   * ── AND IT IS THE STORE'S ONE CHECKOUT (owner, 7 Sep) ─────────────────────
+   *
+   * "The checkout needs to be common for all sectors." Every tab of both
+   * sections carries the city cart on its bar and, when there is anything in
+   * it, one checkout bar at the foot — both going here. No shop's own bag is
+   * drawn on a floor, so nothing can be counted twice or paid for twice.
+   */
+  it('is the one checkout every floor points at', () => {
+    const floorFile = code('features/ecommerce/store/Floor.tsx');
+    const tabbed = code('features/ecommerce/store/TabbedFloor.tsx');
+    const front = code('features/ecommerce/store/StoreFront.tsx');
+    expect(tabbed).toMatch(/const cart = useCityCart\(\);/);
+    expect(floorFile).toMatch(/<Link to=\{CART\.path\} className="st-bar-bag"/);
+    expect(floorFile).toMatch(/\{baglet && floor\.cart\.count > 0 && \(/);
+    expect(floorFile).toMatch(/<Link to=\{CART\.path\} className="st-cta">Checkout<\/Link>/);
+    // The shop's own baglet is drawn only off a floor.
+    expect(front).toMatch(/\{!floor && bag && bag\.count > 0 && \(/);
+    // And the cart page wears the same floor, with no second checkout bar.
+    expect(page).toMatch(/<FloorPage floor=\{floor\} baglet=\{false\}>/);
+    expect(page).toMatch(/useHubTheme\(null\)/);
+    expect(page).not.toMatch(/PageHeader/);
   });
 });
 

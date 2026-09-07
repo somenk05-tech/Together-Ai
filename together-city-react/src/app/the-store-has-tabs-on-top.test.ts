@@ -88,7 +88,7 @@ describe('both floors are one storefront with tabs on top', () => {
     // And the storefront wears the floor: the floor's bar and tabs on top,
     // this shop's bag on the bar, in every one of its three states.
     const front = code('features/ecommerce/store/StoreFront.tsx');
-    expect(front).toMatch(/<FloorPage floor=\{floor\} bag=\{bag && \{ count: bag\.count, to: shop\.screens\.bag \}\}>/);
+    expect(front).toMatch(/<FloorPage floor=\{floor\}>\{children\}<\/FloorPage>/);
     expect(front.match(/frame\(/g)?.length).toBe(3);
   });
 
@@ -102,8 +102,16 @@ describe('both floors are one storefront with tabs on top', () => {
 
   it('is sticky at the top and scrolls sideways on a phone, in the store’s own type', () => {
     const css = read('styles/layout.css');
-    const top = css.slice(css.indexOf('.sf-top {'), css.indexOf('.sf-tabs {'));
+    const top = css.slice(css.indexOf('.sf-top {'), css.indexOf('.sf-sections {'));
     expect(top).toMatch(/position: sticky/);
+    /* THE TWO SECTIONS ON THE BAR (owner, 7 Sep): "personalized store and then
+       open market, all digital store in the same look." One switch, both
+       rooms, the one that is on lit like an aisle chip. */
+    const floorFile = code('features/ecommerce/store/Floor.tsx');
+    expect(floorFile).toMatch(/const \[STORE, MARKET, CART\] = HUBS\.ecommerce\.items;/);
+    expect(floorFile).toMatch(/\{\[STORE, MARKET\]\.map\(\(room\) => \(/);
+    expect(floorFile).toMatch(/className=\{`sf-section\$\{room\.path === floor\.path \? ' on' : ''\}`\}/);
+    expect(css).toMatch(/\.sf-section\.on \{[^}]*background: var\(--ink\)/);
     const tabs = css.slice(css.indexOf('.sf-tabs {'), css.indexOf('.sf-tabs-in {'));
     expect(tabs).toMatch(/overflow-x: auto/);
     expect(css).toMatch(/\.sf-tab\.on \{[^}]*border-bottom-color: var\(--ink\)/);

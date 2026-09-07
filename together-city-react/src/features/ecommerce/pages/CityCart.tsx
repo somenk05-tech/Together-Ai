@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { EmptyState, PageHeader, Spinner } from '@/components/ui';
+import { EmptyState, Spinner } from '@/components/ui';
 import { PaymentSheet } from '@/features/financial/PaymentSheet';
 import { ProductShot } from '@/features/beauty/components/ProductShot';
 import { HUBS } from '@/config/hubs';
+import { useHubTheme } from '@/hooks/useHubTheme';
+import { FloorPage } from '../store/Floor';
 import { useCityCart } from '../store/useCityCart';
 
 /**
@@ -23,27 +25,44 @@ import { useCityCart } from '../store/useCityCart';
  * THE TOTAL IS THE SUM OF WHAT WILL BE CHARGED and nothing else. No delivery,
  * no fee, no saving, no "you save ₹1,225" — there is no MRP anywhere in this
  * city's catalogues, so any of those figures could only have been invented.
+ *
+ * AND IT IS THE STORE'S ONE CHECKOUT (owner, 7 Sep: "the checkout needs to be
+ * common for all sectors"). Every tab of both sections points here — the Cart
+ * on the bar, the bar at the foot — so this page wears the same floor as the
+ * store: white, no rail, the two sections on the bar, and no second checkout
+ * bar under its own Pay button.
  */
 
 const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
+const ROOM = HUBS.ecommerce.items[2];
+
 export function CityCart() {
+  useHubTheme(null);
   const cart = useCityCart();
   const [payOpen, setPayOpen] = useState(false);
+  const floor = { path: ROOM.path, tabs: null, cart };
 
-  if (cart.isLoading) return <Spinner label="Reading your cart…" />;
+  if (cart.isLoading) {
+    return (
+      <FloorPage floor={floor} baglet={false}>
+        <div className="st-wait"><Spinner label="Reading your cart…" /></div>
+      </FloorPage>
+    );
+  }
 
   const empty = cart.count === 0;
   const failed = cart.outcomes.filter((o) => !o.ok);
   const paidSomething = cart.outcomes.some((o) => o.ok);
 
   return (
-    <>
-      <PageHeader
-        eyebrow="Digital Store"
-        title="Your Cart"
-        sub="Every shop's bag, one total."
-      />
+    <FloorPage floor={floor} baglet={false}>
+      <header className="st-head sf-head">
+        <div className="st-eyebrow">{HUBS.ecommerce.name}</div>
+        <h1 className="st-title">{ROOM.label}</h1>
+        <p className="st-line">{ROOM.sub}</p>
+      </header>
+      <div className="st-bag">
 
       {cart.outcomes.length > 0 && (
         <div className="st-outcomes">
@@ -67,10 +86,7 @@ export function CityCart() {
           title="Your cart is empty"
           hint="Add something from any shop in the city and it will be waiting here."
           /* THE FIRST ROOM OF THIS DISTRICT, read from the hub's own rail
-             rather than typed. A literal here would also be a link this app's
-             nav-audit cannot resolve: it reads router.tsx for declared routes,
-             and this hub's rooms are declared in the feature's own routes file
-             — the shape the Pet district introduced. */
+             rather than typed. */
           action={(
             <Link to={HUBS.ecommerce.items[0].path} className="st-cta st-cta-wide">
               Open the {HUBS.ecommerce.items[0].label}
@@ -139,6 +155,7 @@ export function CityCart() {
           </p>
         </>
       )}
+      </div>
 
       <PaymentSheet
         open={payOpen}
@@ -149,6 +166,6 @@ export function CityCart() {
         onCancel={() => setPayOpen(false)}
         onPay={(method) => { setPayOpen(false); cart.payAll(method); }}
       />
-    </>
+    </FloorPage>
   );
 }

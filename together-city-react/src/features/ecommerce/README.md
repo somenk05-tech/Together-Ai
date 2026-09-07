@@ -14,6 +14,10 @@ standalone shops use (`store/TabbedFloor.tsx`, `store/Floor.tsx`). A tab with
 no shop behind it — the grocery list, a room in another hub, a shelf not built
 yet — is a window with one door in it or none.
 
+Since 7 Sep the bar carries the two sections as one switch and **one cart**:
+the city cart (`store/useCityCart.ts`) is what every floor counts on the bar
+and checks out from at the foot, and `/ecommerce/cart` wears the same floor.
+
 ## What this district is, and what it is not
 
 It sells nothing of its own. There is no product table in the API — `commerce`
@@ -41,7 +45,7 @@ whose path stops resolving drops out of the rendered list, and
 |---|---|
 | `src/types/index.ts` | `ecommerce` joins `HubKey` |
 | `src/config/hubs.ts` | the street tab (A–Z, between Dating and Entertainment) + the two-room config |
-| `src/app/router.tsx` | the `/ecommerce` landing; the two floors and the shops in the railless storefront block; one `HubLayout` block over `ecommerceRoutes` (the cart) |
+| `src/app/router.tsx` | `/ecommerce` redirects onto the store; the two floors, the cart and the shops all in the railless storefront block — the district has no `HubLayout` block |
 | `src/pages/HubLanding.tsx` | `HUB_HERO` and `HUB_LINE` |
 | `src/nav/registry.ts` | `HUB_ICON` → `product` |
 | `src/pages/Home.tsx` | the walk plate + its billboard copy |

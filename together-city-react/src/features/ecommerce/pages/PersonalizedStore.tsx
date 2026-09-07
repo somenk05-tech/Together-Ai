@@ -1,5 +1,5 @@
 import { useHubTheme } from '@/hooks/useHubTheme';
-import { fittedShelves, shelfName } from '../shelves';
+import { fittedShelves } from '../shelves';
 import { TabbedFloor } from '../store/TabbedFloor';
 import { useBeautyShop } from '../store/useBeautyShop';
 import { useFitnessShop } from '../store/useFitnessShop';
@@ -37,7 +37,7 @@ export function PersonalizedStore() {
   useHubTheme(null);
   return (
     <TabbedFloor
-      name={shelfName('ecommerce', '/ecommerce/store')}
+      path="/ecommerce/store"
       shelves={fittedShelves()}
       shopOf={{ beauty: useBeautyShop, supplements: useFitnessShop, gemstones: useGemShop }}
     />
