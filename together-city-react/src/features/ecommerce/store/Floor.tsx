@@ -41,7 +41,7 @@ export interface Floor {
 
 /* THE THREE ROOMS OF THE DISTRICT, from the rail: two sections and the cart.
    `the-shop-is-the-citys-own-shelves.test.ts` pins the order. */
-const [STORE, MARKET, CART] = HUBS.ecommerce.items;
+const [STORE, MARKET, CART, ORDERS] = HUBS.ecommerce.items;
 const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
 export function FloorBar({ floor }: { floor: Floor }) {
@@ -56,6 +56,9 @@ export function FloorBar({ floor }: { floor: Floor }) {
           </Link>
         ))}
       </nav>
+      <Link to={ORDERS.path} className="st-bar-bag sf-orders-link" aria-current={floor.path === ORDERS.path ? 'page' : undefined}>
+        Orders
+      </Link>
       <Link to={CART.path} className="st-bar-bag" aria-current={floor.path === CART.path ? 'page' : undefined}>
         Cart{floor.cart.count > 0 ? ` · ${floor.cart.count}` : ''}
       </Link>

@@ -191,9 +191,9 @@ describe('The city cart is a view, not a fourth bag', () => {
   const cart = code('features/ecommerce/store/useCityCart.ts');
   const page = code('features/ecommerce/pages/CityCart.tsx');
 
-  it('is the third tab of the district', () => {
+  it('is the third room of the district, and the orders are the fourth', () => {
     expect(HUBS.ecommerce.items.map((i) => i.path))
-      .toEqual(['/ecommerce/store', '/ecommerce/market', '/ecommerce/cart']);
+      .toEqual(['/ecommerce/store', '/ecommerce/market', '/ecommerce/cart', '/ecommerce/orders']);
   });
 
   it('reads the hubs’ own bags rather than keeping one', () => {

@@ -225,6 +225,7 @@ const Investor = lazy(() => import('@/pages/Investor').then((m) => ({ default: m
    something a page can opt out of once it is inside that layout. */
 const PersonalizedStore = lazy(() => import('@/features/ecommerce/pages/PersonalizedStore').then((m) => ({ default: m.PersonalizedStore })));
 const CityCart = lazy(() => import('@/features/ecommerce/pages/CityCart').then((m) => ({ default: m.CityCart })));
+const CityOrders = lazy(() => import('@/features/ecommerce/pages/CityOrders').then((m) => ({ default: m.CityOrders })));
 const OpenMarket = lazy(() => import('@/features/ecommerce/pages/OpenMarket').then((m) => ({ default: m.OpenMarket })));
 const BeautyShop = lazy(() => import('@/features/ecommerce/pages/BeautyShop').then((m) => ({ default: m.BeautyShop })));
 const BeautyShopBag = lazy(() => import('@/features/ecommerce/pages/BeautyShop').then((m) => ({ default: m.BeautyShopBag })));
@@ -290,6 +291,7 @@ const ROUTE_BLOCKS: RouteObject[] = [
       /* And the one checkout, in the same look (7 Sep) — it left the
          district's rail with the floors, so the district has no rail block. */
       { path: '/ecommerce/cart', element: <RequireAuth>{wrap(<CityCart />)}</RequireAuth> },
+      { path: '/ecommerce/orders', element: <RequireAuth>{wrap(<CityOrders />)}</RequireAuth> },
       { path: '/ecommerce/shop/beauty', element: <RequireAuth>{wrap(<BeautyShop />)}</RequireAuth> },
       { path: '/ecommerce/shop/beauty/bag', element: <RequireAuth>{wrap(<BeautyShopBag />)}</RequireAuth> },
       { path: '/ecommerce/shop/supplements', element: <RequireAuth>{wrap(<SupplementsShop />)}</RequireAuth> },

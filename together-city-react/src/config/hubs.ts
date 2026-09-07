@@ -312,6 +312,10 @@ export const HUBS: Record<HubKey, HubConfig> = {
          and shows its own; this room is all of them in one list with one total,
          and one press that places an order in each. */
       { path: '/ecommerce/cart', index: '03', label: 'Your Cart', sub: 'One list, one checkout' },
+      /* EVERYTHING BOUGHT, ONE LIST (owner, 7 Sep): "a page for all past
+         orders." A view over each shop's own order history, like the cart is
+         a view over each shop's bag. */
+      { path: '/ecommerce/orders', index: '04', label: 'Your Orders', sub: 'Everything you have bought, and where it went' },
     ],
   },
   beauty: {

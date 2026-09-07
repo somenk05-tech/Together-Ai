@@ -1,3 +1,4 @@
+import { addressText, snapshotOf, type AddressLabel, type AddressSnapshot, type DeliveryAddressDto, type SavedAddressRow } from '../shared/delivery-address';
 import { swallow } from '../shared/swallow';
 import { Injectable, Logger, ConflictException, BadRequestException } from '@nestjs/common';
 import { clinicalSex, datingGender, displayGender, genderIdentityFromBeauty } from './sex-and-gender';
@@ -661,20 +662,67 @@ export class MasterProfileService {
    * so nobody's one saved address vanished the day the book arrived.
    */
   async addresses(userId: string) {
+    const rows = await this.addressRows(userId);
+    if (rows.length) return { addresses: rows };
     const px = this.prisma as unknown as {
-      savedAddress: { findMany(a: unknown): Promise<Array<{ label: string; addressText: string; lat: number | null; lng: number | null }>> };
       masterProfile: { findUnique(a: unknown): Promise<{ address: string | null } | null> };
     };
-    const rows = await px.savedAddress.findMany({ where: { userId }, orderBy: { label: 'asc' }, take: 6 });
-    if (rows.length) {
-      return { addresses: rows.map((r) => ({ label: r.label, addressText: r.addressText, lat: r.lat, lng: r.lng })) };
-    }
     const legacy = await px.masterProfile.findUnique({ where: { userId }, select: { address: true } });
     return {
       addresses: legacy?.address?.trim()
-        ? [{ label: 'home', addressText: legacy.address.trim(), lat: null, lng: null }]
+        ? [{ label: 'home', addressText: legacy.address.trim(), name: null, phone: null, line1: null, line2: null, landmark: null, city: null, state: null, pincode: null, lat: null, lng: null } satisfies SavedAddressRow]
         : [],
     };
+  }
+
+  private async addressRows(userId: string): Promise<SavedAddressRow[]> {
+    const px = this.prisma as unknown as { savedAddress: { findMany(a: unknown): Promise<SavedAddressRow[]> } };
+    const rows = await px.savedAddress.findMany({ where: { userId }, orderBy: { label: 'asc' }, take: 6 });
+    return rows.map((r) => ({
+      label: r.label, addressText: r.addressText,
+      name: r.name ?? null, phone: r.phone ?? null, line1: r.line1 ?? null, line2: r.line2 ?? null,
+      landmark: r.landmark ?? null, city: r.city ?? null, state: r.state ?? null, pincode: r.pincode ?? null,
+      lat: r.lat ?? null, lng: r.lng ?? null,
+    }));
+  }
+
+  /**
+   * A DOOR A PARCEL CAN FIND (owner, 7 Sep): the detailed address, saved whole
+   * under one label from the store's checkout — the citizen pressed Save on
+   * it, which is the consent the book has always asked for. The one-line
+   * `addressText` is composed here so every older reader keeps reading true;
+   * "home" is mirrored into the legacy profile line for the same reason.
+   */
+  async saveAddress(userId: string, label: AddressLabel, dto: DeliveryAddressDto) {
+    const text = addressText(dto);
+    const fields = {
+      addressText: text, name: dto.name, phone: dto.phone, line1: dto.line1, line2: dto.line2 || null,
+      landmark: dto.landmark || null, city: dto.city, state: dto.state, pincode: dto.pincode,
+    };
+    const px = this.prisma as unknown as {
+      savedAddress: { upsert(a: unknown): Promise<unknown> };
+      masterProfile: { upsert(a: unknown): Promise<unknown> };
+    };
+    await px.savedAddress.upsert({
+      where: { userId_label: { userId, label } },
+      update: fields,
+      create: { userId, label, ...fields },
+    });
+    if (label === 'home') {
+      await swallow(
+        px.masterProfile.upsert({ where: { userId }, update: { address: text }, create: { userId, address: text } }),
+        'addressBook: mirror home into the profile line', { userId },
+      );
+    }
+    return this.addresses(userId);
+  }
+
+  /** What an order keeps of the door it was sent to — null when no label was
+   *  given or the book has no such page. */
+  async addressSnapshot(userId: string, label: AddressLabel | undefined): Promise<AddressSnapshot | null> {
+    if (!label) return null;
+    const row = (await this.addresses(userId)).addresses.find((a) => a.label === label);
+    return row ? snapshotOf(row) : null;
   }
 
   /** Forget one label. The legacy profile line goes with "home", because the

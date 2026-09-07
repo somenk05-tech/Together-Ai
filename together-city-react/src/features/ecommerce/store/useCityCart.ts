@@ -67,7 +67,7 @@ export interface CityCart {
   isLoading: boolean;
   paying: boolean;
   outcomes: PayOutcome[];
-  payAll: (method: PayMethodChoice) => void;
+  payAll: (method: PayMethodChoice, addressLabel?: string) => void;
 }
 
 export function useCityCart(): CityCart {
@@ -160,7 +160,11 @@ export function useCityCart(): CityCart {
     });
   }
 
-  const payAll = (method: PayMethodChoice) => {
+  /* THE DOOR RIDES WITH EVERY ORDER (7 Sep). One address chosen once on the
+     cart page, sent to each shop's till as the label of a page in the
+     citizen's book; the server snapshots it onto the order. The gem quote
+     carries none — nothing is shipped until somebody has priced it. */
+  const payAll = (method: PayMethodChoice, addressLabel?: string) => {
     setPaying(true);
     setOutcomes([]);
     /* SEQUENTIAL, NOT PARALLEL, and the reason is the wallet. Three charges
@@ -175,9 +179,10 @@ export function useCityCart(): CityCart {
             await beautyPlace.mutateAsync({
               items: section.lines.map((l) => ({ id: l.id, name: l.name, priceInr: l.priceInr, qty: l.qty })),
               method,
+              addressLabel,
             });
           } else if (section.key === 'supplements') {
-            await fitPlace.mutateAsync({ items: section.lines.map((l) => ({ id: l.id, qty: l.qty })) });
+            await fitPlace.mutateAsync({ items: section.lines.map((l) => ({ id: l.id, qty: l.qty })), addressLabel });
           } else {
             // Gemstones are quoted, not charged (owner, 5 Sep).
             await gemQuote.mutateAsync();

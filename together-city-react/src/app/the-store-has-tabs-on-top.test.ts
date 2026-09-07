@@ -108,7 +108,7 @@ describe('both floors are one storefront with tabs on top', () => {
        open market, all digital store in the same look." One switch, both
        rooms, the one that is on lit like an aisle chip. */
     const floorFile = code('features/ecommerce/store/Floor.tsx');
-    expect(floorFile).toMatch(/const \[STORE, MARKET, CART\] = HUBS\.ecommerce\.items;/);
+    expect(floorFile).toMatch(/const \[STORE, MARKET, CART, ORDERS\] = HUBS\.ecommerce\.items;/);
     expect(floorFile).toMatch(/\{\[STORE, MARKET\]\.map\(\(room\) => \(/);
     expect(floorFile).toMatch(/className=\{`sf-section\$\{room\.path === floor\.path \? ' on' : ''\}`\}/);
     expect(css).toMatch(/\.sf-section\.on \{[^}]*background: var\(--ink\)/);

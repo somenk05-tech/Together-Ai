@@ -288,11 +288,15 @@ export interface BeautyBag {
   removed: number;
 }
 
+/** Where an order went — the door chosen at checkout, kept whole (7 Sep). */
+export interface OrderAddress { label: string; name: string | null; phone: string | null; addressText: string }
+
 export interface BeautyOrder {
   id: string; totalInr: number; status: string;
   items: { id: string; name: string; priceInr: number; qty: number }[]; createdAt: string;
   /** When this order's supply runs out. Null when nothing in it is still sold. */
   reorder: ReorderDue | null;
+  address?: OrderAddress | null;
 }
 
 /** True when the failure is the Medical Hub's consent gate (403). */
@@ -333,8 +337,8 @@ export const beautyApi = {
   saveBag: (lines: { id: string; qty: number }[]) =>
     api.put<BeautyBag>('/beauty/bag', { lines }).then((r) => r.data),
   orders: () => api.get<BeautyOrder[]>('/beauty/orders').then((r) => r.data),
-  placeOrder: (items: { id: string; name: string; priceInr: number; qty: number }[], method: 'wallet' | 'card' = 'wallet') =>
-    api.post<{ orderId: string; orders: BeautyOrder[] }>('/beauty/orders', { items, method }).then((r) => r.data),
+  placeOrder: (items: { id: string; name: string; priceInr: number; qty: number }[], method: 'wallet' | 'card' = 'wallet', addressLabel?: string) =>
+    api.post<{ orderId: string; orders: BeautyOrder[] }>('/beauty/orders', { items, method, addressLabel }).then((r) => r.data),
 };
 
 export function useBeautyProfile() {
@@ -493,7 +497,7 @@ export function useBeautyOrders() {
 export function usePlaceBeautyOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { items: { id: string; name: string; priceInr: number; qty: number }[]; method: 'wallet' | 'card' }) => beautyApi.placeOrder(v.items, v.method),
+    mutationFn: (v: { items: { id: string; name: string; priceInr: number; qty: number }[]; method: 'wallet' | 'card'; addressLabel?: string }) => beautyApi.placeOrder(v.items, v.method, v.addressLabel),
     onSuccess: (res) => {
       qc.setQueryData(['beauty', 'orders'], res.orders);
       // The order empties the bag on the server; the cache has to hear about it

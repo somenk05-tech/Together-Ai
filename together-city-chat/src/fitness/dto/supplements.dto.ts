@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ADDRESS_LABELS } from '../../shared/delivery-address';
 
 /**
  * WHAT A CLIENT MAY SAY ABOUT A BAG: which product, and how many. That is the
@@ -43,6 +44,9 @@ export const PlaceSupplementOrderSchema = z.object({
    * — a confirmation nothing verifies is decoration.
    */
   acknowledged: z.array(z.string().min(1).max(120)).max(30).optional(),
+  /** Which door in the address book to send it to (7 Sep). Optional so an
+   *  older client still orders; the city checkout always sends one. */
+  addressLabel: z.enum(ADDRESS_LABELS).optional(),
 });
 export type PlaceSupplementOrderDto = z.infer<typeof PlaceSupplementOrderSchema>;
 

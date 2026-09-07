@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { profileApi, type EditQuota } from './api';
+import { profileApi, type AddressLabel, type DeliveryAddressInput, type EditQuota } from './api';
 
 /**
  * FIVE FREE CHANGES A MONTH, THEN ₹50 (5 Sep). Read before a save so the
@@ -58,6 +58,13 @@ export function useHealthScore() {
 /** The address book — home, work, other; the legacy line answers as home. */
 export function useSavedAddresses() {
   return useQuery({ queryKey: ['profile', 'addresses'], queryFn: () => profileApi.addresses() });
+}
+export function useSaveAddress() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { label: AddressLabel; address: DeliveryAddressInput }) => profileApi.saveAddress(v.label, v.address),
+    onSuccess: (res) => { qc.setQueryData(['profile', 'addresses'], res); },
+  });
 }
 export function useForgetAddress() {
   const qc = useQueryClient();

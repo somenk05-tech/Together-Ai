@@ -50,7 +50,18 @@ export interface MasterProfileView {
 }
 
 /** One page of the address book — home | work | other. */
-export interface SavedAddressView { label: string; addressText: string; lat: number | null; lng: number | null }
+export interface SavedAddressView {
+  label: string; addressText: string; lat: number | null; lng: number | null;
+  /* A DOOR A PARCEL CAN FIND (7 Sep): the detailed fields, null on a row
+     dictated before the book had them. */
+  name: string | null; phone: string | null; line1: string | null; line2: string | null;
+  landmark: string | null; city: string | null; state: string | null; pincode: string | null;
+}
+export type AddressLabel = 'home' | 'work' | 'other';
+export interface DeliveryAddressInput {
+  name: string; phone: string; line1: string; line2?: string; landmark?: string;
+  city: string; state: string; pincode: string;
+}
 
 export interface CompletionSection {
   key: string; label: string; href: string;
@@ -148,6 +159,9 @@ export const profileApi = {
   // The book is read here and forgotten here; WRITING happens at the order
   // checkout, where the "save this as…" tick is — the consent gate.
   addresses: () => api.get<{ addresses: SavedAddressView[] }>('/profile/addresses').then((r) => r.data),
+  /** Save a door whole under one label — the store checkout's Save is the consent (7 Sep). */
+  saveAddress: (label: AddressLabel, dto: DeliveryAddressInput) =>
+    api.put<{ addresses: SavedAddressView[] }>(`/profile/addresses/${label}`, dto).then((r) => r.data),
   forgetAddress: (label: string) =>
     api.delete<{ addresses: SavedAddressView[] }>(`/profile/addresses/${label}`).then((r) => r.data),
   completion: () => api.get<ProfileCompletion>('/profile/completion').then((r) => r.data),

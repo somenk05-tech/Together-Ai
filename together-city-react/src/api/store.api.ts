@@ -143,6 +143,10 @@ export const OrderSchema = z.object({
     id: z.string(), name: z.string(), brand: z.string().optional(),
     priceInr: z.number(), qty: z.number(),
   })),
+  /** Where it went — the door chosen at checkout, kept whole (7 Sep). */
+  address: z.object({
+    label: z.string(), name: z.string().nullable(), phone: z.string().nullable(), addressText: z.string(),
+  }).nullable().optional(),
 });
 export const OrdersSchema = z.array(OrderSchema);
 
@@ -206,8 +210,8 @@ export function useSetSupplementBudget() {
 export function usePlaceOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { items: Array<{ id: string; qty: number }>; acknowledged?: string[] }) =>
-      apiPost('/fitness/store/orders', { items: v.items, method: 'wallet', acknowledged: v.acknowledged ?? [] }, PlacedSchema),
+    mutationFn: (v: { items: Array<{ id: string; qty: number }>; acknowledged?: string[]; addressLabel?: string }) =>
+      apiPost('/fitness/store/orders', { items: v.items, method: 'wallet', acknowledged: v.acknowledged ?? [], addressLabel: v.addressLabel }, PlacedSchema),
     onSuccess: (out) => {
       qc.setQueryData(['fitness', 'store', 'bag'], out.bag);
       qc.setQueryData(['fitness', 'store', 'orders'], out.orders);

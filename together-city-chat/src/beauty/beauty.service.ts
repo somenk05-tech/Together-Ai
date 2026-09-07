@@ -1,12 +1,15 @@
 import { swallow } from '../shared/swallow';
-import { BadRequestException, ForbiddenException, Injectable, Optional } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Optional } from '@nestjs/common';
+import { RedisService } from '../shared/redis/redis.service';
 import { ProfileEditMeterService } from '../profile/profile-edit-meter.service';
 import { profileChanged } from '../profile/edit-quota';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { parseAddress } from '../shared/delivery-address';
 import { ORDER_HISTORY_CAP } from '../shared/paging';
 import { MedicalService } from '../medical/medical.service';
 import { FinancialService } from '../financial/financial.service';
-import { AiService, type PhotoMark } from '../ai/ai.service';
+import { AiService } from '../ai/ai.service';
+import { runAsPaidWork } from '../shared/request-context';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { beautyGender } from '../profile/sex-and-gender';
 import { clampBudget, planForWire, planWithinBudget, type StoredBudget } from './budget-routine';
@@ -90,7 +93,47 @@ export class BeautyService {
     // Five free profile changes a month, ₹50 each after (5 Sep). Optional so
     // the specs that build this service by hand need no wallet; Nest provides it.
     @Optional() private readonly meter?: ProfileEditMeterService,
+    // One analysis at a time per citizen — see withAnalysisLock. Optional for
+    // the same reason as the meter: the specs build this service by hand.
+    @Optional() private readonly redis?: RedisService,
   ) {}
+
+  /**
+   * ── ONE ANALYSIS AT A TIME PER CITIZEN ──────────────────────────────────
+   *
+   * The free-analysis quota is read from `acceptedAnalysesJson`, priced, and
+   * written back after a vision call that takes about ten seconds. Two requests
+   * arriving inside that window both read an empty list, both price at ₹0, both
+   * spend a vision call on the Opus tier, and the second one's write OVERWRITES
+   * the first — so the citizen gets two free analyses and only one of them is
+   * recorded, which hands them a third later. `MODEL_LIMIT` allows twenty a
+   * minute, so it is twenty, not two.
+   *
+   * A lock rather than a conditional write, because the thing worth not doing
+   * twice is the MODEL CALL, and a conditional write can only arbitrate after
+   * the money has already been spent. The skin analysis and the Look share the
+   * counter, so they share the lock.
+   *
+   * FAILS OPEN. No Redis, or a Redis that errors, and this is exactly the code
+   * that ran before — which is the right way round: a citizen who cannot reach
+   * a cache should not be refused their analysis.
+   */
+  private async withAnalysisLock<T>(userId: string, run: () => Promise<T>): Promise<T> {
+    if (!this.redis?.up) return run();
+    const key = `beauty:analyze:${userId}`;
+    let held: boolean;
+    try {
+      held = (await this.redis.raw.set(key, '1', 'EX', 120, 'NX')) === 'OK';
+    } catch {
+      return run();
+    }
+    if (!held) throw new ConflictException('An analysis of your photos is already running. Give it a moment.');
+    try {
+      return await run();
+    } finally {
+      try { await this.redis.raw.del(key); } catch { /* the TTL clears it */ }
+    }
+  }
 
   /** Overlay the Master Profile's shared demographics onto the beauty profile
    *  blob so the Skin & Hair form auto-fills age/gender/height/weight/city/
@@ -394,6 +437,10 @@ export class BeautyService {
    * detected issues are folded into the deterministic assessment. Runs once.
    */
   async analyzePhotos(userId: string, photos: { slot: string; base64: string; mediaType?: string }[], thumb?: string, method?: 'wallet' | 'card') {
+    return this.withAnalysisLock(userId, () => this.analyzePhotosNow(userId, photos, thumb, method));
+  }
+
+  private async analyzePhotosNow(userId: string, photos: { slot: string; base64: string; mediaType?: string }[], thumb?: string, method?: 'wallet' | 'card') {
     const existing = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
 
     // Rolling-week rate limit: at most 5 photo analyses per 7 days (deleting a
@@ -420,12 +467,38 @@ export class BeautyService {
 
     const profile = safeJson<BeautyProfileInput>(existing?.extras, {});
     const images = photos.filter((p) => p.base64).map((p) => ({ base64: p.base64, mediaType: p.mediaType || 'image/jpeg' }));
+    /**
+     * NO PHOTOGRAPH, NO ANALYSIS — AND NO CHARGE. (Launch audit, 6 Sep.)
+     *
+     * `photos` is optional on the DTO, so `POST /beauty/photos/analyze` with an
+     * empty body reached the line below with `images.length === 0`, took the
+     * synthetic `quality: 'ok'` branch, recorded an accepted analysis and
+     * charged ₹100 — for a request that carried no picture and called no model.
+     * A double-submit or a client bug was a chargeback.
+     */
+    if (!images.length) throw new BadRequestException('Add at least one photo to analyse.');
 
     // The daily ceiling used to be spent here, by hand, on this route and one
     // other (2 Sep). It is charged at the model call itself now, for every
     // route in the city — AiService.meter(), 4 Sep — so nothing is spent
     // here: a second charge would bill a photo twice.
-    const review = images.length ? await this.ai.reviewSkinPhotos(images) : { quality: 'ok' as const, findings: [] as string[], note: '', face: null as Record<string, string> | null, marks: [] as PhotoMark[] };
+    /**
+     * A PAID ANALYSIS IS NOT FREE WORK. (Launch audit, 6 Sep.)
+     *
+     * `ModelBudgetService.charge` spends the citizen's 60-a-day and the city's
+     * 20,000-a-day keys unless the work runs inside `runAsPaidWork`, and
+     * nothing in the city called it — so the ₹100 second analysis was counted
+     * against the FREE allowance and 429'd at the ceiling, which is the one
+     * thing the owner's rule says must never happen ("paid work is counted on
+     * its own keys but never refused").
+     *
+     * Wrapped only when there is a price, and only after `assertCanPay` above
+     * has confirmed the money is there — the charge itself lands below, in the
+     * established order (check, generate, charge).
+     */
+    const review = priceInr > 0
+      ? await runAsPaidWork(() => this.ai.reviewSkinPhotos(images))
+      : await this.ai.reviewSkinPhotos(images);
     const rejected = review.quality === 'suspect' || review.quality === 'unclear';
     const warning = review.quality === 'suspect'
       ? 'These photos look filtered or AI-generated — please upload clear, unedited photos of yourself for an accurate analysis.'
@@ -576,7 +649,7 @@ export class BeautyService {
     // PRIMARY signal: the saved assessment's per-attribute readings.
     const analysis = profile.analysis as { skin?: { readings?: { key: string; label: string; level: string }[] }; hair?: { readings?: { key: string; label: string; level: string }[] } } | null;
     const readings = [...(analysis?.skin?.readings ?? []), ...(analysis?.hair?.readings ?? [])];
-    const extras = profile.profile as { skinType?: string; budget?: string; allergies?: string[]; medicalConditions?: string[] };
+    const extras = profile.profile as { skinType?: string; budget?: string; allergies?: string[]; medicalConditions?: string[]; gender?: string };
     const declared = await this.declaredSensitivities(userId, extras.allergies);
     const conditions = await this.declaredConditions(userId, extras.medicalConditions);
     const products = recommendProducts({
@@ -586,6 +659,9 @@ export class BeautyService {
         skinType: String(extras.skinType ?? profile.skinType), budget: extras.budget,
         allergies: declared,
         conditions,
+        // The hub's own Female | Male | Other, auto-filled from the Master
+        // Profile and never written back — see beautyGender().
+        gender: extras.gender,
       },
       insights,
     });
@@ -634,6 +710,12 @@ export class BeautyService {
    * the products matched to the steps are ones they can actually use.
    */
   async analyzeLook(userId: string, input: { fileKey?: string; mimeType?: string; base64?: string }, method?: 'wallet' | 'card') {
+    // The Look shares the free-analysis counter with the skin read, so it
+    // shares the lock — see withAnalysisLock.
+    return this.withAnalysisLock(userId, () => this.analyzeLookNow(userId, input, method));
+  }
+
+  private async analyzeLookNow(userId: string, input: { fileKey?: string; mimeType?: string; base64?: string }, method?: 'wallet' | 'card') {
     const profile = await this.getProfile(userId);
     const extras = profile.profile as { skinType?: string; allergies?: string[] };
     // THE SAME COUNTER AS THE SKIN ANALYSIS (owner decision, 5 Sep): a Look is
@@ -645,10 +727,12 @@ export class BeautyService {
     const priceInr = analysisQuota(accepted, Date.now()).priceInr;
     if (priceInr > 0) await this.financial.assertCanPay(userId, priceInr, method);
 
-    const look = await this.looks.analyze(userId, input, {
-      allergies: await this.declaredSensitivities(userId, extras.allergies),
-      skinType: String(extras.skinType ?? profile.skinType ?? ''),
-    });
+    const allergies = await this.declaredSensitivities(userId, extras.allergies);
+    const skinType = String(extras.skinType ?? profile.skinType ?? '');
+    // Paid work, on the same counter and the same rule as the skin analysis above.
+    const look = priceInr > 0
+      ? await runAsPaidWork(() => this.looks.analyze(userId, input, { allergies, skinType }))
+      : await this.looks.analyze(userId, input, { allergies, skinType });
     if (look.readBy !== 'ai') return { ...look, priceInr: 0 };
 
     const acceptedAnalysesJson = JSON.stringify(recordAccepted(accepted, Date.now()));
@@ -952,6 +1036,8 @@ export class BeautyService {
       );
     }
     const { lines, totalInr } = priced;
+    // The door it goes to, read from the book and kept on the order whole.
+    const door = dto.addressLabel ? await this.masterProfile.addressSnapshot(userId, dto.addressLabel) : null;
     // Unified payment: pay from the one city wallet via the Financial hub.
     // Charge and record the order together — a failure after the debit used to
     // leave the citizen paid-up with no order to show for it.
@@ -962,7 +1048,7 @@ export class BeautyService {
       { hub: 'Beauty', category: 'beauty', label: 'Beauty market order', amountInr: totalInr, method: dto.method },
       async (tx) => {
         const created = await tx.beautyOrder.create({
-          data: { userId, itemsJson: JSON.stringify(lines), totalInr, status: 'placed' },
+          data: { userId, itemsJson: JSON.stringify(lines), totalInr, status: 'placed', addressJson: door ? JSON.stringify(door) : null },
         });
         return created.id;
       },
@@ -987,6 +1073,7 @@ export class BeautyService {
         id: o.id, totalInr: o.totalInr, status: o.status,
         items: safeParse(o.itemsJson),
         createdAt: o.createdAt.toISOString(),
+        address: parseAddress(o.addressJson),
       };
       return { ...order, reorder: reorderDueFor(order) };
     });

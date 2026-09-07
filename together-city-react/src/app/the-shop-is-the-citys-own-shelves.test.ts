@@ -32,10 +32,11 @@ describe('E-Commerce is a district with rooms behind it', () => {
     expect(NAV.find((n) => n.key === 'ecommerce')?.path).toBe('/ecommerce');
     /* TWO ROOMS ON 22 AUG, THREE BY THE EVENING: the cart joined them at the
        owner's word — "keep individual carts and also a cross-hub cart in
-       e-commerce". The facade's two doors are still the first two, and the
-       order is asserted because the rail is read top to bottom. */
+       e-commerce". FOUR ON 7 SEP: "a page for all past orders." The facade's
+       two doors are still the first two, and the order is asserted because
+       the store's bar reads the list by position. */
     expect(HUBS.ecommerce.items.map((i) => i.path))
-      .toEqual(['/ecommerce/store', '/ecommerce/market', '/ecommerce/cart']);
+      .toEqual(['/ecommerce/store', '/ecommerce/market', '/ecommerce/cart', '/ecommerce/orders']);
   });
 
   it('is a plate you can walk into, not one that is only labelled', () => {

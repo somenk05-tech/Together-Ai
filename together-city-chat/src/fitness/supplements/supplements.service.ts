@@ -4,6 +4,7 @@ import { MasterProfileService } from '../../profile/master-profile.service';
 import { MedicalService } from '../../medical/medical.service';
 import { NutritionService } from '../../nutrition/nutrition.service';
 import { swallowed } from '../../shared/swallow';
+import { parseAddress } from '../../shared/delivery-address';
 import { recommend, type Citizen } from './supplements.engine';
 import { assessMultivitamins } from './multivitamin.engine';
 import { CATEGORY_FINDINGS } from './formulations';
@@ -416,12 +417,14 @@ export class SupplementsService {
       }
     }
 
+    // The door it goes to, read from the book and kept on the order whole.
+    const door = dto.addressLabel ? await this.masterProfile.addressSnapshot(userId, dto.addressLabel) : null;
     const orderId = await this.financial.paid<string>(
       userId,
       { hub: 'Fitness', category: 'fitness', label: 'Supplement order', amountInr: priced.totalInr, method: dto.method },
       async (tx) => {
         const created = await tx.supplementOrder.create({
-          data: { userId, itemsJson: JSON.stringify(priced.lines), totalInr: priced.totalInr, status: 'placed' },
+          data: { userId, itemsJson: JSON.stringify(priced.lines), totalInr: priced.totalInr, status: 'placed', addressJson: door ? JSON.stringify(door) : null },
         });
         return created.id;
       },
@@ -440,11 +443,12 @@ export class SupplementsService {
     const rows = await this.prisma.supplementOrder.findMany({
       where: { userId }, orderBy: { createdAt: 'desc' }, take: ORDER_HISTORY_CAP,
     }).catch(swallowed('supplements.orders', [] as Array<Record<string, unknown>>));
-    return (rows as Array<{ id: string; totalInr: number; status: string; itemsJson: string; createdAt: Date }>)
+    return (rows as Array<{ id: string; totalInr: number; status: string; itemsJson: string; createdAt: Date; addressJson: string | null }>)
       .map((o) => ({
         id: o.id, totalInr: o.totalInr, status: o.status,
         items: parseOrderItems(o.itemsJson),
         createdAt: o.createdAt.toISOString(),
+        address: parseAddress(o.addressJson),
       }));
   }
 }

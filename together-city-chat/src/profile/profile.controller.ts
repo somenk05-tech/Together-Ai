@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Put, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Put, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { ADDRESS_LABELS, DeliveryAddressSchema, type AddressLabel, type DeliveryAddressDto } from '../shared/delivery-address';
 import { z } from 'zod';
 import { UNDER_AGE_MESSAGE, isAdult } from '../shared/age';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
@@ -73,8 +74,24 @@ export class ProfileController {
     return this.masterProfile.addresses(user.sub);
   }
 
-  /** Forget one saved address. Writing happens at the order checkout, where
-   *  the consent tick is — there is deliberately no POST here. */
+  /**
+   * SAVE A DOOR (owner, 7 Sep) — the detailed delivery address, whole, under
+   * one label. Written from the Digital Store's checkout when the citizen
+   * presses Save, which is the same consent the "save this as…" tick gave
+   * the local-services checkout; the book still has no blind POST, and a
+   * label outside home | work | other is refused rather than stored.
+   */
+  @Put('addresses/:label')
+  @UsePipes(new ZodValidationPipe(DeliveryAddressSchema))
+  saveAddress(@CurrentUser() user: JwtUser, @Param('label') label: string, @Body() dto: DeliveryAddressDto) {
+    if (!(ADDRESS_LABELS as readonly string[]).includes(label)) {
+      throw new BadRequestException('An address is saved as home, work or other.');
+    }
+    return this.masterProfile.saveAddress(user.sub, label as AddressLabel, dto);
+  }
+
+  /** Forget one saved address. Writing happens at a checkout, where the
+   *  consent is — there is deliberately no blind POST here. */
   @Delete('addresses/:label')
   forgetAddress(@CurrentUser() user: JwtUser, @Param('label') label: string) {
     return this.masterProfile.forgetAddress(user.sub, label);

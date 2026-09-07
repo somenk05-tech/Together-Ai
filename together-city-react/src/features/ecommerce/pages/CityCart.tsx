@@ -6,7 +6,9 @@ import { ProductShot } from '@/features/beauty/components/ProductShot';
 import { HUBS } from '@/config/hubs';
 import { useHubTheme } from '@/hooks/useHubTheme';
 import { FloorPage } from '../store/Floor';
+import { DeliveryAddress } from '../store/DeliveryAddress';
 import { useCityCart } from '../store/useCityCart';
+import type { AddressLabel } from '@/features/profile/api';
 
 /**
  * ── YOUR CART — EVERY SHOP IN THE CITY, ONE LIST ────────────────────────────
@@ -41,6 +43,11 @@ export function CityCart() {
   useHubTheme(null);
   const cart = useCityCart();
   const [payOpen, setPayOpen] = useState(false);
+  /* THE DOOR THE ORDERS GO TO (7 Sep) — the label of a page in the citizen's
+     address book, chosen on this page and sent with every till's order. Null
+     until one is chosen, and Pay waits for it: a parcel with no door is not
+     an order anybody can fulfil. */
+  const [door, setDoor] = useState<AddressLabel | null>(null);
   const floor = { path: ROOM.path, tabs: null, cart };
 
   if (cart.isLoading) {
@@ -131,6 +138,8 @@ export function CityCart() {
             </section>
           ))}
 
+          <DeliveryAddress chosen={door} onChoose={setDoor} />
+
           <div className="st-sum">
             <span className="st-sum-label">Total</span>
             <span className="st-brand">
@@ -140,9 +149,10 @@ export function CityCart() {
           </div>
 
           <div className="st-pay">
-            <button type="button" className="st-cta st-cta-wide" disabled={cart.paying} onClick={() => setPayOpen(true)}>
+            <button type="button" className="st-cta st-cta-wide" disabled={cart.paying || door === null} onClick={() => setPayOpen(true)}>
               {cart.paying ? 'Paying…' : `Pay ${rupees(cart.totalInr)}`}
             </button>
+            {door === null && <p className="st-blocked">Save a delivery address above first.</p>}
           </div>
 
           {/* SAID BEFORE THE BUTTON, NOT AFTER IT. One press, one amount, and
@@ -164,7 +174,7 @@ export function CityCart() {
         pending={cart.paying}
         walletOnly
         onCancel={() => setPayOpen(false)}
-        onPay={(method) => { setPayOpen(false); cart.payAll(method); }}
+        onPay={(method) => { setPayOpen(false); cart.payAll(method, door ?? undefined); }}
       />
     </FloorPage>
   );

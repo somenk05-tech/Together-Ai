@@ -1631,6 +1631,9 @@ model BeautyOrder {
   itemsJson String // JSON array of {id,name,priceInr,qty}
   totalInr  Int
   status    String   @default("placed") // placed | cancelled
+  /// WHERE IT WENT — a snapshot of the door chosen at checkout (7 Sep), not a
+  /// reference to the book: the book can change tomorrow, the receipt cannot.
+  addressJson String?
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1677,6 +1680,8 @@ model SupplementOrder {
   itemsJson String
   totalInr  Int
   status    String   @default("placed") // placed | cancelled
+  /// Where it went — the door chosen at checkout, snapshotted (7 Sep).
+  addressJson String?
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -3012,6 +3017,19 @@ model SavedAddress {
   /// home | work | other. The vocabulary every delivery app taught the city.
   label       String
   addressText String
+  /// A DOOR A PARCEL CAN FIND (owner, 7 Sep): the name on it, a phone the
+  /// rider can call, the building, the street, a landmark, city, state, PIN.
+  /// `addressText` is composed from these (shared/delivery-address.ts) so the
+  /// one line every older reader uses stays true; a row dictated before 7 Sep
+  /// has the line and nulls here, and is offered as it was.
+  name        String?
+  phone       String?
+  line1       String?
+  line2       String?
+  landmark    String?
+  city        String?
+  state       String?
+  pincode     String?
   lat         Float?
   lng         Float?
   createdAt   DateTime @default(now())

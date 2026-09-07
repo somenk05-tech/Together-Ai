@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ADDRESS_LABELS } from '../../shared/delivery-address';
 
 export const SKIN_TYPES = ['dry', 'oily', 'combination', 'normal', 'sensitive'] as const;
 export const HAIR_TYPES = ['straight', 'wavy', 'curly', 'coily'] as const;
@@ -26,5 +27,8 @@ export const PlaceBeautyOrderSchema = z.object({
     qty: z.number().int().positive().max(20).default(1),
   })).min(1).max(50),
   method: z.enum(['wallet', 'card']).default('wallet'),
+  /** Which door in the address book to send it to (7 Sep). Optional so an
+   *  older client still orders; the city checkout always sends one. */
+  addressLabel: z.enum(ADDRESS_LABELS).optional(),
 });
 export type PlaceBeautyOrderDto = z.infer<typeof PlaceBeautyOrderSchema>;
