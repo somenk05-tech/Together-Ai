@@ -196,3 +196,105 @@ describe('the banner is the whole card', () => {
     expect(css).toMatch(/@media \(max-width: 899px\) \{[\s\S]*?\.pz-say \{ position: static; \}/);
   });
 });
+
+describe('the hall at the top, and the nine bays in it', () => {
+  const page = code('pages/Personalize.tsx');
+  const css = read('styles/relief.css');
+  const NINE = ['beauty', 'fitness', 'nutrition', 'medical', 'dating',
+    'realestate', 'astrology', 'pets', 'financial'] as const;
+
+  it('draws a hall for each of the two answers, and both files exist', () => {
+    expect(page).toMatch(/hall-\$\{hall\}\.webp/);
+    const problems: string[] = [];
+    for (const which of ['male', 'female']) {
+      const path = join(APP, 'public/assets/img/personalize', `hall-${which}.webp`);
+      if (!existsSync(path)) { problems.push(`missing hall-${which}.webp`); continue; }
+      const kb = Math.round(statSync(path).size / 1024);
+      if (kb > 160) problems.push(`hall-${which}.webp is ${kb} KB`);
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it('chooses the hall from the social answer, never the clinical one', () => {
+    /* `resolvedGender` is the server's one answer — the split identity field
+       where a citizen has one, the pre-split column where they do not.
+       `sexAtBirth` is clinical, is never shown to another citizen, and has no
+       business choosing a photograph. */
+    expect(page).toMatch(/master\.data\?\.resolvedGender === 'Male'/);
+    expect(page).not.toMatch(/sexAtBirth|genderIdentity/);
+  });
+
+  it('shows a picture on an answer and never on a guess', () => {
+    // Anything that is not an explicit Male takes the other hall: signed out,
+    // still loading, unanswered, non-binary, other. One is the default.
+    expect(page).toMatch(/\? 'male' : 'female'/);
+  });
+
+  it('asks the server for the record only when somebody is signed in', () => {
+    // /personalize is a page a signed-out visitor can stand on; firing the
+    // master-profile query there is a 401 the page has no use for.
+    expect(page).toMatch(/useMasterProfile\(authed\)/);
+    expect(read('features/profile/hooks.ts')).toMatch(/useMasterProfile\(enabled = true\)/);
+  });
+
+  it('lays nine bays across the hall, in the picture’s own order', () => {
+    const at = page.indexOf('const BAYS');
+    const keys = [...page.slice(at, page.indexOf('];', at)).matchAll(/key: '([a-z]+)'/g)].map((m) => m[1]);
+    expect(keys).toEqual([...NINE]);
+  });
+
+  it('covers the whole picture, edge to edge, with no bay overlapping another', () => {
+    /* The widths are midpoints between neighbouring label centres, so they
+       must sum to the picture. A gap is a label nothing opens; an overlap is
+       a label that opens its neighbour. */
+    const at = page.indexOf('const BAYS');
+    const widths = [...page.slice(at, page.indexOf('];', at)).matchAll(/width: ([\d.]+)/g)].map((m) => Number(m[1]));
+    expect(widths).toHaveLength(9);
+    expect(Math.round(widths.reduce((a, b) => a + b, 0) * 100) / 100).toBe(100);
+  });
+
+  it('opens the district’s own landing, and names it for a reader who cannot see it', () => {
+    expect(page).toMatch(/to=\{HUBS\[bay\.key\]\.backPath\}/);
+    expect(page).toMatch(/aria-label=\{districtName\(bay\.key\)\}/);
+    // The picture carries every word, so the img itself is decorative.
+    expect(page).toMatch(/className="no-case" src=\{`\/assets\/img\/personalize\/hall/);
+  });
+
+  it('draws a switched-off district but does not open it', () => {
+    // A photograph cannot lose a room; a door can be closed.
+    expect(page).toMatch(/hubOn\(bay\.key\)/);
+    expect(page).toMatch(/className="pz-bay is-off"/);
+    expect(css).toMatch(/\.pz-bay\.is-off \{ pointer-events: none; \}/);
+  });
+
+  it('lights a bay in the colour of the room it opens', () => {
+    expect(css).toMatch(/\.pz-bay:hover \{ background: var\(--accent-soft\); \}/);
+    expect(page).toMatch(/data-hub=\{bay\.key\}/);
+  });
+
+  it('draws nothing at all — a bay is invisible until a finger is on it', () => {
+    /* Owner, 7 Sep: "there should not be any lines visible in the image." Nine
+       transparent boxes over a photograph are the kind of thing that acquires
+       a hairline the first time somebody debugs them, so the absence is
+       asserted rather than assumed: at rest a bay has no ground, no edge and
+       no fall. The hover wash and the keyboard outline are the only paint it
+       is allowed, and both are answers to something the citizen is doing. */
+    const at = css.indexOf('.pz-bay {');
+    const rest = css.slice(at, css.indexOf('}', at));
+    for (const forbidden of [/(^|;)\s*background:/, /(^|;)\s*border:/, /border-(top|right|bottom|left|color|style|width)/,
+      /(^|;)\s*outline:/, /box-shadow/]) {
+      expect({ forbidden: String(forbidden), found: forbidden.test(rest) })
+        .toEqual({ forbidden: String(forbidden), found: false });
+    }
+    // …and the picture itself is not cased: the city's universal image rim
+    // would draw a line round the hall, which is the same complaint.
+    const hallAt = css.indexOf('.pz-hall img {');
+    const hall = css.slice(hallAt, css.indexOf('}', hallAt));
+    expect(hall).not.toMatch(/box-shadow|border:/);
+    expect(page).toMatch(/className="no-case" src=\{`\/assets\/img\/personalize\/hall/);
+  });
+
+  it('takes the bays off a phone, where a ninth of the width is not a door', () => {
+    expect(css).toMatch(/@media \(max-width: 899px\) \{[\s\S]*?\.pz-bays \{ display: none; \}/);
+  });
+});

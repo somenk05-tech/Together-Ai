@@ -27,8 +27,12 @@ export function useProfileSummary() {
 /** The Master Profile — the single source of truth for shared user info. Hubs
  *  read this to lock master-owned fields (name, age): once set here they can
  *  only be changed in the Master Profile, never re-entered in a sub-page. */
-export function useMasterProfile() {
-  return useQuery({ queryKey: ['profile', 'master'], queryFn: () => profileApi.master(), staleTime: 30_000 });
+/* `enabled` DEFAULTS TO TRUE, so every caller that has one reads exactly as it
+   did. It exists for the pages a signed-out visitor can stand on — /personalize
+   is the first — where firing this query is a 401 the page has no use for. The
+   key is unchanged, so an authed caller still shares one cache entry. */
+export function useMasterProfile(enabled = true) {
+  return useQuery({ queryKey: ['profile', 'master'], queryFn: () => profileApi.master(), staleTime: 30_000, enabled });
 }
 
 /** One platform-wide profile-completion score across all hubs. Recomputed on

@@ -6000,6 +6000,46 @@ button.own-month-day:hover { border-color: var(--accent); }
    ONE TO A ROW, and that is a measurement rather than a taste. These hold a
    paragraph of real copy at 2172px wide; two to a row is that paragraph at
    about four pixels tall. */
+/* ── THE HALL AT THE TOP, AND THE NINE BAYS IN IT ─────────────────────────
+   Owner, 7 Sep: "use the image for male and female users accordingly for the
+   top of the page, also give each section a click on the text which takes them
+   to the section."
+
+   THE PICTURE IS THE PAGE'S WIDTH, NOT THE WINDOW'S. Full-bleed it is a 2.3:1
+   photograph six feet across on a desk, with its nine bays further apart than
+   the nine banners they lead to — the same hall, twice, at two scales.
+
+   THE HIT AREA IS THE BAY, NOT THE WORD. Nine boxes traced around nine
+   baked-in words are nine measurements that go wrong the first time a
+   photograph is re-rendered a few pixels off — the two halls already sit 45px
+   apart vertically. A bay is the whole column its label stands over; the
+   widths are in Personalize.tsx, where the measurement that produced them is
+   written down. */
+.pz-hall {
+  position: relative; max-width: 1360px; margin: 0 auto;
+  padding: clamp(16px, 2vw, 36px) clamp(16px, 2vw, 36px) 0;
+}
+.pz-hall img { display: block; width: 100%; height: auto; border-radius: var(--r-3); }
+.pz-bays { position: absolute; inset: clamp(16px, 2vw, 36px) clamp(16px, 2vw, 36px) 0; display: flex; }
+/* The wash is the district's OWN accent, which is the only colour this city
+   lets a room have — so the bay lights up in the colour of the room it opens,
+   and nine hovers are nine different answers rather than one grey. */
+.pz-bay {
+  display: block; border-radius: var(--r-3);
+  transition: background var(--dur-base) var(--ease);
+}
+.pz-bay:hover { background: var(--accent-soft); }
+.pz-bay:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; }
+/* A district this citizen switched off keeps its place in the photograph — a
+   picture cannot lose a room — and loses its door, like everywhere else. */
+.pz-bay.is-off { pointer-events: none; }
+@media (max-width: 899px) {
+  /* A ninth of a phone is 38px of doorway under a label nobody can read at
+     that size. The picture stays as the page's head; the nine banners under
+     it are the doors, at a finger's width each. */
+  .pz-bays { display: none; }
+}
+
 .pz {
   display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 7fr);
   gap: clamp(24px, 3.4vw, 64px); align-items: start;
