@@ -66,7 +66,21 @@ export const NAV: NavItem[] = [
      one costs every link already sent. What changes is the word on the street:
      "e-commerce" is what the industry calls the category, and this is a shop. */
   { key: 'ecommerce', label: 'Digital Store', path: '/ecommerce' },
-  { key: 'entertainment', label: 'Entertainment', path: '/entertainment' },
+  /* ENTERTAINMENT LEFT THE STREET (owner, 7 Sep) AND MOVED IN WITH THE
+     TELEVISION. Financial's move on 22 Aug is the precedent: a hub whose
+     tab was doing less work than the room it points at. Movies Now, OTT
+     Watch, Curated Movies and the Watchlist are all answers to "what do I
+     watch tonight" — and since 5 Sep the city already has a room for that
+     question, with a television in it. So the tab comes off the header and
+     the hub becomes the fifth key on Together City TV's rail, one door down
+     from the screen itself, the way the wallet became the fifth card in the
+     Personal drawer.
+     The HUB is untouched: config, four rooms, routes, dark landing, art, its
+     plate on the home map, its walk tile, its billboard line and its switch
+     on Design Your Services all stand. What it no longer has is a tab in the
+     header — and, because the burger drawer and the All-hubs grid are both
+     drawn from THIS list, no key in either. That is the cost of one door
+     rather than four, and it is the owner's call, not a tidy-up. */
   /* FINANCIAL LEFT THE STREET (owner, 22 Aug), NOT THE CITY — the same move
      Travel made on 15 Aug, and for a reason that is easier to say: money is
      not a district you walk through, it is a thing that belongs to you. So it
@@ -248,6 +262,14 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // the profile chip, labelled not open; places are a caption on a post.
       { path: '/social/profile', index: '03', label: 'My Profile', sub: 'Story, stats & posts' },
       { path: '/social/saved', index: '04', label: 'Saved', sub: 'Bookmarked posts' },
+      // 05 IS A DOOR OUT OF THE HUB, WHICH NO OTHER RAIL KEY IS — and that is
+      // the point rather than an oversight. Entertainment came off the header
+      // on 7 Sep (owner) because "what do I watch tonight" is a question this
+      // hub already answers with a television; the four rooms behind it —
+      // Movies Now, OTT Watch, Curated Movies, Watchlist — are the same
+      // question asked about the rest of the week. The rail is where somebody
+      // standing in front of the screen looks for them.
+      { path: '/entertainment', index: '05', label: 'Entertainment', sub: 'Movies, OTT & your watchlist' },
       // Thoughts was here because it was "built, tested, and listed nowhere" —
       // a journal boarding in the social hub for want of anywhere else. It has
       // a home of its own now (Personal), and a private journal listed inside

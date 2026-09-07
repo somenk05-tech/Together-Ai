@@ -17,9 +17,10 @@ const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
  *
  * 1. THE LIST IS DERIVED, NOT INVENTED. The designable hubs are exactly the
  *    street — NAV minus the citizen's own doors, plus Financial, which left
- *    the header (owner, 22 Aug) but still stands on the home map, the walk
- *    and the grid. A hub joining or leaving the street must fail here until
- *    the designable list answers for it.
+ *    the header (owner, 22 Aug), and Entertainment, which left it on 7 Sep
+ *    for key 05 on Together City TV's rail. Both still stand on the home map
+ *    and the walk, so both stay switchable. A hub joining or leaving the
+ *    street must fail here until the designable list answers for it.
  *
  * 2. HIDDEN IS NOT DELETED — Travel's rule, made per-citizen. Every filter is
  *    applied at render; NAV, the router and the command-palette registry stay
@@ -31,6 +32,8 @@ describe('the designable list is the street, derived', () => {
     street.delete('mail');      // an action in the corner, not a service
     street.delete('personal');  // the citizen's own drawer
     street.add('financial');    // off the header, still on the home surfaces
+    street.add('entertainment'); // off the header (7 Sep), still on the home
+                                 // surfaces and now on Together City TV's rail
     expect([...DESIGNABLE_HUBS].sort()).toEqual([...street].sort());
   });
 

@@ -84,6 +84,47 @@ describe('Financial leaves the street, not the city', () => {
   });
 });
 
+describe('Entertainment leaves the header for the television', () => {
+  /**
+   * Owner, 7 Sep. Financial's move with a destination: the tab comes off the
+   * header AND the hub arrives somewhere a citizen was already standing —
+   * key 05 on Together City TV's rail, under City TV, Channels, My Profile
+   * and Saved.
+   *
+   * The rail key is the half worth a test of its own. Every other key on
+   * every other rail points INSIDE its hub; this one points out of it, and a
+   * later tidy-up that "fixes" the inconsistency would silently delete the
+   * only door Entertainment has left.
+   */
+  it('is gone from the header tabs', () => {
+    expect(NAV.some((n) => n.key === 'entertainment')).toBe(false);
+  });
+
+  it('and arrives as key 05 on Together City TV’s rail', () => {
+    const five = HUBS.social.items.find((i) => i.index === '05');
+    expect(five?.path).toBe('/entertainment');
+    expect(five?.label).toBe('Entertainment');
+    // The rail runs 01-05 with nothing skipped.
+    expect(HUBS.social.items.map((i) => i.index)).toEqual(['01', '02', '03', '04', '05']);
+  });
+
+  it('but the hub itself is untouched — config, rooms, routes, art', () => {
+    expect(HUBS.entertainment).toBeTruthy();
+    expect(HUBS.entertainment.items.length).toBe(4);
+    expect(read('app/router.tsx')).toMatch(/path: '\/entertainment'/);
+    expect(read('pages/Home.tsx')).toMatch(/to: '\/entertainment'/);
+  });
+
+  it('and stays findable by name, not only from the rail', () => {
+    // Off NAV it no longer arrives through the hub loop, so the rail key is
+    // what carries it into the palette — where somebody who types "movies"
+    // ends up.
+    const registry = read('nav/registry.ts');
+    expect(registry).toMatch(/id: 'a-movies'/);
+    expect(registry).toMatch(/path: '\/entertainment\/movies'/);
+  });
+});
+
 describe('Personal is a drawer, not a district', () => {
   const registry = read('nav/registry.ts');
   const router = read('app/router.tsx');
