@@ -31,7 +31,7 @@ export function Regulars() {
 
   return (
     <div>
-      <div className="eyebrow">Local Services</div>
+      <div className="eyebrow">Local Market</div>
       <h1 style={{ fontSize: 26 }}>Regulars</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px', maxWidth: '62ch' }}>
         The businesses you keep. Only you see this list.

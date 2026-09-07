@@ -130,7 +130,7 @@ export const NAV: NavItem[] = [
      spending. What it no longer has is a tab in the header. */
   { key: 'fitness', label: 'Fitness', path: '/fitness' },
   { key: 'jobs', label: 'Jobs', path: '/jobs' },
-  { key: 'services', label: 'Local services', path: '/services' },
+  { key: 'services', label: 'Local Market', path: '/services' },
   { key: 'mail', label: 'Mail', path: '/mail' },
   /* THE HUB IS CALLED MATCHMAKING (31 Aug, owner), AND IT MOVED BECAUSE OF IT.
      Header.tsx sorts this list by LABEL, so the rendered order changed on its
@@ -174,6 +174,40 @@ export const NAV: NavItem[] = [
      first. */
 ];
 
+/**
+ * ── THE STREET IS FOUR DOORS WIDE (owner, 7 Sep) ───────────────────────────
+ *
+ * "The top hub on the home page needs to have only 4 things, and in this same
+ * order: Personalize, Digital Store, Local Market, and Together City TV."
+ *
+ * NAV above is unchanged and stays the full list — it is what the command
+ * palette, the route index, Design Your Services and every test read, and
+ * hidden is not deleted has been this city's rule since Travel left the street
+ * on 15 Aug. What changes is which of it is DRAWN as a menu: the header, the
+ * burger drawer and the all-hubs grid draw these four and nothing else.
+ *
+ * THE ORDER IS WRITTEN DOWN RATHER THAN SORTED, and that is the one thing in
+ * this file that breaks a rule it argues for. Thirteen tabs were sorted
+ * alphabetically because "the only scan order a stranger can predict is the
+ * alphabet" — true of thirteen, and false of four. Four doors are recognised,
+ * not scanned, and this order is an argument: personalise the city first, then
+ * the shop that reads what you told it, then the neighbourhood that fills it,
+ * then the screen you watch when you are done. Alphabetical would open on
+ * Digital Store, which is the answer before the question.
+ *
+ * WHAT THE OTHER ELEVEN KEEP (owner's call, asked directly): their route,
+ * their billboard on the walk, their tile in the foot grid, their building on
+ * the map, their banner on Personalize, their switch on Design Your Services,
+ * and the command palette. What they lose is a menu entry. Jobs is the one
+ * worth naming: it has no banner on Personalize, so the walk, the map and the
+ * palette are its ways in until it gets one.
+ *
+ * MAIL AND PERSONAL ARE NOT AFFECTED because they were never on this row —
+ * they are the citizen's own doors and live in the action bar, and the drawer
+ * keeps them below its hairline.
+ */
+export const HEADER_TABS: readonly TabKey[] = ['personalize', 'ecommerce', 'services', 'social'];
+
 /** Hub metadata — names/taglines ported 1:1 from tc.js SIDE. */
 export const HUBS: Record<HubKey, HubConfig> = {
   // LOCAL SERVICES replaced Cars, which was a nav tab and a map building with
@@ -181,7 +215,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
   // hub is the opposite shape: everything in it is put there by a citizen, so
   // it is empty on the day it ships and honest about it.
   services: {
-    key: 'services', name: 'Local Services', tag: 'Fix it, learn it, book it — near you', backPath: '/services',
+    key: 'services', name: 'Local Market', tag: 'Fix it, learn it, book it — near you', backPath: '/services',
     items: [
       /* TWO DOORS ONTO THE SAME DIRECTORY, AND THE ORDER IS THE ARGUMENT.
          Somebody arriving at this hub has a job in mind — a leaking pipe, a

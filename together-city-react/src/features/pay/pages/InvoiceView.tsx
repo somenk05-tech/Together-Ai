@@ -43,7 +43,7 @@ export function InvoiceView() {
 
   return (
     <div>
-      <div className="eyebrow">{mine ? 'Financial · Invoice' : 'Local Services · Invoice'}</div>
+      <div className="eyebrow">{mine ? 'Financial · Invoice' : 'Local Market · Invoice'}</div>
 
       <Card style={{ display: 'grid', gap: 4, marginTop: 8 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>

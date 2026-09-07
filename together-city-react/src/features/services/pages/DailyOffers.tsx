@@ -28,7 +28,7 @@ export function DailyOffers() {
 
   return (
     <div>
-      <div className="eyebrow">Local Services</div>
+      <div className="eyebrow">Local Market</div>
       <h1 style={{ fontSize: 26 }}>Daily offers</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px', maxWidth: '62ch' }}>
         What businesses near you are offering on {today}.

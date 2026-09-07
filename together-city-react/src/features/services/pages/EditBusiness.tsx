@@ -45,7 +45,7 @@ export function EditBusiness() {
 
   return (
     <div>
-      <div className="eyebrow">Local Services</div>
+      <div className="eyebrow">Local Market</div>
       <h1 style={{ fontSize: 26 }}>Edit your business</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px', maxWidth: '60ch' }}>
         Change anything — your messages and regulars stay put.

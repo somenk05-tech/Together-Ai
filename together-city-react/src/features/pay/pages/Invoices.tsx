@@ -37,7 +37,7 @@ export function Invoices() {
       <div className="eyebrow">Financial · Invoices</div>
       <h1 style={{ fontSize: 26 }}>Invoices</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px', maxWidth: '62ch' }}>
-        Bills from businesses you have talked to in Local Services. Pay from your wallet, a card,
+        Bills from businesses you have talked to in Local Market. Pay from your wallet, a card,
         or both at once.
       </p>
 

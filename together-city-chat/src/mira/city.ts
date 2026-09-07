@@ -135,7 +135,7 @@ export const CITY: Hub[] = [
       { path: '/realestate/explore', label: 'Explore', says: ['explore', 'places to live', 'flats for rent', 'find a flat'] },
       { path: '/realestate/mine', label: 'My listings', says: ['my property', 'what i listed'] },
     ] },
-  { key: 'services', name: 'Local Services', what: 'The people who fix, teach and take care of things near you.',
+  { key: 'services', name: 'Local Market', what: 'The people who fix, teach and take care of things near you.',
     says: ['plumber', 'electrician', 'tutor', 'a service', 'repair', 'handyman'],
     rooms: [
       { path: '/services/browse', label: 'Find a service', says: ['find a plumber', 'hire someone', 'book a service'] },

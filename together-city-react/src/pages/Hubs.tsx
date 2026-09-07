@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { NAV, HUBS } from '@/config/hubs';
+import { HEADER_TABS, NAV, HUBS } from '@/config/hubs';
 import { useCityDesign } from '@/hooks/useCityDesign';
 import type { HubKey } from '@/types';
 import { tabIcon } from '@/nav/registry';
@@ -35,6 +35,12 @@ import { Icon } from '@/components/ui/Icon';
  * place you *visit*; both belong with the people layer below. Filtering them
  * out here keeps this grid agreeing with the header about what a hub IS.
  */
+/* FOUR DOORS, NOT FIFTEEN (owner, 7 Sep). This grid mapped over NAV; it draws
+   the street's four now, in the owner's order, for the same reason the drawer
+   does — a phone that showed fifteen doors here while the header showed four
+   would be two answers to what is in this city. Mail and Personal never
+   qualified and are not in the four either; they keep their place in the
+   people layer at the foot of this page. */
 const NOT_A_DOOR = new Set<string>(['mail', 'personal']);
 
 export function Hubs() {
@@ -50,7 +56,10 @@ export function Hubs() {
       <p className="muted" style={{ fontSize: 13.5, marginBottom: 18 }}>Every hub, one screen. Tap a door.</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
-        {NAV.filter((n) => !NOT_A_DOOR.has(n.key)).filter((n) => hubOn(n.key)).map((n, i) => {
+        {HEADER_TABS
+          .map((key) => NAV.find((n) => n.key === key))
+          .filter((n): n is NonNullable<typeof n> => Boolean(n))
+          .filter((n) => !NOT_A_DOOR.has(n.key)).filter((n) => hubOn(n.key)).map((n, i) => {
           const cfg = HUBS[n.key as HubKey];
           const hero = HUB_HERO[n.key as HubKey];
           /* THE FIRST ROW IS NOT LAZY, BECAUSE IT IS NOT BELOW THE FOLD.

@@ -450,7 +450,7 @@ export function Investor() {
           <p className="dk-lede">Identity, body, contact, diet and medical live on one page, versioned, with every change on the record. A write reaches the hubs that used to keep their own copy, so two rooms cannot disagree about the same person.</p>
           <div className="dk-tags">
             <span>Nutrition</span><span>Medical</span><span>Fitness</span><span>Beauty</span>
-            <span>Dating</span><span>Jobs</span><span>Astrology</span><span>Local Services</span>
+            <span>Dating</span><span>Jobs</span><span>Astrology</span><span>Local Market</span>
           </div>
           <p className="dk-note">The scores stay with the hubs, and they show their work: a fit percentage on a job, nine compatibility bands on a match, and a line saying how much of a profile the number was actually able to read. Mira carries a door on every page and a memory that refuses whole categories outright — and you can read back what she kept and delete it.</p>
         </div>

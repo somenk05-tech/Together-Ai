@@ -50,7 +50,7 @@ export function PayoutAccount() {
   if (q.isError || !q.data) {
     return (
       <div>
-        <div className="eyebrow">Local Services · Payout account</div>
+        <div className="eyebrow">Local Market · Payout account</div>
         <h1 style={{ fontSize: 26 }}>Payout account</h1>
         <EmptyState
           icon="⚠️"
@@ -86,7 +86,7 @@ export function PayoutAccount() {
 
   return (
     <div>
-      <div className="eyebrow">Local Services · Payout account</div>
+      <div className="eyebrow">Local Market · Payout account</div>
       <h1 style={{ fontSize: 26 }}>Payout account</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px', maxWidth: '62ch' }}>
         Where your settlements are sent. Money from paid invoices accrues whether or not this is

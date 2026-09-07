@@ -22,7 +22,7 @@ export function PayoutView() {
   if (q.isError || !q.data) {
     return (
       <div>
-        <div className="eyebrow">Local Services · Payout</div>
+        <div className="eyebrow">Local Market · Payout</div>
         <EmptyState
           icon="⚠️"
           title="Couldn’t open this payout"
@@ -37,7 +37,7 @@ export function PayoutView() {
 
   return (
     <div>
-      <div className="eyebrow">Local Services · Payout</div>
+      <div className="eyebrow">Local Market · Payout</div>
 
       <Card style={{ display: 'grid', gap: 4, marginTop: 8 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>

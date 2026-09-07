@@ -106,7 +106,7 @@ export function ServicesBrowse() {
       {/* ── the hero ─────────────────────────────────────────────────────── */}
       <header style={{ display: 'flex', gap: 20, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 420px', minWidth: 0 }}>
-          <div className="eyebrow">Local Services</div>
+          <div className="eyebrow">Local Market</div>
           <h1 style={{ fontSize: 34, lineHeight: 1.12, margin: '4px 0 0', letterSpacing: '-0.02em' }}>
             All listed services.
           </h1>

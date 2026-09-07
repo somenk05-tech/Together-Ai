@@ -24,7 +24,7 @@ export function BusinessPayments() {
   if (q.isError || !q.data) {
     return (
       <div>
-        <div className="eyebrow">Local Services · Payments</div>
+        <div className="eyebrow">Local Market · Payments</div>
         <h1 style={{ fontSize: 26 }}>Payments &amp; payouts</h1>
         <EmptyState
           icon="⚠️"
@@ -40,7 +40,7 @@ export function BusinessPayments() {
 
   return (
     <div>
-      <div className="eyebrow">Local Services · Payments</div>
+      <div className="eyebrow">Local Market · Payments</div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: 26, margin: 0 }}>Payments &amp; payouts</h1>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>

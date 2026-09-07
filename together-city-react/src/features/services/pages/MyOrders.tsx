@@ -20,7 +20,7 @@ export function MyOrders() {
 
   return (
     <div>
-      <div className="eyebrow">Local Services</div>
+      <div className="eyebrow">Local Market</div>
       <h1 className="svo-pagehead">My orders</h1>
       <p className="muted svo-pageblurb">
         Paid from your wallet when you placed them. If a business rejects one, or you cancel

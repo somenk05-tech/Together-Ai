@@ -17,7 +17,7 @@ export const CATEGORIES = [
   // a spend category like any other, and it is here so the Spending page's
   // percentages are shares of something they are actually shares of — money
   // paid to a plumber lands in `cityTotal` whether or not it has a heading.
-  { key: 'services', label: 'Local services', hint: 'Invoices from businesses near you', defaultBudget: 5000 },
+  { key: 'services', label: 'Local Market', hint: 'Invoices from businesses near you', defaultBudget: 5000 },
   // The city's own small charges (5 Sep): a profile change past the five
   // free ones a month. Listed so the Spending page's shares are shares of
   // everything it counts.
@@ -149,6 +149,24 @@ export class FinancialService {
     const wallet = await this.ensureWalletOn(db, userId);
     const method: PayMethod = input.method === 'card' ? 'card' : 'wallet';
     if (method === 'card') {
+      /**
+       * THE TILL IS CLOSED ON THE CARD SIDE, HERE TOO. (Launch audit, 6 Sep.)
+       *
+       * `linkCard` refuses in production unless PAYMENTS_SANDBOX is on — but
+       * this branch, the one that actually takes the money, carried no gate at
+       * all. It writes a `payment` ledger line, calls no processor, and returns
+       * `paid: true`. So the moment the sandbox is switched on to open the
+       * Till, `POST /financial/card` links a card from three strings and EVERY
+       * purchase in the city becomes free: chat unlocks, groceries, travel,
+       * gems, beauty analyses, profile edits.
+       *
+       * The gate belongs on the charge, not only on the linking. Same
+       * condition as linkCard, so nothing changes for a deployment that has not
+       * turned the sandbox on; a real processor replaces this branch entirely.
+       */
+      if (process.env.NODE_ENV === 'production' && process.env.PAYMENTS_SANDBOX !== 'on') {
+        throw new BadRequestException('Card payments are not available yet. Pay from your wallet.');
+      }
       if (!wallet.cardLast4) throw new BadRequestException('No card linked. Link a card or pay from your wallet.');
       await db.walletTxn.create({ data: { userId, kind: 'payment', amountInr: input.amountInr, hub: input.hub, category: input.category, label: `${input.label} · card ••${wallet.cardLast4}` } });
       return { paid: true, balanceInr: wallet.balanceInr, method };

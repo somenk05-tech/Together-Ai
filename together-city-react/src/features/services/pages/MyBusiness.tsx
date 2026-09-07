@@ -269,7 +269,7 @@ export function MyBusiness() {
   if (rows.length === 0) {
     return (
       <div>
-        <div className="eyebrow">Local Services</div>
+        <div className="eyebrow">Local Market</div>
         <h1 style={{ fontSize: 26 }}>My business</h1>
         <EmptyState
           title="You haven't listed anything yet"
@@ -282,7 +282,7 @@ export function MyBusiness() {
 
   return (
     <div>
-      <div className="eyebrow">Local Services</div>
+      <div className="eyebrow">Local Market</div>
       <h1 style={{ fontSize: 26 }}>My business</h1>
       <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
         {rows.map((l) => {

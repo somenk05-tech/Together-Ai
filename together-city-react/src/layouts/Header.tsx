@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { firstName as fromName } from '@/lib/salutation';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { NAV } from '@/config/hubs';
+import { HEADER_TABS, NAV } from '@/config/hubs';
 import { useUiStore } from '@/store/ui.store';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -148,26 +148,26 @@ export function Header() {
   const { user } = useAuth();
   const authed = Boolean(user);
   const firstName = fromName(user?.name) ?? 'Profile';
-  // THE TAB ROW IS DISTRICTS ONLY. Mail has always been lifted out of it into
-  // the action bar; Personal joins it there (owner, 15 Aug) for the same
-  // reason — neither is a district, and a drawer of your own filed
-  // alphabetically between Nutrition and Property reads as one more place in
-  // the city to visit. Both stay in NAV, which is the one list carrying every
-  // tab's path and label for the burger drawer and the Hubs page.
-  const IN_THE_BAR: ReadonlySet<string> = new Set(['mail', 'personal']);
-  // DESIGN YOUR SERVICES: the tab row is the citizen's own street. A hub
-  // switched off in the profile section loses its tab HERE, at render — never
-  // in NAV, which stays the one full list every surface and test reads.
-  // Signed out, loading, or on error, hubOn answers true for everything and
-  // the whole city stands.
+  // THE ROW IS FOUR DOORS (owner, 7 Sep) — Personalize, Digital Store, Local
+  // Market, Together City TV, in that order. It was thirteen tabs sorted
+  // alphabetically, and the sort is gone with them: four doors are recognised
+  // rather than scanned, and HEADER_TABS is the owner's order, not a list to
+  // re-sort. Mail and Personal were already lifted out of this row into the
+  // action bar and are not in the four either.
+  //
+  // NAV is untouched and still carries every tab's path and label — the
+  // command palette, the route index and Design Your Services all read it.
+  // What the other eleven lose is a menu entry, not a door.
+  //
+  // DESIGN YOUR SERVICES: the row is the citizen's own street. A hub switched
+  // off in the profile section loses its tab HERE, at render. Signed out,
+  // loading, or on error, hubOn answers true for everything and the whole
+  // street stands.
   const { hubOn } = useCityDesign();
-  // The sort is belt-and-braces: the list in config is already alphabetical,
-  // and sorting here means a hub appended to it lands in its place rather than
-  // on the end.
-  const tabs = NAV.filter((n) => !IN_THE_BAR.has(n.key))
-    .filter((n) => hubOn(n.key))
-    .slice()
-    .sort((a, b) => a.label.localeCompare(b.label));
+  const tabs = HEADER_TABS
+    .map((key) => NAV.find((n) => n.key === key))
+    .filter((n): n is NonNullable<typeof n> => Boolean(n))
+    .filter((n) => hubOn(n.key));
   useTrackRecent(); // remember where we've been — powers Recently Viewed + breadcrumbs
   return (
     <header className="tc-header">

@@ -11,7 +11,7 @@ import type { PayInvoiceDto } from './dto/commerce.dto';
 
 /** The Financial hub's category this hub's money is filed under. */
 export const SPEND_CATEGORY = 'services';
-export const SPEND_HUB = 'Local Services';
+export const SPEND_HUB = 'Local Market';
 
 interface InvoiceRow {
   id: string; listingId: string; ownerId: string; userId: string; number: string;

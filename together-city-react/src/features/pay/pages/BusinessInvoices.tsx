@@ -37,7 +37,7 @@ export function BusinessInvoices() {
   if (q.isError) {
     return (
       <div>
-        <div className="eyebrow">Local Services · Invoices</div>
+        <div className="eyebrow">Local Market · Invoices</div>
         <h1 style={{ fontSize: 26 }}>Invoices</h1>
         <EmptyState
           icon="⚠️"
@@ -53,7 +53,7 @@ export function BusinessInvoices() {
 
   return (
     <div>
-      <div className="eyebrow">Local Services · Invoices</div>
+      <div className="eyebrow">Local Market · Invoices</div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: 26, margin: 0 }}>Invoices</h1>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>

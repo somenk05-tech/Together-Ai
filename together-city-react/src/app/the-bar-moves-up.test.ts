@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { NAV } from '@/config/hubs';
+import { NAV, HEADER_TABS } from '@/config/hubs';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
@@ -181,10 +181,13 @@ describe('Personal is one of those doors now', () => {
   });
 
   it('and it is out of the district tab row', () => {
-    const lifted = header.match(/const IN_THE_BAR[^\n]*\n/)?.[0] ?? '';
-    expect(lifted, 'the tab row no longer says which keys it lifts out').toBeTruthy();
-    expect(lifted).toMatch(/'mail'/);
-    expect(lifted).toMatch(/'personal'/);
+    /* RE-POINTED 7 SEP. The row used to be NAV minus a named pair, and this
+       read the pair. The row is HEADER_TABS now — four doors the owner chose —
+       so the guarantee is stronger and simpler: neither of the citizen's own
+       doors is one of them, and the header draws nothing else. */
+    expect(header).toMatch(/HEADER_TABS/);
+    expect(HEADER_TABS).not.toContain('personal');
+    expect(HEADER_TABS).not.toContain('mail');
   });
 
   it('without leaving NAV, which is where its path and label live', () => {

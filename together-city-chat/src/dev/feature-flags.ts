@@ -44,7 +44,7 @@ export interface FlagDef {
 
 export const FLAGS: FlagDef[] = [
   { key: 'dating', label: 'Dating', turnsOff: 'Matches, matchmaking chats and the matchmaking profile. Existing matches are not deleted.', prefixes: ['dating'], hubPath: '/dating' },
-  { key: 'services', label: 'Local Services', turnsOff: 'The business directory, listing a business, and the anonymous enquiry threads.', prefixes: ['services'], hubPath: '/services' },
+  { key: 'services', label: 'Local Market', turnsOff: 'The business directory, listing a business, and the anonymous enquiry threads.', prefixes: ['services'], hubPath: '/services' },
   { key: 'realestate', label: 'Real Estate', turnsOff: 'Property listings, selling, and enquiries.', prefixes: ['realestate'], hubPath: '/realestate' },
   { key: 'jobs', label: 'Jobs', turnsOff: 'Job postings, applications and the jobs profile.', prefixes: ['jobs'], hubPath: '/jobs' },
   { key: 'travel', label: 'Travel', turnsOff: 'Flights, packages and bookings.', prefixes: ['travel', 'flights'], hubPath: '/travel' },
@@ -203,7 +203,7 @@ export const VISIBILITY_FLAGS: VisibilityFlag[] = [
   sector('personalize', 'Personalize'),
   sector('pets', 'Pet Care'),
   sector('realestate', 'Real Estate'),
-  sector('services', 'Local Services'),
+  sector('services', 'Local Market'),
   sector('social', 'Social Life'),
   /**
    * ── THE THREE THAT ARE NOT DISTRICTS (owner, 27 Aug: "add email chat and

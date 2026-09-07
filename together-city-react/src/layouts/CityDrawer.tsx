@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { NavLink } from 'react-router-dom';
-import { NAV, HUBS } from '@/config/hubs';
+import { HEADER_TABS, NAV, HUBS } from '@/config/hubs';
 import type { HubKey } from '@/types';
 import { tabIcon } from '@/nav/registry';
 import { Icon } from '@/components/ui/Icon';
@@ -42,9 +42,13 @@ export function CityDrawer() {
   const swipe = useSwipeClose(close);
   const phone = useSyncExternalStore(subscribeMq, readMq, () => false);
   // DESIGN YOUR SERVICES: same filter the header tabs wear, for the same
-  // reason — this drawer IS the header on a phone. Mail and Personal are the
-  // citizen's own doors, never designable, so hubOn always answers true for
-  // them and they keep their place.
+  // reason — this drawer IS the header on a phone. And since 7 Sep it carries
+  // the same FOUR doors, for the same reason again: a drawer that listed
+  // fifteen while the header showed four would be two answers to "what is in
+  // this city". Mail and Personal are the citizen's own doors, never
+  // designable and never on the street, so they move below the hairline with
+  // the other pages that are not districts rather than leaving with the
+  // eleven.
   const { hubOn } = useCityDesign();
   /* THE `inHub` NULL-CHECK IS GONE, AND IT WAS THE DEAD BURGER. It returned
      null whenever the path sat on or under a hub's backPath, assuming those
@@ -76,7 +80,10 @@ export function CityDrawer() {
           <span className="n" aria-hidden><Icon name="sparkles" size={15} /></span>
           <span><span className="l">Home</span><span className="s">Your Together City</span></span>
         </NavLink>
-        {NAV.filter((n) => hubOn(n.key)).map((n) => (
+        {HEADER_TABS
+          .map((key) => NAV.find((n) => n.key === key))
+          .filter((n): n is NonNullable<typeof n> => Boolean(n))
+          .filter((n) => hubOn(n.key)).map((n) => (
           <NavLink key={n.key} to={n.path} onClick={() => toggle(false)}
             className={({ isActive }) => (isActive ? 'active' : undefined)}>
             <span className="n" aria-hidden><Icon name={tabIcon(n.key)} size={15} /></span>
@@ -99,6 +106,21 @@ export function CityDrawer() {
           className={({ isActive }) => (isActive ? 'active' : undefined)}>
           <span className="n" aria-hidden><Icon name="place" size={15} /></span>
           <span><span className="l">All hubs</span><span className="s">The whole city, one screen</span></span>
+        </NavLink>
+        {/* THE TWO THAT ARE NOT DISTRICTS. They were in the run above while it
+            was NAV; the run is the street's four now, and these are not the
+            street. A phone reaches Mail through the action bar as well, and
+            Personal through nothing else in this drawer — which is why it is
+            here rather than gone. */}
+        <NavLink to="/personal" onClick={() => toggle(false)}
+          className={({ isActive }) => (isActive ? 'active' : undefined)}>
+          <span className="n" aria-hidden><Icon name="personal" size={15} /></span>
+          <span><span className="l">Personal</span><span className="s">Thoughts, calendar, drive & album</span></span>
+        </NavLink>
+        <NavLink to="/mail" onClick={() => toggle(false)}
+          className={({ isActive }) => (isActive ? 'active' : undefined)}>
+          <span className="n" aria-hidden><Icon name="mail" size={15} /></span>
+          <span><span className="l">Mail</span><span className="s">Your @togethercity.app inbox</span></span>
         </NavLink>
       </nav>
     </aside>

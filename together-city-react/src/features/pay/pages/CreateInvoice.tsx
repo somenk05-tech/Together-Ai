@@ -89,7 +89,7 @@ export function CreateInvoice() {
   if (customers.isError) {
     return (
       <div>
-        <div className="eyebrow">Local Services · New invoice</div>
+        <div className="eyebrow">Local Market · New invoice</div>
         <EmptyState
           icon="⚠️"
           title="Couldn’t load who you can bill"
@@ -103,7 +103,7 @@ export function CreateInvoice() {
 
   return (
     <div>
-      <div className="eyebrow">Local Services · New invoice</div>
+      <div className="eyebrow">Local Market · New invoice</div>
       <h1 style={{ fontSize: 26 }}>Create an invoice</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px', maxWidth: '62ch' }}>
         It arrives in your conversation with them and in their invoices, and they can pay it from

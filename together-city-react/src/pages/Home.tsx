@@ -137,7 +137,7 @@ const DISTRICT_COPY: Partial<Record<HubKey, { name: string; line: string }>> = {
      master list named CARS, this city has no cars hub, and a plate announcing
      a room the app does not have is the one thing the golden rule forbids. The
      owner has given it its own line, so it takes it. */
-  services: { name: 'Local Services', line: 'Everyone you need, right in your neighborhood.' },
+  services: { name: 'Local Market', line: 'Everyone you need, right in your neighborhood.' },
   /* THE OWNER'S POSTER, 7 SEP, AND THE ONE CARD ON THIS WALK WHOSE PICTURE IS
      A LIST. Every other plate is a photograph of a place; this one is the ten
      districts as banners, because that is what is behind the door. The line is

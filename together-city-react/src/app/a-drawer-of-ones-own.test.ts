@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { NAV, HUBS } from '@/config/hubs';
+import { NAV, HUBS, HEADER_TABS } from '@/config/hubs';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
@@ -181,9 +181,16 @@ describe('Personal is a drawer, not a district', () => {
     // a drawer rather than a district. A door with no art is a door that looks
     // broken. It belongs under "Your city, your people", with the calendar and
     // the drive it actually contains.
+    /* RE-POINTED 7 SEP, SAME GUARANTEE. This grid mapped over NAV and filtered
+       Personal out by name; it draws HEADER_TABS now — the street's four —
+       which cannot contain Personal because Personal is not a district. The
+       old filter stands behind it so the day this grid is widened again the
+       drawer does not come back through the gap. */
     const hubs = read('pages/Hubs.tsx');
     expect(hubs).toMatch(/NOT_A_DOOR = new Set<string>\(\['mail', 'personal'\]\)/);
-    expect(hubs).toMatch(/NAV\.filter\(\(n\) => !NOT_A_DOOR\.has\(n\.key\)\)/);
+    expect(hubs).toMatch(/!NOT_A_DOOR\.has\(n\.key\)/);
+    expect(hubs).toMatch(/HEADER_TABS/);
+    expect(HEADER_TABS).not.toContain('personal');
     // and it is still reachable from this screen — moved, not hidden.
     const people = hubs.slice(hubs.indexOf('Your city, your people'));
     expect(people).toMatch(/to: '\/personal'/);

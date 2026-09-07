@@ -661,7 +661,7 @@ export function buildPanels(rows: Rows): CityProfilesView {
     { label: 'Weight', value: num(m.weightKg, ' kg'), readBy: ['Nutrition', 'Fitness'] },
     { label: 'Dietary preference', value: trimmed(m.dietaryPreference), readBy: ['Nutrition'] },
     { label: 'Activity level', value: trimmed(m.activityLevel), readBy: ['Nutrition'] },
-    { label: 'Where you live', value: [trimmed(m.city), trimmed(m.country)].filter(Boolean).join(', ') || null, readBy: ['Local services', 'Real estate', 'Matchmaking'] },
+    { label: 'Where you live', value: [trimmed(m.city), trimmed(m.country)].filter(Boolean).join(', ') || null, readBy: ['Local Market', 'Real estate', 'Matchmaking'] },
     { label: 'Time zone', value: trimmed(m.timeZone), readBy: ['Astrology'] },
     { label: 'Blood group', value: trimmed(m.bloodGroup), readBy: ['Medical'] },
     { label: 'Declared conditions', value: csv(m.healthConditions), readBy: ['Medical'] },
