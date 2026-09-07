@@ -667,32 +667,34 @@ describe('Relief stays a system', () => {
 
 
   /**
-   * AND THE ONE SHEET THE WEEK PRINTS ON IS READABLE AT EVERY STOP.
+   * AND EVERY GROUND THE PRESS ACTUALLY PRINTS ON IS READABLE.
    *
-   * This used to be fourteen photographs — two per weekday, in `[data-paper]`
-   * blocks, each declaring a worst-pixel `-ground` hex because the average of a
-   * photograph is a colour that appears nowhere in it. That system was retired
-   * on 20 Aug: the week prints on `--press-sky`, one pale gradient, and the
-   * day's identity is the weekday, the date and the day number.
+   * This began as fourteen photographs — two per weekday, each declaring a
+   * worst-pixel `-ground` hex, because the average of a photograph is a colour
+   * that appears nowhere in it. Those went on 20 Aug for one pale gradient,
+   * `--press-sky`, and the guard got strictly better: a gradient carries its
+   * stops in the token file, so there was nothing left to take on trust.
    *
-   * WHAT THE GUARD MEASURES NOW IS THE GRADIENT ITSELF, which is strictly
-   * better than what it replaces. A hex somebody typed after opening a JPEG in
-   * an editor is a CLAIM about an image — the old guard could recompute the
-   * ratios but never verify the claim, which is why scripts/paper.mjs existed.
-   * A gradient carries its stops in the token file. There is nothing left to
-   * take on trust: every stop is read out of the CSS and every press ink is
-   * measured against every one of them.
+   * THE SKY WENT TOO (owner, 7 Sep: "make this also white"). The day's pane
+   * went opaque white on 6 Sep and stopped painting it; the grocery basket was
+   * the last surface that did, and it went white with the plan. A gradient
+   * nothing paints is a colour decision with no surface, and a guard sweeping
+   * its stops is measuring a sheet the reader does not see — which is the one
+   * failure mode this file keeps rediscovering. So the instrument is pointed
+   * at the grounds that EXIST: the room, the sheet standing on it, and the
+   * tinted band inside that sheet, which is now the darkest thing any press
+   * ink is set on.
    *
-   * `-ink-3` IS HELD TO 3:1 AND NOT 4.5, exactly as it is on white at 3.7:1:
-   * it is the floor of the scale and it is for labels, eyebrows and metadata.
-   * Nothing sets body copy in it. The other two are body text and take AA.
+   * `-ink-3` IS HELD TO 3:1 AND NOT 4.5: it is the floor of the scale and it
+   * is for labels, eyebrows and metadata. Nothing sets body copy in it. The
+   * other two are body text and take AA.
    *
    * AND NO PHOTOGRAPH COMES BACK BY THE OLD DOOR. The `[data-paper]` key is
    * gone from the token file and from both pages that used to set it; a rule
    * that re-declares a sheet as a `url()` is the exact drift this deletion was
    * for, so it fails here rather than being discovered on a phone.
    */
-  it('clears AA at every stop of the sheet the week prints on', () => {
+  it('clears AA on every ground the press actually prints on', () => {
     const css = strip(tokens);
     const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : (((c / 255) + 0.055) / 1.055) ** 2.4);
     const lum = (hex: string) => {
@@ -704,65 +706,68 @@ describe('Relief stays a system', () => {
       return (hi + 0.05) / (lo + 0.05);
     };
 
-    const sky = css.match(/--press-sky:\s*linear-gradient\(([\s\S]*?)\);/)?.[1];
-    expect(sky, '--press-sky is not declared in tokens.css').toBeTruthy();
-    const stops = [...(sky ?? '').matchAll(/#[0-9a-f]{6}/gi)].map((m) => m[0].toLowerCase());
-    // A guard that finds nothing passes. A gradient is at least two colours.
-    expect(stops.length).toBeGreaterThan(1);
+    /* Read out of the file, never typed here — the whole point of the 20 Aug
+       rewrite was that a ground is a declaration rather than a claim. */
+    const GROUNDS = ['press-paper', 'press-sheet-white', 'press-sheet-band'];
+    const grounds: Array<[string, string]> = [];
+    for (const name of GROUNDS) {
+      const hex = css.match(new RegExp(`--${name}:\\s*(#[0-9a-f]{3,6})`, 'i'))?.[1]?.toLowerCase();
+      expect(hex, `--${name} is not declared as a plain hex in tokens.css`).toBeTruthy();
+      grounds.push([name, hex!.length === 4 ? `#${hex![1]}${hex![1]}${hex![2]}${hex![2]}${hex![3]}${hex![3]}` : hex!]);
+    }
 
     const inks: Array<[string, number]> = [['ink', 4.5], ['ink-2', 4.5], ['ink-3', 3]];
     const failures: string[] = [];
     for (const [name, floor] of inks) {
       const ink = css.match(new RegExp(`--press-${name}:\\s*(#[0-9a-f]{6})`, 'i'))?.[1];
       if (!ink) { failures.push(`--press-${name} not declared`); continue; }
-      for (const stop of stops) {
-        const r = ratio(ink, stop);
-        if (r < floor) failures.push(`--press-${name} at ${r.toFixed(2)}:1 on ${stop} (needs ${floor})`);
+      for (const [gname, hex] of grounds) {
+        const r = ratio(ink, hex);
+        if (r < floor) failures.push(`--press-${name} at ${r.toFixed(2)}:1 on --${gname} (needs ${floor})`);
       }
     }
 
-    // The declared worst stop has to BE the worst stop, or every ratio quoted
-    // beside it is a number about a colour the reader never sees.
-    const worst = css.match(/--press-sky-worst:\s*(#[0-9a-f]{6})/i)?.[1]?.toLowerCase();
-    expect(worst, '--press-sky-worst is not declared').toBeTruthy();
-    const darkest = stops.reduce((a, b) => (lum(a) <= lum(b) ? a : b));
-    if (worst !== darkest) failures.push(`--press-sky-worst is ${worst}, but the darkest stop is ${darkest}`);
+    /* AND THE SKY DOES NOT COME BACK WITHOUT A SURFACE. Re-declaring the
+       gradient is how a page quietly gets a ground nothing measures. */
+    expect(css).not.toMatch(/--press-sky(-worst)?:/);
 
     expect(failures).toEqual([]);
   });
 
   /**
-   * AND A SHEET THAT PAINTS THE SKY MEASURES AGAINST THE SKY.
+   * AND A SHEET THAT DECLARES ITS OWN GROUND MEASURES AGAINST THAT GROUND.
    *
    * FOUND BY LOOKING AT THE LIVE GROCERY LIST at 1.08:1 — a whole page of
    * fifty-seven items in mint on mint, unreadable, the same fault the meal
    * planner had and one commit AFTER it was fixed there.
    *
-   * The cause is a name that means two things. `--press-ink` is green-black at
-   * `:root`, for the mint sheet — and the forest grant re-points it to the
-   * PAGE's light ink inside `[data-hub="nutrition"] .tc-main`, correctly, so
-   * that press-dressed components standing on the dark page can be read.
-   * `.press-recto` and `.press-verso` re-point it back for their own subtree.
-   * `.grocery-sheet` paints the same sky and did NOT: it read the shadowed
-   * name and got page ink on sheet paper.
+   * The cause is a name that means two things. `--press-ink` is near-black at
+   * `:root`, for the sheet — and a hub may re-point it inside its own
+   * `.tc-main` so that press-dressed components standing on a dark page can be
+   * read. `.press-recto` and `.press-verso` re-point it back for their own
+   * subtree. `.grocery-sheet` did NOT: it read the shadowed name and got page
+   * ink on sheet paper.
    *
-   * SO THE RULE IS STRUCTURAL, not a colour. Any block that paints
-   * `--press-sky` is standing on mint, and mint takes the `:root` scale —
-   * `--press-recto-*`, the literal one the AA guard above actually measures.
-   * Reading `var(--press-ink*)` there is reading a name whose value depends on
-   * which hub the sheet happens to be inside, which is the definition of a
-   * colour that renders one thing and measures another.
+   * SO THE RULE IS STRUCTURAL, not a colour, and it keyed on the sky until the
+   * sky was retired on 7 Sep. It keys on the thing that made the sky matter:
+   * any block declaring a `-ground` of its own is a SHEET, it is measured
+   * against that ground by the guard above, and it must take the literal
+   * `--press-recto-*` scale. Reading `var(--press-ink*)` there is reading a
+   * name whose value depends on which hub the sheet happens to be inside —
+   * the definition of a colour that renders one thing and measures another.
    */
-  it('lets no sheet on the sky take its ink from a shadowed name', () => {
+  it('lets no sheet with a ground of its own take its ink from a shadowed name', () => {
     const css = strip(tokens);
     const offenders: string[] = [];
+    let sheets = 0;
 
     for (const block of css.split('}')) {
       const selector = block.split('{')[0]?.trim();
       const body = block.split('{')[1];
       if (!body || !selector) continue;
-      // The sheet is the sky: this block's surface is the pale mint gradient.
-      if (!/--[\w-]*sheet(?:-img)?:\s*var\(--press-sky\)/.test(body)) continue;
+      // This block declares a surface of its own to be measured against.
+      if (!/--[\w-]*ground:/.test(body)) continue;
+      sheets += 1;
 
       for (const decl of body.split(';')) {
         const [name, value] = decl.split(':');
@@ -772,9 +777,12 @@ describe('Relief stays a system', () => {
       }
     }
 
+    // A guard that finds nothing passes. There is at least the sheet and the
+    // basket.
+    expect(sheets).toBeGreaterThan(1);
     expect(
       offenders,
-      'a sheet painted with --press-sky read a hub-shadowed press name; ' +
+      'a sheet with a ground of its own read a hub-shadowed press name; ' +
         'point it at the literal --press-recto-* scale instead',
     ).toEqual([]);
   });

@@ -1352,7 +1352,27 @@
      room frosted. The room is neutral now; the emerald survives ONLY as the
      accent (--press-green, the lock, the figures), which is how every
      reference in this run treats colour: one accent on a quiet ground. */
-  --press-paper:  #e2e5ea;
+  /* ── AND THE ROOM IS WHITE (owner, 7 Sep: "make this also white") ────────
+     This is the third and last of the greys the glassmorphism reference of
+     24 Aug put on this page, and the argument that removed the other two
+     removes it: the pane went opaque white on 6 Sep because a composite
+     between #f2f3f5 and #ebedf1 "is a grey card on a screen", and the ivory
+     ground went on 23 Aug because "on the screen it did not read as paper, it
+     read as a tint — the one room in the city with a colour behind the words".
+     A white sheet standing on porcelain is that same tint, one layer down.
+
+     THE ROOM DEEPENED SO THE GLASS HAD SOMETHING TO FROST. There is no glass
+     any more — nothing is translucent on this page since 6 Sep — so the
+     porcelain was a backdrop for a pane that stopped being one. The sheets are
+     told apart from the room the way every other card in this city is: by
+     depth, not by the ground being a different colour.
+
+     EVERY INK GETS BETTER AND NONE OF THEM MOVES. The press scale was measured
+     against the glass sheet's darkest stop (#ebedf1) and the room's darkest
+     pearl; white is lighter than both, so 14.7:1, 9.7:1 and 6.1:1 are floors
+     now rather than readings. The AA guard sweeps the three grounds that
+     survive — the room, the sheet and the band inside it. */
+  --press-paper:  #ffffff;
   --press-ink:    #171b21;   /* 14.7:1 on the glass sheet's darkest stop */
   --press-ink-2:  #333b47;   /*  9.7:1 — descriptions */
   --press-ink-3:  #4f5967;   /*  6.1:1 — labels and metadata ONLY, never body copy */
@@ -1441,11 +1461,14 @@
      the root ink scale above is measured against it. Nothing but this token
      moved: [data-press] has painted var(--press-grain) since the grain was
      mottle, which is exactly why the name stayed when it asked for nothing. */
-  --press-grain:
-    radial-gradient(560px 420px at 84% 6%,  rgba(255, 255, 255, .60), transparent 70%),
-    radial-gradient(640px 520px at 6% 88%,  rgba(255, 255, 255, .45), transparent 72%),
-    radial-gradient(520px 460px at 92% 74%, rgba(148, 158, 176, .35), transparent 72%),
-    linear-gradient(157deg, #dfe2e8 0%, #d8dce3 46%, #cfd4dd 100%);
+  /* AND THE PEARLS GO WITH THE PORCELAIN (owner, 7 Sep). This token carried
+     paper mottle, then the room's depth — three soft radial pearls over a dawn
+     wash, painted so a translucent pane had something to frost. The pane is
+     paper and the room is white, so what is left to paint is a picture behind
+     nothing. The NAME stays, and stays painted by [data-press], because that
+     is what let this change be one line in the file where colour lives rather
+     than an edit to the stylesheet that draws the page. */
+  --press-grain: none;
 
   /* ══ THE DAY IS TWO SHEETS, AND THE WEEK PRINTS ON ONE SKY ══════════════
      This was fourteen photographs — a recto and a verso for each weekday, each
@@ -1491,11 +1514,19 @@
      worst whatever floats behind the pane — the same only-lightens argument
      the sun's texture already made. The AA guard keeps measuring every ink
      against every stop, and the numbers describe what is rendered. */
-  --press-sky: linear-gradient(157deg,
-    #f2f3f5  0%,
-    #eff0f3 46%,
-    #ebedf1 100%);
-  --press-sky-worst: #ebedf1;
+  /* ── AND THE SKY IS RETIRED (owner, 7 Sep) ──────────────────────────────
+     It was the composite the day's pane rendered while the pane was .58 white
+     over the room's dawn wash. The pane went opaque on 6 Sep and the sheet
+     stopped painting it; the grocery basket was the last surface that did, and
+     it went white with the plan this morning.
+
+     THE NAMES GO RATHER THAN STAND. A gradient nothing paints is a colour
+     decision with no surface, and the AA guard that swept every press ink
+     against its stops was measuring a sheet the reader no longer sees. That
+     guard now sweeps the three grounds that DO exist — the room, the sheet and
+     the band inside it — which is the same instrument pointed at what is
+     rendered. `--press-sky-worst` goes with it: a declared worst stop for a
+     gradient that is not painted is a number about nothing. */
   /* ── THE PANE IS PAPER AGAIN (owner, 6 Sep) ─────────────────────────────
      "Remove the grey card, make it complete white card."
 
@@ -1508,9 +1539,9 @@
      no composite left to compute for it: white is white on every backdrop, at
      every viewport, whatever floats behind the pane.
 
-     --press-sky ABOVE STAYS EXACTLY AS IT IS, because the grocery sheet still
-     paints it and the AA guard still measures every ink against its stops. It
-     describes that sheet now rather than this one. */
+     --press-sky ABOVE OUTLIVED THIS SHEET BY A DAY, because the grocery basket
+     still painted it. It went white with the plan on 7 Sep and the token went
+     with it — see the note where it used to stand. */
   --press-sheet-white: #ffffff;
 
   /* ── THE SHEET'S SCALE IS WRITTEN OUT, NOT DERIVED ────────────────────────
@@ -2010,9 +2041,10 @@
    sheet's lightest pixel and no veil fixes ink lighter than its paper. That
    was a good answer to a question that has stopped being asked: the week was
    fourteen photographs then, so a page with a paper of its own was one more
-   among many. The week prints on `--press-sky` now, and a basket that comes
-   OUT of a plan reading on a different paper from the plan is two documents
-   where the citizen has one.
+   among many. The week and the basket print on the same sheet now — first
+   `--press-sky`, then white with it (7 Sep) — and a basket that comes OUT of a
+   plan reading on a different paper from the plan is two documents where the
+   citizen has one.
 
    SO IT TAKES THE PRESS'S SHEET AND THE PRESS'S INK, by reference rather than
    by copy — one paper, one scale, and no second place to fix either. The
@@ -2026,8 +2058,19 @@
    file twice over and is right to — a white surface written into relief.css is
    a colour decision taken in the file nobody repaints. */
 .grocery-sheet {
-  --grocery-sheet-img: var(--press-sky);
-  --grocery-ground: var(--press-sky-worst);
+  /* THE BASKET FOLLOWS THE PLAN ONTO WHITE (owner, 7 Sep). The paragraph
+     above is the reason: "a basket that comes OUT of a plan reading on a
+     different paper from the plan is two documents where the citizen has
+     one." The plan is white now, so the sky this sheet printed would be the
+     one grey card left on a white page — which is the card the owner asked
+     to be white on 6 Sep, arriving through a different door.
+
+     AND --press-sky GOES WITH IT. This was the last surface painting it, so
+     the gradient is a colour decision with no surface and the AA guard has
+     been pointed at the three grounds that remain. The scale itself does not
+     move: white can only improve on the numbers it enforced. */
+  --grocery-sheet-img: none;
+  --grocery-ground: var(--press-sheet-white);
   /* IT TAKES THE SHEET SCALE, NOT THE PAGE SCALE. `--press-ink` is shadowed
      inside `[data-hub="nutrition"] .tc-main` so that press-dressed components
      standing on the DARK PAGE read light — which is right for them and fatal

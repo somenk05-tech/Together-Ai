@@ -1861,8 +1861,9 @@ textarea.g-field { resize: none; line-height: 1.55; }
    broken here — the second and third faces left on 2 Sep — and it is broken on
    purpose, in one room, for a page whose whole job is to be read like a menu.
 
-   THE GROUND IS NOT ONE OF THE BREAKS ANY MORE. It was ivory; it is white,
-   like every other background in the city. See tokens.css.
+   THE GROUND IS NOT ONE OF THE BREAKS ANY MORE. It was ivory, then porcelain
+   for one week while a translucent pane needed something to frost; it is white
+   now, like every other background in the city (owner, 7 Sep). See tokens.css.
 
    NOTHING HERE CARRIES A VALUE. Every number, name, portion and percentage on
    this page comes from composedPlan — the personalisation engine decides them
@@ -1872,9 +1873,10 @@ textarea.g-field { resize: none; line-height: 1.55; }
 [data-press] {
   background: var(--press-paper);
   color: var(--press-ink);
-  /* --press-grain is `none`. The declaration stays because the grain is a
-     property of the paper, and the paper is decided one file over — not here,
-     where deleting it would put that decision in two places. */
+  /* --press-grain is `none` again. The declaration stays because the grain is
+     a property of the paper, and the paper is decided one file over — not
+     here, where deleting it would put that decision in two places. It is the
+     reason the room went white in one token rather than in this file. */
   background-image: var(--press-grain);
 }
 [data-press] .press-num,
