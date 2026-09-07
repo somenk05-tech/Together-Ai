@@ -56,12 +56,17 @@ export function FloorBar({ floor }: { floor: Floor }) {
           </Link>
         ))}
       </nav>
-      <Link to={ORDERS.path} className="st-bar-bag sf-orders-link" aria-current={floor.path === ORDERS.path ? 'page' : undefined}>
-        Orders
-      </Link>
-      <Link to={CART.path} className="st-bar-bag" aria-current={floor.path === CART.path ? 'page' : undefined}>
-        Cart{floor.cart.count > 0 ? ` · ${floor.cart.count}` : ''}
-      </Link>
+      {/* THE CITIZEN'S OWN TWO, ON THE RIGHT (owner, 7 Sep): what they have
+          bought, and what they are about to. One group so both sit at the
+          edge, the cart last because it is the one that acts. */}
+      <div className="sf-bar-mine">
+        <Link to={ORDERS.path} className="st-bar-bag sf-orders-link" aria-current={floor.path === ORDERS.path ? 'page' : undefined}>
+          Orders
+        </Link>
+        <Link to={CART.path} className="st-bar-bag" aria-current={floor.path === CART.path ? 'page' : undefined}>
+          Cart{floor.cart.count > 0 ? ` · ${floor.cart.count}` : ''}
+        </Link>
+      </div>
     </div>
   );
 }

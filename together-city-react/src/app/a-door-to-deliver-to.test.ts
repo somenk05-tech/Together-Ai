@@ -63,13 +63,32 @@ describe('the cart asks for a door', () => {
 describe('everything bought, in one list', () => {
   const page = code('features/ecommerce/pages/CityOrders.tsx');
 
-  it('is the fourth room of the district, routed in the store\'s own look, and on the bar', () => {
+  it('is the fourth room of the district, routed in the store\'s own look, and on the bar beside the cart', () => {
     expect(HUBS.ecommerce.items[3]?.path).toBe('/ecommerce/orders');
     const router = code('app/router.tsx');
     expect(router.indexOf("path: '/ecommerce/orders'")).toBeLessThan(router.indexOf('<HubLayout hub='));
     expect(page).toMatch(/useHubTheme\(null\)/);
-    expect(page).toMatch(/<FloorPage floor=\{floor\}>/);
-    expect(code('features/ecommerce/store/Floor.tsx')).toMatch(/<Link to=\{ORDERS\.path\} className="st-bar-bag sf-orders-link"/);
+    expect(page).toMatch(/<FloorPage floor=\{floor\} baglet=\{false\}>/);
+    const floorFile = code('features/ecommerce/store/Floor.tsx');
+    expect(floorFile).toMatch(/<Link to=\{ORDERS\.path\} className="st-bar-bag sf-orders-link"/);
+    // The citizen's own two sit together at the right edge (owner, 7 Sep).
+    expect(floorFile).toMatch(/<div className="sf-bar-mine">\s*<Link to=\{ORDERS\.path\}[\s\S]*?<Link to=\{CART\.path\}/);
+    expect(read('styles/layout.css')).toMatch(/\.sf-bar-mine \{[^}]*margin-left: auto/);
+  });
+
+  /**
+   * A DAY IS THE UNIT (owner, 7 Sep: "make the orders collapsible and
+   * expandable based on the date"). Native <details>, the latest day open,
+   * every other day one press away; each day says how many and how much.
+   */
+  it('folds the orders by the day they were placed, latest day open', () => {
+    expect(page).toMatch(/<details key=\{day\.key\} className="sf-day" open=\{i === 0\}>/);
+    expect(page).toMatch(/<summary className="sf-day-head">/);
+    expect(page).toMatch(/\[\.\.\.days\.values\(\)\]\.sort\(\(a, b\) => b\.key\.localeCompare\(a\.key\)\)/);
+    expect(page).toMatch(/\{day\.orders\.length\} order\{day\.orders\.length === 1 \? '' : 's'\}/);
+    expect(page).toMatch(/\{rupees\(day\.totalInr\)\}/);
+    // No checkout bar on a page about what is already bought.
+    expect(page.match(/<FloorPage floor=\{floor\} baglet=\{false\}>/g)?.length).toBe(2);
   });
 
   it('reads each shop\'s own history and keeps nothing of its own', () => {
@@ -83,6 +102,7 @@ describe('everything bought, in one list', () => {
   it('says where each order went, from the receipt\'s own snapshot, or nothing', () => {
     expect(page).toMatch(/\{o\.address && \(/);
     expect(page).toMatch(/\{o\.address\.addressText\}/);
+    expect(page).toMatch(/<p className="sf-order-door">/);
     // The shape the server keeps: a label, a name, a phone and the line.
     expect(code('features/beauty/api.ts')).toMatch(/export interface OrderAddress \{ label: string; name: string \| null; phone: string \| null; addressText: string \}/);
     expect(code('api/store.api.ts')).toMatch(/address: z\.object\(\{\s*label: z\.string\(\), name: z\.string\(\)\.nullable\(\), phone: z\.string\(\)\.nullable\(\), addressText: z\.string\(\),\s*\}\)\.nullable\(\)\.optional\(\)/);

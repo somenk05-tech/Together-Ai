@@ -2537,7 +2537,159 @@
 .sf-door-field input { min-height: 44px; padding: 0 12px; font-size: 15px; }
 .sf-door-wide { grid-column: 1 / -1; }
 .sf-door-acts { display: flex; align-items: center; gap: 12px; margin: 14px 0 0; }
+/* The citizen's own two, at the right edge of the bar, the cart last. The
+   bar's own `margin-left: auto` on .st-bar-bag would have spaced them apart
+   across the bar; the group takes the auto margin and they sit together. */
+.sf-bar-mine { display: flex; gap: 8px; margin-left: auto; }
+.sf-bar-mine .st-bar-bag { margin-left: 0; }
+.sf-bar-mine .st-bar-bag[aria-current="page"] { border-color: var(--ink); background: var(--ink); color: var(--card); }
+
+/* ── YOUR ORDERS (owner, 7 Sep): A DAY IS THE UNIT ────────────────────────────
+   The masthead carries three figures on its right — orders, shops, spent —
+   set in the store's own display type. Under it, each day is a native
+   <details>: the summary is a row with a chevron, the day's name, how many
+   orders and what they came to; open, it holds one card per order — shop
+   and hub, a status pill, the total, the lines, the door. Cards are the
+   store's tile: white, a hairline rim, the city's radius, no depth. Same
+   three constraints as the rest of the store. */
+.sf-orders-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.sf-stats {
+  display: flex;
+  gap: 28px;
+  margin: 0;
+  padding: 0 0 4px;
+}
+.sf-stat { display: flex; flex-direction: column; gap: 4px; }
+.sf-stat dt {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.sf-stat dd {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  line-height: 1.2;
+  color: var(--ink);
+}
+.sf-orders {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px 96px;
+}
+.sf-day { border-top: 1px solid var(--line); }
+.sf-day:last-of-type { border-bottom: 1px solid var(--line); }
+.sf-day-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 72px;
+  padding: 12px 0;
+  cursor: pointer;
+  list-style: none;
+}
+.sf-day-head::-webkit-details-marker { display: none; }
+.sf-day-chev {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--ink);
+  border-bottom: 2px solid var(--ink);
+  transform: rotate(-45deg);
+  margin: 0 6px 0 2px;
+}
+.sf-day[open] > .sf-day-head .sf-day-chev { transform: rotate(45deg); margin-top: -4px; }
+.sf-day-when { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sf-day-date { font-size: var(--fs-6); font-weight: 700; letter-spacing: -.02em; color: var(--ink); }
+.sf-day-sub { font-size: 12.5px; color: var(--muted); }
+.sf-day-sum { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; margin-left: auto; text-align: right; }
+.sf-day-n { font-size: 12.5px; color: var(--muted); }
+.sf-day-total { font-size: 15px; font-weight: 700; color: var(--ink); }
+.sf-day-body {
+  display: grid;
+  gap: 14px;
+  padding: 4px 0 28px;
+}
+.sf-order {
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  background: var(--card);
+  padding: 18px 20px;
+}
+.sf-order-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.sf-order-who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sf-order-shop { font-size: 15px; font-weight: 700; color: var(--ink); }
+.sf-order-meta { font-size: 12.5px; color: var(--muted); }
+.sf-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: var(--r-full);
+  background: var(--ok-soft);
+  color: var(--ok-ink);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.sf-pill.is-off { background: var(--calm-face); color: var(--muted); }
+.sf-order-total { margin-left: auto; font-size: var(--fs-6); font-weight: 800; letter-spacing: -.02em; color: var(--ink); }
+.sf-order-lines { list-style: none; margin: 0; padding: 6px 0 0; }
+.sf-order-line {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.sf-order-qty { flex: 0 0 3ch; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sf-order-name { flex: 1; min-width: 0; color: var(--ink); }
+.sf-order-price { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.sf-order-door {
+  display: flex;
+  gap: 12px;
+  margin: 8px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.sf-order-door-k {
+  flex: 0 0 3ch;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  line-height: 1.5;
+}
 .sf-order-door b { color: var(--ink); }
+@media (max-width: 899px) {
+  .sf-orders { padding: 0 18px 72px; }
+  .sf-stats { gap: 20px; }
+  .sf-order { padding: 14px 16px; }
+}
+@media (max-width: 560px) {
+  .sf-order-head { flex-wrap: wrap; }
+  .sf-order-total { flex-basis: 100%; margin-left: 0; }
+}
 @media (max-width: 560px) {
   .sf-door-grid { grid-template-columns: minmax(0, 1fr); }
 }
