@@ -45,3 +45,14 @@ export const PlaceSupplementOrderSchema = z.object({
   acknowledged: z.array(z.string().min(1).max(120)).max(30).optional(),
 });
 export type PlaceSupplementOrderDto = z.infer<typeof PlaceSupplementOrderSchema>;
+
+/**
+ * THE MONTHLY BUDGET FOR THE KIT (owner, 5 Sep). Whole rupees, or null to
+ * clear it — null is "no cap", and zero is a cap of nothing, and the two must
+ * not be confused by a coercion. Bounded above at a lakh a month because a
+ * larger number is a typo, not a plan.
+ */
+export const SupplementBudgetSchema = z.object({
+  monthlyInr: z.number().int().min(0).max(100000).nullable(),
+});
+export type SupplementBudgetDto = z.infer<typeof SupplementBudgetSchema>;

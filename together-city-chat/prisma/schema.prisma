@@ -1745,6 +1745,11 @@ model FitnessProfile {
   /// fitness/programme-engine.ts), and roll into a new cycle every 28 days.
   /// Null until the citizen has opened it.
   programmeStart DateTime?
+  /// WHAT THEY WILL SPEND ON SUPPLEMENTS, ₹ a month, total — the citizen's own
+  /// number (owner, 5 Sep). Null = never set; the kit is then one best-quality
+  /// pack per recommended supplement with no cap. Read by
+  /// fitness/supplements/kit.ts and nowhere else.
+  supplementBudgetInr Int?
   updatedAt  DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

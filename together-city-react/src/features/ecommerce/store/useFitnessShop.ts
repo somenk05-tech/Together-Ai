@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useBag, usePlaceOrder, useSaveBag, useStore, serverSaid, type StoreProduct } from '@/api/store.api';
+import { useBag, usePlaceOrder, useSaveBag, useSetSupplementBudget, useStore, serverSaid, type StoreProduct } from '@/api/store.api';
 import { SHOPS } from '../shelves';
 import type { PayMethodChoice, Shop, ShopItem } from './types';
 
@@ -24,6 +24,17 @@ import type { PayMethodChoice, Shop, ShopItem } from './types';
  * item is a conversation with a clinician, and the hub's own shelf carries the
  * reasoning, the upper limit and the "test first" flag beside it. A tile in a
  * shop with an Add button and none of that is the wrong surface for it.
+ *
+ * ── ONE PACK PER SUPPLEMENT, INSIDE A NUMBER THE CITIZEN SET (owner, 5 Sep) ──
+ * "supplements show only one option for supplement based on budget — let user
+ * set budget." This shelf drew every product under every shortlisted
+ * supplement: ten omega-3 bottles for one triglyceride result. It draws the
+ * server's KIT now — one pack per recommended supplement, the review's quality
+ * tags first and price as the tie-break, filled priority-first inside ₹ a
+ * month the citizen types here and saves on their Training Profile. What the
+ * number cannot reach is NAMED under the control rather than quietly absent.
+ * The arithmetic is kit.ts on the server; this file draws its answer and
+ * sends the number back, nothing more.
  */
 
 const SHORTLISTED = new Set(['priority', 'consider']);
@@ -52,14 +63,37 @@ export function useFitnessShop(): Shop {
   const save = useSaveBag();
   const place = usePlaceOrder();
 
+  const setBudget = useSetSupplementBudget();
+
   const items = useMemo(() => {
     const data = store.data;
     if (!data?.personalised) return [];
-    return data.items
+    const sellable = data.items
       .filter((p) => p.yours && SHORTLISTED.has(p.yours.bucket))
-      .filter((p) => p.sellable !== false && typeof p.priceInr === 'number' && !p.rx)
-      .map(shopItem);
+      .filter((p) => p.sellable !== false && typeof p.priceInr === 'number' && !p.rx);
+    /* THE KIT'S PICKS, IN THE KIT'S ORDER (priority first). An older API
+       build sends no kit; then every shortlisted pack is drawn as before,
+       because a shelf that guessed one pick per supplement here would be a
+       second copy of kit.ts that drifts from the first. */
+    const kit = data.kit;
+    if (!kit) return sellable.map(shopItem);
+    const byId = new Map(sellable.map((p) => [p.id, p]));
+    return kit.picks.map((k) => byId.get(k.productId)).filter((p): p is StoreProduct => Boolean(p)).map(shopItem);
   }, [store.data]);
+
+  const kit = store.data?.kit ?? null;
+  const budget = store.data?.personalised && kit ? {
+    label: 'Your supplement budget, a month',
+    valueInr: kit.budgetInr,
+    totalInr: kit.totalInr,
+    dropped: kit.dropped.map((d) => (d.cheapestInr !== null
+      ? `${d.name} — back in from ₹${d.cheapestInr.toLocaleString('en-IN')} more`
+      : d.name)),
+    note: kit.note,
+    unsetHint: 'No number set — the best-quality pack of each is shown. Set one and the kit is fitted inside it.',
+    saving: setBudget.isPending,
+    onChange: (v: number | null) => setBudget.mutate(v),
+  } : undefined;
 
   const lines = () => (bagQ.data?.lines ?? []).map((l) => ({ id: l.id, qty: l.qty }));
   const put = (next: { id: string; qty: number }[]) => save.mutate(next.filter((l) => l.qty > 0));
@@ -80,23 +114,30 @@ export function useFitnessShop(): Shop {
     screens: { shelf: SHOPS.supplements.shelf.path, bag: SHOPS.supplements.bag.path },
     back: { path: '/ecommerce/store', label: 'Personalized Store' },
     title: 'Supplements',
-    line: 'The kit the engine matched to your goal — priority and consider, and nothing below them. Every price is the shelf’s own.',
+    line: 'One pack for each supplement the engine matched to you — priority and consider, nothing below them — inside a monthly number you set. Every price is the shelf’s own.',
     from: { label: 'Training Profile', path: '/fitness/profile' },
     hubName: 'Fitness',
     hubPath: '/fitness',
 
     items,
+    budget,
+    countLabel: 'in your kit',
     isLoading: store.isLoading || bagQ.isLoading,
     isError: store.isError,
-    emptyTitle: store.data && !store.data.personalised ? 'Not matched to you yet' : 'Nothing on the shortlist',
+    emptyTitle: store.data && !store.data.personalised ? 'Not matched to you yet'
+      : kit && kit.dropped.length > 0 ? 'Your number reaches nothing yet'
+      : 'Nothing on the shortlist',
     emptyHint: store.data && !store.data.personalised
       ? 'Fill in your training profile and this shelf is matched to you.'
-      : 'The engine has nothing at priority or consider for you right now. The full shelf is in the Fitness hub.',
+      : kit && kit.dropped.length > 0
+        ? 'Every pack the engine matched costs more than the monthly number above. Raise it, or clear it, and the kit comes back.'
+        : 'The engine has nothing at priority or consider for you right now. The full shelf is in the Fitness hub.',
     /* Not personalised yet → the profile that would personalise it. Empty with
        a profile on file → the full shelf, which is what the hint already
        points at and what somebody in that state actually wants. */
     emptyTo: store.data && !store.data.personalised
       ? { label: 'Fill in your Training Profile', path: '/fitness/profile' }
+      : kit && kit.dropped.length > 0 ? undefined
       : { label: 'Open the Fitness shelf', path: '/fitness/store' },
     /* THE STORE TAKES NO CUT, and that sentence belongs to the hub that means
        it. Quoted rather than re-worded so the two cannot drift. */

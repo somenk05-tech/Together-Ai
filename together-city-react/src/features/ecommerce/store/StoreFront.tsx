@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState, Spinner } from '@/components/ui';
 import { ProductShot } from '@/features/beauty/components/ProductShot';
+import { FloorPage, type Floor } from './Floor';
 import type { Shop } from './types';
 
 /**
@@ -50,41 +51,107 @@ export function StoreBar({ shop, back, backLabel, name }: { shop: Shop; back: st
   );
 }
 
-export function StoreFront({ shop }: { shop: Shop }) {
+/**
+ * THE ONE NUMBER THAT DECIDES WHAT IS DRAWN (owner, 5 Sep) — a monthly figure
+ * the citizen types, saved when they leave the field or press Enter, and a
+ * Clear that means "no cap" rather than zero. The shell prints the shelf's
+ * total, the shelf's note and the shelf's list of what the number could not
+ * reach; it does not know what any of them are made of. A draft is kept
+ * locally so typing "2" on the way to "2000" does not save a ₹2 budget.
+ */
+function BudgetBar({ budget }: { budget: NonNullable<Shop['budget']> }) {
+  const [draft, setDraft] = useState<string>(budget.valueInr === null ? '' : String(budget.valueInr));
+  const [seen, setSeen] = useState<number | null>(budget.valueInr);
+  if (seen !== budget.valueInr) {
+    // The server's number moved under us (saved, or cleared elsewhere): the
+    // field follows it. Done as a render-time reconcile rather than an effect
+    // so there is no frame where the old draft shows over the new value.
+    setSeen(budget.valueInr);
+    setDraft(budget.valueInr === null ? '' : String(budget.valueInr));
+  }
+  const commit = () => {
+    const n = draft.trim() === '' ? null : Math.max(0, Math.floor(Number(draft)));
+    if (n !== null && !Number.isFinite(n)) return;
+    if (n !== budget.valueInr) budget.onChange(n);
+  };
+  const set = budget.valueInr !== null;
+  return (
+    <section className="st-budget" aria-label={budget.label}>
+      <div className="st-budget-row">
+        <label className="st-budget-label" htmlFor="st-budget-input">{budget.label}</label>
+        <span className="st-budget-field">
+          <span className="st-budget-cur" aria-hidden>₹</span>
+          <input id="st-budget-input" className="st-budget-input" type="number" inputMode="numeric" min={0} step={100}
+            placeholder="No cap" value={draft} disabled={budget.saving}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }} />
+          <span className="st-budget-unit">/ month</span>
+        </span>
+        <button type="button" className="st-budget-save" disabled={budget.saving} onClick={commit}>
+          {budget.saving ? 'Saving…' : 'Set'}
+        </button>
+        {set && (
+          <button type="button" className="st-budget-clear" disabled={budget.saving} onClick={() => budget.onChange(null)}>
+            Clear
+          </button>
+        )}
+      </div>
+      <p className="st-budget-sum">
+        {set
+          ? <>Your kit comes to <b>{rupees(budget.totalInr)}</b> of {rupees(budget.valueInr ?? 0)}.</>
+          : (budget.unsetHint ?? 'No number set.')}
+        {budget.note ? <span className="st-budget-note"> {budget.note}</span> : null}
+      </p>
+      {budget.dropped.length > 0 && (
+        <ul className="st-budget-dropped" aria-label="Not in your kit at this number">
+          {budget.dropped.map((d) => <li key={d}>{d}</li>)}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+export function StoreFront({ shop, floor }: { shop: Shop; floor?: Floor }) {
   /* ALL, THEN THE AISLES. The default is everything because that is what the
      Open Market promises on its own card — "every category, nothing ranked for
      you" — and a shop that opens pre-filtered has quietly ranked something. */
   const [group, setGroup] = useState<string>('all');
+  const bag = shop.bag;
+
+  /* ON A FLOOR OF THE DISTRICT (owner, 6 Sep) the shop is one tab of a store
+     rather than a page of its own: the bar is the floor's, with the district
+     as the way back and the tab row under it, and this shop's bag on it. Off
+     a floor it is exactly what it was — its own bar, its own way back. The
+     three states below wear the same frame so a shelf that is loading, or
+     could not be read, does not lose the tabs that lead off it. */
+  const frame = (children: ReactNode) => (floor ? (
+    <FloorPage floor={floor} bag={bag && { count: bag.count, to: shop.screens.bag }}>{children}</FloorPage>
+  ) : (
+    <div className="st-page">
+      <StoreBar shop={shop} back={shop.back.path} backLabel={shop.back.label} />
+      {children}
+    </div>
+  ));
 
   if (shop.isLoading) {
-    return (
-      <div className="st-page">
-        <StoreBar shop={shop} back={shop.back.path} backLabel={shop.back.label} />
-        <div className="st-wait"><Spinner label="Opening the store…" /></div>
-      </div>
-    );
+    return frame(<div className="st-wait"><Spinner label="Opening the store…" /></div>);
   }
 
   if (shop.isError) {
-    return (
-      <div className="st-page">
-        <StoreBar shop={shop} back={shop.back.path} backLabel={shop.back.label} />
-        <div className="st-wait">
-          <EmptyState
-            title="Couldn’t open this shelf"
-            hint="Nothing in your bag is affected — we just couldn’t read the list. Try again in a moment."
-          />
-        </div>
-      </div>
+    return frame(
+      <div className="st-wait">
+        <EmptyState
+          title="Couldn’t open this shelf"
+          hint="Nothing in your bag is affected — we just couldn’t read the list. Try again in a moment."
+        />
+      </div>,
     );
   }
 
-  const bag = shop.bag;
-  return (
-    <div className="st-page">
-      <StoreBar shop={shop} back={shop.back.path} backLabel={shop.back.label} />
-
-      <header className="st-head">
+  return frame(
+    <>
+      <header className={`st-head${floor ? ' sf-head' : ''}`}>
         <div className="st-eyebrow">{shop.hubName}</div>
         <h1 className="st-title">{shop.title}</h1>
         <p className="st-line">{shop.line}</p>
@@ -99,6 +166,11 @@ export function StoreFront({ shop }: { shop: Shop }) {
           </p>
         )}
       </header>
+
+      {/* THE NUMBER BEFORE THE SHELF, and drawn even when the shelf is empty —
+          an empty kit is most often a number set too low, and the way to fix
+          it must not vanish with the tiles. */}
+      {shop.budget && <BudgetBar budget={shop.budget} />}
 
       {shop.groups && shop.groups.length > 1 && (
         <div className="st-aisles">
@@ -212,6 +284,6 @@ export function StoreFront({ shop }: { shop: Shop }) {
           </div>
         </div>
       )}
-    </div>
+    </>,
   );
 }

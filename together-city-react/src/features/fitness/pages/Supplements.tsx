@@ -114,16 +114,21 @@ const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
  * page's job is to say what exists — they simply carry a sentence instead of
  * a button, and they sort below the things somebody can actually buy today.
  */
-function Shelf({ products, qtyOf, busy, onSet }: {
-  products: StoreProduct[]; qtyOf: (id: string) => number; busy: boolean;
+function Shelf({ products, picks, qtyOf, busy, onSet }: {
+  products: StoreProduct[]; picks: Set<string>; qtyOf: (id: string) => number; busy: boolean;
   onSet: (id: string, n: number) => void;
 }) {
   if (products.length === 0) return null;
+  /* THE KIT'S PICK LEADS THE ROW and wears its name (owner, 5 Sep): the one
+     pack the server would buy for this citizen inside their monthly number,
+     decided in kit.ts and read here — the shelf still shows every pack, so
+     the choice is visible rather than made for them in silence. */
+  const ordered = products.slice().sort((a, b) => Number(picks.has(b.id)) - Number(picks.has(a.id)));
   return (
     <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line-2)' }}>
       <span className="eyebrow">Available in India</span>
       <div style={{ display: 'grid', gap: 12, marginTop: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))' }}>
-        {products.map((p) => (
+        {ordered.map((p) => (
           <article key={p.id} style={{ border: '1px solid var(--line-2)', borderRadius: 'var(--r-2)', padding: 12, display: 'flex', flexDirection: 'column' }}>
             <span style={{ background: 'var(--well)', borderRadius: 'var(--r-1)', overflow: 'hidden', aspectRatio: '1 / 1', display: 'block' }}>
               <Shot image={p.image} pack={p.pack} colour={p.colour} />
@@ -131,9 +136,9 @@ function Shelf({ products, qtyOf, busy, onSet }: {
             <span className="eyebrow" style={{ marginTop: 10 }}>{p.brand}</span>
             <b style={{ fontSize: 13.5, lineHeight: 1.35 }}>{p.name}</b>
             {p.strength ? <span className="muted" style={{ fontSize: 11.5, lineHeight: 1.45 }}>{p.strength}</span> : null}
-            {(p.tags ?? []).length > 0 && (
+            {(picks.has(p.id) || (p.tags ?? []).length > 0) && (
               <span style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 6 }}>
-                {(p.tags ?? []).slice(0, 2).map((t) => <span key={t} className="tag" style={{ fontSize: 10 }}>{t}</span>)}
+                {[...(picks.has(p.id) ? ['Your pick'] : []), ...(p.tags ?? [])].slice(0, 2).map((t) => <span key={t} className="tag" style={{ fontSize: 10 }}>{t}</span>)}
               </span>
             )}
             <span style={{ fontSize: 13.5, fontWeight: 700, marginTop: 'auto', paddingTop: 8 }}>
@@ -337,6 +342,10 @@ export function Supplements() {
     save.mutate(next);
   };
 
+  /** The kit's one pick per supplement — the server's, inside the citizen's
+   *  monthly number. Empty on an older API build, and then no pack is named. */
+  const picks = useMemo(() => new Set((store.data?.kit?.picks ?? []).map((k) => k.productId)), [store.data]);
+
   /** Products by the supplement they resolve to — sellable first, then
    *  cheapest, so what somebody can actually buy today leads the row. */
   const bySupplement = useMemo(() => {
@@ -370,6 +379,11 @@ export function Supplements() {
           {!gated && (
             <p style={{ marginTop: 10, fontSize: 13.5, lineHeight: 1.6 }}>
               Everything this plan supports is buyable below, from your city wallet.
+              {store.data?.kit ? (
+                <> The pack marked <b>Your pick</b> under each is the one that fits
+                  {store.data.kit.budgetInr !== null ? ` your ₹${store.data.kit.budgetInr.toLocaleString('en-IN')} a month` : ' best'} —
+                  set or change that number in <Link to="/ecommerce/shop/supplements">your supplement kit</Link>.</>
+              ) : null}
               <span className="muted"> The ones it recommends against carry no price and no button
                 here — they are in <Link to="/fitness/store">the whole store</Link>, where the checkout
                 asks you to read the trial first.</span>
@@ -428,7 +442,7 @@ export function Supplements() {
                        than inside the card so it cannot be turned on by a prop
                        somebody adds later. */
                     shelf={refusedBucket ? undefined : (
-                      <Shelf products={bySupplement.get(r.id) ?? []} qtyOf={qtyOf} busy={busy} onSet={setQty} />
+                      <Shelf products={bySupplement.get(r.id) ?? []} picks={picks} qtyOf={qtyOf} busy={busy} onSet={setQty} />
                     )} />
                 ))}
                 {refusedBucket && (

@@ -13,6 +13,7 @@ import { FinancialService } from '../../financial/financial.service';
 import { SOURCE, SUPPLEMENTS } from './knowledge';
 import { AISLES, PRODUCTS, sellable, type Product } from './products';
 import { normaliseBag, parseBag, priceBagForDisplay, priceSupplementOrder, type BagLine } from './supplements.bag';
+import { buildKit } from './kit';
 import type { PlaceSupplementOrderDto } from '../dto/supplements.dto';
 
 /**
@@ -210,8 +211,13 @@ export class SupplementsService {
    * honest — it is exactly what this city knows about them at that moment.
    */
   async store(userId: string) {
-    const built = await this.plan(userId).catch(swallowed('supplements.store', null));
+    const [built, budgetRow] = await Promise.all([
+      this.plan(userId).catch(swallowed('supplements.store', null)),
+      this.prisma.fitnessProfile.findUnique({ where: { userId }, select: { supplementBudgetInr: true } })
+        .catch(swallowed('supplements.budget', null)),
+    ]);
     const mine = new Map((built?.plan ?? []).map((r) => [r.id, r]));
+    const budgetInr = typeof budgetRow?.supplementBudgetInr === 'number' ? budgetRow.supplementBudgetInr : null;
 
     const items = PRODUCTS.map((p) => {
       const f = SUPPLEMENTS.find((s) => s.id === p.supplement);
@@ -269,7 +275,32 @@ export class SupplementsService {
          what this city knows about an untested citizen. */
       personalised: built !== null && !built.gated,
       basis: built?.basis ?? null,
+      /* THE KIT — one pack per recommended supplement, inside the citizen's
+         own monthly number (owner, 5 Sep; see kit.ts). Computed here, beside
+         the badges it is drawn from, so the shop and the hub can never pick
+         two different bottles for the same person. Null where there is no
+         plan to build one from: a kit for an untested citizen would be a
+         shopping list dressed as advice. */
+      kit: built !== null && !built.gated
+        ? buildKit(built.plan.map((r) => ({ id: r.id, bucket: r.bucket, name: r.name })), PRODUCTS, budgetInr)
+        : null,
     };
+  }
+
+  /**
+   * THE BUDGET IS THE CITIZEN'S TO SET, and null is "no cap", not zero. Saved
+   * on the Training Profile so the Personalized Store, the Fitness shelf and
+   * Mira read one number. Does not touch `answeredAt`: a budget is not the
+   * questionnaire, and setting it must not make an unanswered profile look
+   * answered to the session engine.
+   */
+  async setBudget(userId: string, monthlyInr: number | null) {
+    await this.prisma.fitnessProfile.upsert({
+      where: { userId },
+      create: { userId, supplementBudgetInr: monthlyInr },
+      update: { supplementBudgetInr: monthlyInr },
+    });
+    return { monthlyInr };
   }
 
   /* ══ THE TILL ══════════════════════════════════════════════════════════

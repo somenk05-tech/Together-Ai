@@ -107,6 +107,34 @@ export interface ShopItem {
   priceNote?: string;
 }
 
+/**
+ * ── A NUMBER THAT DECIDES WHAT IS ON THE SHELF ──────────────────────────────
+ *
+ * Owner, 5 Sep: "supplements show only one option for supplement based on
+ * budget — let user set budget." A dial changes what one item IS; this changes
+ * which items are drawn at all. The supplement shelf passes one: ₹ a month,
+ * total, and the server answers with one pack per recommended supplement that
+ * fits inside it, naming what did not. Every other shelf passes none.
+ *
+ * THE SHELL KNOWS A NUMBER, A TOTAL AND A LIST OF NAMES. It does not know
+ * what a "pack" is or how a month is counted — `note` is the owning shelf's
+ * sentence for that, printed whole.
+ */
+export interface ShopBudget {
+  label: string;
+  /** The citizen's number, or null when none is set. */
+  valueInr: number | null;
+  /** What the picks on the shelf add up to. */
+  totalInr: number;
+  /** What the number could not reach, in the shelf's own words. */
+  dropped: string[];
+  note?: string;
+  /** What to say when no number is set. */
+  unsetHint?: string;
+  saving: boolean;
+  onChange: (valueInr: number | null) => void;
+}
+
 export interface ShopBagLine { id: string; name: string; priceInr: number; qty: number; image?: string; imageAlt?: string; category: string }
 export interface ShopBag { lines: ShopBagLine[]; count: number; totalInr: number; removed: number }
 
@@ -139,6 +167,8 @@ export interface Shop {
   hubPath: string;
 
   items: ShopItem[];
+  /** The one number that decides what is drawn, where a shelf has one. */
+  budget?: ShopBudget;
   /**
    * THE AISLES OF ONE SHELF, when a shelf is big enough to need them. The
    * shortlist shops have none — five products do not need a filter. The open

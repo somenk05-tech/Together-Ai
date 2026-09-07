@@ -77,6 +77,18 @@ export const AisleSchema = z.object({
   supplements: z.array(z.string()).optional(),
 });
 
+/** THE KIT — one pack per recommended supplement inside the citizen's own
+ *  monthly number (owner, 5 Sep). Computed on the server beside the badges;
+ *  null when there is no plan to build one from. `dropped` names what the
+ *  number could not reach, with the price that brings each back. */
+export const KitSchema = z.object({
+  budgetInr: z.number().nullable(),
+  picks: z.array(z.object({ supplement: z.string(), productId: z.string(), priceInr: z.number() })),
+  totalInr: z.number(),
+  dropped: z.array(z.object({ supplement: z.string(), name: z.string(), cheapestInr: z.number().nullable() })),
+  note: z.string(),
+});
+
 export const StoreSchema = z.object({
   items: z.array(ProductSchema),
   aisles: z.array(AisleSchema).optional(),
@@ -91,6 +103,7 @@ export const StoreSchema = z.object({
     diet: z.string().nullable().optional(),
     goal: z.string().nullable().optional(),
   }).nullable().optional(),
+  kit: KitSchema.nullable().optional(),
 });
 
 /** A bag line as the server priced it. `gone` is a product that has left the
@@ -140,6 +153,7 @@ export const PlacedSchema = z.object({
 });
 
 export type Store = z.infer<typeof StoreSchema>;
+export type Kit = z.infer<typeof KitSchema>;
 export type StoreProduct = z.infer<typeof ProductSchema>;
 export type Yours = z.infer<typeof YoursSchema>;
 export type Bag = z.infer<typeof BagSchema>;
@@ -169,6 +183,23 @@ export function useSaveBag() {
     mutationFn: (lines: Array<{ id: string; qty: number }>) =>
       apiPut('/fitness/store/bag', { lines }, BagSchema),
     onSuccess: (bag) => { qc.setQueryData(['fitness', 'store', 'bag'], bag); },
+  });
+}
+
+/**
+ * THE BUDGET IS THE CITIZEN'S TO SET — whole rupees a month, or null to clear
+ * it. Saved on the Training Profile; the store is re-read afterwards because
+ * the kit is the server's arithmetic, not this file's.
+ */
+export function useSetSupplementBudget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (monthlyInr: number | null) =>
+      apiPut('/fitness/store/budget', { monthlyInr }, z.object({ monthlyInr: z.number().nullable() })),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['fitness', 'store'] });
+      void qc.invalidateQueries({ queryKey: ['fitness', 'profile'] });
+    },
   });
 }
 

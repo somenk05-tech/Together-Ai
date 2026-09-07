@@ -2524,6 +2524,104 @@
   margin: 22px 0 0;
 }
 
+/* ── THE FLOOR: A STORE WITH ITS SHELVES AS TABS (owner, 6 Sep) ──────────────
+   "Remove the image and just create a Shopify store for both pages with
+   category tabs on top, in a sleek manner." The two rooms of the district were
+   a grid of photographs; they are one white storefront each now, and these
+   rules are the part of it that is new — the sticky top (the store's own bar
+   with the tab row under it), the tabs, and the window a tab draws when there
+   is no shelf behind it. Everything under the tabs is the `.st-*` block below,
+   unchanged: the shop a tab opens is the same shop it always was.
+
+   THE TABS ARE TEXT AND A RULE, NOT CHIPS. The storefront already has chips
+   (`.st-aisles`, the aisles inside one long shelf), and a second row of chips
+   above them would be two filters that look like one. A category tab is a
+   word with a rule under it when it is on — the way a store's collections
+   read across the top of a Shopify theme — and the chips inside the shelf
+   keep their shape and their meaning.
+
+   Same three constraints as the rest of this district: root tokens only, no
+   radius in pixels, no transition; every size, tracking and line-height here
+   is one the stylesheet already has, so the size ceiling sees nothing new. */
+.sf-top {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+}
+.sf-top .st-bar { position: static; border-bottom: 0; }
+.sf-tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.sf-tabs::-webkit-scrollbar { display: none; }
+.sf-tabs-in {
+  display: flex;
+  gap: 4px;
+  list-style: none;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+.sf-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -.012em;
+  color: var(--ink-soft);
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 2px solid var(--card);
+  margin-bottom: -1px;
+}
+.sf-tab:hover { color: var(--ink); }
+.sf-tab.on {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+.sf-tab-soon {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+/* The masthead under the tabs sits closer to them than a shop's own masthead
+   sits under its bar: the tabs already said where you are. */
+.sf-head { padding-top: 30px; }
+/* A TAB WITH NO SHELF BEHIND IT — the grocery list, a room in another hub, a
+   shelf not built yet — is a window: the room's name and line in the store's
+   own masthead type, one sentence, and one door or none. */
+.sf-room {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 30px 24px 48px;
+}
+.sf-room-note,
+.sf-room-state {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 18px 0 0;
+}
+.sf-room-state {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.sf-room-act { margin: 18px 0 0; }
+@media (max-width: 899px) {
+  .sf-tabs-in { padding: 0 18px; }
+  .sf-head { padding-top: 20px; }
+  .sf-room { padding: 20px 18px 36px; }
+}
+
 /* ── THE STORE: WHITE, NO RAIL, ONE WAY BACK ─────────────────────────────────
    Owner, 22 Aug: open a shelf from the Personalized Store and land in a shop
    rather than in the hub that owns it. So this block draws a storefront — a
