@@ -53,26 +53,43 @@ describe('the header is two layers, and neither of them crops', () => {
   };
 
   it('puts the signature on a layer of its own, centred on the page', () => {
-    // `flex: 0 0 100%` is what makes it a LAYER rather than the first thing on
-    // a line: it claims the whole row, and everything after it wraps beneath.
-    // Without the wrap on the parent it silently becomes a one-line header
-    // again — which is the version that cropped.
+    // `grid-column: 1 / -1` is what makes it a LAYER rather than the first
+    // thing on a line: it claims all three columns, and everything after it
+    // lands on the row beneath. Without it the header silently becomes a
+    // one-line bar again — which is the version that cropped.
+    //
+    // IT WAS `flex: 0 0 100%` UNTIL 7 SEP, and the layer is a grid now for the
+    // assertion directly below this one, not for its own sake.
     const b = layers();
-    expect(b).toMatch(/flex-wrap: wrap/);
-    expect(b).toMatch(/\.tc-header \.tc-header-top \{ flex: 0 0 100%; width: 100%; display: flex; justify-content: center; \}/);
+    expect(b).toMatch(/grid-template-columns: 1fr minmax\(0, auto\) 1fr/);
+    expect(b).toMatch(/\.tc-header \.tc-header-top \{ grid-column: 1 \/ -1; width: 100%; display: flex; justify-content: center; \}/);
   });
 
-  it('keeps the districts and the citizen’s doors on the second layer, doors right', () => {
-    // `order`, never a change to Header.tsx: the source order is the reading
-    // order the burger drawer, the masthead below 1500 and the tab sequence all
-    // walk. One auto margin does the alignment, so the slack collects in ONE
-    // gap rather than spreading itself into several.
+  it('puts the districts on the page’s axis and the citizen’s doors right', () => {
+    /* ── THE ONE ASSERTION IN THIS FILE THAT WAS REVERSED (owner, 7 Sep:
+       "make the hub names center of the page") ────────────────────────────
+       It used to read: "centring the districts on that layer was tried and
+       rejected by measurement — at 1720 the tab row and the pills overlapped
+       by 62px", and it forbade the centring line. That measurement was taken
+       against THIRTEEN districts occupying 1123px. The street is four doors
+       wide since this morning and the same row is about 500px, so the paper
+       the pills needed is there and the middle is reachable. A guard is only
+       as honest as the rig that set its constants — this file's own lesson,
+       applied to this file.
+
+       Flex could never have done it: it centres a thing on what is left over
+       beside its neighbours, not on the page. Three columns with the outer
+       two equal puts the districts on the same axis as the signature above
+       them. Columns rather than a change to Header.tsx, because the source
+       order is the reading order the burger drawer, the masthead below 1500
+       and the tab sequence all walk. */
     const b = layers();
-    expect(b).toMatch(/\.tc-header \.tc-navrow \{ order: 2; \}/);
-    expect(b).toMatch(/\.tc-header \.tc-actionrow \{ order: 3; margin-left: auto; \}/);
-    // Centring the districts on that layer was tried and rejected by
-    // measurement: at 1720 the tab row and the pills overlapped by 62px.
-    expect(b).not.toMatch(/\.tc-navrow \{ order: 2; margin: 0 auto/);
+    expect(b).toMatch(/\.tc-header \.tc-navrow \{ grid-column: 2; grid-row: 2; \}/);
+    expect(b).toMatch(/\.tc-header \.tc-actionrow \{ grid-column: 3; grid-row: 2; margin-left: auto; \}/);
+    expect(b).toMatch(/\.tc-header \.tc-navrow \{ min-width: 0; justify-content: center; \}/);
+    // The strip still gives before the doors do — a district row that cannot
+    // shrink is a bar that wraps to a third line and hangs out of the band.
+    expect(b).toMatch(/minmax\(0, auto\)/);
     // The markup itself still reads name → doors → districts.
     expect(header.indexOf('tc-actionrow')).toBeLessThan(header.indexOf('tc-navrow'));
   });

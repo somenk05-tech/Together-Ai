@@ -169,12 +169,29 @@
    user data), and below 1500 the three-row masthead exactly as it has been
    since 15 August. */
 @media (min-width: 1500px) {
+  /* ── AND THE DISTRICTS CAME TO THE MIDDLE (owner, 7 Sep) ─────────────────
+     "Make the hub names center of the page." This reverses the note four
+     paragraphs up — "centring the districts on that second layer was tried and
+     rejected by measurement, not taste: at 1720 the tab row and the pills
+     overlap by 62px" — and the reversal is a MEASUREMENT CHANGING, not a mind
+     changing. That measurement was taken against thirteen districts occupying
+     1123px. The street is four doors wide since this morning and the same row
+     is about 500px, so the paper the pills needed is there now and the middle
+     is reachable.
+
+     THE LAYER IS A GRID, because flex cannot centre a thing on the PAGE — only
+     on what is left over beside its neighbours, which is the off-centre row
+     that reads as a mistake rather than as a decision. Three columns, the
+     outer two equal: the districts sit in the middle one and are therefore on
+     the page's own axis, the same axis the signature above them is on.
+     `minmax(0, auto)` on the middle so the strip can still shrink and scroll
+     rather than push the citizen's own doors off the line — the guarantee the
+     flex version bought with `flex: 1 1 auto`, kept. */
   .tc-header {
-    flex-direction: row;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 1fr minmax(0, auto) 1fr;
+    grid-template-rows: auto auto;
     align-items: center;
-    align-content: center;
-    justify-content: flex-start;
     column-gap: 20px;
     row-gap: 2px;
     /* height stays var(--header-h) — the token itself is re-pointed to 90px at
@@ -183,30 +200,31 @@
     padding: 8px 24px;
   }
   /* LAYER ONE — THE SIGNATURE, ALONE, ON THE CENTRE OF THE PAGE.
-     `flex: 0 0 100%` is what makes it a layer: it claims the whole line, and
-     everything after it wraps beneath. Measured 777px of paper either side of
-     the wordmark at 1720 — centred on the page, not on what is left over. */
-  .tc-header .tc-header-top { flex: 0 0 100%; width: 100%; display: flex; justify-content: center; }
-  /* LAYER TWO — THE CITY'S DISTRICTS, AND THE CITIZEN'S OWN DOORS ON THE RIGHT.
-     `order` rather than a change to Header.tsx, because the source order is the
-     READING order the burger drawer, the masthead below 1500 and the tab
-     sequence all walk. `margin-left: auto` is the whole right-alignment: it
-     collects the slack in ONE gap instead of spreading it as several. */
+     `grid-column: 1 / -1` is what makes it a layer: it claims all three
+     columns, and everything after it lands on the row beneath. Measured 777px
+     of paper either side of the wordmark at 1720 — centred on the page, not on
+     what is left over. */
+  .tc-header .tc-header-top { grid-column: 1 / -1; width: 100%; display: flex; justify-content: center; }
+  /* LAYER TWO — THE DISTRICTS ON THE PAGE'S AXIS, THE CITIZEN'S OWN DOORS ON
+     THE RIGHT. The columns are named here rather than in Header.tsx, because
+     the source order is the READING order the burger drawer, the masthead
+     below 1500 and the tab sequence all walk — doors before districts — and
+     naming a column is how a grid reorders without a component knowing.
+     `margin-left: auto` is the whole right-alignment of the doors: it collects
+     the slack in ONE gap instead of spreading it as several. */
   .tc-header .tc-navrow,
-  .tc-header .tc-actionrow { width: auto; flex: 0 0 auto; }
-  .tc-header .tc-navrow { order: 2; }
-  .tc-header .tc-actionrow { order: 3; margin-left: auto; }
+  .tc-header .tc-actionrow { width: auto; }
+  .tc-header .tc-navrow { grid-column: 2; grid-row: 2; }
+  .tc-header .tc-actionrow { grid-column: 3; grid-row: 2; margin-left: auto; }
   /* AND THE SECOND LAYER CANNOT WRAP (owner, 23 Aug, night: "make sure this
      is in one line"). The Search door joined the bar, and at widths where the
      districts and the doors no longer fit side by side the bar wrapped to a
-     third line and hung out of the band. The fix is flex the tab strip
-     already knows how to spend: the DISTRICTS give and the DOORS do not —
-     the strip shrinks and scrolls (it has been a scroller since it was
-     written) instead of pushing the citizen's own doors off the line. Stated
-     after the order rules so the guard that pins those exact lines keeps
-     matching them. */
-  .tc-header .tc-navrow { flex: 1 1 auto; min-width: 0; justify-content: flex-start; }
-  .tc-header .tc-actionrow { flex: 0 0 auto; }
+     third line and hung out of the band. The DISTRICTS give and the DOORS do
+     not: `minmax(0, auto)` on the middle column lets the strip shrink and
+     scroll (it has been a scroller since it was written) instead of pushing
+     the citizen's own doors off the line. Stated after the column rules so
+     the guard that pins those exact lines keeps matching them. */
+  .tc-header .tc-navrow { min-width: 0; justify-content: center; }
   /* The word goes; the icon, its title and its aria-label stay. */
   .tc-header .tc-actionbar .lab { display: none; }
   .tc-header .tc-actionbar a, .tc-header .tc-actionbar button { padding: 0 10px; }
