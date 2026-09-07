@@ -70,10 +70,17 @@ describe('Personalize is a hub, answered on every surface', () => {
     expect(existsSync(join(APP, 'public/assets/img/personalize-hub.webp'))).toBe(true);
   });
 
-  it('stands on the walk and in the foot grid', () => {
+  it('stands in the foot grid — and came off the walk on the owner’s call (7 Sep)', () => {
     const home = code('pages/Home.tsx');
-    expect(home).toMatch(/key: 'personalize'/);
     expect(home).toMatch(/to: '\/personalize'/);
+    /* THE WALK PLATE IS GONE, deliberately. This walk IS ten of the districts
+       Personalize opens onto, at full width, one to a row — a plate
+       advertising the room you are standing in is the walk's own table of
+       contents laid on top of the walk. Everything else it had stands: the
+       foot-grid tile above, the route, the glyph, the hero, the street line,
+       the command palette and its switch on Design Your Services. */
+    const panels = home.slice(home.indexOf('const PANELS: Panel[] = ['));
+    expect(panels.slice(0, panels.indexOf('];'))).not.toMatch(/key: 'personalize'/);
   });
 });
 

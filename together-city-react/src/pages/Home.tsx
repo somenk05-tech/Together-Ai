@@ -7,6 +7,7 @@ import { HUBS, hubDoor, hubIsOpen } from '@/config/hubs';
 import { useCityDesign, useMiraShown } from '@/hooks/useCityDesign';
 import type { HubKey } from '@/types';
 import { InstallCity } from '@/components/InstallCity';
+import { CityDoors } from '@/components/CityDoors';
 
 /** A clickable building silhouette on the pavilion-city map. */
 interface Zone { to: string; label: string; shape: 'poly' | 'ellipse'; points?: string; cx?: number; cy?: number; rx?: number; ry?: number; }
@@ -195,13 +196,11 @@ const PANELS: Panel[] = [
   { key: 'nutrition', img: 'nutrition-and-groceies.webp' },
   { key: 'social', img: 'social-life.webp' },
   { key: 'dating', img: 'dating-hub.webp' },
-  { key: 'entertainment', img: 'entertainment.webp' },
   { key: 'realestate', img: 'real-estate.webp' },
   { key: 'jobs', img: 'jobs-hub.webp' },
   { key: 'medical', img: 'medical-hub.webp' },
   { key: 'beauty', img: 'beautymarket.webp' },
   { key: 'fitness', img: 'fitness-hero.webp' },
-  { key: 'financial', img: 'financial-district.webp' },
   { key: 'services', img: 'local-services.webp' },
   /* E-COMMERCE IS BACK ON THE WALK (owner, 22 Aug). The only thing worth
      saying about it is the difference from the plate removed on 10 Aug: that
@@ -213,8 +212,27 @@ const PANELS: Panel[] = [
   // has sixteen rooms now, so the branch is unused again and this plate is a
   // link like the other twelve.
   { key: 'pets', img: 'pets-hub.webp' },
-  // The tenth-and-first: a district whose plate is the other ten.
-  { key: 'personalize', img: 'personalize-hub.webp' },
+  /* THREE PLATES CAME OFF THE WALK (owner, 7 Sep): Entertainment, Financial
+     and Personalize. They are not three of a kind and the reason is different
+     each time, which is why none of them is deleted:
+
+       ENTERTAINMENT left the header this morning for key 05 on Together TV's
+       rail — a hub whose whole question is "what do I watch tonight", answered
+       one door under the screen. A billboard here sends the same person the
+       long way round.
+       FINANCIAL left the street on 22 Aug for the Personal drawer, on the
+       argument that money is not a district you walk through. It kept a plate
+       on this walk anyway, which was the old decision still standing on the
+       one surface nobody re-read.
+       PERSONALIZE is the door onto the ten districts that read a profile —
+       and this walk IS ten of those districts, at full width, one to a row. A
+       plate advertising the room you are standing in is the walk's own table
+       of contents laid on top of the walk.
+
+     WHAT THEY KEEP: their route, their hub, their tile in the foot grid, their
+     building on the map, their entry in the command palette and their switch
+     on Design Your Services. Hidden is not deleted — Travel's rule since
+     15 Aug, and the reason DESIGNABLE_HUBS is untouched by this. */
 ];
 
 
@@ -310,12 +328,19 @@ export function Home() {
       <div className="wrap" style={{ maxWidth: 1240, margin: '0 auto', padding: '88px 32px 24px' }}>
         {/* ============ WELCOME ============ */}
         <div className="center rise" style={{ textAlign: 'center' }}>
-          {/* SET IN CAPS, NOT TYPED IN THEM (owner, 6 Sep). The sentence stays
-              a sentence in the markup, so a screen reader says it rather than
-              spelling it, and a search engine indexes it as written. The caps
-              are how it is PRINTED, which is a decision about the masthead
-              rather than about the words. */}
-          <h1 style={{ maxWidth: '30ch', margin: '0 auto', fontSize: 'clamp(34px, 5.2vw, 64px)', lineHeight: 1.1, textTransform: 'uppercase' }}>The world's Largest Digital City, personalized for you, powered by your trusted local vendors.</h1>
+          {/* THE MASTHEAD COMES OUT OF CAPS (owner, 7 Sep): "make this sentence
+              case and fix grammar". It was SET in caps since 6 Sep — typed as
+              a sentence, printed as one — and at sixty-four pixels across
+              thirteen words that is a wall to be got past rather than a line
+              to be read. Sentence case gives the words their ascenders back,
+              which is what the eye reads a long line by.
+
+              AND THE GRAMMAR IT WAS HIDING: "Largest Digital City" was
+              title-cased in the middle of a sentence, which caps concealed and
+              lower case would not have, and the two participles ran on with a
+              comma between them. One "and" joins them and the sentence closes
+              on its own. */}
+          <h1 style={{ maxWidth: '30ch', margin: '0 auto', fontSize: 'clamp(34px, 5.2vw, 64px)', lineHeight: 1.1 }}>The world&rsquo;s largest digital city, personalized for you and powered by your trusted local vendors.</h1>
           <p className="lede" style={{ margin: '22px auto 0', fontSize: 'clamp(18px, 1.9vw, 23px)', lineHeight: 1.6, maxWidth: '58ch' }}>
             Set your preferences once. Every hub personalizes to you.
           </p>
@@ -354,6 +379,10 @@ export function Home() {
           </div>
           {/* The city is built for a phone; this is where it says so. */}
           <InstallCity />
+          {/* ...and then the four doors, so the hero ends on a place to go
+              rather than on a picture of an address. Same four as the header,
+              same order, same list. */}
+          <CityDoors />
         </div>
 
         <div className="rule" />

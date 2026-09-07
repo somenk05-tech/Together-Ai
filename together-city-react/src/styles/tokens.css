@@ -3175,3 +3175,27 @@ html[data-skin="sanmarino"] {
   --mp-out: #a03d2e;
   --mp-on-gold: #ffffff;
 }
+
+/* ══ THE BLOOM UNDER THE FOUR DOORS (owner, 7 Sep) ═════════════════════════
+   The reference the owner sent is a white pill with a soft colour bloom
+   burning through it from behind — glass with a light behind the glass, not a
+   coloured button. So the colour lives in ONE token: a four-stop wash that the
+   pill blurs and clips. Nothing else in the city paints it, and it is here
+   rather than in index.css because this is where colour lives.
+
+   THE STOPS ARE THE CITY'S OWN, NOT THE REFERENCE'S. Blue, rose, amber and
+   violet are lifted from the mail-folder tints above — the only chromatic set
+   this design system already owns — so the bloom reads as the same product
+   rather than as a screenshot pasted onto it.
+
+   IT NEVER CARRIES A WORD. The label sits on the white glass above the blur at
+   full ink contrast, so nothing here is load-bearing for legibility; the AA
+   guard has no case to answer. On a dark wall the same wash is dimmed by the
+   pill's own opacity rather than restated, which is why there is no dark
+   override: one light, two rooms. */
+:root {
+  --door-bloom: radial-gradient(38% 62% at 22% 42%, #b9c9ff 0%, rgba(185,201,255,0) 70%),
+                radial-gradient(42% 70% at 52% 78%, #ffc9d4 0%, rgba(255,201,212,0) 72%),
+                radial-gradient(46% 74% at 78% 34%, #ffd9b0 0%, rgba(255,217,176,0) 74%),
+                radial-gradient(40% 66% at 92% 74%, #cfc4f2 0%, rgba(207,196,242,0) 70%);
+}

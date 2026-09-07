@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { DESIGNABLE_HUBS } from '@/config/services';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..');
 const APP = join(SRC, '..');
@@ -84,6 +85,33 @@ describe('walk the districts', () => {
     expect(home).toMatch(/splitDistrictLine/);
     expect(home).toMatch(/className="district-card-lead"/);
     expect(relief).toMatch(/\.district-card-lead \{[^}]*color: var\(--muted\)/);
+  });
+
+  it('walks twelve districts — Entertainment, Financial and Personalize came off (owner, 7 Sep)', () => {
+    /* Three plates, three different reasons: Entertainment answers "what do I
+       watch tonight" one door under the television; Financial left the street
+       on 22 Aug for the Personal drawer and kept a plate here anyway; and
+       Personalize is the door onto ten districts this walk already IS. */
+    const panels = home.slice(home.indexOf('const PANELS: Panel[] = ['));
+    const keys = [...panels.slice(0, panels.indexOf('];')).matchAll(/key: '([a-z]+)'/g)].map((m) => m[1]);
+    expect(keys).not.toContain('entertainment');
+    expect(keys).not.toContain('financial');
+    expect(keys).not.toContain('personalize');
+    expect(keys.length).toBe(12);
+  });
+
+  it('keeps all three everywhere else — hidden is not deleted', () => {
+    // Travel's rule since 15 Aug. They keep their tile in the foot grid, their
+    // route, and their switch on Design Your Services.
+    const pav = home.slice(home.indexOf('const PAVILIONS: Pavilion[] = ['));
+    const tiles = pav.slice(0, pav.indexOf('];'));
+    for (const to of ['/entertainment', '/financial', '/personalize']) {
+      expect({ to, inFootGrid: tiles.includes(`to: '${to}'`) }).toEqual({ to, inFootGrid: true });
+    }
+    for (const key of ['entertainment', 'financial', 'personalize']) {
+      expect({ key, designable: (DESIGNABLE_HUBS as readonly string[]).includes(key) })
+        .toEqual({ key, designable: true });
+    }
   });
 
   it('leaves the hub landing its billboard', () => {

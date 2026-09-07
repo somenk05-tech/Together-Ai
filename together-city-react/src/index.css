@@ -1038,6 +1038,48 @@ html.tc-immersive .csdock { margin-bottom: calc(var(--safe-bottom) + 12px); }
   .instl-qr { flex-direction: column; text-align: center; }
 }
 
+/* ---- THE FOUR DOORS, UNDER THE CODE (owner, 7 Sep) ----
+   Personalize · Digital Store · Local Market · Together TV, drawn from
+   HEADER_TABS so this row can never disagree with the header above it.
+
+   THE MATERIAL IS THE REFERENCE THE OWNER SENT: a white pill with a colour
+   bloom burning through from behind. It is built the way the city builds
+   everything else — --card for the glass, --e1/--e2 for the depth, --r-full
+   for the shape — and the only new thing is the light: --door-bloom, one
+   token, blurred and clipped by the pill so no edge of the gradient is ever
+   visible. The word rides on top of the glass at full ink, so the colour is
+   atmosphere and never a contrast problem.
+
+   WRAPPING RATHER THAN SCROLLING. Four uppercase labels do not fit one line on
+   a phone and a horizontal scroller hides the fourth door behind a gesture
+   nobody is told about — so the row wraps and every door stays visible. */
+.doors {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 12px;
+  /* Wider than the block above it on purpose: four pills sit on ONE line on a
+     desk, and the wrap is what a phone gets rather than what everyone gets. */
+  margin: 26px auto 0; max-width: 780px;
+}
+.door {
+  position: relative; isolation: isolate; overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 46px; padding: 0 26px; border-radius: var(--r-full);
+  font-size: var(--fs-3); font-weight: 500; letter-spacing: var(--track-display);
+  text-transform: uppercase; color: var(--ink); text-decoration: none;
+  background: var(--card); box-shadow: var(--e1);
+  transition: box-shadow var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+/* Bigger than the pill on every side, so the blur has room to fall off inside
+   the clip instead of ending in a visible band at the rim. */
+.door-bloom {
+  position: absolute; inset: -55%; z-index: -1; border-radius: inherit;
+  background: var(--door-bloom); filter: blur(22px); opacity: .55;
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+}
+.door-word { position: relative; }
+.door:hover { box-shadow: var(--e2); transform: translateY(-1px); }
+.door:hover .door-bloom { opacity: 1; transform: scale(1.12); }
+.door:active { transform: translateY(1px); box-shadow: var(--e1); }
+
 /* ---- SEARCH IN MAIL (10 Aug). One bar above the list, the shape every mail
    client uses: a rounded field with the glass on the left and a clear on the
    right. Full width on a phone because there is nothing to share the line

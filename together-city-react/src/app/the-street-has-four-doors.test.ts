@@ -53,7 +53,12 @@ describe('the four doors, in the owner’s order', () => {
 });
 
 describe('every menu draws the same four', () => {
-  for (const surface of ['layouts/Header.tsx', 'layouts/CityDrawer.tsx', 'pages/Hubs.tsx']) {
+  /* CityDoors is the row under the QR on the home page (7 Sep). It is a menu
+     like the other three and belongs in this loop for the same reason: four
+     hard-coded links on the hero is how the fifth door gets added in three
+     places and forgotten in the fourth. */
+  for (const surface of ['layouts/Header.tsx', 'layouts/CityDrawer.tsx', 'pages/Hubs.tsx',
+    'components/CityDoors.tsx']) {
     it(`${surface} draws HEADER_TABS, not NAV`, () => {
       const src = read(surface);
       expect(src).toMatch(/HEADER_TABS/);
@@ -73,10 +78,30 @@ describe('every menu draws the same four', () => {
   });
 
   it('still wears the citizen’s design, so a door switched off is still gone', () => {
-    for (const surface of ['layouts/Header.tsx', 'layouts/CityDrawer.tsx', 'pages/Hubs.tsx']) {
+    for (const surface of ['layouts/Header.tsx', 'layouts/CityDrawer.tsx', 'pages/Hubs.tsx',
+      'components/CityDoors.tsx']) {
       expect({ surface, filtered: read(surface).includes('hubOn(n.key)') })
         .toEqual({ surface, filtered: true });
     }
+  });
+});
+
+describe('the row under the code is the same four', () => {
+  it('the home page draws it, right after the install block', () => {
+    const home = read('pages/Home.tsx');
+    const qr = home.indexOf('<InstallCity />');
+    const doors = home.indexOf('<CityDoors />');
+    expect(qr).toBeGreaterThan(-1);
+    // After the code, not before it: the hero ends on somewhere to go.
+    expect(doors).toBeGreaterThan(qr);
+  });
+
+  it('paints the owner’s bloom from one token, and the token lives in tokens.css', () => {
+    // The reference is a white pill with a light behind the glass. The colour
+    // is a single token so no second gradient can drift away from it, and it
+    // is declared where colour is allowed to be written down.
+    expect(read('index.css')).toMatch(/background: var\(--door-bloom\)/);
+    expect(read('styles/tokens.css')).toMatch(/--door-bloom:/);
   });
 });
 
