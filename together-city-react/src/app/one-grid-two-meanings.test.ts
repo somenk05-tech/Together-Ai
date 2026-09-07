@@ -191,8 +191,8 @@ describe('one grid, two meanings', () => {
   it('still has the fourteen hubs the API guard was written against', () => {
     expect([...DESIGNABLE_HUBS].sort()).toEqual([
       'astrology', 'beauty', 'dating', 'ecommerce', 'entertainment', 'financial',
-      'fitness', 'jobs', 'medical', 'nutrition', 'pets', 'realestate', 'services',
-      'social',
+      'fitness', 'jobs', 'medical', 'nutrition', 'personalize', 'pets', 'realestate',
+      'services', 'social',
     ]);
   });
 });

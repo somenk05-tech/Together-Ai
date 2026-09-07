@@ -108,7 +108,15 @@ describe('The passport prints what the citizen answered', () => {
   /** Codes are derived, so a fifteenth hub cannot arrive without one — but
    *  they still have to be distinct, or two visas wear the same mark. */
   it('gives every configured hub a distinct code', () => {
-    const keys = [...new Set([...read('src/config/hubs.ts').matchAll(/key:\s*'([a-z]+)'/g)].map((m) => m[1]))];
+    /* THE HUBS, NOT EVERY `key:` IN THE FILE. This read the whole of hubs.ts,
+       which also contains NAV — and NAV has one entry that is not a hub at
+       all: Personal, the citizen's own drawer, which owns no visa and can
+       never be stamped. When Personalize arrived (7 Sep) the two collided at
+       PER and this went red over a pair that will never both appear on a
+       passport. Sliced at the HUBS literal, the way relief.spec reads the
+       same list, so the assertion covers exactly the keys a visa can carry. */
+    const hubs = read('src/config/hubs.ts');
+    const keys = [...new Set([...hubs.slice(hubs.indexOf('export const HUBS')).matchAll(/key:\s*'([a-z]+)'/g)].map((m) => m[1]))];
     expect(keys.length).toBeGreaterThanOrEqual(14);
     const codes = keys.map(hubCode);
     const dupes = codes.filter((c, i) => codes.indexOf(c) !== i);

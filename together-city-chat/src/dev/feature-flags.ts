@@ -196,6 +196,11 @@ export const VISIBILITY_FLAGS: VisibilityFlag[] = [
     + 'menu, which during treatment is most of them — hiding is not closing, but it is not '
     + 'nothing either.'),
   sector('nutrition', 'Nutrition'),
+  /* Personalize hides like any other district, and hiding it hides a DOOR
+     onto ten hubs rather than a hub — each of the ten keeps its own tab, its
+     own billboard and its own switch, so nothing behind this one goes dark
+     when it does. */
+  sector('personalize', 'Personalize'),
   sector('pets', 'Pet Care'),
   sector('realestate', 'Real Estate'),
   sector('services', 'Local Services'),

@@ -24,8 +24,8 @@
  */
 export const DESIGNABLE_HUBS = [
   'astrology', 'beauty', 'dating', 'ecommerce', 'entertainment', 'financial',
-  'fitness', 'jobs', 'medical', 'nutrition', 'pets', 'realestate', 'services',
-  'social',
+  'fitness', 'jobs', 'medical', 'nutrition', 'personalize', 'pets', 'realestate',
+  'services', 'social',
 ] as const;
 
 export type DesignableHub = (typeof DESIGNABLE_HUBS)[number];

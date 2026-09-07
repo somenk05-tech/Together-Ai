@@ -3085,6 +3085,22 @@ html[data-skin="sanmarino"] {
   --on-lamp: #ffffff;
   --on-lamp-soft: rgba(255, 255, 255, .82);
 }
+/* PERSONALIZE (7 Sep). The ink-blue graphite the city would wear if it wore
+   anything — deliberately the least district-like colour on the wheel, because
+   this room is not a subject, it is the ten subjects seen at once. Measured at
+   ΔE 15.3 from its nearest neighbour (2b2d42 vs realestate's 4a5a72), and
+   white reads 13.5:1 on the key. */
+[data-hub="personalize"] {
+  --accent: #2b2d42;
+  --accent-ink: #2b2d42;
+  --accent-soft: rgba(43, 45, 66, .10);
+  --accent-line: rgba(43, 45, 66, .30);
+  --lamp-face: linear-gradient(180deg, #2b2d42 0%, #1f2131 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
+}
+
 [data-hub="pets"] {
   --accent: #8f5528;
   --accent-ink: #8f5528;

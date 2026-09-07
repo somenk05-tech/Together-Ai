@@ -24,6 +24,10 @@ export const HUB_ICON: Partial<Record<HubKey, IconName>> = {
   social: 'people', dating: 'heart', realestate: 'property', jobs: 'job', medical: 'heart',
   financial: 'product', beauty: 'sparkles', fitness: 'star', mail: 'mail', family: 'people',
   services: 'connection', pets: 'paw', ecommerce: 'product',
+  /* A GRID, BECAUSE THAT IS LITERALLY WHAT IS BEHIND THE DOOR — ten districts
+     laid out as banners. Not 'personal': that glyph belongs to the citizen's
+     own drawer, and these two already sit next to each other on the tab row. */
+  personalize: 'grid',
 };
 
 /**

@@ -5983,3 +5983,63 @@ button.own-month-day:hover { border-color: var(--accent); }
    /profile — one class, because the third of them (1a857f55) was the sixth
    object over the ceiling. 30px is the value the inline objects held. */
 .mp-gap { height: 30px; }
+
+/* ══ PERSONALIZE — THE POSTER MADE A ROOM ═══════════════════════════════════
+   Owner, 7 Sep, with Apple One as the reference: a lockup and one sentence
+   held on the left, the services stacked as wide banners on the right.
+
+   THE BANNER IS THE WHOLE ARTWORK. There is no card furniture here at all —
+   no paper beside the picture, no label, no fade, no scrim — because the
+   owner drew nine finished banners and said use them directly. Each one
+   already carries its eyebrow, its headline, its sentence and its icon row,
+   set in this city's own type. Anything this stylesheet added would be the
+   same words a second time in a second size.
+
+   ONE TO A ROW, and that is a measurement rather than a taste. These hold a
+   paragraph of real copy at 2172px wide; two to a row is that paragraph at
+   about four pixels tall. */
+.pz {
+  display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 7fr);
+  gap: clamp(24px, 3.4vw, 64px); align-items: start;
+  max-width: 1360px; margin: 0 auto;
+  padding: clamp(20px, 3vw, 56px) clamp(16px, 2vw, 36px) clamp(32px, 4vw, 64px);
+}
+/* Nine banners is a long column, and a lockup that scrolls away leaves eight
+   of them with nothing to belong to. */
+.pz-say { position: sticky; top: 92px; max-width: 34ch; }
+@media (max-width: 899px) {
+  .pz { grid-template-columns: 1fr; gap: clamp(20px, 4vw, 32px); }
+  .pz-say { position: static; }
+}
+/* The one enormous light line the reference sets its promise in. Light rather
+   than bold, and the tail in the muted ink, because the sentence has a setup
+   and a payoff and only one of them is the promise. */
+.pz-head {
+  margin: var(--s-1) 0 var(--s-3); font-weight: 500;
+  font-size: clamp(28px, 3.4vw, 46px); line-height: 1.1; letter-spacing: -.02em;
+}
+/* The poster sets the payoff on its own line, smaller and in the quiet ink —
+   one sentence with two voices rather than two sentences. */
+.pz-head i { display: block; font-style: normal; font-size: .78em; color: var(--muted); }
+.pz-feet {
+  margin: var(--s-3) 0 0; font-size: var(--fs-2); font-weight: 700;
+  letter-spacing: .18em; text-transform: uppercase; color: var(--muted);
+}
+.pz-empty { font-size: var(--fs-4); line-height: 1.6; }
+
+.pz-run { display: grid; grid-template-columns: 1fr; gap: clamp(12px, 1.2vw, 20px); }
+
+.pz-card {
+  display: block; overflow: hidden; aspect-ratio: 3 / 1;
+  border-radius: var(--r-3); background: var(--well); box-shadow: var(--e1);
+  transition: box-shadow var(--dur-base) var(--ease), transform var(--dur-base) var(--ease);
+}
+.pz-card:hover { box-shadow: var(--e2); transform: translateY(-2px); }
+/* An outline rather than a third shadow with a ring in it: the card already
+   carries two depths, and this is the one place a colour literal would have
+   had to be written. */
+.pz-card:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.pz-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
+@media (prefers-reduced-motion: reduce) {
+  .pz-card:hover { transform: none; }
+}

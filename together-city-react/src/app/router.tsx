@@ -9,6 +9,7 @@ import { ChunkBoundary, RouteError } from './ChunkBoundary';
 import { Home } from '@/pages/Home';
 import { Dashboard } from '@/pages/Dashboard';
 import { HubLanding } from '@/pages/HubLanding';
+import { Personalize } from '@/pages/Personalize';
 import { petsRoutes } from '@/features/pets/routes';
 import { RequireAuth } from '@/features/auth/AuthGate';
 import { NotFound } from '@/pages/NotFound';
@@ -276,6 +277,12 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/beauty', element: <HubLanding hub="beauty" /> },
       { path: '/fitness', element: <HubLanding hub="fitness" /> },
       { path: '/pets', element: <HubLanding hub="pets" /> },
+      /* PERSONALIZE HAS NO LANDING PLATE, BECAUSE ITS LANDING IS ITS CONTENT
+         (owner, 7 Sep). Every other door on this list opens on a photograph
+         with one way in under it; this one opens on the ten districts that
+         read a profile, laid out the way the owner's poster lays them out.
+         A plate here would be a picture of a list, in front of the list. */
+      { path: '/personalize', element: <Personalize /> },
       /* THE DIGITAL STORE'S DOOR OPENS ON THE STORE (owner, 7 Sep: "all
          digital store in the same look"). No landing plate: the district IS
          the storefront, and its first section is where you land. */

@@ -3,7 +3,7 @@ import { useHubTheme } from '@/hooks/useHubTheme';
 import { useAuthStore } from '@/store/auth.store';
 import { CityHeader } from '@/components/CityHeader';
 import { RecentPanel } from '@/components/RecentPanel';
-import { HUBS } from '@/config/hubs';
+import { HUBS, hubDoor, hubIsOpen } from '@/config/hubs';
 import { useCityDesign, useMiraShown } from '@/hooks/useCityDesign';
 import type { HubKey } from '@/types';
 import { InstallCity } from '@/components/InstallCity';
@@ -48,6 +48,10 @@ const PAVILIONS: Pavilion[] = [
   { to: '/beauty', img: 'beautymarket.webp', title: 'Beauty Market' },
   { to: '/fitness', img: 'fitness-hero.webp', title: 'Fitness Hub' },
   { to: '/financial', img: 'financial-district.webp', title: 'Financial District' },
+  // Personalize joins the foot grid on the day it joins the street (owner,
+  // 7 Sep). It is the door onto the ten districts that read a profile, so it
+  // stands beside them rather than above them.
+  { to: '/personalize', img: 'personalize-hub.webp', title: 'Personalize' },
 ];
 
 /* Twelve tiles, six across and two down. This used to be `slice(0, 12)`,
@@ -134,6 +138,12 @@ const DISTRICT_COPY: Partial<Record<HubKey, { name: string; line: string }>> = {
      a room the app does not have is the one thing the golden rule forbids. The
      owner has given it its own line, so it takes it. */
   services: { name: 'Local Services', line: 'Everyone you need, right in your neighborhood.' },
+  /* THE OWNER'S POSTER, 7 SEP, AND THE ONE CARD ON THIS WALK WHOSE PICTURE IS
+     A LIST. Every other plate is a photograph of a place; this one is the ten
+     districts as banners, because that is what is behind the door. The line is
+     the poster's own, with its second clause spelled the way the city spells
+     it — the poster reads "see only what you suits you". */
+  personalize: { name: 'Personalize', line: 'Personalize all aspects of your life. See only what suits you.' },
 };
 
 
@@ -147,7 +157,7 @@ const DISTRICT_COPY: Partial<Record<HubKey, { name: string; line: string }>> = {
  * spelling while the screen prints another is the kind of bug that looks like
  * a mystery, so it is worth having exactly one answer here.
  */
-function districtName(key: HubKey): string {
+export function districtName(key: HubKey): string {
   return DISTRICT_COPY[key]?.name ?? HUBS[key].name;
 }
 
@@ -202,7 +212,10 @@ const PANELS: Panel[] = [
   // has sixteen rooms now, so the branch is unused again and this plate is a
   // link like the other twelve.
   { key: 'pets', img: 'pets-hub.webp' },
+  // The tenth-and-first: a district whose plate is the other ten.
+  { key: 'personalize', img: 'personalize-hub.webp' },
 ];
+
 
 /**
  * THE ORDER YOU WALK THEM IN: A TO Z, BY WHAT THE PLATE SAYS.
@@ -370,13 +383,13 @@ export function Home() {
           )}
           {districts.map((p, panelIndex) => {
             const cfg = HUBS[p.key];
-            const soon = cfg.items.length === 0;   // a hub with no inner pages is not yet a room
+            const soon = !hubIsOpen(cfg);   // no rooms and no door of its own is a facade
             const name = districtName(p.key);
             const { lead, emph } = splitDistrictLine(districtLine(p.key));
             // A room nobody can enter is not linked, only labelled. No district
             // is in that state today; the branch stays because the next one to
             // be built will pass through it before its pages exist.
-            const to = soon ? null : (cfg.items[0]?.path ?? cfg.backPath);
+            const to = soon ? null : hubDoor(cfg);
             const inner = (
               <>
                 {/* THE PICTURE IS INSET, NOT FULL-BLEED, and that is the whole

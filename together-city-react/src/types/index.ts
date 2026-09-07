@@ -9,7 +9,15 @@ export type HubKey =
      no hub behind it, so `Panel['key']` was `HubKey | 'ecommerce'` and four
      branches existed to describe that one exception. It comes back the other
      way round — two rooms first, and the key because of them. */
-  | 'ecommerce';
+  | 'ecommerce'
+  /* PERSONALIZE IS A HUB (owner, 7 Sep), and the cost of that word is worth
+     stating where the type is widened: every map keyed by hub now owes it a
+     photograph, a street line, a glyph, a switch and a consent decision. It is
+     a hub rather than a page because it has the one property a page does not —
+     a door on the street that a citizen can close. What is behind the door is
+     not rooms of its own but the ten districts that read a profile, laid out
+     the way the owner's poster lays them out. */
+  | 'personalize';
 
 export type AuthProvider = 'email' | 'google' | 'phone';
 
@@ -28,7 +36,17 @@ export interface User {
 
 export interface AuthTokens {
   accessToken: string;
-  refreshToken: string;
+  /**
+   * OPTIONAL SINCE 6 SEP, AND ABSENT IS THE GOOD CASE.
+   *
+   * The long-lived refresh token rides an HttpOnly cookie the server has always
+   * set and the client never used. Where that cookie works — every browser that
+   * still accepts a cross-site one, which is nearly all of Android — the client
+   * holds no refresh token at all and this is undefined. Where it is blocked
+   * (Safari's ITP), the body fallback fills it in and it is persisted, exactly
+   * as it always was. See the note in store/auth.store.ts.
+   */
+  refreshToken?: string;
 }
 
 export interface Connection {

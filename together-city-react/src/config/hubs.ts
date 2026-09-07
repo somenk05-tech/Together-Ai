@@ -29,7 +29,46 @@ export interface HubConfig {
   /** Each of the hub's screens has its own sky. The shell carries the page's
    *  name as `data-sky` and the stylesheet picks the picture. One hub. */
   skies?: boolean;
+  /**
+   * THE WAY IN, WHEN THE FIRST ROOM IS NOT IT.
+   *
+   * Every hub until now was a landing plate with a numbered rail behind it, so
+   * "the way in" and "the first room" were the same path and every surface
+   * spelled it `items[0].path`. Personalize breaks that shape honestly: its
+   * landing IS its content — ten districts laid out as banners — so it has no
+   * rail and no first room, and `items[0].path` would be `undefined`.
+   *
+   * Naming the door rather than teaching four surfaces about one exception:
+   * `hubDoor` below is the single answer, and a hub that never sets this reads
+   * exactly as it always did.
+   */
+  door?: string;
   items: SideItem[];         // sidebar menu
+}
+
+/**
+ * THE ONE PATH A HUB'S DOOR OPENS ON.
+ *
+ * Three surfaces ask this — the walk on the home page, the hub landing plate,
+ * and anything that will ask next — and before this function they each spelled
+ * the answer out, which is three places to forget a hub that answers
+ * differently. Precedence is deliberate: an explicit `door` wins, then the
+ * first room, then the hub's own landing, so nothing that existed changes.
+ */
+export function hubDoor(cfg: HubConfig): string {
+  return cfg.door ?? cfg.items[0]?.path ?? cfg.backPath;
+}
+
+/**
+ * IS THERE ANYTHING BEHIND THIS DOOR YET.
+ *
+ * `items.length === 0` used to be the whole test, and it was right while a hub
+ * without rooms was a facade — Pet Care spent four days as one. A hub whose
+ * landing is its own content has no rooms and is not a facade, so the test is
+ * "no rooms AND no door of its own" instead of "no rooms".
+ */
+export function hubIsOpen(cfg: HubConfig): boolean {
+  return Boolean(cfg.door) || cfg.items.length > 0;
 }
 
 /** ── HEADER TABS, IN ALPHABETICAL ORDER ────────────────────────────────────
@@ -110,6 +149,13 @@ export const NAV: NavItem[] = [
   { key: 'nutrition', label: 'Nutrition', path: '/nutrition' },
   // Not a district — the citizen's own drawer. See TabKey above.
   { key: 'personal', label: 'Personal', path: '/personal' },
+  /* PERSONALIZE (owner, 7 Sep): the door onto the ten districts that read a
+     profile. It sorts between Personal and Pets, and the three P words next to
+     each other on one tab row is a real cost — Personal is the citizen's own
+     drawer, Personalize is where they set the city up, Pets is a district.
+     The alphabet does not know that and this list is asserted to be in
+     `localeCompare` order, so the entry goes where the sort puts it. */
+  { key: 'personalize', label: 'Personalize', path: '/personalize' },
   /* AFTER Personal, not before it: 'Per' < 'Pet'. This list is asserted to be
      in `localeCompare` order by a-drawer-of-ones-own.test.ts, which caught the
      wrong one — the two labels differ at the third letter and the eye reads
@@ -492,6 +538,25 @@ export const HUBS: Record<HubKey, HubConfig> = {
      said it would. The walk's plate says "Explore Pet Products" rather than
      "Explore Pet Care" — see DISTRICT_COPY in Home.tsx, which is the only map
      that override touches. */
+  /**
+   * PERSONALIZE — THE HUB WITH NO ROOMS OF ITS OWN, AND THAT IS THE POINT.
+   *
+   * Owner, 7 Sep, with a poster: "Personalize all aspects of your life, see
+   * only what suits you", and under it ten districts as banners. Every other
+   * hub in this file owns rooms; this one owns a VIEW of ten rooms that belong
+   * to other hubs, which is why `items` is empty and `door` is set instead. A
+   * rail here would list ten paths that all leave the hub, and the citizen
+   * would meet each district twice — once as a banner, once as a rail key.
+   *
+   * The banners are drawn by pages/Personalize.tsx from the walk's own art and
+   * the walk's own names, so a district renamed on the home page is renamed
+   * here in the same edit. Nothing about the ten hubs changes: this is a door,
+   * not a container.
+   */
+  personalize: {
+    key: 'personalize', name: 'Personalize', tag: 'Set up every part of your life, once',
+    backPath: '/personalize', door: '/personalize', items: [],
+  },
   pets: {
     key: 'pets', name: 'Pets', tag: 'Everything your pet needs, in one place', backPath: '/pets',
     /* The sixteen rooms live with the feature that owns them, so adding a room

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth.store';
 import type { HubKey } from '@/types';
-import { HUBS } from '@/config/hubs';
+import { HUBS, hubDoor } from '@/config/hubs';
 import { useHubTheme } from '@/hooks/useHubTheme';
 import { HubConsentGate } from '@/features/privacy/HubConsentGate';
 
@@ -47,6 +47,10 @@ export const HUB_HERO: Partial<Record<HubKey, string>> = {
   // nearest thing in the library; it is a stand-in, not the right picture, and
   // it should be replaced when Mail gets art of its own.
   mail: 'connections-hero.webp',
+  /* The owner's poster, set to the plate's own shape. It is the one billboard
+     in the city that is a LIST rather than a photograph, because the room
+     behind it is a list — see pages/Personalize.tsx. */
+  personalize: 'personalize-hub.webp',
 };
 
 /**
@@ -73,6 +77,9 @@ export const HUB_LINE: Partial<Record<HubKey, string>> = {
   astrology: 'Your stars. Your journey. Your timing.',
   pets: 'Everything your pet needs. All in one place.',
   ecommerce: 'Your shopping, personalized or wide open.',
+  // The owner's poster line, one word shorter: the poster sets it over two
+  // lines with a comma, and a billboard reads it in one.
+  personalize: 'Personalize all aspects of your life.',
 };
 
 /**
@@ -139,7 +146,7 @@ export function setLine(line: string): { before: string[]; hero: string; after: 
 export function HubLanding({ hub }: { hub: HubKey }) {
   useHubTheme(hub);
   const cfg = HUBS[hub];
-  const firstInner = cfg.items[0]?.path ?? cfg.backPath;
+  const firstInner = hubDoor(cfg);
   const heroSrc = `/assets/img/${HUB_HERO[hub] ?? `${hub}.webp`}`;
   // The poster earns one showing (consumer review #7): a returning citizen
   // walks straight into their own kitchen. First visit still sees it (and the
