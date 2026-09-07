@@ -131,10 +131,30 @@ describe('the nine banners', () => {
     expect(read('pages/Personalize.tsx')).toMatch(/ENTERTAINMENT IS ABSENT/);
   });
 
+  it('gives Beauty a men\u2019s cut, and nothing else a second banner', () => {
+    /* Owner, 7 Sep: "update beauty for men users, only female keep to see
+       what's already there." One rule, one file per exception, and it reads
+       the HALL's answer rather than a second one — so nobody lands in a hall
+       of men beside a shelf of lipstick. */
+    const at = page.indexOf('const MENS_CUT');
+    const keys = [...page.slice(at, page.indexOf(');', at)).matchAll(/'([a-z]+)'/g)].map((m) => m[1]);
+    expect(keys).toEqual(['beauty']);
+    expect(page).toMatch(/hall === 'male' && MENS_CUT\.has\(key\) \? `\$\{key\}-male` : key/);
+    const problems: string[] = [];
+    for (const key of keys) {
+      const path = join(APP, 'public/assets/img/personalize', `${key}-male.webp`);
+      if (!existsSync(path)) { problems.push(`missing ${key}-male.webp`); continue; }
+      const kb = Math.round(statSync(path).size / 1024);
+      if (kb > 160) problems.push(`${key}-male.webp is ${kb} KB`);
+    }
+    expect(problems).toEqual([]);
+  });
+
   it('draws the owner\u2019s own banner, one finished file per district', () => {
     // "Use these images directly." One file per key, named by the key, so a
     // tenth banner is one line in the list and one file beside the others.
-    expect(page).toMatch(/src=\{`\/assets\/img\/personalize\/\$\{key\}\.webp`\}/);
+    // `cut` is the key, or the key plus `-male` where a men's banner was drawn.
+    expect(page).toMatch(/src=\{`\/assets\/img\/personalize\/\$\{cut\}\.webp`\}/);
     const problems: string[] = [];
     for (const key of NINE) {
       const path = join(APP, 'public/assets/img/personalize', `${key}.webp`);

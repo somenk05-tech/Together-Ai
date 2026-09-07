@@ -46,6 +46,26 @@ import { districtName } from '@/pages/Home';
  * a different reason: nothing in any of them is set up from a profile, so a
  * banner would promise a form that does not exist.
  */
+/**
+ * THE DISTRICTS WITH A MEN'S CUT OF THEIR BANNER (owner, 7 Sep: "update
+ * beauty for men users, only female keep to see what's already there").
+ *
+ * ONE RULE, ONE FILE PER EXCEPTION. Beauty's banner is a woman at a mirror and
+ * a shelf of colour cosmetics; the men's cut is the same room said in the same
+ * type — MEN'S SHOP, skin, beard, hair, wellness. Nothing else is different
+ * about it: same 3:1, same page, same door.
+ *
+ * IT READS THE HALL'S OWN ANSWER, not a second one. `hall` is already the
+ * page's decision about which pictures this citizen is shown — Male on an
+ * explicit Male, the other cut for everyone else — so a district with a men's
+ * banner follows it and nobody can end up in a hall of men beside a shelf of
+ * lipstick. A district NOT in this set keeps its one banner whatever the
+ * answer, which is the owner's second half: only Beauty changes.
+ *
+ * Adding the next one is a file and a key.
+ */
+const MENS_CUT: ReadonlySet<HubKey> = new Set<HubKey>(['beauty']);
+
 const BANNERS: readonly HubKey[] = [
   'beauty', 'fitness', 'nutrition', 'medical', 'financial',
   'realestate', 'astrology', 'dating', 'pets',
@@ -162,19 +182,24 @@ export function Personalize() {
             <Link to="/profile">Design your services</Link>.
           </p>
         )}
-        {shown.map((key, i) => (
+        {shown.map((key, i) => {
+          // The men's cut where one was drawn, and the one banner everywhere
+          // else — the same answer the hall above the page is standing on.
+          const cut = hall === 'male' && MENS_CUT.has(key) ? `${key}-male` : key;
+          return (
           /* The picture carries every word, so it is decorative and the LINK
              holds the name. An alt describing the banner would read the
              district's name a second time to the one person who cannot see
              that it is already written on it. */
           <Link key={key} to={HUBS[key].backPath} data-hub={key} className="pz-card"
             aria-label={districtName(key)}>
-            <img className="no-case" src={`/assets/img/personalize/${key}.webp`} alt=""
+            <img className="no-case" src={`/assets/img/personalize/${cut}.webp`} alt=""
               width={1600} height={533}
               loading={i < 2 ? 'eager' : 'lazy'} decoding="async"
               fetchPriority={i === 0 ? 'high' : undefined} />
           </Link>
-        ))}
+          );
+        })}
       </div>
     </div>
     </>
