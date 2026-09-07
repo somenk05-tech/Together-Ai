@@ -22,7 +22,7 @@ interface Zone { to: string; label: string; shape: 'poly' | 'ellipse'; points?: 
 // it simply has no door on this page any more.
 const ZONES: Zone[] = [
   { to: '/nutrition', label: 'Nutrition & Groceries', shape: 'poly', points: '178.4,364.2 461.2,364.2 461.2,496.4 178.4,496.4' },
-  { to: '/social', label: 'Together City TV', shape: 'poly', points: '173.3,502.5 381.9,502.5 381.9,652.1 173.3,652.1' },
+  { to: '/social', label: 'Together TV', shape: 'poly', points: '173.3,502.5 381.9,502.5 381.9,652.1 173.3,652.1' },
   { to: '/astrology', label: 'Astrology Hub', shape: 'poly', points: '183.5,665.3 381.9,665.3 381.9,794.5 183.5,794.5' },
   { to: '/dating', label: 'Matchmaking Hub', shape: 'ellipse', cx: 951.5, cy: 524.9, rx: 132.2, ry: 73.2 },
   { to: '/medical', label: 'Medical Hub', shape: 'poly', points: '1144.8,290.9 1441.8,290.9 1441.8,415.0 1144.8,415.0' },
@@ -39,7 +39,7 @@ const PAVILIONS: Pavilion[] = [
   // just not being advertised here.
   { to: '/astrology', img: 'astrology-hub.webp', title: 'Astrology Hub' },
   { to: '/nutrition', img: 'nutrition-and-groceies.webp', title: 'Nutrition & Groceries' },
-  { to: '/social', img: 'social-life.webp', title: 'Together City TV' },
+  { to: '/social', img: 'social-life.webp', title: 'Together TV' },
   { to: '/dating', img: 'dating-hub.webp', title: 'Matchmaking Hub' },
   { to: '/entertainment', img: 'entertainment.webp', title: 'Entertainment' },
   { to: '/realestate', img: 'real-estate.webp', title: 'Real Estate' },
@@ -102,7 +102,8 @@ const DISTRICT_COPY: Partial<Record<HubKey, { name: string; line: string }>> = {
   beauty: { name: 'Beauty', line: 'Your look, your way.' },
   /* THE NAME STAYS TOGETHER CITY TV. The owner's list heads this one SOCIAL,
      which is what the district IS — but the hub was renamed on 5 Sep and the
-     tab bar, the rail and the breadcrumb all say Together City TV. A card that
+     tab bar, the rail and the breadcrumb all say Together TV (shortened from
+     Together City TV on 7 Sep). A card that
      said Social would be the only place in the city that did. The LINE is the
      owner's, and it is the one painted on the board. */
   /* AND ITS LINE IS THE CHANNEL, NOT THE NEIGHBOURHOOD (owner, 6 Sep, an hour
@@ -114,7 +115,7 @@ const DISTRICT_COPY: Partial<Record<HubKey, { name: string; line: string }>> = {
      THE COMMA IS OURS. The card sets its line in two weights and splits at the
      last clause; without one the whole sentence is set in the ink and the
      payoff has nothing to be a payoff to. Not a word is added or dropped. */
-  social: { name: 'Together City TV', line: 'Your own personal channel, for your viewers.' },
+  social: { name: 'Together TV', line: 'Your own personal channel, for your viewers.' },
   /* ASTRA IS THE BILLBOARD'S OWN NAME, and this is the one card where the
      district's name is not enough on its own: the picture says "Talk to
      ASTRA", so a card labelled only Astrology is a label beside a name it

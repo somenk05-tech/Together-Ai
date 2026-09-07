@@ -823,7 +823,7 @@ export function CreatePost() {
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 12, minHeight: 44 }}>
             <Icon name="back" size={15} /> Back to the feed
           </Link>
-          <div className="eyebrow">Together City TV · Create Post</div>
+          <div className="eyebrow">Together TV · Create Post</div>
           <h1>Share with your city</h1>
           <p>A photo, a video, a place or a thought — any one of them is a post.</p>
         </div>

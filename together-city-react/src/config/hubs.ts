@@ -164,7 +164,7 @@ export const NAV: NavItem[] = [
   { key: 'realestate', label: 'Real estate', path: '/realestate' },
   // Renamed from "Social life" (owner, 5 Sep): the hub is a television now,
   // and the city's own name is on the set. Still last in `localeCompare` order.
-  { key: 'social', label: 'Together City TV', path: '/social' },
+  { key: 'social', label: 'Together TV', path: '/social' },
   /* TRAVEL LEFT THE STREET (owner, 15 Aug), NOT THE CITY. The hub keeps its
      config, its rooms, its routes and its art below — /travel and every page
      under it still answer, Mira can still take you there, and the command
@@ -323,7 +323,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   social: {
-    key: 'social', name: 'Together City TV', tag: 'The city, one moment at a time', backPath: '/social', dark: false,
+    key: 'social', name: 'Together TV', tag: 'The city, one moment at a time', backPath: '/social', dark: false,
     items: [
       // The map page was removed by the review (p18) — it had never held a pin.
       // Create Post left the rail by the owner's call (15 Aug): the page

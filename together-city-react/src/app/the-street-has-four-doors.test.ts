@@ -25,10 +25,13 @@ describe('the four doors, in the owner’s order', () => {
     expect([...HEADER_TABS]).toEqual(['personalize', 'ecommerce', 'services', 'social']);
   });
 
-  it('reads Personalize · Digital Store · Local Market · Together City TV', () => {
+  it('reads Personalize · Digital Store · Local Market · Together TV', () => {
+    // The fourth was "Together City TV" until 7 Sep, when the owner shortened
+    // it: the city's name is already on the masthead above the row, and a tab
+    // that repeats it is the signature said twice.
     const label = (key: string) => NAV.find((n) => n.key === key)?.label;
     expect(HEADER_TABS.map(label))
-      .toEqual(['Personalize', 'Digital Store', 'Local Market', 'Together City TV']);
+      .toEqual(['Personalize', 'Digital Store', 'Local Market', 'Together TV']);
   });
 
   it('is the owner’s order, not the alphabet — so it is written down, not sorted', () => {

@@ -53,7 +53,7 @@ export const FLAGS: FlagDef[] = [
   { key: 'beauty', label: 'Beauty', turnsOff: 'Photo analysis, routines and the beauty profile.', prefixes: ['beauty'], hubPath: '/beauty' },
   { key: 'fitness', label: 'Fitness', turnsOff: 'Workouts, body goals and sleep.', prefixes: ['fitness'], hubPath: '/fitness' },
   { key: 'financial', label: 'Financial', turnsOff: 'The wallet and everything in the financial hub.', prefixes: ['financial', 'wallet'], hubPath: '/financial' },
-  { key: 'social', label: 'Social Life', turnsOff: 'The feed, posting, and social profiles. Chat and Mail are NOT affected.', prefixes: ['social'], hubPath: '/social' },
+  { key: 'social', label: 'Together TV', turnsOff: 'The feed, posting, and social profiles. Chat and Mail are NOT affected.', prefixes: ['social'], hubPath: '/social' },
   { key: 'nutrition', label: 'Nutrition', turnsOff: 'Meal plans, the food journal, grocery lists and the nutrition profile. Family Nutrition goes with it.', prefixes: ['nutrition'], hubPath: '/nutrition' },
   { key: 'pets', label: 'Pet Care', turnsOff: 'Pet profiles, the pet shelf and everything in the pet district.', prefixes: ['pets'], hubPath: '/pets' },
   /**
@@ -204,7 +204,7 @@ export const VISIBILITY_FLAGS: VisibilityFlag[] = [
   sector('pets', 'Pet Care'),
   sector('realestate', 'Real Estate'),
   sector('services', 'Local Market'),
-  sector('social', 'Social Life'),
+  sector('social', 'Together TV'),
   /**
    * ── THE THREE THAT ARE NOT DISTRICTS (owner, 27 Aug: "add email chat and
    * personal services too") ────────────────────────────────────────────────

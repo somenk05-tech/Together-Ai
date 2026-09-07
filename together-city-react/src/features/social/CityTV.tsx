@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Icon } from '@/components/ui/Icon';
 import { isMuted, setMuted, subscribeMuted, playWithSharedSound, releasePlayback } from '@/lib/mediaState';
 import { onStaleMedia } from '@/lib/remint';
+import { attachVideo } from '@/lib/hls';
 import { Avatar } from './PostCard';
 import type { Post } from './api';
 import { channelsOf, tuneIndex } from './city-tv';
@@ -210,6 +211,26 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
      browser cannot decode, a file too far away — is not a broadcast; move on.
      An error moves on at once, after asking the feed to re-mint its links. */
   const currentId = current?.id;
+
+  /* ── THE SOURCE IS ATTACHED, NOT DECLARED ────────────────────────────────
+     A ladder has to be handed to hls.js, and hls.js owns a MediaSource that
+     must be torn down when the channel changes — a leaked instance goes on
+     fetching segments for a video nobody is watching. `attachVideo` returns
+     its own teardown and this effect is that lifetime: keyed on the video's
+     id, which is also what remounts the element.
+
+     Both are in the dependency list on purpose. `currentUrl` and `currentHls`
+     change together with the id in practice, but a re-mint of the media links
+     (see `stale()` on the error path) changes the URLs under the same id — and
+     re-minting exists precisely so the video can be attached again. */
+  const currentUrl = current?.url;
+  const currentHls = current?.hlsUrl ?? null;
+  useEffect(() => {
+    const el = video.current;
+    if (!el || !currentUrl) return;
+    return attachVideo(el, { url: currentUrl, hlsUrl: currentHls });
+  }, [currentId, currentUrl, currentHls]);
+
   useEffect(() => {
     setReady(false);
     setElMuted(false);
@@ -285,8 +306,21 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
     <div className={awake || paused || queue || vol ? 'tv' : 'tv asleep'} ref={screen}>
       {head}
       <div className={rotated ? 'tv-screen rotated' : 'tv-screen'} aria-live="off">
-        <video key={current.id} ref={video} className="tv-media" src={current.url} poster={current.thumbUrl ?? undefined}
-          playsInline autoPlay muted={muted} preload="auto"
+        {/* ── NO `src` HERE ANY MORE, AND THAT IS THE POINT ──────────────────
+            The source is attached in an effect, because there may be a LADDER
+            behind this video and `<video src>` cannot express "hand this
+            element to hls.js". See lib/hls.ts for the three paths and the
+            order they are tried in; see media/hls-ladder.ts on the server for
+            what a ladder is and why one object per rung.
+
+            `preload` stays `metadata` for the fallback path — a post may carry
+            an hour of video at 2 GB, and `auto` is "take as much of this as you
+            can", said about that file, on 4G, started again from scratch every
+            time the remote changes channel. With a ladder attached hls.js does
+            its own buffering and this attribute stops mattering; without one it
+            is still the whole defence. */}
+        <video key={current.id} ref={video} className="tv-media" poster={current.thumbUrl ?? undefined}
+          playsInline autoPlay muted={muted} preload="metadata"
           onLoadedMetadata={(e) => { setReady(true); setClock({ time: e.currentTarget.currentTime, duration: e.currentTarget.duration || 0 }); }}
           onDurationChange={(e) => {
             // Read the element NOW: inside a state updater the event's
@@ -366,7 +400,7 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
 
       {/* THE REMOTE, over the foot of the screen: the slider along its top —
           where the video is, and how long it is — and the keys beneath. */}
-      <div className="tv-bar" role="toolbar" aria-label="Together City TV">
+      <div className="tv-bar" role="toolbar" aria-label="Together TV">
         <div className="tv-seek">
           <span className="tv-seek-t">{clockText(clock.time)}</span>
           <input type="range" className="tv-scrub" min={0} max={clock.duration || 0} step={0.1} value={Math.min(clock.time, clock.duration || 0)}

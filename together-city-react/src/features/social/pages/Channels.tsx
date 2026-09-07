@@ -44,7 +44,7 @@ export function Channels() {
     <div>
       <div className="sl-head">
         <div className="sl-head-t">
-          <div className="eyebrow">Together City TV</div>
+          <div className="eyebrow">Together TV</div>
           <h1>Together City Channels</h1>
           <p>Every channel is a citizen. Tap one and the set tunes in.</p>
         </div>
