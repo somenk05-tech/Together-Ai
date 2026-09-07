@@ -224,6 +224,8 @@ const Investor = lazy(() => import('@/pages/Investor').then((m) => ({ default: m
    AppShell block below rather than under a HubLayout for exactly one reason:
    the owner asked for a shop with no rail and one way back. A sidebar is not
    something a page can opt out of once it is inside that layout. */
+const PersonalizedStore = lazy(() => import('@/features/ecommerce/pages/PersonalizedStore').then((m) => ({ default: m.PersonalizedStore })));
+const OpenMarket = lazy(() => import('@/features/ecommerce/pages/OpenMarket').then((m) => ({ default: m.OpenMarket })));
 const BeautyShop = lazy(() => import('@/features/ecommerce/pages/BeautyShop').then((m) => ({ default: m.BeautyShop })));
 const BeautyShopBag = lazy(() => import('@/features/ecommerce/pages/BeautyShop').then((m) => ({ default: m.BeautyShopBag })));
 const SupplementsShop = lazy(() => import('@/features/ecommerce/pages/SupplementsShop').then((m) => ({ default: m.SupplementsShop })));
@@ -275,7 +277,13 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/pets', element: <HubLanding hub="pets" /> },
       { path: '/ecommerce', element: <HubLanding hub="ecommerce" /> },
       /* The white storefronts. Behind RequireAuth because a shortlist is built
-         from somebody's own profile and a bag is their money. */
+         from somebody's own profile and a bag is their money.
+         THE TWO FLOORS ARE STOREFRONTS TOO (owner, 6 Sep): the Personalized
+         Store and the Open Market are one white store each with the shelves as
+         tabs on top, so they sit here, above every HubLayout block, rather
+         than under the district's rail. */
+      { path: '/ecommerce/store', element: <RequireAuth>{wrap(<PersonalizedStore />)}</RequireAuth> },
+      { path: '/ecommerce/market', element: <RequireAuth>{wrap(<OpenMarket />)}</RequireAuth> },
       { path: '/ecommerce/shop/beauty', element: <RequireAuth>{wrap(<BeautyShop />)}</RequireAuth> },
       { path: '/ecommerce/shop/beauty/bag', element: <RequireAuth>{wrap(<BeautyShopBag />)}</RequireAuth> },
       { path: '/ecommerce/shop/supplements', element: <RequireAuth>{wrap(<SupplementsShop />)}</RequireAuth> },
@@ -517,11 +525,10 @@ const ROUTE_BLOCKS: RouteObject[] = [
     })),
   },
   {
-    /* E-COMMERCE. Two rooms, and the Pet district's shape rather than a pair
-       of hand-written entries: the feature exports plain route objects and the
-       auth gate and the chunk boundary are applied here, once. A room that
-       forgot its RequireAuth would look identical until the day somebody's
-       shortlist was readable signed out. */
+    /* DIGITAL STORE. The cart under the rail — the Pet district's shape: the
+       feature exports plain route objects and the auth gate and the chunk
+       boundary are applied here, once. The two floors left this block on
+       6 Sep for the storefront block above: a store wears no rail. */
     element: <HubLayout hub={HUBS.ecommerce} />,
     children: ecommerceRoutes.map((route) => ({
       ...route,

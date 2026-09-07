@@ -7,6 +7,13 @@ Two rooms behind one facade, added 22 Aug on the owner's word.
 | Personalized Store | `/ecommerce/store` | The shelves that read a profile and answer with a shortlist |
 | Open Market | `/ecommerce/market` | The same shops, by category, with nothing ranked for you |
 
+Since 6 Sep each room is a **storefront** rather than a door to one: a white
+page with the store's bar, the shelves as a row of category tabs under it
+(`?tab=`), and the shelf you chose drawn in place by the same `StoreFront` the
+standalone shops use (`store/TabbedFloor.tsx`, `store/Floor.tsx`). A tab with
+no shop behind it — the grocery list, a room in another hub, a shelf not built
+yet — is a window with one door in it or none.
+
 ## What this district is, and what it is not
 
 It sells nothing of its own. There is no product table in the API — `commerce`
@@ -34,11 +41,11 @@ whose path stops resolving drops out of the rendered list, and
 |---|---|
 | `src/types/index.ts` | `ecommerce` joins `HubKey` |
 | `src/config/hubs.ts` | the street tab (A–Z, between Dating and Entertainment) + the two-room config |
-| `src/app/router.tsx` | the `/ecommerce` landing + one `HubLayout` block over `ecommerceRoutes` |
+| `src/app/router.tsx` | the `/ecommerce` landing; the two floors and the shops in the railless storefront block; one `HubLayout` block over `ecommerceRoutes` (the cart) |
 | `src/pages/HubLanding.tsx` | `HUB_HERO` and `HUB_LINE` |
 | `src/nav/registry.ts` | `HUB_ICON` → `product` |
 | `src/pages/Home.tsx` | the walk plate + its billboard copy |
-| `src/styles/layout.css` | the `.ec-*` block — no new token, no new depth, no colour literal |
+| `src/styles/layout.css` | the `.sf-*` block (the floor: sticky top, tabs, the window) and the `.st-*` block (the storefront) — no new token, no new depth, no colour literal |
 | `public/assets/img/` | `e-commerce.webp` (1915×821) and `e-commerce-tile.webp` (448×280) |
 
 No phone poster yet: `HUB_PORTRAIT` has no entry, so a phone falls back to the

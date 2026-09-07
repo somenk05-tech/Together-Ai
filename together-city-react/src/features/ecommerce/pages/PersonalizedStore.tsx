@@ -1,61 +1,45 @@
-import { PageHeader } from '@/components/ui';
-import { SHOPS, fittedShelves } from '../shelves';
-import { ShelfTile } from '../ShelfTile';
-import { GroceryDownloadCard } from '../store/GroceryDownloadCard';
+import { useHubTheme } from '@/hooks/useHubTheme';
+import { fittedShelves, shelfName } from '../shelves';
+import { TabbedFloor } from '../store/TabbedFloor';
+import { useBeautyShop } from '../store/useBeautyShop';
+import { useFitnessShop } from '../store/useFitnessShop';
+import { useGemShop } from '../store/useGemShop';
 
 /**
  * ── THE PERSONALIZED STORE ──────────────────────────────────────────────────
  *
  * The left-hand door of the facade: "Made for you. Picked with care."
  *
- * Every card is a room that already existed and already reads a profile — the
+ * IT IS A STORE NOW, NOT A DOOR TO ONE (owner, 6 Sep: "remove the image and
+ * just create a Shopify store for both pages with category tabs on top"). It
+ * was a grid of six photographs, each opening a white storefront somewhere
+ * else. The photographs are gone and the storefront is here: one white page,
+ * the bar, the shelves as a row of tabs, and the shelf you chose drawn under
+ * them by the same `StoreFront` those six doors used to open.
+ *
+ * Every tab is a room that already existed and already reads a profile — the
  * routine built from a skin assessment, the kit matched to a body goal, the
- * list built from a meal plan, the stone read off a birth chart, the diet built
- * from a pet's own record. None of that is computed here and none of it is
- * repeated here: this page is the door, and the shelf behind it is the engine.
+ * list built from a meal plan, the stone read off a birth chart, the diet
+ * built from a pet's own record. None of that is computed here and none of it
+ * is repeated here: the shelves are read out of shelves.ts, their names out of
+ * the sidebar of the room each belongs to, and the three that have shops are
+ * opened by the adapters that always opened them.
  *
- * THE WHOLE CARD IS THE DOOR (owner, 22 Aug), which cost the second link. Each
- * card used to carry "Reads your Skin & Hair Profile — open it" underneath, and
- * a link inside a clickable card is a target inside a target: on a phone the
- * two are four millimetres apart and the small one wins by accident. The
- * profile is named at the top of the shop instead, where somebody looking at a
- * shortlist that is not about them yet is actually standing.
+ * THE OTHER THREE ARE NOT SHOPS AND DO NOT PRETEND TO BE. The grocery list has
+ * no prices, so its tab hands the list over as a file. The pet plan lives in
+ * Pet Care, so its tab is a window with that room's door in it. Costume
+ * jewellery is not built, so its tab says so and opens nothing.
  *
- * AND WHERE A SHELF HAS A SHOP, THE CARD OPENS THE SHOP. Beauty is the first:
- * `/ecommerce/shop/beauty` is the routine's shortlist as a white storefront
- * with its own bag and till. The other four still open their hub's own room —
- * a card that promised a shop and delivered a district would be the 10 Aug
- * mistake in miniature.
- *
- * THE CARD IS A PHOTOGRAPH NOW (owner, 22 Aug), and it is `ShelfTile` rather
- * than markup written here — the same component the Open Market draws, so the
- * two floors cannot end up different sizes. What each tile carries, and what it
- * stopped carrying, is argued in that file.
+ * `useHubTheme(null)` for the same reason every storefront calls it: the page
+ * is white from every direction, whichever district you walked in from.
  */
 export function PersonalizedStore() {
-  const shelves = fittedShelves();
+  useHubTheme(null);
   return (
-    <>
-      <PageHeader
-        eyebrow="Digital Store"
-        title="Personalized Store"
-        sub="Each shelf reads one profile and answers with a shortlist, not a catalogue."
-      />
-      <div className="ec-run">
-        {shelves.map((s) => (s.download ? (
-          /* ONE CARD IN THE RUN IS NOT A DOOR. The grocery list is the only
-             shelf here that cannot become a shop, so rather than sending
-             somebody to another hub to fetch their own list, the card hands it
-             over. Same material, same place in the grid, different verb. */
-          <GroceryDownloadCard key={s.path} shelf={s} />
-        ) : (
-          <ShelfTile key={s.path ?? s.name} soon={Boolean(s.soon)} to={(s.shop && SHOPS[s.shop]?.shelf.path) ?? s.path} art={s.art} name={s.category ?? s.name} />
-        )))}
-      </div>
-      <p className="ec-note">
-        Every product belongs to the hub that verified it — each card opens that shop.
-        The grocery list has no price, so its card hands you the list.
-      </p>
-    </>
+    <TabbedFloor
+      name={shelfName('ecommerce', '/ecommerce/store')}
+      shelves={fittedShelves()}
+      shopOf={{ beauty: useBeautyShop, supplements: useFitnessShop, gemstones: useGemShop }}
+    />
   );
 }

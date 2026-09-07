@@ -47,21 +47,13 @@ interface Shelf {
    *  — there is no room — which is what stops the tile being a door. */
   path?: string;
   /**
-   * THE PICTURE THE CARD IS MADE OF (owner, 22 Aug). A file in
-   * /assets/img, not a URL and not a background in a stylesheet: the tile
-   * renders it as an `<img>` so it lazy-loads and so the shelf that owns the
-   * card owns the picture on it. Six pictures cover ten cards because the two
-   * floors show the same six shelves — the Beauty Market is the same shop
-   * whether you were sent to it or walked in, and giving it two faces would be
-   * telling somebody they are two places.
-   */
-  art: string;
-  /**
    * THE NAME ON THE CARD, WHEN IT IS NOT THE NAME OF THE ROOM.
    *
    * Written for the Open Market, where it is the AISLE — that floor is an
    * aisle board and its masthead says so, and the fitness card had to read
    * "Supplements" rather than "The Store". Every open shelf declares one.
+   * Since 6 Sep it is the word on the TAB: both floors are one storefront
+   * with the shelves as a row of categories on top, and this is the category.
    *
    * IT IS NOT ONLY THE MARKET'S ANY MORE (owner, 23 Aug: the pets card should
    * say "Pets", not "Diet plan"). The rule used to be "the market names the
@@ -80,17 +72,18 @@ interface Shelf {
   /** the profile this shelf reads before it recommends anything, and the room
    *  where it is filled in. A shelf you simply browse has none. */
   reads?: { name: string; path: string };
-  /* THE SHELF HAS A SHOP OF ITS OWN (owner, 22 Aug). Where this is set the card
-     opens a white storefront under /ecommerce/shop rather than the hub's own
-     room — the shortlist as a shop window, with the bag and the till inside it.
-     Where it is not set the card still opens the room, which is the honest
-     answer for a shelf whose shop does not exist yet: four of the five are in
-     that state today and each needs an adapter of its own. */
+  /* THE SHELF HAS A SHOP OF ITS OWN (owner, 22 Aug). Where this is set the
+     shelf is a white storefront — the shortlist as a shop window, with the
+     bag and the till inside it — under /ecommerce/shop on its own, and since
+     6 Sep drawn in place under its tab on the floor. Where it is not set the
+     tab is a window with the room's door in it, which is the honest answer
+     for a shelf whose shop does not exist: a shop needs an adapter of its
+     own, and a tab that drew a room as if it were one would be inventing it. */
   shop?: string;
   /* THE LIST IS HANDED OVER, NOT LINKED TO (owner, 22 Aug). The grocery shelf
      has no prices and no order endpoint, so it never became a shop — and
      sending somebody to the Nutrition hub to fetch their own list is a trip
-     for a thing that fits in a file. This card downloads it. */
+     for a thing that fits in a file. Its tab downloads it. */
   download?: boolean;
   /**
    * ── A SHELF THE CITY HAS NOT BUILT YET (owner, 23 Aug) ────────────────────
@@ -111,10 +104,10 @@ interface Shelf {
    * shelf with `soon` must have no path, and a shelf without it must resolve
    * against a real sidebar entry. Neither can be quietly relaxed.
    *
-   * AND IT IS NOT A DOOR. `ShelfTile` renders an `<article>` rather than a
-   * `<Link>` when nothing is passed to open — a coming-soon card that is
-   * clickable is the 10 Aug mistake in miniature, which is the reason this
-   * whole district was deleted once.
+   * AND IT OPENS NOTHING. Its tab says "Soon" and the pane under it says
+   * "Coming soon" with no door in it (`RoomPane`, store/Floor.tsx) — a
+   * coming-soon shelf that opens something is the 10 Aug mistake in
+   * miniature, which is the reason this whole district was deleted once.
    */
   soon?: { name: string };
 }
@@ -141,50 +134,50 @@ function resolve(shelf: Shelf): ShelfCard | null {
 
 /** Shelves that read something you filled in and answer with a shortlist. */
 export const FITTED: Shelf[] = [
-  { hub: 'beauty', path: '/beauty/routine', art: 'ec-skin-hair.webp', reads: { name: 'Skin & Hair Profile', path: '/beauty/profile' }, shop: 'beauty' },
-  { hub: 'fitness', path: '/fitness/supplements', art: 'ec-supplements.webp', reads: { name: 'Training Profile', path: '/fitness/profile' }, shop: 'supplements' },
+  { hub: 'beauty', path: '/beauty/routine', reads: { name: 'Skin & Hair Profile', path: '/beauty/profile' }, shop: 'beauty' },
+  { hub: 'fitness', path: '/fitness/supplements', reads: { name: 'Training Profile', path: '/fitness/profile' }, shop: 'supplements' },
   /* NO SHOP FOR THE GROCERY LIST, at the owner's call (22 Aug). It is a list
      of ingredients with no prices on it and no order endpoint behind it —
      ordering has been coming-soon in that hub for a while. A white storefront
      with no till would be a second view of a page that already works, and a
      till on it would be inventing one. So it is not a door at all: the card
      hands the list over as a file. */
-  { hub: 'nutrition', path: '/nutrition/grocery', art: 'ec-grocery.webp', reads: { name: 'Food Preference Profile', path: '/nutrition/preferences' }, download: true },
-  { hub: 'astrology', path: '/astrology/gemstones', art: 'ec-gemstones.webp', reads: { name: 'Astrology Profile', path: '/profile/astrology' }, shop: 'gemstones' },
+  { hub: 'nutrition', path: '/nutrition/grocery', reads: { name: 'Food Preference Profile', path: '/nutrition/preferences' }, download: true },
+  { hub: 'astrology', path: '/astrology/gemstones', reads: { name: 'Astrology Profile', path: '/profile/astrology' }, shop: 'gemstones' },
   /* AND THIS ONE IS CALLED "PETS" RATHER THAN "DIET PLAN" (owner, 23 Aug).
      The room is called Diet plan and stays called that — inside the Pets rail
      it is one of six rooms and the name says which. On a shelf of five cards
      it was the only one naming a FUNCTION where the other four name what is
      being sold, so it read as the odd card rather than as the pet shelf. */
-  { hub: 'pets', path: '/pets/plan', art: 'ec-pets.webp', category: 'Pets', reads: { name: 'Pet profiles', path: '/pets/profiles' } },
+  { hub: 'pets', path: '/pets/plan', category: 'Pets', reads: { name: 'Pet profiles', path: '/pets/profiles' } },
   /* COSTUME JEWELLERY, AND IT READS NOTHING YET. It is on this floor rather
      than the market's because the owner put it here, and the floor's promise
      survives it: the shelves here answer a profile, and the profile this one
      will answer is the same style record the beauty rooms already keep. No
      `reads` until that is wired, because naming a profile a shelf does not
      consult would be inventing the shortlist rather than the shop. */
-  { art: 'ec-jewellery.webp', soon: { name: 'Costume Jewellery' } },
+  { soon: { name: 'Costume Jewellery' } },
 ];
 
 /** Shelves you walk yourself, filed under the aisle they belong to. */
 export const OPEN: Shelf[] = [
-  { hub: 'beauty', path: '/beauty/market', art: 'ec-skin-hair.webp', category: 'Skin & hair', shop: 'skin-hair' },
-  { hub: 'fitness', path: '/fitness/store', art: 'ec-supplements.webp', category: 'Supplements', shop: 'supplements' },
-  { hub: 'pets', path: '/pets/shop', art: 'ec-pets.webp', category: 'Pets', shop: 'pets' },
+  { hub: 'beauty', path: '/beauty/market', category: 'Skin & hair', shop: 'skin-hair' },
+  { hub: 'fitness', path: '/fitness/store', category: 'Supplements', shop: 'supplements' },
+  { hub: 'pets', path: '/pets/shop', category: 'Pets', shop: 'pets' },
   /* The gemstone bench is on both floors, and it is the only shelf that is.
      It is a marketplace you can browse by stone, and it is also the one place
      in the city where a stone is PRESCRIBED from a chart — so leaving it off
      either floor would be leaving out half of what it does. Since 22 Aug the
      two floors open two different rooms, which is what "both floors" was always
      supposed to mean: the counter here, the chart's own five over there. */
-  { hub: 'astrology', path: '/astrology/gemstones', art: 'ec-gemstones.webp', category: 'Gemstones', shop: 'gemstones' },
-  { hub: 'services', path: '/services/offers', art: 'ec-offers.webp', category: 'Deals & offers' },
+  { hub: 'astrology', path: '/astrology/gemstones', category: 'Gemstones', shop: 'gemstones' },
+  { hub: 'services', path: '/services/offers', category: 'Deals & offers' },
   /* THE JEWELLERY AISLE — the plain shelf, not the bench. It stands beside
      Gemstones and it is not the same shop: a stone at the bench is prescribed
      off a chart and priced by the carat, and this is a shelf somebody walks.
      Filed under its own aisle for that reason rather than folded into
      Gemstones, where it would be sorted by a chart nobody consulted. */
-  { art: 'ec-jewellery.webp', category: 'Jewellery', soon: { name: 'Jewellery' } },
+  { category: 'Jewellery', soon: { name: 'Jewellery' } },
 ];
 
 /**
@@ -277,6 +270,30 @@ export const AISLES: Record<string, ShopScreens> = {
  */
 export function shelfName(hub: HubKey, path: string): string {
   return HUBS[hub]?.items.find((i) => i.path === path)?.label ?? '';
+}
+
+/**
+ * ── A SHELF AS A TAB (owner, 6 Sep) ─────────────────────────────────────────
+ *
+ * Both floors are one storefront each with the shelves as a row of tabs on
+ * top. The word on the tab is the shelf's aisle where it has one and the
+ * room's own name otherwise — the same rule the cards followed. The key is
+ * the shop's key when the shelf has a shop, so `?tab=beauty` and
+ * `/ecommerce/shop/beauty` are one word for one thing, and the slug of the
+ * label otherwise. It lives here rather than in the floor's own file because
+ * it is a fact about a shelf, and because a file that draws components is
+ * not a file to export a function from.
+ */
+export interface FloorTab {
+  key: string;
+  label: string;
+  shelf: ShelfCard;
+}
+
+export function tabOf(shelf: ShelfCard): FloorTab {
+  const label = shelf.category ?? shelf.name;
+  const key = shelf.shop ?? label.toLowerCase().replace(/&/g, ' ').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return { key, label, shelf };
 }
 
 export const fittedShelves = (): ShelfCard[] => FITTED.map(resolve).filter((c): c is ShelfCard => c !== null);

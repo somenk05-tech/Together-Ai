@@ -1,61 +1,40 @@
-import { PageHeader } from '@/components/ui';
-import { AISLES, openShelves } from '../shelves';
-import { ShelfTile } from '../ShelfTile';
+import { useHubTheme } from '@/hooks/useHubTheme';
+import { openShelves, shelfName } from '../shelves';
+import { TabbedFloor } from '../store/TabbedFloor';
+import { useGemCounterShop } from '../store/useGemCounterShop';
+import { useBeautyMarketShop, usePetMarketShop, useSupplementsMarketShop } from '../store/useMarketShops';
 
 /**
  * ── THE OPEN MARKET ─────────────────────────────────────────────────────────
  *
  * The right-hand door of the facade: "Explore everything. Choose freely."
  *
- * ONE TILE, DRAWN BY THE SAME COMPONENT AS THE OTHER FLOOR (owner, 22 Aug):
- * a photograph with a name on it and nothing else. `ShelfTile` holds the shape
- * so the two rooms cannot drift apart.
+ * THE SAME STORE AS THE OTHER FLOOR, OPPOSITE SELECTION (owner, 6 Sep). One
+ * white page, the bar, the aisles as a row of tabs, and the whole shelf under
+ * the one you chose — nothing ranked for you, which is what this floor's own
+ * sidebar line promises. The four aisles with a storefront are opened by the
+ * adapters that always opened them; the storefront draws its own chips inside
+ * a long aisle, so the pet catalogue's 184 rows are still a shop somebody
+ * browses rather than a wall.
  *
- * ── AND THIS FLOOR IS LABELLED BY AISLE, NOT BY ROOM ────────────────────────
+ * THE TABS ARE AISLES, NOT ROOMS (owner, 22 Aug): Skin & hair, Supplements,
+ * Pets, Gemstones, Deals & offers, Jewellery. The fitness aisle reads
+ * "Supplements" and not "The Store", which is the Fitness hub's own name for
+ * that room, because this floor is organised by what is sold and its masthead
+ * says so. The names come from shelves.ts, which reads them from the sidebar
+ * of the room each aisle belongs to.
  *
- * Owner, 22 Aug: the market's fitness card should read "Supplements". It read
- * "The Store", which is the Fitness hub's own name for that room — and renaming
- * the room was not available: that rail ALREADY has a Supplements row (05, the
- * goal-matched kit) beside The Store (07, the whole shelf), and two identical
- * rows in one sidebar is a worse problem than the one being fixed.
- *
- * So the market's tiles carry the CATEGORY, which is the thing this floor is
- * actually organised by — its own masthead says so: "Everything the city sells,
- * by category." Skin & hair, Supplements, Pets, Gemstones, Deals & offers. It
- * is an aisle board, and an aisle board naming five shops was the mismatch. The
- * eyebrow used to carry it, and the eyebrow came off with the redesign.
- *
- * The Personalized Store still names the ROOM, because there the card is a
- * shortlist somebody was given rather than an aisle they are walking.
- *
- * The whole shelf rather than a shortlist — no profile is read and nothing is
- * ranked for you. The aisles are the categories the city actually stocks, and
- * there are as many of them as the city has verified, which is fewer than a
- * marketplace would list. Saying so on the page is the point: a market that
- * looks endless and is not teaches somebody to stop believing the rest of it.
+ * Deals & offers is not products — it is what local businesses have on today,
+ * and it lives in Local Services — so its tab is a window with that room's
+ * door in it. Jewellery is not built yet; its tab says so and opens nothing.
  */
 export function OpenMarket() {
-  const shelves = openShelves();
+  useHubTheme(null);
   return (
-    <>
-      <PageHeader
-        eyebrow="Digital Store"
-        title="Open Market"
-        sub="Everything the city sells, by category."
-      />
-      <div className="ec-run">
-        {shelves.map((s) => (
-          /* THE CARD OPENS THE AISLE WHERE THERE IS ONE (owner, 22 Aug) —
-             the whole shelf as a storefront rather than the hub's own room.
-             Gemstones and Daily offers have none and still open their room:
-             a stone is read off a chart rather than picked off a shelf, and
-             an offer is not a product. */
-          <ShelfTile key={s.path ?? s.name} soon={Boolean(s.soon)} to={(s.shop && AISLES[s.shop]?.shelf.path) ?? s.path} art={s.art} name={s.category ?? s.name} />
-        ))}
-      </div>
-      <p className="ec-note">
-        No resellers — every aisle belongs to the hub that verified what is on it.
-      </p>
-    </>
+    <TabbedFloor
+      name={shelfName('ecommerce', '/ecommerce/market')}
+      shelves={openShelves()}
+      shopOf={{ 'skin-hair': useBeautyMarketShop, supplements: useSupplementsMarketShop, pets: usePetMarketShop, gemstones: useGemCounterShop }}
+    />
   );
 }

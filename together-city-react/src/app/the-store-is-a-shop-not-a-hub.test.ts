@@ -43,6 +43,13 @@ describe('The storefront is white, railless, and has one way back', () => {
     const firstHubLayout = router.indexOf('<HubLayout hub=');
     expect(firstHubLayout).toBeGreaterThan(0);
     expect(router.indexOf("path: '/ecommerce/shop/beauty'")).toBeLessThan(firstHubLayout);
+    /* AND THE TWO FLOORS WITH THEM (owner, 6 Sep): the Personalized Store and
+       the Open Market are storefronts now, with the shelves as tabs on top,
+       and a storefront wears no rail. They left the district's HubLayout
+       block for this one; only the cart is still under the rail. */
+    expect(router.indexOf("path: '/ecommerce/store'")).toBeLessThan(firstHubLayout);
+    expect(router.indexOf("path: '/ecommerce/market'")).toBeLessThan(firstHubLayout);
+    expect(code('features/ecommerce/routes.tsx')).not.toMatch(/\/ecommerce\/store|\/ecommerce\/market/);
   });
 
   it('clears the district lamp on the way in', () => {
@@ -85,24 +92,19 @@ describe('The storefront is white, railless, and has one way back', () => {
   });
 });
 
-describe('The Personalized Store card is one target', () => {
+describe('The Personalized Store is a floor of the store', () => {
   const store = code('features/ecommerce/pages/PersonalizedStore.tsx');
 
-  it('is a single target, with nothing clickable inside it', () => {
-    /* Owner, 22 Aug: make the whole card clickable. A second link inside the
-       card is a target inside a target — on a phone they are millimetres apart
-       and the small one wins by accident.
-       THE CARD MOVED INTO ShelfTile that evening, when both floors became one
-       photographic tile, so this assertion moved with it: the page draws no
-       target of its own, and the tile draws exactly one — a Link when it is a
-       door, a button when it is not, and never both at once. */
+  it('draws no target of its own — the tabs are the floor’s and the tiles are the shop’s', () => {
+    /* Owner, 22 Aug: make the whole card clickable, and nothing clickable
+       inside it. Then, 6 Sep: no card at all — the page is a storefront with
+       the shelves as tabs on top. The page still draws no target of its own:
+       the tab row is `FloorTabs`, one link per shelf, and the shop under it
+       is `StoreFront`, exactly as it was. */
     expect(store).not.toMatch(/<Link|<a\b|<button/);
-    const tile = code('features/ecommerce/ShelfTile.tsx');
-    expect(tile.match(/<Link/g)?.length).toBe(1);
-    // Whatever is drawn INSIDE the target is inert: the picture, the wash and
-    // the heading. Everything clickable is the outer element itself.
-    const face = tile.slice(tile.indexOf('const face'), tile.indexOf('if (to)'));
-    expect(face).not.toMatch(/<Link|<a\b|<button/);
+    expect(store).toMatch(/<TabbedFloor/);
+    const tabs = code('features/ecommerce/store/Floor.tsx');
+    expect(tabs).toMatch(/to=\{`\?tab=\$\{t\.key\}`\}/);
   });
 
   /**
@@ -127,10 +129,15 @@ describe('The Personalized Store card is one target', () => {
     expect(named.length).toBeGreaterThan(0);
   });
 
-  it('sends the beauty shelf to its shop rather than to the hub', () => {
+  it('opens the beauty shelf as its shop rather than as the hub’s room', () => {
     expect(FITTED.find((s) => s.path === '/beauty/routine')?.shop).toBe('beauty');
     expect(SHOPS.beauty.shelf.path).toBe('/ecommerce/shop/beauty');
-    expect(store).toMatch(/SHOPS\[s\.shop\]\?\.shelf\.path/);
+    /* The tab draws the shop in place (6 Sep) — the same adapter the
+       standalone storefront uses, keyed by the shelf's `shop`. */
+    expect(store).toMatch(/shopOf=\{\{ beauty: useBeautyShop/);
+    const floor = code('features/ecommerce/store/TabbedFloor.tsx');
+    expect(floor).toMatch(/const useShop = shelf\.shop \? shopOf\[shelf\.shop\] : undefined/);
+    expect(floor).toMatch(/<StoreFront shop=\{shop\} floor=\{floor\} \/>/);
   });
 
   /**
@@ -151,11 +158,11 @@ describe('The Personalized Store card is one target', () => {
   it('still names the profile each shelf reads, in the shop', () => {
     /* "Reads your Skin & Hair Profile" was the card's foot until the tile
        became a photograph with the heading and nothing else on it (owner,
-       22 Aug). It is not gone: the storefront prints "Built from your Skin &
-       Hair Profile" under its masthead AND links to it, which is both more
-       than the card said and said where somebody looking at a shortlist is
-       actually standing. This asserts the move rather than the deletion —
-       off the card, on the shop. */
+       22 Aug), and the tile became a tab (6 Sep). It is not gone: the
+       storefront prints "Built from your Skin & Hair Profile" under its
+       masthead AND links to it, which is both more than the card said and
+       said where somebody looking at a shortlist is actually standing. This
+       asserts the move rather than the deletion — off the card, on the shop. */
     expect(store).not.toMatch(/Reads your/);
     const front = code('features/ecommerce/store/StoreFront.tsx');
     expect(front).toMatch(/Built from your \{shop\.from\.label\}/);
@@ -238,13 +245,13 @@ describe('Three shelves have shops, and one deliberately does not', () => {
   it('hands the grocery list over instead of opening a room', () => {
     const shelf = FITTED.find((s) => s.path === '/nutrition/grocery');
     expect({ shop: shelf?.shop, download: shelf?.download }).toEqual({ shop: undefined, download: true });
-    const store = code('features/ecommerce/pages/PersonalizedStore.tsx');
-    expect(store).toMatch(/s\.download \? \(/);
-    expect(store).toMatch(/<GroceryDownloadCard/);
+    // Its tab is the download pane (6 Sep), where its card was the download.
+    const floor = code('features/ecommerce/store/TabbedFloor.tsx');
+    expect(floor).toMatch(/shelf\.download \? <GroceryDownloadPane shelf=\{shelf\} \/>/);
   });
 
   it('writes the file from the plan the hub prints, and recomputes nothing', () => {
-    const card = code('features/ecommerce/store/GroceryDownloadCard.tsx');
+    const card = code('features/ecommerce/store/GroceryDownloadPane.tsx');
     expect(card).toMatch(/useGroceryPlan/);
     // The quantities are the server's own labels, printed, never arithmetic
     // done again here.

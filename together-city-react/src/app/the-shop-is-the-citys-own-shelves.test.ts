@@ -106,11 +106,12 @@ describe('The shop is the city’s own shelves', () => {
       expect({ name: s.soon.name, hub: s.hub, path: s.path, shop: s.shop })
         .toEqual({ name: s.soon.name, hub: undefined, path: undefined, shop: undefined });
     }
-    // …and it is not a door on either floor: nothing to open, so nothing to
-    // press. The district was deleted once for being a photograph of a shop
-    // that did not exist.
-    const tile = read('features/ecommerce/ShelfTile.tsx').replace(/\{?\/\*[\s\S]*?\*\/\}?/g, ' ');
-    expect(tile).toMatch(/if \(soon\) return <article/);
+    // …and it opens nothing on either floor: its tab says "Soon", and the
+    // pane under it says so and draws no door. The district was deleted once
+    // for being a photograph of a shop that did not exist.
+    const floor = read('features/ecommerce/store/Floor.tsx').replace(/\{?\/\*[\s\S]*?\*\/\}?/g, ' ');
+    expect(floor).toMatch(/\{t\.shelf\.soon && <span className="sf-tab-soon">Soon<\/span>\}/);
+    expect(floor).toMatch(/\{shelf\.soon \? \(\s*<p className="sf-room-state">Coming soon<\/p>/);
   });
 
   it('takes each card’s name and line from that hub’s own sidebar', () => {
@@ -134,9 +135,14 @@ describe('The shop is the city’s own shelves', () => {
        twice contained the words "Beauty Market". A comment is not copy on a
        screen, and a rule that cannot be explained in place is a rule people
        route around. */
+    /* AND HOOK NAMES STRIPPED (6 Sep), for the same reason: since the floors
+       became one storefront each, a page hands `TabbedFloor` the adapter that
+       opens every shelf's shop — `useSupplementsMarketShop` — and an
+       identifier is not a sentence on a screen either. */
     const pages = ['features/ecommerce/pages/PersonalizedStore.tsx', 'features/ecommerce/pages/OpenMarket.tsx']
       .map(read).join('\n')
-      .replace(/\{?\/\*[\s\S]*?\*\/\}?/g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+      .replace(/\{?\/\*[\s\S]*?\*\/\}?/g, ' ').replace(/^\s*\/\/.*$/gm, ' ')
+      .replace(/\buse[A-Z]\w*/g, ' ');
     for (const card of [...fittedShelves(), ...openShelves()]) {
       /* A coming-soon card has no line — there is no room to have written one
          — and `''` is in every string, so an empty line would report every
