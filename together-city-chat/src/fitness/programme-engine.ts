@@ -176,6 +176,15 @@ export interface ProgrammeInput {
   bodyGoal: BodyGoalKey;
   /** Resolved: at a gym the machines and bars are there. */
   equipment: Equipment[];
+  /**
+   * WHERE THE MONTH IS TRAINED (owner, 7 Sep: "at the gym the workout needs
+   * to be equipment based — dumbbells, rowing, pulldown, chest bench, and
+   * everything in a usual gym"). At a gym the movements are LOADED ones —
+   * bars, dumbbells, cables, machines — and bodyweight is kept to the one
+   * or two a trainer would still put on a gym floor: a pull-up, a dip.
+   * Absent or 'home', the pool is whatever the kit list allows.
+   */
+  place?: 'home' | 'gym';
   conditions: Condition[];
   /** Usually the citizen's id. */
   seed: string;
@@ -203,8 +212,22 @@ export function kitAvailable(equipment: string, have: readonly Equipment[]): boo
   return need === 'always' || have.includes(need);
 }
 
-/** Words that mark a row as a stretch or a hold rather than a working set. */
-const NOT_WORK = /stretch|pose|hold\b|roll\b|foam|massage|breathing|posture|warm/i;
+/** Words that mark a row as a stretch or a hold rather than a working set —
+ *  and, since 7 Sep, a sport drill rather than a strength movement: the
+ *  dataset files a left hook under the lats, and no trainer writes "boxing"
+ *  on a pull day. */
+const NOT_WORK = /stretch|pose|hold\b|roll\b|foam|massage|breathing|posture|warm|\bboxing\b|\bjab\b|uppercut|punch/i;
+/**
+ * THE GYM'S OWN KIT. At a gym a movement is one of these or it is not on the
+ * month, with one exception: the bodyweight movements a trainer still puts
+ * on a gym floor — a pull-up, a chin-up, a dip — at most one a day.
+ */
+const LOADED = new Set([
+  'barbell', 'ez barbell', 'olympic barbell', 'trap bar', 'dumbbell', 'kettlebell', 'weighted',
+  'cable', 'leverage machine', 'smith machine', 'sled machine',
+]);
+const GYM_BODYWEIGHT = /pull-up|pull up|chin-up|chin up|dip\b/i;
+export const isLoaded = (equipment: string): boolean => LOADED.has(equipment);
 /** Big movements: the first slot for a muscle reaches for one of these. */
 const COMPOUND = /squat|deadlift|press|row\b|pull-up|pull up|chin-up|chin up|pulldown|lunge|dip\b|hip thrust|thruster|clean|push-up|push up|step-up|step up|split/i;
 /** What a condition rules out, by the words on the movement. Blunt on purpose:
@@ -294,18 +317,30 @@ export function buildProgramme(input: ProgrammeInput): Programme {
    * per split day, from a shuffle seeded on the citizen, the cycle and the
    * variant; a movement used on one day of the week is not used on another.
    */
+  const gym = input.place === 'gym';
   const choose = (variant: 'a' | 'b'): Map<string, CatalogExercise[]> => {
     const rnd = seeded(`${input.seed}:${input.cycle}:${variant}`);
     const usedThisWeek = new Set<string>();
     const out = new Map<string, CatalogExercise[]>();
     for (const day of split) {
       const picks: CatalogExercise[] = [];
+      let bodyweightToday = 0;
       for (const slot of day.slots) {
         if (picks.length >= perDay) break;
-        const candidates = shuffle(pool.get(slot.muscle) ?? [], rnd).filter((e) => !usedThisWeek.has(e.id));
+        let candidates = shuffle(pool.get(slot.muscle) ?? [], rnd).filter((e) => !usedThisWeek.has(e.id));
+        /* AT A GYM THE MONTH IS BUILT ON THE BARS, THE DUMBBELLS AND THE
+           MACHINES (owner, 7 Sep). Bodyweight rows are kept only where a
+           trainer would keep them — a pull-up, a dip — one a day at most, and
+           never ahead of a loaded movement for the same muscle. */
+        if (gym) {
+          const loaded = candidates.filter((e) => isLoaded(e.equipment));
+          const floor = bodyweightToday < 1 ? candidates.filter((e) => !isLoaded(e.equipment) && GYM_BODYWEIGHT.test(e.name)) : [];
+          candidates = loaded.length ? [...loaded, ...floor] : floor;
+        }
         const big = candidates.filter((e) => COMPOUND.test(e.name));
         const pick = (slot.compound && big.length ? big : candidates.length ? candidates : big)[0];
         if (!pick) continue;
+        if (gym && !isLoaded(pick.equipment)) bodyweightToday++;
         usedThisWeek.add(pick.id);
         picks.push(pick);
       }
@@ -363,9 +398,11 @@ export function buildProgramme(input: ProgrammeInput): Programme {
   const why = [
     `You can give ${days} day${days === 1 ? '' : 's'} a week, so the month is ${SPLIT_NAMES[days] ?? SPLIT_NAMES[3]}: every muscle is worked, then left alone long enough to grow.`,
     `Your body goal sets the work — ${goal.sets + lvl.sets} sets of ${goal.reps[0]}–${goal.reps[1]} at your level, with ${goal.restSec + lvl.restSec}s rest — and the four weeks move through base, build, peak and deload.`,
-    input.equipment.length
-      ? `Every movement is one you can do with what you have${input.equipment.includes('machines') ? ' and what a gym has' : ''}; ${[...pool.values()].reduce((n, xs) => n + xs.length, 0)} of the ${EXERCISE_CATALOG.length} in the catalogue qualify.`
-      : 'Nothing but bodyweight is assumed, because you have not told us what you train with — say so in your training profile and the month widens.',
+    gym
+      ? `You train at a gym, so the month is built on the bars, the dumbbells, the cables and the machines — the presses, rows and pulldowns — with a pull-up or a dip where a trainer would keep one; ${[...pool.values()].reduce((n, xs) => n + xs.length, 0)} of the ${EXERCISE_CATALOG.length} in the catalogue qualify.`
+      : input.equipment.length
+        ? `Every movement is one you can do with what you have; ${[...pool.values()].reduce((n, xs) => n + xs.length, 0)} of the ${EXERCISE_CATALOG.length} in the catalogue qualify.`
+        : 'Nothing but bodyweight is assumed, because you have not told us what you train with — say so in your training profile and the month widens.',
     ...(input.conditions.length ? [`What you told us about your health removes the movements that would argue with it: ${input.conditions.join(', ')}.`] : []),
     'Weeks one and three share their movements so you can add load; weeks two and four share theirs so the month does not stall.',
   ];

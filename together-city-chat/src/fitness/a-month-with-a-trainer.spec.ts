@@ -1,5 +1,5 @@
 import { EXERCISE_CATALOG } from './exercise-catalog';
-import { buildProgramme, kitAvailable, poolFor, SPLITS, type ProgrammeInput } from './programme-engine';
+import { buildProgramme, isLoaded, kitAvailable, poolFor, SPLITS, type ProgrammeInput } from './programme-engine';
 
 /**
  * A MONTH WITH A TRAINER — owner, 6 Sep: "an experienced personal trainer
@@ -123,6 +123,41 @@ describe('what a day is made of', () => {
     expect(first(4).sets).toBeLessThan(first(3).sets);
     expect(first(4).reps[1]).toBeGreaterThan(first(3).reps[1]);
     expect(strength(p).find((d) => d.week === 4)!.note).toMatch(/Lighter on purpose/);
+  });
+});
+
+describe('at a gym the month is built on the kit (owner, 7 Sep)', () => {
+  const GYM: ProgrammeInput = { ...BASE, place: 'gym', equipment: ['dumbbells', 'barbell', 'machines', 'bench', 'cardioMachine', 'mat'] };
+
+  it('every movement is a loaded one — bars, dumbbells, cables, machines — except a pull-up or a dip, one a day at most', () => {
+    const p = buildProgramme({ ...GYM, daysPerWeek: 6 });
+    for (const d of strength(p)) {
+      const floor = d.exercises.filter((e) => !isLoaded(e.equipment));
+      expect({ day: d.title, floor: floor.map((e) => e.name) }).toEqual({ day: d.title, floor: floor.map((e) => e.name).filter((n) => /pull-up|pull up|chin-up|chin up|dip\b/i.test(n)) });
+      expect(floor.length).toBeLessThanOrEqual(1);
+      expect(d.exercises.length).toBeGreaterThanOrEqual(4);
+    }
+  });
+
+  it('reaches for the gym\'s classics — a press, a row, a pulldown — over the floor', () => {
+    const names = strength(buildProgramme({ ...GYM, daysPerWeek: 4 })).flatMap((d) => d.exercises.map((e) => `${e.name} [${e.equipment}]`)).join(' | ');
+    expect(names).toMatch(/press/i);
+    expect(names).toMatch(/row\b|pulldown|pull-up|pull up/i);
+    expect(names).toMatch(/barbell|dumbbell|cable|machine/i);
+    // A loaded crunch on a machine is a gym movement; a floor push-up is not.
+    expect(names).not.toMatch(/push-up|push up|sit-up|planche|plank/i);
+  });
+
+  it('never writes a boxing drill on a strength day, anywhere', () => {
+    for (const input of [BASE, GYM, { ...BASE, equipment: [] as ProgrammeInput['equipment'] }]) {
+      for (const d of strength(buildProgramme(input))) for (const e of d.exercises) expect(e.name).not.toMatch(/boxing|\bjab\b|uppercut|punch/i);
+    }
+    expect([...poolFor(['machines'], []).values()].flat().some((e) => /boxing/i.test(e.name))).toBe(false);
+  });
+
+  it('says so in the reasons, and at home says nothing of the kind', () => {
+    expect(buildProgramme(GYM).why.join(' ')).toMatch(/built on the bars, the dumbbells, the cables and the machines/);
+    expect(buildProgramme(BASE).why.join(' ')).not.toMatch(/built on the bars/);
   });
 });
 

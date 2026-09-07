@@ -358,8 +358,13 @@ export class FitnessService {
       startDate: start, today,
       daysPerWeek: profile.daysPerWeek ?? levelDef(profile.level).days,
       level: profile.level as LevelKey, mode: profile.mode, bodyGoal: profile.bodyGoal as BodyGoalKey,
-      equipment, conditions, seed: userId, cycle,
+      equipment, place: profile.place === 'gym' ? 'gym' : 'home', conditions, seed: userId, cycle,
     });
+    /* A computation, and one the WHERE already bounds: the 28 days of the cycle
+       on screen, reduced below to a Set of the days that were done. A `take`
+       here would silently mark a completed workout as missed. (Annotated 6 Sep
+       to bring the unbounded-read ceiling back to green; the read is unchanged.) */
+    // unbounded: the 28-day window bounds it; a truncated set is a wrong answer
     const logs = await this.prisma.workoutLog.findMany({
       where: { userId, doneAt: { gte: new Date(`${start}T00:00:00Z`), lt: new Date(`${addDaysIso(start, 28)}T00:00:00Z`) } },
       select: { doneAt: true },
