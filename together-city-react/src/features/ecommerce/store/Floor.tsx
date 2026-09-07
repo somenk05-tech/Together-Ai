@@ -37,6 +37,15 @@ export interface Floor {
   tabs: ReactNode;
   /** The city cart — one count, one total, for every shop on every floor. */
   cart: Pick<CityCart, 'count' | 'totalInr'>;
+  /**
+   * WHAT THE FLOOR ITSELF SAYS, above whichever shelf is open (owner, 7 Sep).
+   * It rides on the floor rather than on the pane because it is the SECTION's
+   * statement, not the shelf's: it is the same words on the routine, the
+   * supplements and the stones, and it is written once. A floor that has
+   * nothing to say — the Open Market, the cart, the orders — leaves it unset
+   * and nothing is drawn.
+   */
+  head?: ReactNode;
 }
 
 /* THE THREE ROOMS OF THE DISTRICT, from the rail: two sections and the cart.
@@ -116,6 +125,9 @@ export function FloorPage({ floor, baglet = true, children }: { floor: Floor; ba
         <FloorBar floor={floor} />
         {floor.tabs}
       </div>
+      {/* Outside `.sf-top`, which is sticky: a paragraph pinned to the top of
+          the window is a paragraph in the way. */}
+      {floor.head}
       {children}
       {baglet && floor.cart.count > 0 && (
         <div className="st-baglet">

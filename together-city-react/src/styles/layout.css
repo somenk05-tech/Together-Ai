@@ -2777,6 +2777,20 @@
   margin: 0 auto;
   padding: 48px 24px 30px;
 }
+/* ── WHAT THE FLOOR SAYS, ABOVE WHICHEVER SHELF IS OPEN (owner, 7 Sep) ────
+   The section's standing promise. A step under `.st-title` on purpose: the
+   shelf you are looking at is the page's subject and keeps the larger size,
+   and this is the sentence the whole floor is true of. It takes the head's
+   own measure and the line's own setting, so it is one block of new rules
+   rather than a second masthead system. */
+.st-hero { max-width: 1180px; margin: 0 auto; padding: 40px 24px 0; }
+.st-hero-title {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -.025em;
+  line-height: 1.08;
+  margin: 8px 0 0;
+}
 .st-eyebrow {
   font-size: 10.5px;
   font-weight: 700;

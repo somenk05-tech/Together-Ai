@@ -40,6 +40,34 @@ export function PersonalizedStore() {
       path="/ecommerce/store"
       shelves={fittedShelves()}
       shopOf={{ beauty: useBeautyShop, supplements: useFitnessShop, gemstones: useGemShop }}
+      /* ── WHAT THIS FLOOR IS, SAID ONCE (owner, 7 Sep) ────────────────────
+         His words, in sentence case rather than the capitals he typed them
+         in: this city sets one line in caps — the tracked label — and a
+         sentence in that treatment reads as a sign rather than as speech.
+
+         IT IS NOT A HEADING ELEMENT, and that is deliberate. The page's <h1>
+         is the shelf you are looking at ("Your Beauty Routine"), which is
+         what the page is ABOUT at that moment; this is the section's standing
+         promise above it. A second <h1> would be two answers to "what page is
+         this", and demoting the shelf's own title is not possible — the same
+         storefront is drawn without a floor on six other routes, where its
+         title is the only heading there is.
+
+         EVERY CLAIM IS A ROOM THAT EXISTS. The shelves below are built from a
+         skin assessment, a body goal, a meal plan, a birth chart and a pet's
+         record; "your store adapts to your needs, your preferences and your
+         lifestyle" is a description of that, not a promise beyond it. */
+      head={(
+        <section className="st-hero" aria-label="Your personalized store">
+          <div className="st-eyebrow">Your personalized store</div>
+          <p className="st-hero-title">Only what&rsquo;s right for you.</p>
+          <p className="st-line">
+            Everything here is personalized for you. Your store adapts to your
+            needs, your preferences, and your lifestyle &mdash; so you never see
+            what doesn&rsquo;t fit.
+          </p>
+        </section>
+      )}
     />
   );
 }

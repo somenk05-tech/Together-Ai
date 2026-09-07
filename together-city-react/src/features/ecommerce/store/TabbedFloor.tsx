@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { tabOf, type ShelfCard } from '../shelves';
 import { FloorPage, FloorTabs, RoomPane, type Floor } from './Floor';
@@ -33,12 +34,15 @@ function ShopPane({ useShop, floor }: { useShop: () => Shop; floor: Floor }) {
   return <StoreFront shop={shop} floor={floor} />;
 }
 
-export function TabbedFloor({ path, shelves, shopOf }: {
+export function TabbedFloor({ path, shelves, shopOf, head }: {
   /** This floor's own route — the section switch marks it. */
   path: string;
   shelves: ShelfCard[];
   /** The adapter that opens each shelf's shop, by the shelf's `shop` key. */
   shopOf: Record<string, () => Shop>;
+  /** What this SECTION says, above whichever shelf is open. Written once by
+   *  the floor rather than repeated on six shelves. */
+  head?: ReactNode;
 }) {
   const [params] = useSearchParams();
   /* ONE CART FOR THE WHOLE STORE (owner, 7 Sep). The floor reads the city
@@ -49,7 +53,7 @@ export function TabbedFloor({ path, shelves, shopOf }: {
   const tabs = shelves.map(tabOf);
   const wanted = params.get('tab');
   const active = tabs.find((t) => t.key === wanted) ?? tabs[0];
-  const floor: Floor = { path, tabs: <FloorTabs tabs={tabs} active={active.key} />, cart };
+  const floor: Floor = { path, tabs: <FloorTabs tabs={tabs} active={active.key} />, cart, head };
   const shelf = active.shelf;
 
   const useShop = shelf.shop ? shopOf[shelf.shop] : undefined;
