@@ -179,10 +179,23 @@ describe('the nine banners', () => {
 describe('the banner is the whole card', () => {
   const css = read('styles/relief.css');
 
-  it('carries no furniture of its own \u2014 no paper, no label, no scrim', () => {
+  it('is the walk\u2019s card at this page\u2019s width \u2014 paper, depth, and the picture inset', () => {
+    /* Owner, 7 Sep: "the personalized tabs, make it look like walk the hub but
+       more wide feel." The same material as `.district-card`: white paper, one
+       soft depth, and the photograph inset on all four sides so the paper
+       shows around it. Two pages showing the same nine districts in two
+       materials is two cities. */
+    expect(css).toMatch(/\.pz-card \{[\s\S]*?background: var\(--paper\); box-shadow: var\(--e2\)/);
+    expect(css).toMatch(/\.pz-card \{[\s\S]*?padding: clamp/);
+    // The ratio is the PICTURE's; on the outer box it would eat the inset.
+    expect(css).toMatch(/\.pz-card img \{[\s\S]*?aspect-ratio: 3 \/ 1/);
+  });
+
+  it('takes the card and not the caption \u2014 nothing is written beside the banner', () => {
+    // The walk labels its plates because they are bare billboards. Every
+    // banner here carries its own eyebrow, headline and sentence, painted in.
     expect(css).not.toMatch(/\.pz-card-art|\.pz-card-say|\.pz-card-name|\.pz-card-line/);
-    expect(css).toMatch(/\.pz-card \{[^}]*aspect-ratio: 3 \/ 1/);
-    expect(css).toMatch(/\.pz-card \{[^}]*overflow: hidden/);
+    expect(code('pages/Personalize.tsx')).not.toMatch(/districtLine|BANNER_LINE/);
   });
 
   it('runs one to a row, on a desk as well as on a phone', () => {

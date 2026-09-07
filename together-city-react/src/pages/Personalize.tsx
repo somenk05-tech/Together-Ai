@@ -135,10 +135,23 @@ export function Personalize() {
           scrolls away leaves eight of them with nothing to belong to. */}
       <div className="pz-say">
         <div className="eyebrow">Together City</div>
+        {/* THE OWNER'S OWN WORDS, 7 SEP. The headline was one sentence with a
+            comma in it and the poster's typo in the tail ("what you suits
+            you"); it is two sentences now, and the promise underneath says
+            what personalising actually BUYS — a store built once, rather than
+            a million products to scroll past. Every claim in it is a room that
+            exists: the Personalized Store is /ecommerce/store, and its own rail
+            already calls it "the shelves that read your profiles". */}
         <h1 className="pz-head">
-          Personalize all aspects of your life,{' '}
-          <i>see only what suits you.</i>
+          Personalize every aspect of your life.{' '}
+          <i>See only what&rsquo;s relevant to you.</i>
         </h1>
+        <p className="pz-lede">
+          Personalize once, and Together City builds your own personalized store
+          in the digital city&mdash;so you never have to scroll through a million
+          products that don&rsquo;t matter to you.
+        </p>
+        <p className="pz-claim">Your preferences. Your store. Your city.</p>
         <p className="pz-feet">People · Places · Possibilities</p>
       </div>
 

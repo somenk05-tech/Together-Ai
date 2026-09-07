@@ -6063,6 +6063,12 @@ button.own-month-day:hover { border-color: var(--accent); }
 /* The poster sets the payoff on its own line, smaller and in the quiet ink —
    one sentence with two voices rather than two sentences. */
 .pz-head i { display: block; font-style: normal; font-size: .78em; color: var(--muted); }
+/* What personalising buys, under the promise it makes: the quiet ink, because
+   a headline that has to be read twice is two headlines. */
+.pz-lede { margin: var(--s-2) 0 0; font-size: var(--fs-4); line-height: 1.6; color: var(--muted); }
+/* And the sign-off, back in the page's ink — three words the reader leaves
+   with, set a step above the paragraph they close. */
+.pz-claim { margin: var(--s-2) 0 0; font-size: var(--fs-5); line-height: 1.45; font-weight: 600; color: var(--ink); }
 .pz-feet {
   margin: var(--s-3) 0 0; font-size: var(--fs-2); font-weight: 700;
   letter-spacing: .18em; text-transform: uppercase; color: var(--muted);
@@ -6071,17 +6077,37 @@ button.own-month-day:hover { border-color: var(--accent); }
 
 .pz-run { display: grid; grid-template-columns: 1fr; gap: clamp(12px, 1.2vw, 20px); }
 
+/* ── AND THE BANNER BECOMES A CARD (owner, 7 Sep: "the personalized tabs,
+   make it look like walk the hub but more wide feel") ─────────────────────
+   The walk's card, at this page's width: white paper, one soft depth, and the
+   photograph INSET on all four sides so the paper shows around it. That inset
+   is the whole idea — full-bleed art makes the picture the card, and a card
+   with a picture on it reads as a thing resting on paper. It is the same
+   material as `.district-card` a thousand lines up, deliberately: two pages
+   showing the same nine districts in two materials is two cities.
+
+   WHAT IS NOT COPIED FROM THE WALK is the label and the sentence under the
+   photograph. There they exist because the plate is a bare billboard; here
+   every banner carries its own eyebrow, headline and sentence, painted in.
+   The card is the treatment, not the caption. */
 .pz-card {
-  display: block; overflow: hidden; aspect-ratio: 3 / 1;
-  border-radius: var(--r-3); background: var(--well); box-shadow: var(--e1);
+  display: block; box-sizing: border-box;
+  padding: clamp(9px, .8vw, 12px);
+  border-radius: clamp(20px, 2vw, 28px);
+  background: var(--paper); box-shadow: var(--e2);
   transition: box-shadow var(--dur-base) var(--ease), transform var(--dur-base) var(--ease);
 }
-.pz-card:hover { box-shadow: var(--e2); transform: translateY(-2px); }
+.pz-card:hover { box-shadow: var(--e3); transform: translateY(-3px); }
 /* An outline rather than a third shadow with a ring in it: the card already
    carries two depths, and this is the one place a colour literal would have
    had to be written. */
 .pz-card:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.pz-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* The ratio lives on the PICTURE now, not on the card — the card is the
+   picture plus its paper, and a ratio on the outer box would eat the inset. */
+.pz-card img {
+  display: block; width: 100%; height: auto; aspect-ratio: 3 / 1; object-fit: cover;
+  border-radius: clamp(14px, 1.4vw, 20px); box-shadow: var(--e1);
+}
 @media (prefers-reduced-motion: reduce) {
   .pz-card:hover { transform: none; }
 }
