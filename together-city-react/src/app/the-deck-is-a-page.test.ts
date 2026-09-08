@@ -14,9 +14,10 @@ const footer = read('layouts/Footer.tsx');
 /**
  * THE DECK IS A PAGE.
  *
- * /investor is the platform deck: twenty-three slides an investor or a partner
- * scrolls through, in the city's own white-and-ink language rather than the
- * burgundy of the design it was drawn from.
+ * /investor is the seed deck: thirteen slides an investor or a partner scrolls
+ * through, in the city's own white-and-ink language rather than the red of the
+ * PDF it was set from (owner, 8 Sep - it replaced the twenty-nine slide
+ * product walkthrough).
  *
  * Four of the five things below are the ones that break QUIETLY, which is the
  * only reason to write a test for a marketing page at all:
@@ -37,17 +38,32 @@ describe('the deck is a page', () => {
      printed on the slides run 001, 002, 003 … with no gap, no repeat and no
      slide left holding the number of the one before it, which is what an
      insertion in the middle produces if the renumbering is done by hand. */
-  it('numbers its slides in an unbroken run from 001', () => {
-    const printed = [...deck.matchAll(/\bn="(\d{3})"/g)].map((m) => m[1]);
-    expect(printed.length).toBeGreaterThan(20);
-    const wanted = printed.map((_, i) => String(i + 1).padStart(3, '0'));
+  it('numbers its slides in an unbroken run from 01', () => {
+    /* The COUNT is not the rule - a deck can grow. The rule is that the
+       numbers printed on the slides run 01, 02, 03 with no gap, no repeat and
+       no slide left holding the number of the one before it, which is what an
+       insertion in the middle produces if the renumbering is done by hand.
+       The PDF this is set from is thirteen slides and says so on slide one, so
+       that one number is asserted too. */
+    const printed = [...deck.matchAll(/\bn="(\d{2})"/g)].map((m) => m[1]);
+    expect(printed.length).toBe(13);
+    const wanted = printed.map((_, i) => String(i + 1).padStart(2, '0'));
     expect(printed).toEqual(wanted);
+    expect(deck).toMatch(/thirteen\s*\n?\s*\* slides|thirteen[\s\S]{0,40}slides/);
   });
 
   it('ships every photograph it names', () => {
-    const files = [...deck.matchAll(/([a-z-]+\.webp)/g)].map((m) => m[1]);
-    expect(files.length).toBeGreaterThan(15);
-    const missing = [...new Set(files)].filter((f) => !existsSync(join(APP, 'public/investor', f)));
+    /* The six comparison shots are built from a key and a suffix, so the names
+       are assembled here the way the page assembles them - a test that only
+       matched literal strings would pass on a deck with no pictures at all. */
+    const shelves = [...deck.matchAll(/key: '([a-z]+)'/g)].map((m) => m[1]);
+    expect(shelves.length).toBe(3);
+    const files = [
+      ...[...deck.matchAll(/\$\{A\}([a-z0-9-]+\.webp)/g)].map((m) => m[1]),
+      ...shelves.flatMap((k) => [`${k}-all.webp`, `${k}-curated.webp`]),
+    ];
+    expect(files.length).toBeGreaterThan(6);
+    const missing = [...new Set(files)].filter((f) => !existsSync(join(APP, 'public/investor/deck26', f)));
     expect(missing).toEqual([]);
   });
 
@@ -80,7 +96,7 @@ describe('the deck is a page', () => {
   it('gives every slide a way back into the city', () => {
     expect(deck).toMatch(/function Label\([\s\S]{0,400}?className="dk-back" to="\/"/);
     const chunks = deck.split('<section className="dk-slide').slice(1);
-    expect(chunks.length).toBeGreaterThan(15);
+    expect(chunks.length).toBe(13);
     expect(chunks.filter((c) => !c.includes('<Label'))).toEqual([]);
   });
 });

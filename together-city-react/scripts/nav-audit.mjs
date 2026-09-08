@@ -268,7 +268,24 @@ for (const file of files) {
     // rather than exempted.
     if (/^\s*"?(?:quote|caveat)"?\s*:/.test(line)) return;
     for (const [re, why] of VOICE) {
-      if (re.test(line)) problems.push(`${rel}:${i + 1}  voice — ${why}`);
+      if (!re.test(line)) continue;
+      /* THE DECK'S READER IS NOT THE USER, AND THAT IS THE WHOLE EXEMPTION.
+         The rule below the exemption above exists because the app is talking
+         TO one citizen and calling them "the user" turns them into a category.
+         /investor is the seed deck: its reader is an investor, and the person
+         it is describing in the third person is somebody else entirely — "the
+         user decides" and "problem — the user" are the owner's own headings,
+         set from his PDF, on a page whose own comment says nothing on it may
+         be reworded without him. Editing them to fit this rule would misquote
+         the document, which is the same failure the `quote:` exemption above
+         is written to prevent.
+
+         NARROW ON PURPOSE: only the two third-person rules are lifted, and
+         only on that one file. Every other voice rule — the assistant as
+         subject, comfort we cannot give, stock filler — still applies to it,
+         and no other page is exempt from anything. */
+      if (rel === 'pages/Investor.tsx' && /third person|category, not a person/.test(why)) continue;
+      problems.push(`${rel}:${i + 1}  voice — ${why}`);
     }
   });
 }

@@ -1,12 +1,20 @@
-import { useEffect } from 'react';
+import { Fragment, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 /**
- * ── THE PLATFORM DECK, AS A PAGE YOU SCROLL ────────────────────────────────
+ * ── THE SEED DECK, AS A PAGE YOU SCROLL ────────────────────────────────────
  *
- * Twenty-nine slides for an investor or a partner, at /investor, outside the
- * app shell: no header, no rail, no footer. A deck shown on somebody else's
- * screen should have nothing on it that is not the deck.
+ * Thirteen slides for an investor or a partner, at /investor, outside the app
+ * shell: no header, no rail, no footer. A deck shown on somebody else's screen
+ * should have nothing on it that is not the deck.
+ *
+ * IT IS THE 2026 SEED DECK, WORD FOR WORD (owner, 8 Sep). What stood here
+ * before was the twenty-nine slide product walkthrough built from the July
+ * deck — every slide a screenshot of a room in the city. This one is a
+ * different argument: what we are creating, the trust problem, the moat, how
+ * an order travels, four revenue engines, the ask, and a projection with a
+ * spreadsheet behind it. The old slides are one `git revert` away and their
+ * photographs are still in public/investor.
  *
  * A SLIDE IS A SECTION THE HEIGHT OF THE WINDOW and the scroller snaps to it.
  * There is no viewer here — no arrows, no fan, no slide index floating over
@@ -14,25 +22,18 @@ import { Link } from 'react-router-dom';
  * hidden before anybody screenshotted a slide. The number is PRINTED on the
  * slide, the way a page number is printed on a page.
  *
- * IT IS SET IN THE CITY'S LANGUAGE, NOT THE SOURCE DECK'S. The design this
- * was drawn from is burgundy, cream and dusty blue; this is white paper, one
- * near-black ink, one typeface. What carried over is the structure — the
- * numbered label, the chapter card, the two-panel comparison, the stat row.
- * What did not is the palette, because a second palette living at one URL is
- * a second design system with a head start (see index.css, THE DECK IS A
- * PAGE, and relief.spec.ts for why that is a build failure and not a taste).
+ * IT IS SET IN THE CITY'S LANGUAGE, NOT THE DECK'S. The PDF is white, black
+ * and a strong red; this is white paper, one near-black ink, one typeface.
+ * What carried over is the structure — the numbered label, the two-panel
+ * comparison, the rows, the table. What did not is the red, because a second
+ * palette living at one URL is a second design system with a head start (see
+ * index.css, THE DECK IS A PAGE, and relief.spec.ts for why that is a build
+ * failure and not a taste). The only contrast here is reversal: the cover and
+ * the closing slide print white on the ink.
  *
- * THE ONLY CONTRAST IS REVERSAL: the six chapter cards, the slide about what
- * the rest of the market does, and the closing slide print white on the ink.
- *
- * THE WAY OUT IS THE WORDMARK IN THE FOOT, ON EVERY SLIDE, and it is there
- * rather than floating in a corner for two reasons. Every corner of this page
- * is already spoken for — the slide number and its subject at the top, the
- * wordmark and the hub at the bottom — so a fixed back button would sit on
- * top of one of them at some width. And a control that floats over the
- * artwork is the chrome this page was built without: it would have to be
- * hidden before anybody screenshotted a slide. The foot already said
- * "Together City" on all of them; it is now the door as well as the label.
+ * THE WAY OUT IS IN THE LABEL ROW, ON EVERY SLIDE, rather than floating in a
+ * corner: every corner of a slide is already spoken for at some width, and a
+ * control over the artwork is the chrome this page was built without.
  *
  * EVERY CLAIM AND EVERY NUMBER ON THIS PAGE IS THE OWNER'S OWN COPY from the
  * deck it was built from. Nothing here is generated, inferred or rounded, and
@@ -40,27 +41,10 @@ import { Link } from 'react-router-dom';
  * partner is quoted from.
  */
 
-/** Where the deck's renders live. Nineteen files, WebP, in public/investor. */
-const A = '/investor/';
+/** Where this deck's pictures live. Seven files, WebP, lifted from the PDF. */
+const A = '/investor/deck26/';
 
-/**
- * THE TOP OF EVERY SLIDE: its number, and the way out.
- *
- * The right-hand slot used to repeat the slide's subject — which the FOOT row
- * already prints, on the same slide, three hundred pixels below. Nothing is
- * lost by giving that slot to the one thing this page did not have: a door.
- * The deck is mounted outside the app shell, so there is no header and no rail
- * to leave by, and a viewer twenty slides deep had the browser's back button
- * and nothing else.
- *
- * IT IS NOT A FLOATING BUTTON, and that is not fussiness. Every corner of a
- * slide is spoken for at some width, so a fixed control would sit on top of
- * one of them on somebody's screen; and a control that floats over the artwork
- * is the chrome this page was built without — it would have to be hidden
- * before anybody screenshotted a slide. Inside the label row it inherits that
- * row's ink, so it stays legible on the reversed slides without a second
- * colour, a pill, or a blend mode.
- */
+/** The top of every slide: its number, and the way out. */
 function Label({ n }: { n: string }) {
   return (
     <div className="dk-lab">
@@ -70,426 +54,388 @@ function Label({ n }: { n: string }) {
   );
 }
 
-/**
- * A chapter card. Six hubs get one, and it is the same object every time: the
- * number as large as the slide allows, the hub, one line about it.
- */
-function Chapter({ n, num, name, line }: { n: string; num: string; name: string; line: string }) {
-  return (
-    <section className="dk-slide rev">
-      <Label n={n} />
-      <div className="dk-body">
-        <div className="dk-num">{num}</div>
-        <h2 className="dk-h2">{name}</h2>
-        <p className="dk-lede">{line}</p>
-      </div>
-      <div className="dk-foot"><span>Together City</span><span>Hub {num}</span></div>
-    </section>
-  );
-}
-
-type Panel = { cap: string; img: string; alt: string; note: string };
-
-/**
- * The comparison slide, five times over: what the rest of the market puts in
- * front of somebody, and what the city puts there instead. Both halves on one
- * slide on purpose — the point is the difference, and a difference split
- * across two slides is a claim the reader has to hold in their head.
- */
-function Compare({ n, kind, head, left, right }: { n: string; kind: string; head: string; left: Panel; right: Panel }) {
-  return (
-    <section className="dk-slide">
-      <Label n={n} />
-      <div className="dk-body">
-        <h2 className="dk-h2">{head}</h2>
-        <div className="dk-two">
-          {[left, right].map((p) => (
-            <div key={p.img} className="dk-body">
-              <div className="dk-cap">{p.cap}</div>
-              <img className="dk-shot no-case" src={A + p.img} alt={p.alt} loading="lazy" />
-              <p className="dk-note">{p.note}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="dk-foot"><span>Together City</span><span>{kind}</span></div>
-    </section>
-  );
-}
+/** Slide 04's three rows: what the market puts in front of you, and what the
+ *  city puts there instead. The pictures are the owner's own renders. */
+const SHELVES = [
+  { key: 'groceries', label: 'Groceries & nutrition' },
+  { key: 'beauty', label: 'Beauty' },
+  { key: 'fitness', label: 'Fitness & supplements' },
+];
 
 export function Investor() {
   /* The tab is the deck while the deck is open, and the city again after. */
   useEffect(() => {
     const was = document.title;
-    document.title = 'Together City — Investor and Partner Overview';
+    document.title = 'Together City — Seed Round 2026';
     return () => { document.title = was; };
   }, []);
 
   return (
     <main className="dk">
+      {/* ============ 01 · DISCLAIMER ============ */}
       <section className="dk-slide">
-        <Label n="001" />
+        <Label n="01" />
         <div className="dk-body">
-          <div className="dk-two">
-            <div className="dk-body">
-              <h1 className="dk-h1">Together City</h1>
-              <p className="dk-lede">One city. Every hub. Personalized to one person at a time.</p>
-            </div>
-            <img className="dk-mark no-case" src={`${A}logo.webp`} alt="The Together City signature" />
-          </div>
+          <div className="dk-cap">Disclaimer</div>
+          <h2 className="dk-h2">Read this before you turn the page.</h2>
+          <p className="dk-lede">
+            Seed stage. Six months from launch. The platform is being built; we&rsquo;re
+            raising for the operational layer that opens the gates.
+          </p>
+          <p className="dk-note">
+            If you came for customers, revenue, traction and a hockey stick drawn in a
+            spreadsheet at two a.m., this is the wrong deck. There isn&rsquo;t one yet.
+            That&rsquo;s rather the point of seed.
+          </p>
+          <p className="dk-note">
+            We&rsquo;ll also spare you the TAM/SAM/SOM gymnastics. You know the market. We
+            know the market. Three nested circles aren&rsquo;t going to teach either of us
+            anything.
+          </p>
+          <p className="dk-note">
+            What&rsquo;s left is the vision, the platform and where this can go &mdash; thirteen
+            slides, no imaginary numbers. Still here? Good.
+          </p>
         </div>
-        <div className="dk-foot"><span>Investor and Partner Overview</span><span>2026</span></div>
+        <div className="dk-foot"><span>Together City</span><span>Welcome to Together City</span></div>
       </section>
 
-      <section className="dk-slide">
-        <Label n="002" />
+      {/* ============ 02 · THE COVER ============ */}
+      <section className="dk-slide rev">
+        <Label n="02" />
         <div className="dk-body">
-          <h2 className="dk-h2">Sixteen hubs, one login</h2>
-          <p className="dk-lede">Groceries, medicine, fitness, beauty, jobs, travel, housing, matchmaking — all of it inside a single city you actually live in.</p>
-          <img className="dk-shot no-case" src={`${A}city.webp`} alt="The city seen from above, every hub on its own billboard" />
+          <div className="dk-cap">Identity · Memory · Intelligence</div>
+          <h2 className="dk-h2">The world&rsquo;s largest digital city.</h2>
+          <p className="dk-lede">
+            An AI-powered operating system for everyday life. Everything, personalized.
+          </p>
+          <img className="dk-shot no-case" src={`${A}cover.webp`}
+            alt="Together City — a skyline of hub billboards at golden hour" />
         </div>
-        <div className="dk-foot"><span>Together City</span><span>The Ecosystem</span></div>
+        <div className="dk-foot"><span>Seed round</span><span>togethercity.app</span></div>
       </section>
 
+      {/* ============ 03 · WHAT WE ARE CREATING ============ */}
       <section className="dk-slide">
-        <Label n="003" />
+        <Label n="03" />
         <div className="dk-body">
-          <h2 className="dk-h2">The world&rsquo;s largest digital city, personalized for you and powered by your trusted local vendors</h2>
-          <p className="dk-lede">Set your preferences once. Every hub narrows the world down to what fits you — instead of what pays the most for shelf space.</p>
-          <div className="dk-three">
-            <div><div className="dk-cap">Once</div><p className="dk-note">One profile, one set of preferences</p></div>
-            <div><div className="dk-cap">Everywhere</div><p className="dk-note">Every hub reads the same signal</p></div>
-            <div><div className="dk-cap">Locally</div><p className="dk-note">Fulfilled by vendors around you</p></div>
-          </div>
-        </div>
-        <div className="dk-foot"><span>Together City</span><span>Thesis</span></div>
-      </section>
-
-      <section className="dk-slide">
-        <Label n="004" />
-        <div className="dk-body">
-          <h2 className="dk-h2">Six hubs, one pattern</h2>
+          <div className="dk-cap">What we are creating</div>
+          <h2 className="dk-h2">A digital city built around the member, not the product.</h2>
           <div className="dk-rows">
-            {[
-              ['01', 'Matchmaking', 'Compatibility before attraction'],
-              ['02', 'Nutrition', 'The aisle narrowed to your body'],
-              ['03', 'Beauty', 'Two products, not two thousand'],
-              ['04', 'Fitness', 'Plans and stacks from your data'],
-              ['05', 'Pharmacy', 'One prescription, many vendors'],
-              ['06', 'Services', 'Invisible quoting from nearby pros'],
-            ].map(([num, name, line]) => (
-              <div key={num} className="dk-row">
-                <b>{num}</b>
-                <div><b>{name}</b> <span>{line}</span></div>
-              </div>
-            ))}
+            <div className="dk-row"><b>I</b><span>One member profile &mdash; social, preferences, location, lifestyle, health, finance, career.</span></div>
+            <div className="dk-row"><b>II</b><span>One engine that turns that profile and community intelligence into curation.</span></div>
+            <div className="dk-row"><b>III</b><span>Two aspects &mdash; a personalized store built around the member, and the largest digital neighborhood store.</span></div>
+            <div className="dk-row"><b>IV</b><span>A digital city that eventually runs online services the way a real city does &mdash; real estate, jobs, match-making and the rest.</span></div>
           </div>
+          <p className="dk-note">
+            You already have forty apps that don&rsquo;t know you. Consider this the intervention.
+          </p>
         </div>
-        <div className="dk-foot"><span>Together City</span><span>Contents</span></div>
+        <div className="dk-foot"><span>Together City</span><span>The platform</span></div>
       </section>
 
-      <section className="dk-slide rev">
-        <Label n="005" />
-        <div className="dk-body">
-          <h2 className="dk-h2">From what you need to a doorstep, in five moves</h2>
-          <p className="dk-lede">Every hub runs on the same market underneath: you say what you need, the city finds who nearby has it, and a local vendor fulfils it.</p>
-          <div className="dk-steps">
-            {[
-              ['1', 'You need', 'Tell the city what you need.'],
-              ['2', 'We connect', 'It finds the best local vendors near you.'],
-              ['3', 'Vendors accept', 'Nearby vendors receive the request and take it on.'],
-              ['4', 'They fulfil', 'The vendor prepares the order themselves.'],
-              ['5', 'Delivered', 'By the vendor team, or by ours.'],
-            ].map(([num, name, line]) => (
-              <div key={num} className="dk-step"><b>{num}</b><em>{name}</em><span>{line}</span></div>
-            ))}
-          </div>
-        </div>
-        <div className="dk-foot"><span>Together City</span><span>The Mechanic</span></div>
-      </section>
-
+      {/* ============ 04 · PROBLEM & SOLUTION ============ */}
       <section className="dk-slide">
-        <Label n="006" />
+        <Label n="04" />
         <div className="dk-body">
-          <h2 className="dk-h2">The vendor chooses how it reaches you</h2>
-          <div className="dk-two">
-            <div className="dk-body">
-              <div className="dk-cap">Option 01 — the vendor delivers</div>
-              <div className="dk-chain">
-                <span>Vendor accepts</span><span>Their own team</span><span>On the way</span><span>At your door</span>
+          <div className="dk-cap">Problem &amp; solution</div>
+          <h2 className="dk-h2">Everything for everyone, or exactly what you need. The user decides.</h2>
+          <div className="dk-tags two"><span>Everything</span><span>Curated</span></div>
+          {SHELVES.map((s) => (
+            <Fragment key={s.key}>
+              <div className="dk-cap">{s.label}</div>
+              <div className="dk-two">
+                <img className="dk-shot no-case" src={`${A}${s.key}-all.webp`}
+                  alt={`${s.label} — every product on the market`} loading="lazy" />
+                <img className="dk-shot no-case" src={`${A}${s.key}-curated.webp`}
+                  alt={`${s.label} — the shelf sized to what you buy`} loading="lazy" />
               </div>
-              <p className="dk-note">A vendor with riders of its own keeps the whole trip, and the margin on it.</p>
-            </div>
-            <div className="dk-body">
-              <div className="dk-cap">Option 02 — our delivery partners</div>
-              <div className="dk-chain">
-                <span>Vendor accepts</span><span>Assigned to a partner</span><span>A verified rider</span><span>At your door</span>
-              </div>
-              <p className="dk-note">A vendor without a fleet reaches the same doorstep through partners the city has verified.</p>
-            </div>
-          </div>
-          <p className="dk-note">Either route reports to the same map — accepted, preparing, ready, out for delivery — tracked live to the door.</p>
+            </Fragment>
+          ))}
+          <p className="dk-note">
+            <b>Curated, not dumped.</b> Their shelf, sized to what you actually buy.
+            Ten thousand options is not choice. It is unpaid labor with a search bar.
+          </p>
         </div>
-        <div className="dk-foot"><span>Together City</span><span>Fulfilment</span></div>
+        <div className="dk-foot"><span>Together City</span><span>Curated, not dumped</span></div>
       </section>
 
+      {/* ============ 05 · THE TRUST PROBLEM ============ */}
       <section className="dk-slide">
-        <Label n="007" />
+        <Label n="05" />
         <div className="dk-body">
-          <h2 className="dk-h2">Four things in, four reasons it holds</h2>
-          <div className="dk-two">
-            <div className="dk-body">
-              <div className="dk-cap">What it asks of you</div>
-              <div className="dk-tags two">
-                <span>Your location, for the search nearby</span>
-                <span>What you need, item or category</span>
-                <span>Payment, once and secured</span>
-                <span>Delivery preference, vendor or partner</span>
-              </div>
-            </div>
-            <div className="dk-body">
-              <div className="dk-cap">Why it works</div>
-              <div className="dk-tags two">
-                <span>The money goes to local vendors</span>
-                <span>It ships from streets away, not a warehouse</span>
-                <span>More vendors near you, better prices</span>
-                <span>Every step of the order is visible</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="dk-foot"><span>Together City</span><span>Why it works</span></div>
-      </section>
-
-      <Chapter n="008" num="01" name="Matchmaking" line="Compatibility first, attraction second, curation always." />
-
-      <section className="dk-slide rev">
-        <Label n="009" />
-        <div className="dk-body">
-          <h2 className="dk-h2">More options, more confusion</h2>
-          <p className="dk-lede">Regular dating apps monetize the scroll. Every extra profile is revenue for the platform and fatigue for the person standing in the middle of it.</p>
+          <div className="dk-cap">The trust problem</div>
+          <h2 className="dk-h2">Trust, not a trust badge.</h2>
           <div className="dk-three">
-            <div><p className="dk-note">Volume as a feature</p></div>
-            <div><p className="dk-note">Attraction before compatibility</p></div>
-            <div><p className="dk-note">Mentally draining for both sides</p></div>
+            <div>
+              <div className="dk-cap">Problem &mdash; the user</div>
+              <p className="dk-note">
+                Convenience came with an unlisted seller. You get speed, but the person
+                behind the order is anonymous &mdash; no face, no address, no one to hold to
+                it when something&rsquo;s wrong. Counterfeits, no accountability, and a
+                returns process that goes nowhere.
+              </p>
+            </div>
+            <div>
+              <div className="dk-cap">Problem &mdash; vendor side</div>
+              <p className="dk-note">
+                The shop you&rsquo;ve bought from for years has no app, no listing, no way to
+                compete with a dark store two blocks away &mdash; so it just loses the order,
+                silently, every day.
+              </p>
+            </div>
+            <div>
+              <div className="dk-cap">Our solution</div>
+              <p className="dk-note">
+                One trusted relationship, both sides working. The vendor you&rsquo;ve known for
+                years, now as fast as the app that replaced them. And not their whole
+                shelf &mdash; just what they&rsquo;d hand you if they already knew your order.
+              </p>
+              <p className="dk-note"><b>Shelf relevance &gt; shelf size</b></p>
+            </div>
           </div>
-          <img className="dk-shot no-case" src={`${A}dating-crowd.webp`} alt="A crowd of faces, none of them chosen" loading="lazy" />
+          <div className="dk-tags">
+            <span>A trusted face, not a feed</span>
+            <span>A decade, not a launch</span>
+            <span>Fixed down the street</span>
+            <span>Visible again</span>
+          </div>
+          <p className="dk-note">
+            Every dark store is a stranger with a warehouse. Every neighborhood shop is a
+            name you already know &mdash; and nobody thought to give it an app.
+          </p>
         </div>
-        <div className="dk-foot"><span>Together City</span><span>Hub 01</span></div>
+        <div className="dk-foot"><span>Together City</span><span>Trust</span></div>
       </section>
 
+      {/* ============ 06 · OUR MOAT ============ */}
       <section className="dk-slide">
-        <Label n="010" />
+        <Label n="06" />
         <div className="dk-body">
-          <h2 className="dk-h2">Compatibility first, then attraction</h2>
+          <div className="dk-cap">Our moat</div>
+          <h2 className="dk-h2">At scale, we compete with the online market itself.</h2>
+          <div className="dk-rows">
+            <div className="dk-row"><b>Network effect</b><span>Each member makes the vendor side worth more, and vice versa.</span></div>
+            <div className="dk-row"><b>Vast local network</b><span>Stores signed street by street &mdash; years of groundwork to replicate.</span></div>
+            <div className="dk-row"><b>Low-cost operations</b><span>No warehouses, no fleet, no inventory on our books.</span></div>
+            <div className="dk-row"><b>New vendor income</b><span>A second revenue line for shops that had no digital one.</span></div>
+            <div className="dk-row"><b>Digitization</b><span>We put the neighborhood online, not just onto a listing.</span></div>
+            <div className="dk-row"><b>Personalization</b><span>Members stay because nowhere else knows them this well.</span></div>
+          </div>
+          <p className="dk-note">
+            &ldquo;If you need a service, go to Together City.&rdquo; Anyone can clone a feature over
+            a weekend. Nobody clones a network of neighborhoods &mdash; or a cost base with no
+            warehouses in it.
+          </p>
+        </div>
+        <div className="dk-foot"><span>Together City</span><span>Six sources of defensibility</span></div>
+      </section>
+
+      {/* ============ 07 · HOW IT WORKS ============ */}
+      <section className="dk-slide">
+        <Label n="07" />
+        <div className="dk-body">
+          <div className="dk-cap">How it works</div>
+          <h2 className="dk-h2">Your neighborhood, connected.</h2>
+          <div className="dk-rows">
+            <div className="dk-row"><b>01</b><span><b>Neighborhood marketplace</b> &mdash; the local high street, listed, from clinics to showrooms.</span></div>
+            <div className="dk-row"><b>02</b><span><b>Personalize &mdash; or open market</b> &mdash; a short, curated list. The whole market stays one tap away.</span></div>
+            <div className="dk-row"><b>03</b><span><b>A local vendor fulfills</b> &mdash; the nearest shop with stock takes the order.</span></div>
+            <div className="dk-row"><b>04</b><span><b>Delivered within kilometers</b> &mdash; a partner collects it; member and vendor share the cost.</span></div>
+          </div>
+          <p className="dk-note">
+            <b>And the loop closes.</b> Doctors, stylists, trainers and astrologers chat with
+            the member inside the app. Repeat orders never leave the platform.
+          </p>
+          <p className="dk-note">
+            Yes, it is a marketplace. The difference is that the warehouse is your own
+            neighborhood, and it was already there.
+          </p>
+        </div>
+        <div className="dk-foot"><span>Together City</span><span>Four moves</span></div>
+      </section>
+
+      {/* ============ 08 · OPERATIONAL MODEL ============ */}
+      <section className="dk-slide">
+        <Label n="08" />
+        <div className="dk-body">
+          <div className="dk-cap">Operational model</div>
+          <h2 className="dk-h2">A two-way platform. Both sides get a city.</h2>
           <div className="dk-two">
             <div className="dk-body">
-              <p className="dk-lede">One curated introduction at a time, scored against values, intent and lifestyle before a single photo is shown.</p>
-              <div className="dk-stats">
-                <div className="dk-stat"><b>95%</b><span>Compatibility, shown up front</span></div>
-              </div>
-            </div>
-            <img className="dk-shot no-case" src={`${A}match.webp`} alt="A single introduction, with the reason it was made" loading="lazy" />
-          </div>
-        </div>
-        <div className="dk-foot"><span>Together City</span><span>Hub 01</span></div>
-      </section>
-
-      <Chapter n="011" num="02" name="Nutrition" line="The aisle, narrowed to what your body actually needs." />
-
-      <Compare
-        n="012" kind="Hub 02" head="Every aisle, or only your aisle"
-        left={{ cap: 'What other platforms show you', img: 'nutrition-aisle.webp', alt: 'An endless supermarket aisle', note: 'Forty thousand SKUs, ranked by margin' }}
-        right={{ cap: 'What Together City shows you', img: 'nutrition-picks.webp', alt: 'One short shelf of chosen products', note: 'One shelf, built from your medical profile' }}
-      />
-
-      <Chapter n="013" num="03" name="Beauty" line="Skin data in, two products out." />
-
-      <Compare
-        n="014" kind="Hub 03" head="Ranked by ad spend, or by your skin"
-        left={{ cap: 'Sorted by who pays the most', img: 'beauty-clutter.webp', alt: 'A wall of sponsored beauty products', note: 'Sponsored shelves, no clinical logic' }}
-        right={{ cap: 'Sorted by what your skin needs', img: 'beauty-clean.webp', alt: 'Two products on an empty shelf', note: 'A serum and a moisturizer, matched to hydration, acne and UV needs' }}
-      />
-
-      <Chapter n="015" num="04" name="Fitness" line="Supplements and training plans that answer to your bloodwork." />
-
-      <Compare
-        n="016" kind="Hub 04" head="What the market sells, what science supports"
-        left={{ cap: 'What the world tells you', img: 'fitness-clutter.webp', alt: 'A wall of supplement tubs', note: 'Every tub on the wall, none of them for you' }}
-        right={{ cap: 'What we tell you', img: 'fitness-science.webp', alt: 'Two supplements with the reasoning beside them', note: 'Two products, annotated with the reason they were chosen' }}
-      />
-
-      <section className="dk-slide">
-        <Label n="017" />
-        <div className="dk-body">
-          <h2 className="dk-h2">Medical data in, three plans out</h2>
-          <div className="dk-stats">
-            <div className="dk-stat"><b>95%</b><span>Nutrition</span></div>
-            <div className="dk-stat"><b>92%</b><span>Skin</span></div>
-            <div className="dk-stat"><b>94%</b><span>Fitness</span></div>
-          </div>
-          <img className="dk-shot no-case" src={`${A}funnel.webp`} alt="One set of medical reports opening into three plans" loading="lazy" />
-        </div>
-        <div className="dk-foot"><span>Together City</span><span>Hub 04</span></div>
-      </section>
-
-      <section className="dk-slide">
-        <Label n="018" />
-        <div className="dk-body">
-          <h2 className="dk-h2">A plan for every stage</h2>
-          <p className="dk-lede">Training adapts as the body does, so the plan stays correct instead of going stale after week three.</p>
-          <div className="dk-three">
-            <div><p className="dk-note">Daily plan, adjusted weekly</p></div>
-            <div><p className="dk-note">Recovery read from the same medical profile</p></div>
-            <div><p className="dk-note">Supplements and groceries stay in sync</p></div>
-          </div>
-          <img className="dk-shot no-case" src={`${A}workout.webp`} alt="A training plan in progress" loading="lazy" />
-        </div>
-        <div className="dk-foot"><span>Together City</span><span>Hub 04</span></div>
-      </section>
-
-      <Chapter n="019" num="05" name="Pharmacy" line="One prescription, distributed across the vendors who actually have it." />
-
-      <Compare
-        n="020" kind="Hub 05" head="Upload once, route to three pharmacies"
-        left={{ cap: 'Step one — scan and verify', img: 'rx-upload.webp', alt: 'A prescription read line by line', note: 'Five line items read straight off the prescription' }}
-        right={{ cap: 'Step two — distribute', img: 'rx-vendors.webp', alt: 'The same prescription split across three pharmacies', note: 'Each vendor approves only the items it stocks' }}
-      />
-
-      <section className="dk-slide">
-        <Label n="021" />
-        <div className="dk-body">
-          <h2 className="dk-h2">Full order, one delivery</h2>
-          <div className="dk-stats">
-            <div className="dk-stat"><b>3</b><span>Vendors</span></div>
-            <div className="dk-stat"><b>4.9 km</b><span>Pickup route</span></div>
-            <div className="dk-stat"><b>28 min</b><span>To the door</span></div>
-          </div>
-          <img className="dk-shot no-case" src={`${A}rx-complete.webp`} alt="One complete order at the door" loading="lazy" />
-        </div>
-        <div className="dk-foot"><span>Together City</span><span>Hub 05</span></div>
-      </section>
-
-      <Chapter n="022" num="06" name="Services" line="Invisible quoting from the professionals nearest to you." />
-
-      <section className="dk-slide">
-        <Label n="023" />
-        <div className="dk-body">
-          <h2 className="dk-h2">The brief goes out, the quotes come back</h2>
-          <p className="dk-lede">One upload becomes three priced, verified, time-estimated quotes from studios within five kilometres. You never have to ask.</p>
-          <img className="dk-shot no-case" src={`${A}quoting.webp`} alt="One brief answered by three quotes" loading="lazy" />
-        </div>
-        <div className="dk-foot"><span>Together City</span><span>Hub 06</span></div>
-      </section>
-
-      <section className="dk-slide">
-        <Label n="024" />
-        <div className="dk-body">
-          <h2 className="dk-h2">The same pattern, sixteen times over</h2>
-          <div className="dk-two">
-            <div className="dk-body">
-              <p className="dk-lede">Every hub runs on the same three moves: read the profile, narrow the options, fulfil through nearby vendors. Adding a category is a data problem, not a new product.</p>
-              <div className="dk-tags three">
-                {['Food and Dining', 'Grocery', 'Health and Medical', 'Beauty and Care',
-                  'Fitness and Sports', 'Home Services', 'Real Estate', 'Jobs',
-                  'Travel', 'Finance', 'Automotive', 'Local Retail'].map((c) => <span key={c}>{c}</span>)}
-              </div>
+              <div className="dk-cap">For the vendor</div>
+              <p className="dk-lede">Their own online store</p>
+              <p className="dk-note">
+                A personalized storefront with its own shareable link &mdash; theirs to send to
+                their own customers. A shop, not a listing.
+              </p>
             </div>
             <div className="dk-body">
-              <div className="dk-cap">Real estate, already built</div>
-              <img className="dk-shot no-case" src={`${A}realestate.webp`} alt="Owner-direct listings in the Real Estate hub" loading="lazy" />
-              <p className="dk-note">132 verified listings, owner-direct, zero brokerage — the same narrowing logic applied to housing</p>
+              <div className="dk-cap">For the member</div>
+              <p className="dk-lede">One curated app for a whole life</p>
+              <p className="dk-note">
+                Gyms to groceries to clinics, curated first &mdash; with the open market one tap
+                away.
+              </p>
             </div>
           </div>
-        </div>
-        <div className="dk-foot"><span>Together City</span><span>Breadth</span></div>
-      </section>
-
-      <section className="dk-slide rev">
-        <Label n="025" />
-        <div className="dk-body">
-          <h2 className="dk-h2">Every room in the city is a conversation</h2>
-          <p className="dk-lede">Text, photographs, files and voice notes — and anything from any hub sent as a card that links back to the thing it came from.</p>
-          <div className="dk-tags">
-            <span>Snaps: view once, twice, a day, or keep</span>
-            <span>Sent, delivered, read — counted per recipient</span>
-            <span>Reply, react, forward, star, pin</span>
-            <span>Groups with owners, admins and members</span>
-            <span>Search every thread by date or by starred</span>
-            <span>City chats and dating chats never mix</span>
-            <span>Every snap screened before it lands</span>
-            <span>Five grounds to set the room in</span>
+          <div className="dk-chain">
+            <span>No warehouses</span><span>Faster expansion</span><span>Wider selection</span><span>Lower risk</span>
           </div>
+          <p className="dk-note">
+            <b>How an order travels.</b> Orders route to the nearest stores. If stock
+            isn&rsquo;t there, nearby vendors are notified and can accept in full or in part
+            &mdash; the order keeps moving until it&rsquo;s fulfilled.
+          </p>
+          <p className="dk-note">
+            <b>Who owns what.</b> We own the member relationship and the personalization
+            layer. The neighborhood owns the inventory.
+          </p>
         </div>
-        <div className="dk-foot"><span>Together City</span><span>The rooms</span></div>
+        <div className="dk-foot"><span>Together City</span><span>Asset-light</span></div>
       </section>
 
+      {/* ============ 09 · HOW WE MAKE MONEY ============ */}
       <section className="dk-slide">
-        <Label n="026" />
+        <Label n="09" />
         <div className="dk-body">
-          <h2 className="dk-h2">A city address, and real mail through it</h2>
-          <p className="dk-lede">Every citizen gets an address of their own. Mail leaves the city as them, from a verified domain, and the reply comes back to the same thread.</p>
-          <div className="dk-tags">
-            <span>Inbox, sent, drafts, failed, starred, trash</span>
-            <span>To, cc, bcc, and drafts that save themselves</span>
-            <span>Attachments taken straight from your Drive</span>
-            <span>Threaded the way Gmail and Outlook read it</span>
-            <span>Projects: file a thread, catch its replies</span>
-            <span>Search five fields, inside the folder you stand in</span>
-            <span>Ten gigabytes, and a log of every dispatch</span>
-            <span>Capped external sends — the city is not a megaphone</span>
+          <div className="dk-cap">How we make money</div>
+          <h2 className="dk-h2">One ecosystem. Four revenue engines.</h2>
+          <div className="dk-rows">
+            <div className="dk-row"><b>01</b><span><b>Subscriptions</b> &mdash; premium personalization and experiences.</span></div>
+            <div className="dk-row"><b>02</b><span><b>Advertising</b> &mdash; targeted, relevant brand and local business advertising.</span></div>
+            <div className="dk-row"><b>03</b><span><b>Digital store rent</b> &mdash; every store on the platform pays 1% of its total sales or &#8377;1,000 a month, whichever is higher.</span></div>
+            <div className="dk-row"><b>04</b><span><b>Product margin at scale</b> &mdash; volume across lakhs of stores turns buying power into margin on the products themselves.</span></div>
           </div>
+          <div className="dk-stats">
+            <div className="dk-stat"><b>Month 18</b><span>Revenue begins after launch</span></div>
+          </div>
+          <p className="dk-note">
+            We&rsquo;re not monetizing attention. We&rsquo;re monetizing being useful, which turns out
+            to be cheaper.
+          </p>
         </div>
-        <div className="dk-foot"><span>Together City</span><span>The mailbox</span></div>
+        <div className="dk-foot"><span>Together City</span><span>Revenue</span></div>
       </section>
 
+      {/* ============ 10 · THE ASK ============ */}
       <section className="dk-slide">
-        <Label n="027" />
+        <Label n="10" />
         <div className="dk-body">
-          <h2 className="dk-h2">One profile, and every hub reading it</h2>
-          <p className="dk-lede">Identity, body, contact, diet and medical live on one page, versioned, with every change on the record. A write reaches the hubs that used to keep their own copy, so two rooms cannot disagree about the same person.</p>
-          <div className="dk-tags">
-            <span>Nutrition</span><span>Medical</span><span>Fitness</span><span>Beauty</span>
-            <span>Dating</span><span>Jobs</span><span>Astrology</span><span>Local Market</span>
-          </div>
-          <p className="dk-note">The scores stay with the hubs, and they show their work: a fit percentage on a job, nine compatibility bands on a match, and a line saying how much of a profile the number was actually able to read. Mira carries a door on every page and a memory that refuses whole categories outright — and you can read back what she kept and delete it.</p>
-        </div>
-        <div className="dk-foot"><span>Together City</span><span>Personalization</span></div>
-      </section>
-
-            <section className="dk-slide">
-        <Label n="028" />
-        <div className="dk-body">
-          <h2 className="dk-h2">Seven years, on the model as it stands</h2>
+          <div className="dk-cap">The ask</div>
+          <h2 className="dk-h2">What we need.</h2>
+          <p className="dk-note">
+            What we invest today, and what the profit looks like. Capital converts directly
+            into digitized stores &mdash; and stores are what compound.
+          </p>
           <div className="dk-scroll">
-            <div className="dk-table c6">
-              <div className="h">₹ crore unless stated</div>
-              <div className="h">Y2–3 soft</div><div className="h">Y4</div><div className="h">Y5</div><div className="h">Y6</div><div className="h">Y7</div>
-              <div className="k">Active users, million</div>
-              <div className="v">18</div><div className="v">46</div><div className="v">84</div><div className="v">131</div><div className="v">188</div>
-              <div className="k">Paying users, million</div>
-              <div className="v">0.7</div><div className="v">2.2</div><div className="v">4.6</div><div className="v">7.8</div><div className="v">12.0</div>
-              <div className="k">Revenue</div>
-              <div className="v">86</div><div className="v">485</div><div className="v">1,594</div><div className="v">3,309</div><div className="v">5,831</div>
-              <div className="k">EBITDA</div>
-              <div className="v">11</div><div className="v">141</div><div className="v">1,133</div><div className="v">2,703</div><div className="v">5,035</div>
-              <div className="k">EBITDA margin</div>
-              <div className="n">12%</div><div className="n">29%</div><div className="n">71%</div><div className="n">82%</div><div className="n">86%</div>
+            <div className="dk-table c3">
+              <div className="h">Invested today</div><div className="h">Digitized stores</div><div className="h">Returned by month 24</div>
+              <div className="v">&#8377;35 Cr</div><div className="n">1.5 lakh</div><div className="n">Break-even</div>
+              <div className="v">&#8377;50 Cr</div><div className="n">3 lakh</div><div className="n">&#8377;100 Cr operating profit</div>
+              <div className="v">&#8377;100 Cr</div><div className="n">7.8 lakh</div><div className="n">&#8377;630 Cr operating profit</div>
             </div>
           </div>
-          <p className="dk-note">Delivery and fulfilment is ₹1,780 crore of the ₹2,292 crore seven-year cost base — 78 per cent of everything the city spends. The margin above is what survives paying for the last mile.</p>
+          <div className="dk-rows">
+            <div className="dk-row"><b>What it buys</b><span>A tech team, sector-by-sector marketing and sales, field agents and customer service &mdash; a content-first, capital-efficient entry.</span></div>
+            <div className="dk-row"><b>Why once</b><span>A projected CAC of &#8377;10 and compounding network effects make city marketing self-financing from year one.</span></div>
+          </div>
+          <p className="dk-note">
+            The floor is break-even in two years. Everything above that is a question of how
+            fast you want the city built.
+          </p>
         </div>
-        <div className="dk-foot"><span>Financial estimates</span><span>Projection, 8 July 2026 model</span></div>
+        <div className="dk-foot"><span>Together City</span><span>Seed round</span></div>
       </section>
 
-            <section className="dk-slide rev">
-        <Label n="029" />
+      {/* ============ 11 · FINANCIAL PROJECTIONS ============ */}
+      <section className="dk-slide">
+        <Label n="11" />
         <div className="dk-body">
-          <h2 className="dk-h2">One box in front of the whole city</h2>
-          <p className="dk-lede">Ask for anything. The city already knows which version of it is yours.</p>
-          <img className="dk-shot no-case" src={`${A}search.webp`} alt="One search box in front of the whole city" loading="lazy" />
+          <div className="dk-cap">Financial projections</div>
+          <h2 className="dk-h2">A conservative path to &#8377;1,500+ Cr.</h2>
+          <p className="dk-note">
+            Downside-case assumptions &mdash; roughly 10% of today&rsquo;s category leaders&rsquo; paying
+            customer base within five years.
+          </p>
+          <div className="dk-scroll">
+            <div className="dk-table c4">
+              <div className="h">Metric</div><div className="h">Year 2</div><div className="h">Year 3</div><div className="h">Year 4</div>
+              <div className="k">Digitized stores</div><div className="v">1.5 lakh</div><div className="v">3 lakh</div><div className="v">6 lakh</div>
+              <div className="k">Registered users (Mn)</div><div className="v">38.0</div><div className="v">57.0</div><div className="v">77.0</div>
+              <div className="k">Active users (Mn)</div><div className="v">19.0</div><div className="v">47.0</div><div className="v">84.0</div>
+              <div className="k">Paying users (Mn)</div><div className="v">0.70</div><div className="v">2.21</div><div className="v">4.57</div>
+              <div className="k">Revenue streams</div><div className="n">3</div><div className="n">4</div><div className="n">4</div>
+            </div>
+          </div>
+          <p className="dk-note">
+            Revenue is primarily commission, subscription, advertising and platform fees.
+            Every projection is fiction. This one at least has conservative assumptions and
+            a spreadsheet behind it.
+          </p>
         </div>
-        <div className="dk-foot"><Link to="/">Enter the city</Link><span>2026</span></div>
+        <div className="dk-foot"><span>Financial estimates</span><span>Downside case</span></div>
+      </section>
+
+      {/* ============ 12 · THE TEAM ============ */}
+      <section className="dk-slide">
+        <Label n="12" />
+        <div className="dk-body">
+          <div className="dk-cap">The team</div>
+          <h2 className="dk-h2">We&rsquo;ve spent our careers understanding people.</h2>
+          <div className="dk-two">
+            <div className="dk-body">
+              <div className="dk-cap">Shruti Mishra &middot; Co-founder</div>
+              <p className="dk-note">
+                CPA (USA) with experience in corporate finance, M&amp;A and financial forensic
+                &mdash; YES Bank, Pernod Ricard, Reliance ADAG and Mantri Group. Later led
+                fundraising for India&rsquo;s leading infrastructure companies.
+              </p>
+              <p className="dk-note">&ldquo;Enduring companies are built on clarity, discipline and trust.&rdquo;</p>
+            </div>
+            <div className="dk-body">
+              <div className="dk-cap">Somen K &middot; Founder</div>
+              <p className="dk-note">
+                Two decades across advertising, communication and creative production. For
+                brands like Aditya Birla Group, Godrej, HUL and Fiat &mdash; a career built on
+                what people feel, believe and act on.
+              </p>
+              <p className="dk-note">&ldquo;Technology should deepen human connection, not replace it.&rdquo;</p>
+            </div>
+          </div>
+          <p className="dk-note">
+            One of us sells the dream. The other checks whether we can afford it. Both
+            signatures are required.
+          </p>
+        </div>
+        <div className="dk-foot"><span>Together City</span><span>togethercity.app</span></div>
+      </section>
+
+      {/* ============ 13 · COME SEE THE CITY ============ */}
+      <section className="dk-slide rev">
+        <Label n="13" />
+        <div className="dk-body">
+          <div className="dk-cap">Come see the city</div>
+          <h2 className="dk-h2">Explaining it doesn&rsquo;t do it justice.</h2>
+          <p className="dk-lede">
+            A city with the streets paved and the sewers pending: what&rsquo;s live is genuinely
+            live, and about half the backend and operations are still to come. Construction
+            wraps in three months &mdash; at least that&rsquo;s what our construction team tells us.
+          </p>
+          <div className="dk-stats">
+            <div className="dk-stat"><b>~180</b><span>Days to launch</span></div>
+            <div className="dk-stat"><b>~90</b><span>Days to first invites</span></div>
+          </div>
+          <div className="dk-rows">
+            <div className="dk-row"><b>Shruti Mishra</b><span>99307 84628</span></div>
+            <div className="dk-row"><b>Somen K</b><span>98671 78587</span></div>
+          </div>
+          <p className="dk-note">
+            Scan it. Worst case, you lose four seconds. Best case, you&rsquo;re the investor who
+            got in before the city had traffic.
+          </p>
+        </div>
+        <div className="dk-foot"><Link to="/">Enter the city</Link><span>togethercity.app &middot; 2026</span></div>
       </section>
     </main>
   );
