@@ -26,6 +26,22 @@ import { ChatMediaGuard } from '../../messages/chat-media-guard';
 
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, ...Array(64).fill(0x20)]);
 
+/**
+ * A ConfigService double that answers every csamMatch key as the real one
+ * does — a STRING for the four string settings, a number for the timeout.
+ * It was an inline ternary that returned 8000 for anything it did not
+ * recognise, which is fine until the service reads a fifth key and calls
+ * .trim() on a number.
+ */
+function cfg(over: Partial<{ url: string; kind: string; token: string; user: string; password: string }> = {}) {
+  const values: Record<string, string> = {
+    'csamMatch.url': '', 'csamMatch.kind': '', 'csamMatch.token': '',
+    'csamMatch.user': '', 'csamMatch.password': '',
+    ...Object.fromEntries(Object.entries(over).map(([k, v]) => [`csamMatch.${k}`, v as string])),
+  };
+  return { get: (k: string) => (k in values ? values[k] : 8000) };
+}
+
 function svc(opts: { url?: string; fetchImpl?: typeof fetch } = {}) {
   const created: Record<string, unknown>[] = [];
   const suspended: Array<{ where: unknown; data: Record<string, unknown> }> = [];
@@ -33,7 +49,7 @@ function svc(opts: { url?: string; fetchImpl?: typeof fetch } = {}) {
     csamHit: { create: async (a: { data: Record<string, unknown> }) => { created.push(a.data); return {}; } },
     user: { update: async (a: { where: unknown; data: Record<string, unknown> }) => { suspended.push(a); return {}; } },
   };
-  const config = { get: (k: string) => (k === 'csamMatch.url' ? (opts.url ?? '') : k === 'csamMatch.token' ? '' : 8000) };
+  const config = cfg({ url: opts.url ?? '' });
   const s = new HashMatchService(prisma as never, config as never, undefined);
   // No Redis in these cases: the cache is a speed feature, and a cache that is
   // absent must not change a single verdict.
@@ -69,7 +85,7 @@ describe('the hash gate, in front of the classifier', () => {
   it('"off" waves images through, says so as a bypass, and remembers nothing', async () => {
     const remembered: string[] = [];
     const redis = { up: true, raw: { get: async () => null, set: async (k: string) => { remembered.push(k); return 'OK'; } } };
-    const config = { get: (k: string) => (k === 'csamMatch.url' ? 'OFF' : k === 'csamMatch.token' ? '' : 8000) };
+    const config = cfg({ url: 'OFF' });
     const s = new HashMatchService({} as never, config as never, redis as never);
     expect(s.status).toEqual({ name: 'bypass', ready: true });
     expect(await s.check(JPEG, 'image/jpeg', { userId: 'u1', surface: 'post-media' })).toBe('clear');

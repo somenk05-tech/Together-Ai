@@ -48,6 +48,23 @@ const KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'catch', 'return', 'ge
 const KEPT_UNCALLED = new Map<string, string>([
   ['connections/connections.service.ts — assertHubAccess()',
    'throwing form of canAccessHub; no second cross-citizen read exists to gate yet'],
+  // THE DAILY LETTER IS RETIRED (owner decision, 5 Sep). GET /astrology/daily
+  // answers `{ retired: true }` without reading anything, so the writer and the
+  // archive reader both lost their caller in the same commit — which is exactly
+  // the shape this guard exists to catch, and exactly the shape that is correct
+  // here. astrology.controller.ts says so above the route in its own words, and
+  // the-daily-letter-is-retired.spec.ts pins the retirement.
+  //
+  // KEPT rather than deleted, and the reason is the archive. Citizens have
+  // months of daily letters in AstroReading, `recentLetters` still reads them,
+  // and if the letter ever comes back — as a paid line rather than a free one —
+  // this is the writer. Deleting it is a product decision about somebody's
+  // saved reading, not a cleanup; when that decision is made, both go together
+  // with composeDailyBrief and writeDailyLetter.
+  ['astrology/astrology.service.ts — daily()',
+   'the daily letter is retired (5 Sep); the route answers { retired: true } and reads nothing'],
+  ['astrology/astrology.service.ts — dailyHistory()',
+   'the same retirement; the archive of already-written daily letters has no screen to read it'],
 ]);
 
 /**

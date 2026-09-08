@@ -5,7 +5,9 @@ import { PrismaService } from '../../shared/prisma/prisma.service';
 import { RedisService } from '../../shared/redis/redis.service';
 import { swallow } from '../../shared/swallow';
 import {
+  ArachnidHashMatchProvider,
   BypassHashMatchProvider,
+  HASH_MATCH_ARACHNID,
   HASH_MATCH_OFF,
   HashMatchUnavailable,
   HttpHashMatchProvider,
@@ -116,11 +118,27 @@ export class HashMatchService {
     @Optional() private readonly redis?: RedisService,
   ) {
     const url = (config.get<string>('csamMatch.url') ?? '').trim();
+    const kind = (config.get<string>('csamMatch.kind') ?? '').trim().toLowerCase();
     const token = (config.get<string>('csamMatch.token') ?? '').trim();
+    const user = (config.get<string>('csamMatch.user') ?? '').trim();
+    const password = (config.get<string>('csamMatch.password') ?? '').trim();
     const timeoutMs = config.get<number>('csamMatch.timeoutMs') ?? 8_000;
-    this.provider = url.toLowerCase() === HASH_MATCH_OFF
-      ? new BypassHashMatchProvider()
-      : url ? new HttpHashMatchProvider(url, token, timeoutMs) : new NoHashMatchProvider();
+    /**
+     * THE ORDER IS THE POLICY. "off" first, because the operator's written
+     * bypass outranks everything under it. Then no URL at all. Then the named
+     * dialect — and a dialect missing its credentials lands on
+     * NoHashMatchProvider rather than falling through to the generic contract,
+     * because Basic credentials sent as a Bearer token to Arachnid is not a
+     * degraded matcher, it is a 401 on every photograph in the city dressed up
+     * as a configured one.
+     */
+    this.provider = url.toLowerCase() === HASH_MATCH_OFF ? new BypassHashMatchProvider()
+      : !url ? new NoHashMatchProvider()
+        : kind === HASH_MATCH_ARACHNID
+          ? (user && password
+            ? new ArachnidHashMatchProvider(url, user, password, timeoutMs)
+            : new NoHashMatchProvider('CSAM_MATCH_KIND=arachnid without CSAM_MATCH_USER / CSAM_MATCH_PASSWORD'))
+          : new HttpHashMatchProvider(url, token, timeoutMs);
     if (this.provider.name === 'bypass') {
       // Error level on purpose: this line should be the loudest thing in a
       // boot log until a matcher is signed.

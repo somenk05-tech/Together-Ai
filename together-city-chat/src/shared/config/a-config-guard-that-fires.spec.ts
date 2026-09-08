@@ -116,21 +116,30 @@ describe('what refuses to start', () => {
     });
   });
 
-  it('a Turnstile secret with no hostname allowlist', () => {
-    // And the secret missing entirely, which is the wider door: the check
-    // below only ever fired once somebody had set it (6 Sep).
-    withEnv({ TURNSTILE_SECRET: '' }, () => {
-      expect(() => assertProductionConfig()).toThrow(/TURNSTILE_SECRET is unset/);
-    });
-    withEnv({ TURNSTILE_SECRET: 'k', TURNSTILE_HOSTNAMES: '' }, () => {
-      expect(() => assertProductionConfig()).toThrow(/TURNSTILE_HOSTNAMES/);
-    });
-    withEnv({ TURNSTILE_SECRET: 'k', TURNSTILE_HOSTNAMES: '  ,  ' }, () => {
-      expect(() => assertProductionConfig()).toThrow(/TURNSTILE_HOSTNAMES/);
-    });
-    withEnv({ TURNSTILE_SECRET: 'k', TURNSTILE_HOSTNAMES: 'togethercity.app' }, () => {
+  /**
+   * THE BOT CHECK CANNOT TAKE THE CITY DOWN (8 Sep). Both Turnstile findings
+   * used to refuse the boot; on 8 Sep the unset-secret refusal reached a
+   * Railway service without the secret and the whole API was down for an
+   * afternoon. A missing bot check is a degraded city, not a dangerous one:
+   * it boots, and it says so at error level on every start.
+   */
+  it('a Turnstile secret missing or without a hostname allowlist — boots, and is named as a problem', () => {
+    const unset = withEnv({ TURNSTILE_SECRET: '' }, () => {
       expect(() => assertProductionConfig()).not.toThrow();
     });
+    expect(unset.join(' ')).toMatch(/TURNSTILE_SECRET is unset/);
+    const noHosts = withEnv({ TURNSTILE_SECRET: 'k', TURNSTILE_HOSTNAMES: '' }, () => {
+      expect(() => assertProductionConfig()).not.toThrow();
+    });
+    expect(noHosts.join(' ')).toMatch(/TURNSTILE_HOSTNAMES is empty/);
+    const blankHosts = withEnv({ TURNSTILE_SECRET: 'k', TURNSTILE_HOSTNAMES: '  ,  ' }, () => {
+      expect(() => assertProductionConfig()).not.toThrow();
+    });
+    expect(blankHosts.join(' ')).toMatch(/TURNSTILE_HOSTNAMES is empty/);
+    const sound = withEnv({ TURNSTILE_SECRET: 'k', TURNSTILE_HOSTNAMES: 'togethercity.app' }, () => {
+      expect(() => assertProductionConfig()).not.toThrow();
+    });
+    expect(sound.join(' ')).not.toMatch(/TURNSTILE/);
   });
 
   /**
@@ -187,6 +196,34 @@ describe('what only warns', () => {
     expect(warned.join(' ')).toMatch(/fails CLOSED/);
   });
 
+  /**
+   * THE HARDEST STATE TO SEE FROM A DASHBOARD. The URL is set, so neither
+   * finding above fires and the board reads as a live gate — while the service
+   * refuses every photograph because it has no credentials to present. This is
+   * the line that turns that afternoon into a minute.
+   */
+  it('a dialect named without its credentials — listed, and named', () => {
+    for (const half of [{ CSAM_MATCH_USER: 'u' }, { CSAM_MATCH_PASSWORD: 'p' }, {}]) {
+      const warned = withEnv(
+        { CSAM_MATCH_URL: 'https://shield.projectarachnid.com/v1/media/', CSAM_MATCH_KIND: 'arachnid', ...half },
+        () => { expect(() => assertProductionConfig()).not.toThrow(); },
+      );
+      expect(warned.join(' ')).toMatch(/CSAM_MATCH_USER \/ CSAM_MATCH_PASSWORD/);
+      expect(warned.join(' ')).toMatch(/fails CLOSED/);
+    }
+  });
+
+  it('both credentials set — the gate is live and says nothing', () => {
+    const warned = withEnv(
+      {
+        CSAM_MATCH_URL: 'https://shield.projectarachnid.com/v1/media/', CSAM_MATCH_KIND: 'arachnid',
+        CSAM_MATCH_USER: 'u', CSAM_MATCH_PASSWORD: 'p',
+      },
+      () => { expect(() => assertProductionConfig()).not.toThrow(); },
+    );
+    expect(warned.join(' ')).not.toMatch(/CSAM_MATCH/);
+  });
+
   it('the hash gate switched off on purpose — boots, and is listed as a problem', () => {
     const warned = withEnv({ CSAM_MATCH_URL: 'off' }, () => {
       expect(() => assertProductionConfig()).not.toThrow();
@@ -203,10 +240,31 @@ describe('what only warns', () => {
     expect(said.join(' ')).toMatch(/screening is ON by default/);
   });
 
-  it('and STRICT_PROD_CONFIG turns that warning into a refusal', () => {
-    withEnv({ PHOTO_MODERATION: '', STRICT_PROD_CONFIG: 'true' }, () => {
-      expect(() => assertProductionConfig()).toThrow(/STRICT_PROD_CONFIG/);
+  /**
+   * AND STRICT_PROD_CONFIG CAN NO LONGER TURN IT INTO A REFUSAL (8 Sep). It
+   * did, once: set on a clear day, it promoted a warning that shipped later
+   * into a container that would not start, and the city was down for an
+   * afternoon. A variable must never be able to promote tomorrow's warning
+   * into today's outage; the switch is honoured by naming itself, loudly.
+   */
+  it('and STRICT_PROD_CONFIG makes the warning louder, never a refusal', () => {
+    const said = withEnv({ PHOTO_MODERATION: '', STRICT_PROD_CONFIG: 'true' }, () => {
+      expect(() => assertProductionConfig()).not.toThrow();
     });
+    expect(said.join(' ')).toMatch(/PHOTO_MODERATION is unset/);
+    expect(said.join(' ')).toMatch(/STRICT_PROD_CONFIG is set/);
+    expect(said.join(' ')).toMatch(/no longer refuses/);
+  });
+
+  it('nothing a variable can set promotes a warning into a refusal — every warning boots', () => {
+    for (const over of [
+      { CSAM_MATCH_URL: '' }, { CSAM_MATCH_URL: 'off' }, { TURNSTILE_SECRET: '' }, { CORS_ORIGIN: '*' },
+      { VAPID_PUBLIC_KEY: '' }, { EMAIL_PROVIDER: '' }, { PHOTO_MODERATION: '' },
+    ]) {
+      withEnv({ ...over, STRICT_PROD_CONFIG: 'true' }, () => {
+        expect(() => assertProductionConfig()).not.toThrow();
+      });
+    }
   });
 
   it('a stub mailer, which is the one that silently swallows every verification code', () => {

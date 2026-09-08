@@ -83,7 +83,7 @@ describe('the developer page never says what anything is set to', () => {
     const off = rows.filter((r) => r.expectUnset).map((r) => r.name).sort();
     expect(off).toEqual([
       'ALLOW_INBOUND_SECRET_IN_URL', 'ALLOW_STUB_MESSAGING', 'ALLOW_UNSIGNED_INBOUND', 'PAYMENTS_SANDBOX',
-      'SEED_DEMO', 'TEST_DATABASE_URL', 'TURN_CREDENTIAL', 'TURN_SHARED_SECRET', 'TURN_URL', 'TURN_USERNAME',
+      'SEED_DEMO', 'STRICT_PROD_CONFIG', 'TEST_DATABASE_URL', 'TURN_CREDENTIAL', 'TURN_SHARED_SECRET', 'TURN_URL', 'TURN_USERNAME',
       'WALLET_SELF_TOPUP',
     ]);
     // Nothing required is ever "correctly unset" — that would be a contradiction the page could not draw.

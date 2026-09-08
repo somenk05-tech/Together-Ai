@@ -113,6 +113,8 @@ export interface PurgeRule {
 }
 
 export const PURGE_RULES: PurgeRule[] = [
+  // ── The one row a deletion request must not reach ──────────────────────
+  { model: 'CsamHit', by: 'userId', action: 'keep', reason: 'A known-bad-hash match: evidence in a criminal matter, and the record a person needs in order to file the report the operator owes. It is the ONE table here that must outlive the account on purpose — including, and especially, an account closed by the citizen who uploaded the material. That is also why it carries no foreign key to User: a cascade would have made "delete my account" the delete button on the evidence. The row names a citizen who no longer exists in the city, which is exactly what it is for.' },
   // ── Health. The most sensitive data in the city, and the least ambiguous:
   //    none of it is visible to another citizen, all of it goes.
   { model: 'MedicalRecord', by: 'userId', action: 'purge', storageKey: 'fileKey', storageUrls: ['fileUrl'], reason: 'Uploaded medical documents. Private to the citizen; the stored file goes with the row — BOTH columns, because rows written before the private vault carry a public fileUrl and no fileKey, and naming only the key purged those rows with the document still in the bucket.' },

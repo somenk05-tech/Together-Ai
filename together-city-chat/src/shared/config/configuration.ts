@@ -63,7 +63,11 @@ export interface AppConfig {
   };
   csamMatch: {
     url: string;
+    /** '' for the repository's own contract, 'arachnid' for Arachnid Shield. */
+    kind: string;
     token: string;
+    user: string;
+    password: string;
     timeoutMs: number;
   };
 }
@@ -80,8 +84,9 @@ export const STAND_IN_SECRET = /change[-_ ]?me|^dev-|^secret$|^password$|^to-?fi
  * Surface insecure/incomplete production config LOUDLY at boot so it's never a
  * silent problem. This warns rather than throws: a hard crash here would take the
  * whole API down if an env var is missing, and we never want config hygiene to
- * cause an outage. Set STRICT_PROD_CONFIG=true to upgrade these warnings to a
- * hard boot failure once the env vars are in place.
+ * cause an outage. STRICT_PROD_CONFIG used to upgrade these warnings to a hard
+ * boot failure; since 8 Sep it only makes them louder — see the end of
+ * assertProductionConfig for the afternoon that decided it.
  */
 /** Comma-separated hostname allowlist, trimmed and lowercased; empty entries dropped. */
 function hostList(raw: string | undefined): Set<string> {
@@ -197,19 +202,37 @@ export function assertProductionConfig(): void {
    * Fatal for the same reason as the JWT secrets: the failure this prevents is
    * silent and the failure it causes is a line in the deploy log.
    */
-  if (!(process.env.TURNSTILE_SECRET ?? '').trim()) {
-    fatal.push('TURNSTILE_SECRET is unset — the bot check is off and sign-up is defended only by a '
-      + 'per-IP throttle. Set it (and TURNSTILE_HOSTNAMES=togethercity.app).');
-  }
-  if ((process.env.TURNSTILE_SECRET ?? '').trim() && hostList(process.env.TURNSTILE_HOSTNAMES).size === 0) {
-    fatal.push('TURNSTILE_SECRET is set but TURNSTILE_HOSTNAMES is empty — a token minted on any domain the '
-      + 'widget lists would be accepted. Set TURNSTILE_HOSTNAMES=togethercity.app (never localhost in production).');
-  }
-
+  /**
+   * ── NOT FATAL ANY MORE, AND HERE IS THE AFTERNOON THAT DECIDED IT (8 Sep) ──
+   *
+   * The unset-secret refusal above was written in the working tree on 6 Sep
+   * and shipped in the same commit as the CSAM config block, two days later,
+   * onto a Railway service that had no TURNSTILE_SECRET. The container
+   * refused to start; the health check never went green; and the whole city
+   * — sign-in, every hub, every API — was down for the length of the
+   * afternoon over a bot check on ONE form. The owner's word: "make sure
+   * this error never happens."
+   *
+   * The rule that comes out of it: a boot refusal is reserved for a state in
+   * which RUNNING is more dangerous than being down — a forged-token JWT
+   * secret, a private vault that is public. A missing bot check is a degraded
+   * city, not a dangerous one: sign-up falls back to the per-IP throttle and
+   * TurnstileService already logs that it is off. So both Turnstile findings
+   * are PROBLEMS — printed at error level on every boot, listed on /dev — and
+   * the city stays up while the operator sets the variable.
+   */
   if (fatal.length) {
     throw new Error(`Refusing to start with insecure config:\n  - ${fatal.join('\n  - ')}`);
   }
   const problems: string[] = [];
+  if (!(process.env.TURNSTILE_SECRET ?? '').trim()) {
+    problems.push('TURNSTILE_SECRET is unset — the bot check is OFF and sign-up is defended only by a '
+      + 'per-IP throttle. Set it (and TURNSTILE_HOSTNAMES=togethercity.app).');
+  }
+  if ((process.env.TURNSTILE_SECRET ?? '').trim() && hostList(process.env.TURNSTILE_HOSTNAMES).size === 0) {
+    problems.push('TURNSTILE_SECRET is set but TURNSTILE_HOSTNAMES is empty — TurnstileService refuses every '
+      + 'token in this state, so nobody can sign up. Set TURNSTILE_HOSTNAMES=togethercity.app (never localhost in production).');
+  }
   /**
    * A WARNING, NOT A REFUSAL — and only because the gate itself already
    * refuses everything (6 Sep). With CSAM_MATCH_URL unset, media/hash-match
@@ -224,6 +247,18 @@ export function assertProductionConfig(): void {
     problems.push('CSAM_MATCH_URL is unset — there is no known-bad hash matcher, so the gate fails CLOSED: '
       + 'no photograph can be posted, sent or approved anywhere in the city. Rekognition label detection is '
       + 'NOT hash matching and does not cover this.');
+  } else if ((process.env.CSAM_MATCH_KIND ?? '').trim().toLowerCase() === 'arachnid'
+    && !((process.env.CSAM_MATCH_USER ?? '').trim() && (process.env.CSAM_MATCH_PASSWORD ?? '').trim())) {
+    /**
+     * HALF-CONFIGURED IS UNCONFIGURED, AND IT IS THE HARDEST ONE TO SEE. The
+     * URL is set, so the two findings above stay quiet and an operator reading
+     * the board would call this gate live — while the service, correctly,
+     * refuses every photograph because it has no credentials to present. This
+     * line is the difference between an afternoon and a minute.
+     */
+    problems.push('CSAM_MATCH_KIND=arachnid but CSAM_MATCH_USER / CSAM_MATCH_PASSWORD are not both set — '
+      + 'the matcher cannot authenticate, so the gate fails CLOSED and no photograph can be posted, sent '
+      + 'or approved anywhere in the city. Register at projectarachnid.com and set both.');
   } else if ((process.env.CSAM_MATCH_URL ?? '').trim().toLowerCase() === 'off') {
     // The owner's explicit bypass (8 Sep) — a problem on every boot and on
     // /dev, never fatal, until a matcher URL replaces the word.
@@ -294,11 +329,32 @@ export function assertProductionConfig(): void {
   }
   if (!problems.length) return;
   const banner = `\n${'='.repeat(66)}\n INSECURE / INCOMPLETE PRODUCTION CONFIG:\n  - ${problems.join('\n  - ')}\n${'='.repeat(66)}`;
-  if (process.env.STRICT_PROD_CONFIG === 'true') {
-    throw new Error(`Refusing to start (STRICT_PROD_CONFIG):${banner}`);
-  }
+  /**
+   * ── STRICT_PROD_CONFIG NO LONGER REFUSES (8 Sep, the afternoon the city went down) ──
+   *
+   * The switch was written as "once the env vars are in place, upgrade these
+   * warnings to a hard boot failure" — and it worked exactly as written. The
+   * owner set it on Railway on a day every warning was clear; then a NEW
+   * warning shipped (CSAM_MATCH_URL, this morning) and the switch turned it
+   * into a container that would not start. Health never went green;
+   * sign-in, every hub and every API hung for the afternoon; and the log
+   * said, correctly, "Refusing to start". Owner: "make sure this error never
+   * happens."
+   *
+   * The lesson is the one already written six lines above this function:
+   * config hygiene must never cause an outage. A switch that promotes
+   * tomorrow's warnings — warnings that do not exist yet — into refusals is
+   * that outage waiting for the next deploy. So the switch is honoured only
+   * in the one way that cannot take the city down: it makes the banner
+   * louder and names itself, so an operator who set it still sees every
+   * finding on every boot and on /dev. The refusals that remain are the
+   * `fatal` list at the top — states in which RUNNING is more dangerous than
+   * being down — and nothing is ever promoted into that list by a variable.
+   */
   // eslint-disable-next-line no-console
-  console.error(banner);
+  console.error(process.env.STRICT_PROD_CONFIG === 'true'
+    ? `${banner}\n (STRICT_PROD_CONFIG is set. Since 8 Sep it no longer refuses to start — a warning must never be an outage. The findings above still need fixing.)`
+    : banner);
 }
 
 export default (): AppConfig => {
@@ -372,7 +428,18 @@ export default (): AppConfig => {
    */
   csamMatch: {
     url: process.env.CSAM_MATCH_URL ?? '',
+    /**
+     * WHICH PROTOCOL LIVES AT THAT URL. Unset (or anything unrecognised) is
+     * the repository's own contract and a Bearer token. 'arachnid' is the
+     * Arachnid Shield API — raw bytes, Basic auth, an answer in
+     * classifications — which is free to electronic service providers and is
+     * therefore the one a city can be running before a vendor is signed.
+     */
+    kind: process.env.CSAM_MATCH_KIND ?? '',
     token: process.env.CSAM_MATCH_TOKEN ?? '',
+    /** Basic-auth credentials, for a dialect that authenticates that way. */
+    user: process.env.CSAM_MATCH_USER ?? '',
+    password: process.env.CSAM_MATCH_PASSWORD ?? '',
     timeoutMs: int(process.env.CSAM_MATCH_TIMEOUT_MS, 8_000),
   },
   fcm: {

@@ -93,12 +93,24 @@ export class BypassHashMatchProvider implements HashMatchProvider {
   }
 }
 
-/** No vendor configured. Answers nothing, and says so every time. */
+/**
+ * No vendor configured. Answers nothing, and says so every time.
+ *
+ * THE REASON IS A PARAMETER because there is now more than one way to arrive
+ * here, and "unconfigured" is the answer to all of them: the URL is unset, or
+ * a dialect was named without the credentials it needs. A half-configured
+ * matcher must fail closed exactly like an absent one and must NEVER silently
+ * fall back to a different dialect — an adapter that speaks the wrong protocol
+ * to the right vendor answers 404 for every image, and 404 is an outage, not a
+ * pass. The default is the original sentence, which the boot log and its spec
+ * still read.
+ */
 export class NoHashMatchProvider implements HashMatchProvider {
   readonly name = 'none';
   readonly ready = false;
+  constructor(private readonly reason = 'no matcher is configured (CSAM_MATCH_URL is unset)') {}
   check(): Promise<HashVerdict> {
-    return Promise.reject(new HashMatchUnavailable('no matcher is configured (CSAM_MATCH_URL is unset)'));
+    return Promise.reject(new HashMatchUnavailable(this.reason));
   }
 }
 
@@ -165,6 +177,114 @@ export class HttpHashMatchProvider implements HashMatchProvider {
     const source = (body as { source?: unknown }).source;
     const named = typeof source === 'string' && source.trim() ? source.trim().slice(0, 200) : 'unnamed list';
     this.logger.error(`hash match HIT (${named}) on ${sha256.slice(0, 16)}…`);
+    return { match: true, source: named };
+  }
+}
+
+/**
+ * ── THE DIALECT, BECAUSE THE FREE ONE DOES NOT SPEAK THE CONTRACT ───────────
+ *
+ * `CSAM_MATCH_KIND` names which protocol lives at `CSAM_MATCH_URL`. Unset, it
+ * is the contract above — the shape this repository asked vendors to adapt to.
+ * `arachnid` is the Arachnid Shield API run by the Canadian Centre for Child
+ * Protection, and it is here for one reason: it is the only known-bad-hash
+ * service a platform this size can be using THIS WEEK. It is free to
+ * electronic service providers, an ESP registers for credentials themselves at
+ * projectarachnid.com rather than negotiating a contract, and it matches on
+ * both SHA1 and PhotoDNA against the Centre's own classified corpus.
+ *
+ * The other three named in .env.example are still one variable away through
+ * the contract above, and should replace this the day one of them is signed:
+ * Thorn Safer Match is paid and sold through AWS Marketplace, PhotoDNA Cloud
+ * and Google's Hash Matching API are free but gated behind an application, and
+ * Cloudflare's CSAM Scanning Tool scans what its edge already serves rather
+ * than answering a call. None of them could be called today.
+ *
+ * WHY IT IS A SECOND PROVIDER AND NOT AN ADAPTER WORKER. The contract exists
+ * so a vendor sits behind a few lines somewhere else, and that is still true
+ * for anyone who wants it. But a worker is a second service to deploy, hold
+ * credentials for, watch and pay for, standing in the path of every photograph
+ * in the city — and this one is forty lines with a spec on it. The seam did
+ * not move: `HashMatchProvider` is still the interface, this is still one
+ * implementation of it, and nothing above this line changed.
+ */
+export const HASH_MATCH_ARACHNID = 'arachnid';
+
+/** What Arachnid Shield calls "I looked and found nothing". Anything else is a hit. */
+const ARACHNID_NO_MATCH = 'no-known-match';
+
+/**
+ * ── THE ARACHNID SHIELD DIALECT ─────────────────────────────────────────────
+ *
+ *   POST $CSAM_MATCH_URL            (https://shield.projectarachnid.com/v1/media/)
+ *   Authorization: Basic <CSAM_MATCH_USER:CSAM_MATCH_PASSWORD>
+ *   Content-Type: <the image's own mime type>
+ *   <the raw bytes>
+ *
+ *   200 → { "classification": "no-known-match", "match_type": null, ... }
+ *   200 → { "classification": "csam" | "harmful-abusive-material",
+ *           "match_type": "exact" | "near", ... }
+ *
+ * Raw bytes rather than JSON, and Basic rather than Bearer — which is the
+ * whole reason this class exists instead of a `CSAM_MATCH_URL` pointing
+ * straight at them.
+ *
+ * ANY CLASSIFICATION THAT IS NOT `no-known-match` IS A MATCH, including one
+ * this code has never heard of. The Centre says plainly that more categories
+ * may be added, and the two rules that could be written here are not
+ * symmetrical: treating an unknown category as a pass waves through the exact
+ * material the gate exists to stop, while treating it as a hit refuses one
+ * image loudly and puts a row in front of a person. The SDK's own
+ * `matches_known_media` reads it the same way.
+ *
+ * A MISSING CLASSIFICATION IS AN OUTAGE, NOT A PASS — the same rule the
+ * contract above applies to a missing boolean, and for the same reason: a body
+ * in the wrong shape means somebody pointed this at the wrong endpoint.
+ */
+export class ArachnidHashMatchProvider implements HashMatchProvider {
+  readonly name = 'arachnid';
+  readonly ready = true;
+  private readonly logger = new Logger('HashMatchProvider');
+  private readonly auth: string;
+
+  constructor(
+    private readonly url: string,
+    username: string,
+    password: string,
+    private readonly timeoutMs: number,
+  ) {
+    this.auth = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
+  }
+
+  async check(bytes: Buffer, contentType: string, sha256: string): Promise<HashVerdict> {
+    let res: Response;
+    try {
+      res = await fetch(this.url, {
+        method: 'POST',
+        headers: { 'Content-Type': contentType, Authorization: this.auth },
+        body: new Uint8Array(bytes),
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+    } catch (e) {
+      throw new HashMatchUnavailable((e as Error).message);
+    }
+    if (!res.ok) throw new HashMatchUnavailable(`matcher answered ${res.status}`);
+    let body: unknown;
+    try {
+      body = await res.json();
+    } catch {
+      throw new HashMatchUnavailable('matcher answered a body that is not JSON');
+    }
+    const raw = (body as { classification?: unknown } | null)?.classification;
+    if (typeof raw !== 'string' || !raw.trim()) {
+      throw new HashMatchUnavailable('matcher answered without a `classification`');
+    }
+    const classification = raw.trim().toLowerCase();
+    if (classification === ARACHNID_NO_MATCH) return { match: false };
+    const how = (body as { match_type?: unknown }).match_type;
+    const named = `Project Arachnid Shield (${classification}`
+      + `${typeof how === 'string' && how.trim() ? `, ${how.trim().slice(0, 20)} match` : ''})`;
+    this.logger.error(`hash match HIT (${named}) on ${sha256.slice(0, 16)}\u2026`);
     return { match: true, source: named };
   }
 }

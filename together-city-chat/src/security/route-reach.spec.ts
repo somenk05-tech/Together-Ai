@@ -140,6 +140,15 @@ const KNOWN_UNREACHED: string[] = [
   // `VerificationRow`; features/admin/api.ts, `verificationQueue` and
   // `decideVerification`), so GET /admin/verification and
   // POST /admin/verification/*/decision are reached and left this list.
+  // GET /astrology/gems is REACHED, just not by a fetch. It is a @Mira()
+  // capability — "which stone should I wear" — so the caller is her manifest
+  // and her executor, not a line in features/astrology/api.ts. The page the
+  // citizen opens is /astrology/gemstones, which is a different question
+  // (`gemstones` answers "which stones does my chart call for, and how is each
+  // worn"; `gems` answers "name the one for this period") and is called
+  // normally. This guard reads the web app, so a route only Mira reaches looks
+  // orphaned to it and has to be said out loud here.
+  "astrology/astrology.controller.ts  GET /astrology/gems",
   "beauty/beauty.controller.ts  DELETE /beauty/looks/*",
   "beauty/beauty.controller.ts  GET /beauty/looks",
   "beauty/beauty.controller.ts  GET /beauty/looks/*",

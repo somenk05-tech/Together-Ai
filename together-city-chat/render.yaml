@@ -88,6 +88,24 @@ services:
         value: mailto:connect@togethercity.app
       - key: FCM_ENABLED
         value: "false"
+      # ── THE HASH GATE ───────────────────────────────────────────────────
+      # The check Rekognition is not: known-bad-hash matching, which is what
+      # finds CSAM. Unset, the gate fails CLOSED and no photograph moves
+      # anywhere in the city. See .env.example for the contract and the
+      # vendor options.
+      # KIND names the protocol at that URL: unset is this repo's own
+      # contract, `arachnid` is Arachnid Shield (free to ESPs, raw bytes,
+      # Basic auth), which needs USER and PASSWORD instead of TOKEN.
+      - key: CSAM_MATCH_URL
+        sync: false
+      - key: CSAM_MATCH_KIND
+        sync: false
+      - key: CSAM_MATCH_TOKEN
+        sync: false
+      - key: CSAM_MATCH_USER
+        sync: false
+      - key: CSAM_MATCH_PASSWORD
+        sync: false
       # ── OBJECT STORAGE ──────────────────────────────────────────────────
       # MEDIA_PRIVATE_BUCKET is not optional in production. StorageProvider
       # falls back to MEDIA_BUCKET when it is empty, which would put blood

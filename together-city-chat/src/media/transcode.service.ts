@@ -7,6 +7,7 @@ import { join } from 'path';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { QueueService } from '../shared/queue/queue.service';
 import { StorageProvider } from './storage.provider';
+import { optional } from '../shared/swallow';
 
 /**
  * A VIDEO THE WHOLE CITY CAN PLAY — Together City TV audit, 5 Sep.
@@ -122,7 +123,9 @@ export class TranscodeService implements OnModuleInit {
   /** The job. Serialised through `line`; safe to call twice for one row. */
   process(mediaId: string, final = true): Promise<void> {
     const turn = this.line.then(() => this.processNow(mediaId, final));
-    this.line = turn.catch(() => undefined);
+    // The line only needs to move on; the failure itself is thrown to the
+    // caller on `turn` and marked on the row. Silence here is the intent.
+    this.line = optional(turn).then(() => undefined);
     return turn;
   }
 
@@ -182,7 +185,7 @@ export class TranscodeService implements OnModuleInit {
       if (final) await this.mark(mediaId, 'failed');
       throw e;
     } finally {
-      await rm(dir, { recursive: true, force: true }).catch(() => undefined);
+      await optional(rm(dir, { recursive: true, force: true })); // a scratch dir that would not go is not this job's failure
     }
   }
 
