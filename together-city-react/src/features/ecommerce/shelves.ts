@@ -80,11 +80,6 @@ interface Shelf {
      for a shelf whose shop does not exist: a shop needs an adapter of its
      own, and a tab that drew a room as if it were one would be inventing it. */
   shop?: string;
-  /* THE LIST IS HANDED OVER, NOT LINKED TO (owner, 22 Aug). The grocery shelf
-     has no prices and no order endpoint, so it never became a shop — and
-     sending somebody to the Nutrition hub to fetch their own list is a trip
-     for a thing that fits in a file. Its tab downloads it. */
-  download?: boolean;
   /**
    * ── A SHELF THE CITY HAS NOT BUILT YET (owner, 23 Aug) ────────────────────
    *
@@ -136,13 +131,28 @@ function resolve(shelf: Shelf): ShelfCard | null {
 export const FITTED: Shelf[] = [
   { hub: 'beauty', path: '/beauty/routine', reads: { name: 'Skin & Hair Profile', path: '/beauty/profile' }, shop: 'beauty' },
   { hub: 'fitness', path: '/fitness/supplements', reads: { name: 'Training Profile', path: '/fitness/profile' }, shop: 'supplements' },
-  /* NO SHOP FOR THE GROCERY LIST, at the owner's call (22 Aug). It is a list
-     of ingredients with no prices on it and no order endpoint behind it —
-     ordering has been coming-soon in that hub for a while. A white storefront
-     with no till would be a second view of a page that already works, and a
-     till on it would be inventing one. So it is not a door at all: the card
-     hands the list over as a file. */
-  { hub: 'nutrition', path: '/nutrition/grocery', reads: { name: 'Food Preference Profile', path: '/nutrition/preferences' }, download: true },
+  /* ── THE GROCERY LIST BECAME A GROCERY STORE (owner, 8 Sep) ──────────────
+     "Instead of grocery list create a grocery store with vegetables, food
+     items, household items etc."
+
+     For two weeks this shelf was a DOWNLOAD, and the note here said why: a
+     list of ingredients with no prices on it and no order endpoint behind it,
+     so a storefront would have been a till the city did not have. That was
+     true of the NUTRITION hub's list and it is still true of it — nothing has
+     changed on /nutrition/grocery, which still prints and still downloads.
+
+     What changed is that the shelf is somebody else's now. Every row on it was
+     typed by a local grocer, supermarket, sabzi market, bakery, butcher or
+     fish shop into their own menu, at their own price, behind their own
+     sold-out switch — and every one of those trades already has a cart, a
+     wallet payment and an order counter on its own page. So the shelf is real
+     stock at real prices, and it opens the shop rather than a till of its own.
+
+     IT READS WHERE YOU LIVE RATHER THAN WHAT YOU EAT, and that is a `reads`
+     entry like any other: this floor's promise is "only what's right for you",
+     and for groceries what is right for you is your own city's shops instead
+     of a national catalogue. */
+  { hub: 'services', path: '/services/grocery', reads: { name: 'city', path: '/profile' }, shop: 'grocery' },
   { hub: 'astrology', path: '/astrology/gemstones', reads: { name: 'Astrology Profile', path: '/profile/astrology' }, shop: 'gemstones' },
   /* AND THIS ONE IS CALLED "PETS" RATHER THAN "DIET PLAN" (owner, 23 Aug).
      The room is called Diet plan and stays called that — inside the Pets rail
@@ -198,6 +208,14 @@ export const OPEN: Shelf[] = [
  * which is what the audit reads as a way in.
  */
 export interface ShopScreens { shelf: { path: string }; bag: { path: string } }
+/**
+ * THREE OF THE FOUR SHOPS ARE HERE, AND THE FOURTH IS ABSENT ON PURPOSE. A
+ * storefront earns a pair of routes because it has a BAG — a shelf screen and
+ * a bag screen. The grocery store has no bag: each grocer takes their own
+ * order on their own page, so there is no second screen to give a route to.
+ * Its `screens` point at the room it lives in (Local Market → Grocery Store),
+ * which is the same shelf under that hub's rail.
+ */
 export const SHOPS: Record<string, ShopScreens> = {
   beauty: {
     shelf: { path: '/ecommerce/shop/beauty' },

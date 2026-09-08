@@ -10,6 +10,7 @@ import { PLACES } from './places';
 import { Throttle } from '@nestjs/throttler';
 import {
   BrowseSchema, type BrowseDto,
+  GroceryShelfSchema, type GroceryShelfDto,
   CreateListingSchema, type CreateListingDto,
   UpdateListingSchema, type UpdateListingDto,
   SendServiceMessageSchema, type SendServiceMessageDto,
@@ -61,6 +62,17 @@ export class LocalServicesController {
 
   // Declared BEFORE ':id' or React-Router-style path collisions bite on the
   // server too: "mine" would be read as a listing id and 404 from the database.
+  /**
+   * THE GROCERY STORE'S SHELF — every local grocer's own rows, read as one
+   * shelf under aisles (owner, 8 Sep). Declared BEFORE ':id' with the rest of
+   * the literals, or 'grocery' is read as a listing id and 404s.
+   */
+  @Get('grocery/shelf')
+  @UsePipes(new ZodValidationPipe(GroceryShelfSchema))
+  groceryShelf(@CurrentUser() user: JwtUser, @Query() query: GroceryShelfDto) {
+    return this.services.groceryShelf(user.sub, query);
+  }
+
   @Get('mine')
   mine(@CurrentUser() user: JwtUser) { return this.services.mine(user.sub); }
 
@@ -153,6 +165,13 @@ export class LocalServicesController {
   @Delete(':id')
   close(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.services.close(user.sub, id);
+  }
+
+  // The way back from Close — and only from Close. A page a moderator took
+  // down does not reopen from here; the service says so in words.
+  @Post(':id/reopen')
+  reopen(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.services.reopen(user.sub, id);
   }
 
   // A SECOND, DIFFERENT VERB, and it has its own path rather than a flag on the

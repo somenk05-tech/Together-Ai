@@ -64,6 +64,17 @@ export interface ShopItem {
   /** What kind of thing it is — the fallback mark when no photograph loads. */
   category: string;
   priceInr: number;
+  /**
+   * WHAT TO PRINT WHERE THERE IS NO PRICE TO PRINT.
+   *
+   * Four of the six shelves sell a thing the city holds a price for, and they
+   * pass none of this. The grocery shelf is a shopkeeper's own list, and
+   * `ServiceMenuItem.priceInr` is nullable on purpose: a line that says
+   * "seasonal" must not become ₹0 on a tile. So that shelf sends the word it
+   * wants in the price's place, and the shell prints it instead of a number.
+   * `priceInr` still carries whatever the shelf sorts and totals by.
+   */
+  priceLabel?: string;
   /** The shelf's own second number, ready to print: "≈ ₹591/month to keep". */
   keepLabel?: string;
   /** "one 88 ml pack — about 3 months", quoted whole. */

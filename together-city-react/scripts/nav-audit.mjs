@@ -40,7 +40,21 @@ const RETIRED = [
   // The Family hub keeps its own daily planner; only the individual one went.
   // §12 decides whether the family mirror follows it.
   { label: 'Daily Meal Planner', allow: ['features/family/'] },
-  { label: 'Grocery Store', allow: [] },
+  /* GROCERY STORE CAME BACK, AND IT IS NOT THE ROOM THAT WAS RETIRED (owner,
+     8 Sep: "instead of grocery list create a grocery store with vegetables,
+     food items, household items etc.").
+
+     The review retired a NUTRITION room by that name — a shop the city could
+     not stock, priced by a simulation, which is the whole argument of
+     grocery-orders-removed.spec.ts. That room is still gone, and nothing in
+     the Nutrition hub answers to this name: its 04 is still "Grocery Lists",
+     still built from a meal plan, still a printed sheet.
+
+     What holds the words now is a LOCAL MARKET room whose entire stock is
+     local grocers' own published rows at their own prices, with each shop's
+     own paid counter behind every tile. Keeping the name on this list would
+     have meant either an allowlist naming six files — which is this guard
+     agreeing to be argued with — or calling the room something it is not. */
   { label: 'My Health Profile', allow: [] },
   { label: 'Expert Care', allow: [] },
   { label: 'City Map', allow: [] },

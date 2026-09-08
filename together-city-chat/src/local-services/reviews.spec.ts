@@ -1,5 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { LocalServicesService, ratingOf, MIN_REVIEWS_FOR_AVERAGE } from './local-services.service';
+import { LocalServicesService, ratingFromGroup, ratingOf, MIN_REVIEWS_FOR_AVERAGE } from './local-services.service';
 
 /**
  * A REVIEW YOU HAD TO EARN, UNDER THE NAME THEY ALREADY KNOW YOU BY.
@@ -32,6 +32,9 @@ function harness(opts: { reviews?: any[]; enquiries?: any[] } = {}) {
   }];
   const enquiries = opts.enquiries ?? [];
   const reviews = opts.reviews ?? [];
+  // One line from the citizen in every thread the fixture calls "spoken",
+  // none in a thread that was only opened.
+  const messages = enquiries.flatMap((e: any) => (e.spoken === false ? [] : [{ id: `M-${e.id}`, enquiryId: e.id, senderSide: 'seeker' }]));
   const notes: any[] = [];
   let seq = 0;
 
@@ -60,6 +63,12 @@ function harness(opts: { reviews?: any[]; enquiries?: any[] } = {}) {
       findMany: async ({ where }: any) => enquiries.filter((e) => cmp(where, e)),
       count: async ({ where }: any) => enquiries.filter((e) => cmp(where, e)).length,
     },
+    /* WHAT "SPOKE TO THEM" READS (8 Sep): a thread the business was given, with
+       at least one line from the citizen in it. `spoke()` below plants one
+       line; `pressedMessage()` plants none. */
+    serviceMessage: {
+      count: async ({ where }: any) => messages.filter((m) => m.enquiryId === where.enquiryId && (!where.senderSide || m.senderSide === where.senderSide)).length,
+    },
     serviceReview: {
       findUnique: async ({ where }: any) => reviews.find((r) => cmp(where, r)) ?? null,
       findMany: async ({ where }: any) => reviews.filter((r) => cmp(where, r)),
@@ -87,7 +96,13 @@ function harness(opts: { reviews?: any[]; enquiries?: any[] } = {}) {
 }
 
 const spoke = (userId: string, alias: string) =>
-  ({ id: `E-${userId}`, listingId: 'L1', seekerId: userId, alias, lastMessageAt: new Date(), seekerUnread: 0, ownerUnread: 0, closed: false, createdAt: new Date() });
+  ({ id: `E-${userId}`, listingId: 'L1', seekerId: userId, alias, lastMessageAt: new Date(), seekerUnread: 0, ownerUnread: 0, closed: false, openedAt: new Date(), createdAt: new Date() });
+/** Pressed Message on the card and typed nothing: a row, no words, not handed over. */
+const pressedMessage = (userId: string, alias: string) =>
+  ({ ...spoke(userId, alias), openedAt: null, spoken: false });
+/** Wrote, but the room is still queued behind the five-a-day gate. */
+const stillQueued = (userId: string, alias: string) =>
+  ({ ...spoke(userId, alias), openedAt: null });
 
 const strings = (v: unknown, out: string[] = []): string[] => {
   if (typeof v === 'string') out.push(v);
@@ -112,6 +127,26 @@ describe('you have to have spoken to them', () => {
     await svc.postReview(A, 'L1', 4, 'Turned up on time.');
     expect(reviews).toHaveLength(1);
     expect(reviews[0].rating).toBe(4);
+  });
+
+  it('refuses somebody who only pressed Message and never wrote (8 Sep)', async () => {
+    const { svc } = harness({ enquiries: [pressedMessage(A, 'Neighbour 1')] });
+    await expect(svc.postReview(A, 'L1', 1, 'never met them')).rejects.toBeInstanceOf(BadRequestException);
+    expect((await svc.reviews('L1', A)).canReview).toBe(false);
+  });
+
+  it('refuses a review while the room is still queued — the business has not seen it', async () => {
+    const { svc } = harness({ enquiries: [stillQueued(A, 'Neighbour 1')] });
+    await expect(svc.postReview(A, 'L1', 1)).rejects.toBeInstanceOf(BadRequestException);
+    expect((await svc.reviews('L1', A)).canReview).toBe(false);
+  });
+
+  it('says a spoken thread may review, and tells the business once — not again on every edit', async () => {
+    const { svc, notes } = harness({ enquiries: [spoke(A, 'Neighbour 1')] });
+    expect((await svc.reviews('L1', A)).canReview).toBe(true);
+    await svc.postReview(A, 'L1', 4, 'Good.');
+    await svc.postReview(A, 'L1', 5, 'Better.');
+    expect(notes.filter((n) => n.kind === 'service_review')).toHaveLength(1);
   });
 
   it('refuses a business reviewing itself', async () => {
@@ -204,6 +239,36 @@ describe('an average nobody should trust is not shown', () => {
 
   it('says nothing at all about a business nobody has reviewed', () => {
     expect(ratingOf([])).toEqual({ rating: null, count: 0 });
+  });
+
+  /**
+   * ── AND THE DIRECTORY'S OWN READ OBEYS THE SAME FLOOR (8 Sep) ─────────────
+   *
+   * A page of cards is one `groupBy` — an average and a count, no rows — so it
+   * cannot call `ratingOf`, and for a while it therefore did its own
+   * arithmetic with no floor at all. A business with one five-star review
+   * showed ★5.0 on every card in the directory and no average on its own page,
+   * while `BusinessCard`'s comment said "the average is withheld below three
+   * reviews by the server". Two answers about one shop, and strangers were
+   * deciding on the wrong one.
+   *
+   * This is the second reader of that number now: the Grocery Store puts these
+   * shops' stock on a shelf, so an inflated star travels further than it did.
+   */
+  it('withholds it on the grouped read too, the one the cards are drawn from', () => {
+    expect(ratingFromGroup({ avg: 5, count: 1 })).toEqual({ rating: null, count: 1 });
+    expect(ratingFromGroup({ avg: 5, count: 2 })).toEqual({ rating: null, count: 2 });
+    expect(ratingFromGroup({ avg: 4.333, count: 3 })).toEqual({ rating: 4.3, count: 3 });
+    expect(ratingFromGroup({ avg: null, count: 0 })).toEqual({ rating: null, count: 0 });
+  });
+
+  it('gives the two readers of a rating the same answer, at every count', () => {
+    // The whole point of the fix: one shop, one number, whichever screen asks.
+    for (const n of [0, 1, 2, 3, 4, 10]) {
+      const rows = Array.from({ length: n }, () => ({ rating: 4 }));
+      expect({ n, ...ratingFromGroup({ avg: n ? 4 : null, count: n }) })
+        .toEqual({ n, ...ratingOf(rows) });
+    }
   });
 });
 

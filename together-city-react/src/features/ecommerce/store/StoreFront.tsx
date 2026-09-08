@@ -216,7 +216,10 @@ export function StoreFront({ shop, floor }: { shop: Shop; floor?: Floor }) {
                 <h2 className="st-name">{item.name}</h2>
                 {item.brand && <div className="st-brand">{item.brand}</div>}
                 <div className="st-price">
-                  {rupees(item.priceInr)}
+                  {/* A SHELF MAY HAVE NO NUMBER TO SHOW, and "₹0" is the one
+                      answer that would be a lie. `priceLabel` is the shelf's
+                      own word for that case — see types.ts. */}
+                  {item.priceLabel ?? rupees(item.priceInr)}
                   {item.keepLabel && <span className="st-keep"> {item.keepLabel}</span>}
                 </div>
                 {item.packLabel && <div className="st-pack">{item.packLabel}</div>}

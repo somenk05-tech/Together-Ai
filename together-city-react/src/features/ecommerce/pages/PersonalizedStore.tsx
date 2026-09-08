@@ -4,6 +4,7 @@ import { TabbedFloor } from '../store/TabbedFloor';
 import { useBeautyShop } from '../store/useBeautyShop';
 import { useFitnessShop } from '../store/useFitnessShop';
 import { useGemShop } from '../store/useGemShop';
+import { useGroceryShop } from '../store/useGroceryShop';
 
 /**
  * ── THE PERSONALIZED STORE ──────────────────────────────────────────────────
@@ -25,8 +26,15 @@ import { useGemShop } from '../store/useGemShop';
  * the sidebar of the room each belongs to, and the three that have shops are
  * opened by the adapters that always opened them.
  *
- * THE OTHER THREE ARE NOT SHOPS AND DO NOT PRETEND TO BE. The grocery list has
- * no prices, so its tab hands the list over as a file. The pet plan lives in
+ * THE GROCERY TAB IS A SHOP NOW (owner, 8 Sep: "instead of grocery list create
+ * a grocery store with vegetables, food items, household items etc."). It was
+ * a download — the week's ingredients as a text file, because the shelf behind
+ * it had no prices. It is a shelf of local grocers' own rows now, at their own
+ * prices; it still takes no money, because each shop takes its own order on
+ * its own page, and `useGroceryShop` says so on the shelf rather than miming a
+ * till the city does not have.
+ *
+ * THE OTHER TWO ARE NOT SHOPS AND DO NOT PRETEND TO BE. The pet plan lives in
  * Pet Care, so its tab is a window with that room's door in it. Costume
  * jewellery is not built, so its tab says so and opens nothing.
  *
@@ -39,7 +47,7 @@ export function PersonalizedStore() {
     <TabbedFloor
       path="/ecommerce/store"
       shelves={fittedShelves()}
-      shopOf={{ beauty: useBeautyShop, supplements: useFitnessShop, gemstones: useGemShop }}
+      shopOf={{ beauty: useBeautyShop, supplements: useFitnessShop, gemstones: useGemShop, grocery: useGroceryShop }}
       /* ── WHAT THIS FLOOR IS, SAID ONCE (owner, 7 Sep) ────────────────────
          His words, in sentence case rather than the capitals he typed them
          in: this city sets one line in caps — the tracked label — and a

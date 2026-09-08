@@ -4,15 +4,16 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { StorageProvider } from '../media/storage.provider';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AiService } from '../ai/ai.service';
-import { categoryGroup, categoryKeysInGroup, categoryLabel, isCategory, isCategoryGroup } from './categories';
+import { categoryGroup, categoryKeysInGroup, categoryKeysMatching, categoryLabel, isCategory, isCategoryGroup } from './categories';
 import { customerLabel, mintAlias } from './alias';
+import { AISLES, GROCERY_CATEGORIES, aisleOf, aisleRank } from './grocery';
 import { boundingBox, haversineKm, parsePoint } from './geo';
 import { looksLikeId, normaliseSlug, slugProblem, SLUG_MESSAGES, suggestSlug } from './slug';
 import { cleanDetails, isBusinessType, readDetails, sectionsFor } from './business-types';
 import { normaliseHours, parseHours } from './hours';
 import { VerificationService } from './verification.service';
 import { PostMediaGuard } from '../social/post-media-guard';
-import type { BrowseDto, CreateListingDto, UpdateListingDto, PostOfferDto, SaveMenuDto } from './dto/local-services.dto';
+import type { BrowseDto, CreateListingDto, GroceryShelfDto, UpdateListingDto, PostOfferDto, SaveMenuDto } from './dto/local-services.dto';
 import type { PatchMenuItemDto } from './dto/orders.dto';
 
 type ListingRow = {
@@ -47,6 +48,26 @@ export function ratingOf(rows: Array<{ rating: number }>): { rating: number | nu
   return { rating: Math.round(avg * 10) / 10, count: rows.length };
 }
 
+/**
+ * THE SAME RULE FOR THE GROUPED READ, AND IT IS A SEPARATE FUNCTION BECAUSE
+ * THAT READ NEVER HAS THE ROWS.
+ *
+ * A page of directory cards is one `groupBy` — an average and a count per
+ * listing, no individual reviews to hand — so it cannot call `ratingOf`. For a
+ * while it therefore did its own arithmetic, straight off `_avg`, with no
+ * floor: a business with ONE five-star review showed ★5.0 on every card in the
+ * directory and no average at all on its own page. The card's own comment said
+ * the server withheld it. The server did not.
+ *
+ * Exported so the floor is a thing a test can hold rather than a line inside a
+ * private method, and written against the same constant so there is one number
+ * to change if the floor ever moves.
+ */
+export function ratingFromGroup(g: { avg: number | null; count: number }): { rating: number | null; count: number } {
+  if (g.count < MIN_REVIEWS_FOR_AVERAGE || g.avg == null) return { rating: null, count: g.count };
+  return { rating: Math.round(g.avg * 10) / 10, count: g.count };
+}
+
 type EnquiryRow = {
   id: string; listingId: string; seekerId: string; alias: string; revealName: boolean;
   lastMessageAt: Date; seekerUnread: number; ownerUnread: number; closed: boolean;
@@ -60,7 +81,29 @@ const csv = (s?: string): string[] =>
   (s ?? '').split(',').map((x) => x.trim()).filter(Boolean);
 
 const PAGE_SIZE = 24;
+
+/**
+ * WHAT THE GROCERY STORE READS IN ONE GO. Sixty shops and twelve hundred rows
+ * is a shelf a phone can draw; a whole city's groceries in one response is a
+ * page nobody can render and a query nobody should run on every tab change.
+ */
+const SHOP_CAP = 60;
+const ITEM_CAP = 1200;
 const MAX_LISTINGS_PER_OWNER = 5;
+/**
+ * TWO WAYS OUT OF THE DIRECTORY, AND THEY ARE NOT THE SAME WORD (8 Sep).
+ *
+ * `closed` is the owner's: they pressed Close, and they may press Reopen. Until
+ * today that press wrote `removed` — the same state a moderator's suspension
+ * writes — so a closed shop could never come back, and a suspended one could
+ * have, had a reopen route existed. The two are kept apart so that the owner's
+ * door is reversible and the moderator's is not. Rows closed before today
+ * still say `removed` and cannot be told from a suspension; they stay closed
+ * and the owner lists the business again, which is what they did before.
+ */
+const OWNER_CLOSED = 'closed';
+/** Every state that frees one of the owner's five slots. */
+const NOT_LIVE = ['removed', OWNER_CLOSED] as const;
 const MAX_LIVE_OFFERS = 5;
 
 /** A calendar day, not an instant. Offers are dated, and a DATE column compared
@@ -297,10 +340,27 @@ export class LocalServicesService {
     // the name people actually use for where they live.
     if (q.area) where.areas = { contains: q.area, mode: 'insensitive' };
     if (q.q) {
-      where.OR = [
+      /* THE WORD FINDS THE TRADE, NOT ONLY THE NAME (8 Sep). "plumber" is
+         what the placeholder invites and it used to find nothing unless the
+         shop had put the word in its own name. Every trade whose label or
+         group the word sits in is searched alongside the name and the blurb.
+         When a chip has already narrowed the trade, the word only searches
+         inside it — `AND` keeps the chip's decision, `OR` is the word's reach. */
+      const trades = categoryKeysMatching(q.q);
+      const byWord: Record<string, unknown>[] = [
         { businessName: { contains: q.q, mode: 'insensitive' } },
         { about: { contains: q.q, mode: 'insensitive' } },
       ];
+      if (q.category && trades.includes(q.category)) {
+        // "plumber" with the Plumbers chip pressed is the chip said twice —
+        // the word has nothing left to narrow, so it narrows nothing.
+      } else {
+        if (trades.length && !q.category) {
+          const keys = q.group ? trades.filter((k) => categoryGroup(k) === q.group) : trades;
+          if (keys.length) byWord.push({ categoryKey: { in: keys } });
+        }
+        where.OR = byWord;
+      }
     }
 
     /**
@@ -463,10 +523,7 @@ export class LocalServicesService {
   }
 
   async create(ownerId: string, dto: CreateListingDto) {
-    const live = await this.prisma.serviceListing.count({ where: { ownerId, moderation: { not: 'removed' } } });
-    if (live >= MAX_LISTINGS_PER_OWNER) {
-      throw new BadRequestException(`You can list up to ${MAX_LISTINGS_PER_OWNER} businesses. Close one first.`);
-    }
+    await this.assertRoomForOneMore(ownerId);
     await this.screenPictures(ownerId, [...(dto.photoUrls ?? []), ...(dto.logoUrl ? [dto.logoUrl] : [])], new Set());
     const row = await this.prisma.serviceListing.create({
       data: {
@@ -493,6 +550,15 @@ export class LocalServicesService {
       },
     }) as unknown as ListingRow;
     return this.ownerCard(row);
+  }
+
+  /** The five-listing cap, asked by Create and by Reopen alike — a closed
+   *  shop gives its slot up, so bringing it back has to win the slot again. */
+  private async assertRoomForOneMore(ownerId: string): Promise<void> {
+    const live = await this.prisma.serviceListing.count({ where: { ownerId, moderation: { notIn: [...NOT_LIVE] } } });
+    if (live >= MAX_LISTINGS_PER_OWNER) {
+      throw new BadRequestException(`You can list up to ${MAX_LISTINGS_PER_OWNER} businesses. Close one first.`);
+    }
   }
 
   private async own(ownerId: string, id: string): Promise<ListingRow> {
@@ -585,7 +651,7 @@ export class LocalServicesService {
    */
   async deleteForever(ownerId: string, id: string) {
     const l = await this.own(ownerId, id);
-    if (l.moderation !== 'removed') {
+    if (!(NOT_LIVE as readonly string[]).includes(l.moderation)) {
       throw new BadRequestException('Close the listing first. Deleting is the step after that.');
     }
 
@@ -705,9 +771,37 @@ export class LocalServicesService {
   }
 
   async close(ownerId: string, id: string) {
-    await this.own(ownerId, id);
+    const l = await this.own(ownerId, id);
+    // A suspended or rejected page is not the owner's to close: the state it
+    // is in belongs to a moderator, and overwriting it would erase the record.
+    if (l.moderation !== 'approved') return this.ownerCard(l);
     const row = await this.prisma.serviceListing.update({
-      where: { id }, data: { moderation: 'removed' },
+      where: { id }, data: { moderation: OWNER_CLOSED },
+    }) as unknown as ListingRow;
+    return this.ownerCard(row);
+  }
+
+  /**
+   * THE DOOR OPENS AGAIN — only the one the owner shut.
+   *
+   * `closed` comes back to `approved`; nothing else does. A page a moderator
+   * took down (`removed`) or refused (`rejected`) is answered with the reason
+   * it cannot, in words, rather than a 403 the owner has to guess at. The cap
+   * is asked again because the slot was given up on close.
+   */
+  async reopen(ownerId: string, id: string) {
+    const l = await this.own(ownerId, id);
+    if (l.moderation === 'approved') return this.ownerCard(l);
+    if (l.moderation !== OWNER_CLOSED) {
+      throw new BadRequestException(
+        l.moderation === 'removed'
+          ? 'This listing was closed before reopening existed, or taken down by moderation. List the business again to bring it back.'
+          : 'This listing is waiting on moderation and cannot be reopened from here.',
+      );
+    }
+    await this.assertRoomForOneMore(ownerId);
+    const row = await this.prisma.serviceListing.update({
+      where: { id }, data: { moderation: 'approved' },
     }) as unknown as ListingRow;
     return this.ownerCard(row);
   }
@@ -731,17 +825,18 @@ export class LocalServicesService {
     }) as EnquiryRow | null;
 
     if (!e) {
-      /* FIVE NEW NEIGHBOURS A DAY UNTIL THE LISTING IS VERIFIED.
-         Asked here and nowhere else, because it is only ever a question about a
-         thread that does not exist yet — one already given away cannot be taken
-         back, and a room open on Monday and gone on Tuesday is worse than one
-         that was never opened.
-         The citizen is refused nothing and told nothing: the thread is made,
-         the message is stored, and it is the BUSINESS that waits. */
-      const held = await this.verification.holdsNewThread(l);
+      /* A ROOM NOBODY HAS SPOKEN IN IS NOT HANDED OVER (8 Sep).
+         "Message" on a card opens the room before a word is typed, and until
+         today that press alone counted as one of the five new neighbours an
+         unverified listing is given a day — five curious taps and a real
+         customer's message sat in the queue behind five empty rooms. The row
+         is made here so the screen has somewhere to go, but it is made HELD,
+         and it is the FIRST MESSAGE — in `post` — that asks the gate and
+         hands the room over. A thread that never gets a word never reaches
+         the inbox, never spends the allowance, and is never released. */
       const soFar = await this.prisma.serviceEnquiry.count({ where: { listingId } });
       e = await this.prisma.serviceEnquiry.create({
-        data: { listingId, seekerId, alias: mintAlias(soFar), openedAt: held ? null : new Date() },
+        data: { listingId, seekerId, alias: mintAlias(soFar), openedAt: null },
       }) as unknown as EnquiryRow;
     }
 
@@ -767,6 +862,19 @@ export class LocalServicesService {
     const { e, l, side } = await this.sideOf(userId, enquiryId);
     if (e.closed) throw new BadRequestException('This conversation is closed.');
 
+    /* FIVE NEW NEIGHBOURS A DAY UNTIL THE LISTING IS VERIFIED — asked at the
+       first word, not at the door. A thread the business has not been given
+       (`openedAt` null) and that has never carried a message is a new
+       neighbour arriving now: the gate decides whether the room is handed
+       over today or waits for a day with room. A held thread that already
+       has a message is one the queue owns; a second message does not ask
+       again, and one already given away is never taken back. */
+    let openedNow: Date | null = null;
+    if (side === 'seeker' && e.openedAt == null) {
+      const spoken = await this.prisma.serviceMessage.count({ where: { enquiryId } });
+      if (spoken === 0 && !(await this.verification.holdsNewThread(l))) openedNow = new Date();
+    }
+
     const msg = await this.prisma.serviceMessage.create({
       data: { enquiryId, senderSide: side, body },
     }) as unknown as { id: string; senderSide: string; body: string; createdAt: Date };
@@ -775,9 +883,11 @@ export class LocalServicesService {
       where: { id: enquiryId },
       data: {
         lastMessageAt: msg.createdAt,
+        ...(openedNow ? { openedAt: openedNow } : {}),
         ...(side === 'seeker' ? { ownerUnread: { increment: 1 } } : { seekerUnread: { increment: 1 } }),
       },
     });
+    if (openedNow) e.openedAt = openedNow;
 
     // The business is told somebody wrote; who that is, is the asker's call,
     // and the link goes to this hub's own room rather than to /chats.
@@ -1012,7 +1122,8 @@ export class LocalServicesService {
           savedAt: r.createdAt.toISOString(),
           note: r.note,
           closed: l.moderation !== 'approved',
-          offersToday: offersFor.get(l.id) ?? [],
+          // A closed shop's offer is a discount on a door that no longer opens.
+          offersToday: l.moderation === 'approved' ? (offersFor.get(l.id) ?? []) : [],
         }];
       }),
     };
@@ -1149,10 +1260,13 @@ export class LocalServicesService {
     const thread = await this.prisma.serviceEnquiry.findUnique({
       where: { listingId_seekerId: { listingId, seekerId: reviewerId } },
     }) as EnquiryRow | null;
-    if (!thread) {
+    if (!thread || !(await this.spokeTo(thread))) {
       throw new BadRequestException('Only someone who has messaged this business can review it. Start a conversation first.');
     }
 
+    const before = await this.prisma.serviceReview.findUnique({
+      where: { listingId_reviewerId: { listingId, reviewerId } }, select: { id: true },
+    }) as { id: string } | null;
     const row = await this.prisma.serviceReview.upsert({
       where: { listingId_reviewerId: { listingId, reviewerId } },
       create: { listingId, reviewerId, alias: thread.alias, rating, body: body ?? null },
@@ -1161,13 +1275,32 @@ export class LocalServicesService {
       update: { rating, body: body ?? null },
     }) as unknown as ReviewRow;
 
-    void this.notifications.create({
+    // Told once, when the review arrives. An edit is the same review and a
+    // second knock for it is how a shopkeeper learns to ignore the first.
+    if (!before) void this.notifications.create({
       userId: l.ownerId, kind: 'service_review', entityId: listingId,
       title: `${customerLabel(thread.alias)} rated ${l.businessName} ${rating}★`,
       body: (body ?? '').slice(0, 120) || 'No words, just the rating.',
       href: `/services/mine`,
     });
     return this.reviewCard(row, 'reviewer');
+  }
+
+  /**
+   * "SPOKE TO THEM" HAS TO MEAN IT (8 Sep).
+   *
+   * A thread row alone was the gate, and a thread row is minted by pressing
+   * Message on a card — no words needed. So one press, one star, and the
+   * "only someone who has messaged this business" sentence on the page was
+   * printing a rule the code did not hold. Now the room must have been GIVEN
+   * to the business (not still queued) and the reviewer must have written at
+   * least once in it. Still not proof the work was done — the copy says so —
+   * but it is proof of the contact the copy claims.
+   */
+  private async spokeTo(thread: EnquiryRow): Promise<boolean> {
+    if (thread.openedAt == null) return false;
+    const said = await this.prisma.serviceMessage.count({ where: { enquiryId: thread.id, senderSide: 'seeker' } });
+    return said > 0;
   }
 
   async removeReview(reviewerId: string, listingId: string) {
@@ -1217,7 +1350,7 @@ export class LocalServicesService {
     return {
       ...ratingOf(rows),
       items: rows.map((r) => this.reviewCard(r, viewerId && r.reviewerId === viewerId ? 'reviewer' : 'public')),
-      canReview: Boolean(thread),
+      canReview: thread ? await this.spokeTo(thread as EnquiryRow) : false,
       /**
        * The caller's OWN alias for this listing, so the review form can say
        * what a review will be signed with before it is written.
@@ -1244,10 +1377,10 @@ export class LocalServicesService {
     }) as unknown as Array<{ listingId: string; _avg: { rating: number | null }; _count: { _all: number } }>;
     const out: Record<string, { rating: number | null; count: number }> = {};
     for (const r of rows) {
-      out[r.listingId] = {
-        rating: r._avg.rating == null ? null : Math.round(r._avg.rating * 10) / 10,
-        count: r._count._all,
-      };
+      /* THE FLOOR APPLIES HERE TOO, AND FOR A WHILE IT DID NOT — see
+         `ratingFromGroup`, which is where the rule now lives and where the
+         test that holds it can reach. */
+      out[r.listingId] = ratingFromGroup({ avg: r._avg.rating, count: r._count._all });
     }
     return out;
   }
@@ -1370,6 +1503,166 @@ export class LocalServicesService {
   }
 
   /** The menu as anybody sees it, grouped by the headings the menu itself used. */
+  /**
+   * ── THE GROCERY STORE: EVERY LOCAL SHELF, READ AS ONE (owner, 8 Sep) ──────
+   *
+   * "Instead of grocery list create a grocery store with vegetables, food
+   * items, household items etc."
+   *
+   * WHAT IS NEW HERE IS THE READING, NOT THE STOCK. Every row this returns was
+   * typed by a shopkeeper into their own menu and is already for sale on their
+   * own page, at their own price, behind their own sold-out switch. The store
+   * puts them side by side under aisles instead of making a citizen open eight
+   * shops to find out who has coriander — and it takes no money, because the
+   * shop that stocks a thing is the shop that sells it. One order is one shop
+   * and one delivery, which is what `/services/:id/order` already does well.
+   *
+   * SOLD OUT IS SHOWN, NOT HIDDEN, exactly as `menu()` shows it: a row that
+   * vanishes when a shop runs out reads as a shelf that shrank.
+   *
+   * AN UNPRICED ROW IS "ASK", NEVER FREE. `priceInr` is nullable on purpose in
+   * the schema and travels nullable all the way to the tile.
+   *
+   * THE CAPS ARE THE POINT OF THE TWO READS. Sixty shops and twelve hundred
+   * rows is a shelf somebody browses; the whole of a city's groceries in one
+   * response is a page nobody can render. Both are ordered so the cut is the
+   * same one twice — newest shops, then each shop's own order.
+   */
+  async groceryShelf(viewerId: string, q: GroceryShelfDto) {
+    const where: Record<string, unknown> = {
+      moderation: 'approved',
+      categoryKey: { in: [...GROCERY_CATEGORIES] },
+    };
+    if (q.city) where.city = { equals: q.city, mode: 'insensitive' };
+    if (q.area) where.areas = { contains: q.area, mode: 'insensitive' };
+
+    /* NEAR ME, the same two steps `browse()` uses and for the same reason: the
+       box is a query an index can serve, the circle is a trim in memory. A
+       shop that never said where it is is left out of a distance search rather
+       than assumed to be far away. */
+    const centre = parsePoint(q.near);
+    const near = centre && q.withinKm ? { centre, km: q.withinKm } : null;
+    if (near) {
+      const b = boundingBox(near.centre.lat, near.centre.lng, near.km);
+      where.lat = { gte: b.minLat, lte: b.maxLat };
+      where.lng = { gte: b.minLng, lte: b.maxLng };
+    }
+
+    const found = await this.prisma.serviceListing.findMany({
+      where, orderBy: { createdAt: 'desc' }, take: near ? 300 : SHOP_CAP,
+    }) as unknown as ListingRow[];
+
+    const listings = near
+      ? found
+        .map((r) => ({ r, km: haversineKm(near.centre.lat, near.centre.lng, r.lat as number, r.lng as number) }))
+        .filter((x) => x.km <= near.km)
+        .sort((a, b) => a.km - b.km)
+        .slice(0, SHOP_CAP)
+        .map((x) => ({ ...x.r, distanceKm: Math.round(x.km * 100) / 100 }))
+      : found.map((r) => ({ ...r, distanceKm: undefined as number | undefined }));
+
+    if (listings.length === 0) {
+      return { shops: [], aisles: [], items: [], total: 0, shopCount: 0 };
+    }
+
+    const byId = new Map(listings.map((l) => [l.id, l]));
+    const rows = await this.prisma.serviceMenuItem.findMany({
+      where: { listingId: { in: listings.map((l) => l.id) } },
+      orderBy: [{ listingId: 'asc' }, { sortOrder: 'asc' }],
+      take: ITEM_CAP,
+    }) as unknown as Array<{
+      id: string; listingId: string; section: string | null; name: string; description: string | null;
+      priceInr: number | null; available: boolean; veg: string | null; photoUrl: string | null;
+    }>;
+
+    const items = rows.map((r) => {
+      const shop = byId.get(r.listingId) as ListingRow & { distanceKm?: number };
+      return {
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        /** Null is "ask", never ₹0 — the schema's own rule, carried out. */
+        priceInr: r.priceInr,
+        available: r.available,
+        veg: r.veg,
+        photoUrl: r.photoUrl,
+        /** The shopkeeper's own heading, kept beside the aisle it was filed
+         *  under so a citizen reads their word rather than ours. */
+        section: r.section,
+        aisle: aisleOf(r.section, shop.categoryKey),
+        shopId: shop.id,
+        shopSlug: shop.slug,
+        shopName: shop.businessName,
+        shopCategory: categoryLabel(shop.categoryKey),
+        shopCity: shop.city,
+        distanceKm: shop.distanceKm ?? null,
+      };
+    });
+
+    /* Aisle order first, then what is actually on the shelf before what is
+       sold out, then the shop's own order — so a chip never opens on a run of
+       greyed-out rows. */
+    items.sort((a, b) =>
+      aisleRank(a.aisle) - aisleRank(b.aisle)
+      || Number(b.available) - Number(a.available)
+      || a.name.localeCompare(b.name));
+
+    /* THE COUNTS COME OFF THE ITEMS THEMSELVES, never a second list to drift
+       out of step with them — the rule the market's aisles already follow. */
+    const counts = new Map<string, number>();
+    for (const i of items) counts.set(i.aisle, (counts.get(i.aisle) ?? 0) + 1);
+    const aisles = AISLES
+      .filter((a) => counts.has(a.key))
+      .map((a) => ({ key: a.key, label: a.label, count: counts.get(a.key) as number }));
+
+    const stocked = new Set(items.map((i) => i.shopId));
+    const open = listings.filter((l) => stocked.has(l.id));
+
+    /**
+     * ── AND THE SHELF CARRIES WHAT THE DIRECTORY KNOWS ABOUT THE SHOP ───────
+     *
+     * Owner, 8 Sep: "this grocery store needs to be updated by local services
+     * data." A price with a shop's name over it is half a fact. Whether that
+     * shop is VERIFIED, what its customers rated it, whether it is OPEN right
+     * now and how far away it is are the four things the directory already
+     * shows on a card — and the store was the one screen in the city selling
+     * these shops' stock while knowing none of it.
+     *
+     * SAME READS, NOT SECOND ONES. `trustFor` and `ratingsFor` are the two the
+     * directory itself calls, both grouped for the whole page rather than per
+     * shop, so a badge here can never disagree with the badge two taps away.
+     * Hours travel PARSED and unjudged: `openStateAt` needs the reader's own
+     * clock, so the client owns the moment and `hours.ts` — one copy of the
+     * rule, imported by both sides — owns the rule.
+     *
+     * A SHOP THAT SAID NOTHING SAYS NOTHING. No hours is `null`, which is not
+     * "closed"; a rating under the directory's floor is withheld exactly as it
+     * is withheld there. Neither becomes a shrug that reads like a verdict.
+     */
+    const [ratings, trust] = await Promise.all([
+      this.ratingsFor(open.map((l) => l.id)),
+      this.trustFor(open),
+    ]);
+
+    const shops = open.map((l) => ({
+      id: l.id,
+      slug: l.slug,
+      name: l.businessName,
+      categoryLabel: categoryLabel(l.categoryKey),
+      city: l.city,
+      areas: l.areas,
+      logoUrl: l.logoUrl,
+      distanceKm: l.distanceKm ?? null,
+      itemCount: items.filter((i) => i.shopId === l.id).length,
+      ...(ratings[l.id] ?? { rating: null, count: 0 }),
+      trust: trust.get(l.id) ?? null,
+      hours: parseHours(l.hoursJson),
+    }));
+
+    void viewerId;
+    return { shops, aisles, items, total: items.length, shopCount: shops.length };
+  }
+
   async menu(listingId: string, viewerId: string) {
     const [rows, listing] = await Promise.all([
       this.prisma.serviceMenuItem.findMany({

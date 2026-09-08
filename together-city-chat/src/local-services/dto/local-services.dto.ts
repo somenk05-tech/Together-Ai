@@ -88,6 +88,22 @@ export const BrowseSchema = z.object({
 });
 export type BrowseDto = z.infer<typeof BrowseSchema>;
 
+/**
+ * THE GROCERY STORE'S ONE QUESTION: whose shelves. Same three ways of saying
+ * "near me" the directory already accepts — a city, a locality, or a pin and a
+ * radius — and nothing else. There is no `category`, because the trades that
+ * sell groceries are a fixed list on the server (grocery.ts) and letting a
+ * caller name one would make "the grocery store" mean something different
+ * depending on who asked.
+ */
+export const GroceryShelfSchema = z.object({
+  near: z.string().trim().max(48).optional(), // "lat,lng"
+  withinKm: z.coerce.number().min(0.1).max(200).optional(),
+  city: z.string().trim().max(60).optional(),
+  area: z.string().trim().max(60).optional(),
+});
+export type GroceryShelfDto = z.infer<typeof GroceryShelfSchema>;
+
 export const SendServiceMessageSchema = z.object({
   body: trimmed(1, 4000),
 });

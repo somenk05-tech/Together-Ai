@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { tabOf, type ShelfCard } from '../shelves';
 import { FloorPage, FloorTabs, RoomPane, type Floor } from './Floor';
-import { GroceryDownloadPane } from './GroceryDownloadPane';
 import { StoreFront } from './StoreFront';
 import type { Shop } from './types';
 import { useCityCart } from './useCityCart';
@@ -61,7 +60,7 @@ export function TabbedFloor({ path, shelves, shopOf, head }: {
 
   return (
     <FloorPage floor={floor}>
-      {shelf.download ? <GroceryDownloadPane shelf={shelf} /> : <RoomPane shelf={shelf} />}
+      <RoomPane shelf={shelf} />
     </FloorPage>
   );
 }

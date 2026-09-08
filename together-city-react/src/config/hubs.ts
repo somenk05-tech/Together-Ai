@@ -225,12 +225,24 @@ export const HUBS: Record<HubKey, HubConfig> = {
          under the name it always deserved. */
       { path: '/services/find', index: '01', label: 'Find a service', sub: 'Say it in your own words' },
       { path: '/services/browse', index: '02', label: 'All listed services', sub: 'By trade and by where you are' },
-      { path: '/services/list', index: '03', label: 'List your business', sub: 'Pick a category, name your areas' },
-      { path: '/services/mine', index: '04', label: 'My business', sub: 'Edit, close, see who asked' },
-      { path: '/services/regulars', index: '05', label: 'Regulars', sub: 'The businesses you keep' },
-      { path: '/services/offers', index: '06', label: 'Daily offers', sub: 'What is on today' },
-      { path: '/services/messages', index: '07', label: 'Messages', sub: 'Anonymous, and only in this hub' },
-      { path: '/services/orders', index: '08', label: 'My orders', sub: 'Paid from your wallet, tracked to the door' },
+      /* ── THE GROCERY STORE (owner, 8 Sep) ─────────────────────────────
+         "Instead of grocery list create a grocery store with vegetables, food
+         items, household items etc."
+
+         Third, above listing your own business, because it is the room most
+         citizens of this hub actually want: eight trades' worth of published
+         shelves — grocers, supermarkets, sabzi markets, bakeries, butchers,
+         fish markets, convenience stores, water delivery — read as one shelf
+         under aisles. It is the same shelf the Digital Store draws under its
+         Grocery Store tab; the gemstone bench's trick, one room with two
+         doors, rather than two shelves that can disagree. */
+      { path: '/services/grocery', index: '03', label: 'Grocery Store', sub: 'Vegetables, staples and household — from shops near you' },
+      { path: '/services/list', index: '04', label: 'List your business', sub: 'Pick a category, name your areas' },
+      { path: '/services/mine', index: '05', label: 'My business', sub: 'Edit, close, see who asked' },
+      { path: '/services/regulars', index: '06', label: 'Regulars', sub: 'The businesses you keep' },
+      { path: '/services/offers', index: '07', label: 'Daily offers', sub: 'What is on today' },
+      { path: '/services/messages', index: '08', label: 'Messages', sub: 'Anonymous, and only in this hub' },
+      { path: '/services/orders', index: '09', label: 'My orders', sub: 'Paid from your wallet, tracked to the door' },
     ],
   },
   travel: {

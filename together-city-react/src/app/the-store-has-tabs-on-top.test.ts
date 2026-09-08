@@ -83,7 +83,7 @@ describe('both floors are one storefront with tabs on top', () => {
     // instance ever swaps one hook for another.
     expect(floor).toMatch(/<ShopPane key=\{active\.key\} useShop=\{useShop\} floor=\{floor\} \/>/);
     expect(floor).toMatch(/<StoreFront shop=\{shop\} floor=\{floor\} \/>/);
-    expect(store).toMatch(/shopOf=\{\{ beauty: useBeautyShop, supplements: useFitnessShop, gemstones: useGemShop \}\}/);
+    expect(store).toMatch(/shopOf=\{\{ beauty: useBeautyShop, supplements: useFitnessShop, gemstones: useGemShop, grocery: useGroceryShop \}\}/);
     expect(market).toMatch(/'skin-hair': useBeautyMarketShop, supplements: useSupplementsMarketShop, pets: usePetMarketShop, gemstones: useGemCounterShop/);
     // And the storefront wears the floor: the floor's bar and tabs on top,
     // this shop's bag on the bar, in every one of its three states.

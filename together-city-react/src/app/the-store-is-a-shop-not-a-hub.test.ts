@@ -260,32 +260,92 @@ describe('Three shelves have shops, and one deliberately does not', () => {
       expect({ key, bag: SHOPS[key]?.bag.path }).toEqual({ key, bag: `/ecommerce/shop/${key}/bag` });
     }
     expect(FITTED.filter((s) => s.shop).map((s) => s.shop).sort())
-      .toEqual(['beauty', 'gemstones', 'supplements']);
+      .toEqual(['beauty', 'gemstones', 'grocery', 'supplements']);
   });
 
   /**
-   * AND THE GROCERY LIST IS HANDED OVER RATHER THAN LINKED TO (owner, 22 Aug):
-   * "add just the list separately as a download card instead of sending to the
-   * grocery hub". It is the one shelf that cannot become a shop — no prices, no
-   * order endpoint — so the card does the thing somebody on their way out
-   * actually wants: it gives them the list.
+   * ── THE GROCERY LIST BECAME A GROCERY STORE (owner, 8 Sep) ────────────────
+   *
+   * "Instead of grocery list create a grocery store with vegetables, food
+   * items, household items etc."
+   *
+   * The tab was a DOWNLOAD for two weeks, and the note that stood here said
+   * why: the nutrition hub's list has no prices on it and no order endpoint
+   * behind it, so a storefront would have been a till the city did not have.
+   * All of that is still true of /nutrition/grocery, which still prints and
+   * still downloads. What changed is whose shelf this tab draws: local
+   * grocers' own published rows, at their own prices.
    */
-  it('hands the grocery list over instead of opening a room', () => {
-    const shelf = FITTED.find((s) => s.path === '/nutrition/grocery');
-    expect({ shop: shelf?.shop, download: shelf?.download }).toEqual({ shop: undefined, download: true });
-    // Its tab is the download pane (6 Sep), where its card was the download.
-    const floor = code('features/ecommerce/store/TabbedFloor.tsx');
-    expect(floor).toMatch(/shelf\.download \? <GroceryDownloadPane shelf=\{shelf\} \/>/);
+  it('opens the local grocers’ shelf rather than the nutrition list', () => {
+    expect(FITTED.find((s) => s.path === '/nutrition/grocery')).toBeUndefined();
+    const shelf = FITTED.find((s) => s.shop === 'grocery');
+    expect({ hub: shelf?.hub, path: shelf?.path }).toEqual({ hub: 'services', path: '/services/grocery' });
   });
 
-  it('writes the file from the plan the hub prints, and recomputes nothing', () => {
-    const card = code('features/ecommerce/store/GroceryDownloadPane.tsx');
-    expect(card).toMatch(/useGroceryPlan/);
-    // The quantities are the server's own labels, printed, never arithmetic
-    // done again here.
-    const list = code('features/ecommerce/store/groceryList.ts');
-    expect(list).toMatch(/item\.qtyLabel/);
-    expect(list).not.toMatch(/[*/]\s*\d|Math\./);
+  /**
+   * AND IT IS THE ONE SHOP WITH NO BAG, WHICH IS THE HONEST SHAPE OF IT. A bag
+   * here would be a bag across eight different shops, and paying it would be
+   * eight orders and eight delivery vans. Each grocer already takes a real
+   * cart and a real wallet payment on their own page, so every tile is that
+   * shop's door — the gem counter's `design` mechanism, for the same reason.
+   */
+  it('takes no money of its own, and says whose counter it is', () => {
+    const grocery = code('features/ecommerce/store/useGroceryShop.ts');
+    expect(grocery).toMatch(/bag: null/);
+    expect(grocery).toMatch(/design: \{/);
+    expect(grocery).toMatch(/path: `\/services\/\$\{where\}`/);
+    // The shop's own name is on every tile: a price on this shelf belongs to
+    // somebody, and a tile that did not say whose would be the store quietly
+    // claiming the stock.
+    expect(grocery).toMatch(/brand: row\.shopName/);
+    // No storefront routes: a pair of routes is what a shop with a BAG earns.
+    expect(SHOPS.grocery).toBeUndefined();
+  });
+
+  /**
+   * ── AND THE SHELF IS UPDATED BY LOCAL SERVICES DATA (owner, 8 Sep) ────────
+   *
+   * "This grocery store needs to be updated by local services data."
+   *
+   * Two halves, and the second is the one that rots quietly. The shelf must
+   * CARRY what the directory knows about a shop — verified, open, rated, how
+   * far — from the directory's own reads rather than a second opinion. And it
+   * must be TOLD when that changes: the grocery shelf is a second reader of
+   * every menu, so a reprice or a sold-out flip has to reach it, or the same
+   * edit leaves two screens disagreeing until a cache goes stale on its own.
+   */
+  it('carries the directory’s own facts about the shop behind each price', () => {
+    const grocery = code('features/ecommerce/store/useGroceryShop.ts');
+    for (const fact of [/shop\.trust\?\.label/, /shop\.rating/, /shop\.distanceKm/, /openStateNow/]) {
+      expect(grocery).toMatch(fact);
+    }
+    // The clock is the reader's, not the server's — one `new Date()` for the
+    // whole shelf, so two tiles about one shop cannot straddle a minute.
+    expect(grocery).toMatch(/const now = new Date\(\);/);
+    expect(grocery.match(/new Date\(\)/g)?.length).toBe(1);
+    // Hours arrive unjudged: no hours is silence, never "Closed".
+    expect(grocery).toMatch(/state\.open === false/);
+  });
+
+  it('is refreshed by the two mutations that change what is on it', () => {
+    const api = code('features/services/api.ts');
+    // saveMenu and patchMenuItem — a reprice and the sold-out switch, which
+    // the schema promises is "honoured everywhere the same minute".
+    const hits = api.match(/queryKey: \['services', 'grocery'\]/g) ?? [];
+    expect(hits.length).toBe(2);
+  });
+
+  /**
+   * AND IT PRICES NOTHING THE SHOPKEEPER DID NOT PRICE. `ServiceMenuItem`
+   * makes `priceInr` nullable so a vegetable whose price moves with the market
+   * can say "seasonal"; turning that into ₹0 on a tile is the one answer that
+   * would be a lie.
+   */
+  it('says “ask” where a shop listed no price, and never a number', () => {
+    const grocery = code('features/ecommerce/store/useGroceryShop.ts');
+    expect(grocery).toMatch(/priceLabel: priced \? undefined : 'Ask the shop'/);
+    const front = code('features/ecommerce/store/StoreFront.tsx');
+    expect(front).toMatch(/item\.priceLabel \?\? rupees\(item\.priceInr\)/);
   });
 
   it('sells no gemstone from the shelf, because a stone has no price until it is designed', () => {

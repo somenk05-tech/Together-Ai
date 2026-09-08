@@ -233,6 +233,7 @@ const BeautyShopBag = lazy(() => import('@/features/ecommerce/pages/BeautyShop')
 const SupplementsShop = lazy(() => import('@/features/ecommerce/pages/SupplementsShop').then((m) => ({ default: m.SupplementsShop })));
 const SupplementsShopBag = lazy(() => import('@/features/ecommerce/pages/SupplementsShop').then((m) => ({ default: m.SupplementsShopBag })));
 const GemstonesShop = lazy(() => import('@/features/ecommerce/pages/GemstonesShop').then((m) => ({ default: m.GemstonesShop })));
+const GroceryStore = lazy(() => import('@/features/ecommerce/pages/GroceryStore').then((m) => ({ default: m.GroceryStore })));
 const GemstonesShopBag = lazy(() => import('@/features/ecommerce/pages/GemstonesShop').then((m) => ({ default: m.GemstonesShopBag })));
 /* The Open Market's aisles — the same storefront, the whole shelf. */
 const SkinHairMarket = lazy(() => import('@/features/ecommerce/pages/MarketAisles').then((m) => ({ default: m.SkinHairMarket })));
@@ -637,6 +638,11 @@ const ROUTE_BLOCKS: RouteObject[] = [
     children: [
       { path: '/services/find', element: <RequireAuth>{wrap(<FindService />)}</RequireAuth> },
       { path: '/services/browse', element: <RequireAuth>{wrap(<ServicesBrowse />)}</RequireAuth> },
+      /* THE GROCERY STORE (owner, 8 Sep). Declared here rather than in the
+         district's block because the stock is the Local Market's — these are
+         local grocers' own published shelves, and the room wears this hub's
+         rail. The Digital Store draws the same shelf under a tab. */
+      { path: '/services/grocery', element: <RequireAuth>{wrap(<GroceryStore />)}</RequireAuth> },
       { path: '/services/list', element: <RequireAuth>{wrap(<ListBusiness />)}</RequireAuth> },
       { path: '/services/mine', element: <RequireAuth>{wrap(<MyBusiness />)}</RequireAuth> },
       // Declared before ':id' on the server for the same reason it needs no

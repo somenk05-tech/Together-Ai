@@ -1,5 +1,6 @@
 import { http as api } from '@/api/client';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import type { DayHours } from './hours';
 export type { DayHours } from './hours';
 
@@ -414,10 +415,77 @@ export function findCityIn(tree: PlaceCountry[], name: string): { country: strin
   return null;
 }
 
+/**
+ * ── THE GROCERY STORE'S SHELF ───────────────────────────────────────────────
+ *
+ * One row is one line a shopkeeper typed into their own menu, and it carries
+ * the shop with it — a price on this shelf belongs to somebody, and a tile that
+ * did not say whose would be the store quietly claiming the stock.
+ *
+ * `priceInr` is nullable and stays nullable: the schema's rule is that an
+ * unpriced row means "ask", never ₹0.
+ */
+export interface GroceryItem {
+  id: string;
+  name: string;
+  description: string | null;
+  priceInr: number | null;
+  available: boolean;
+  veg: string | null;
+  photoUrl: string | null;
+  /** The shopkeeper's own heading, kept beside the aisle it was filed under. */
+  section: string | null;
+  aisle: string;
+  shopId: string;
+  shopSlug: string | null;
+  shopName: string;
+  shopCategory: string;
+  shopCity: string;
+  distanceKm: number | null;
+}
+
+/**
+ * THE SHOP BEHIND THE PRICE, WITH WHAT THE DIRECTORY KNOWS ABOUT IT (owner,
+ * 8 Sep: "this grocery store needs to be updated by local services data").
+ *
+ * `trust`, `rating` and `count` are the directory's own reads, not a second
+ * opinion — the same two grouped queries a page of Local Market cards makes,
+ * so a badge on this shelf can never disagree with the badge two taps away.
+ *
+ * `hours` arrive PARSED AND UNJUDGED. The server owns which days and what
+ * times; the browser owns the clock, because an "open now" computed on the
+ * server is wrong the moment a page is left open. `openStateNow` in this
+ * feature's own hours.ts turns them into the sentence — the same rule, the
+ * same file, as every other screen in the hub.
+ */
+export interface GroceryShop {
+  id: string; slug: string | null; name: string; categoryLabel: string;
+  city: string; areas: string; logoUrl: string | null;
+  distanceKm: number | null; itemCount: number;
+  /** Withheld under three reviews, by the server. Null is "not enough to say". */
+  rating: number | null;
+  count: number;
+  trust: TrustSummary | null;
+  /** Null is "they never told us", which is not "closed" and never drawn as it. */
+  hours: DayHours[] | null;
+}
+
+export interface GroceryShelf {
+  shops: GroceryShop[];
+  aisles: { key: string; label: string; count: number }[];
+  items: GroceryItem[];
+  total: number;
+  shopCount: number;
+}
+
+export interface GroceryShelfQuery { city?: string; area?: string; near?: string; withinKm?: number }
+
 export const servicesApi = {
   categories: () => api.get<{ groups: CategoryGroup[] }>('/services/categories').then((r) => r.data),
   places: () => api.get<{ countries: PlaceCountry[] }>('/services/places').then((r) => r.data),
   facets: (city?: string) => api.get<Record<string, number>>('/services/facets', { params: { city } }).then((r) => r.data),
+  groceryShelf: (q: GroceryShelfQuery) =>
+    api.get<GroceryShelf>('/services/grocery/shelf', { params: q }).then((r) => r.data),
   browse: (q: { category?: string; group?: string; city?: string; area?: string; q?: string; page?: number; near?: string; withinKm?: number }) =>
     api.get<{ items: ServiceCard[]; total: number; page: number; pages: number; saved: string[] }>('/services', { params: q }).then((r) => r.data),
   businessTypes: () =>
@@ -434,6 +502,8 @@ export const servicesApi = {
   // nothing calls is a hook nobody maintains, so it arrives with the screen.
   update: (id: string, input: Partial<ListingInput>) => api.patch<MyServiceCard>(`/services/${id}`, input).then((r) => r.data),
   close: (id: string) => api.delete<MyServiceCard>(`/services/${id}`).then((r) => r.data),
+  /** The way back from Close — only from Close; a moderator's take-down says why it cannot. */
+  reopen: (id: string) => api.post<MyServiceCard>(`/services/${id}/reopen`).then((r) => r.data),
   deleteForever: (id: string) =>
     api.delete<{ ok: true; id: string }>(`/services/${id}/forever`).then((r) => r.data),
   enquire: (id: string, message?: string) =>
@@ -556,7 +626,14 @@ export function useSaveMenu(listingId?: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (v: { scanUrl?: string; items: MenuDraftItem[] }) => servicesApi.saveMenu(listingId as string, v),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services', 'menu'] }); },
+    /* THE GROCERY SHELF IS A SECOND READER OF THIS MENU (8 Sep), and it has to
+       be told. A shopkeeper who reprices atta here would otherwise watch the
+       Grocery Store go on quoting yesterday's number until the cache went
+       stale on its own — the same edit, two screens, one of them lying. */
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['services', 'menu'] });
+      void qc.invalidateQueries({ queryKey: ['services', 'grocery'] });
+    },
   });
 }
 export function useAskAboutMenu(listingId?: string) {
@@ -572,7 +649,13 @@ export function usePatchMenuItem(listingId?: string) {
   return useMutation({
     mutationFn: (v: { itemId: string; patch: PatchMenuItemInput }) =>
       servicesApi.patchMenuItem(listingId as string, v.itemId, v.patch),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services', 'menu'] }); },
+    /* THE SOLD-OUT SWITCH, WHICH IS THE ONE THAT MATTERS MOST. The owner flips
+       it "in one tap and honoured everywhere the same minute" — the schema's
+       own promise — and the Grocery Store is now one of the everywheres. */
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['services', 'menu'] });
+      void qc.invalidateQueries({ queryKey: ['services', 'grocery'] });
+    },
   });
 }
 export function useQuoteOrder(listingId?: string) {
@@ -813,11 +896,39 @@ export function useServiceCategories() {
   // picker should never show a spinner.
   return useQuery({ queryKey: ['services', 'categories'], queryFn: () => servicesApi.categories(), staleTime: 60 * 60 * 1000 });
 }
+/**
+ * EVERY LOCAL GROCER'S SHELF, READ AS ONE (owner, 8 Sep). Cached a little
+ * longer than the directory because a shelf is walked back and forth across
+ * aisle chips, and a refetch on every chip is a shop that flickers.
+ */
+export function useGroceryShelf(q: GroceryShelfQuery) {
+  return useQuery({
+    queryKey: ['services', 'grocery', q],
+    queryFn: () => servicesApi.groceryShelf(q),
+    staleTime: 60_000,
+  });
+}
 export function useServiceFacets(city?: string) {
   return useQuery({ queryKey: ['services', 'facets', city ?? ''], queryFn: () => servicesApi.facets(city) });
 }
+/**
+ * A FAST-CHANGING VALUE, SETTLED (8 Sep). The search box used to fire one
+ * request per keystroke — "plumber" was seven queries, six of them thrown
+ * away. The input stays fully controlled; only the value that feeds the query
+ * key waits for the pause.
+ */
+export function useSettled<T>(value: T, delay = 300): T {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setSettled(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return settled;
+}
 export function useBrowseServices(q: { category?: string; group?: string; city?: string; area?: string; q?: string; page?: number; near?: string; withinKm?: number }) {
-  return useQuery({ queryKey: ['services', 'browse', q], queryFn: () => servicesApi.browse(q) });
+  // The last page stays on screen while the next one loads, so a chip press
+  // or a typed letter never blanks the grid into a spinner and back.
+  return useQuery({ queryKey: ['services', 'browse', q], queryFn: () => servicesApi.browse(q), placeholderData: keepPreviousData });
 }
 export function useMyServices() {
   return useQuery({ queryKey: ['services', 'mine'], queryFn: () => servicesApi.mine() });
@@ -845,6 +956,13 @@ export function useCloseService() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => servicesApi.close(id),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services'] }); },
+  });
+}
+export function useReopenService() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => servicesApi.reopen(id),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services'] }); },
   });
 }
