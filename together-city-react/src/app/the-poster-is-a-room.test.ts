@@ -107,6 +107,33 @@ describe('the nine doors under the hall (owner, 8 Sep)', () => {
     expect(page.indexOf('pz-doors')).toBeGreaterThan(page.indexOf('className="pz-bays"'));
   });
 
+  it('puts the line under the photograph, and the doors under the line (owner, 8 Sep)', () => {
+    /* "Add the personalization line below the master image and then the
+       buttons." It was the first line of the sticky column beside the nine
+       banners \u2014 a screen and a half below the picture it belongs to, so on a
+       phone the page opened on a hall, then nine pills, and only then said
+       what any of it was for. */
+    const hall = page.indexOf('className="pz-hall"');
+    const head = page.indexOf('pz-head-hall');
+    const doors = page.indexOf('pz-doors');
+    expect(head).toBeGreaterThan(hall);
+    expect(doors).toBeGreaterThan(head);
+  });
+
+  it('is three to a line on a phone, every pill the same size', () => {
+    /* Owner: "for mobile have three buttons in one line\u2026 all button sizes
+       needs to be same." Equal columns give equal WIDTH; stretching the row
+       gives equal HEIGHT, which is what keeps a two-line label from standing
+       taller than its neighbours. */
+    const css = read('index.css');
+    const doors = css.slice(css.indexOf('.doors {'), css.indexOf('}', css.indexOf('.doors {')));
+    expect(doors).toMatch(/display: grid/);
+    expect(doors).toMatch(/align-items: stretch/);
+    const pz = css.slice(css.indexOf('.pz-doors {'), css.indexOf('}', css.indexOf('.pz-doors {')));
+    expect(pz).toMatch(/grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
+    expect(css).toMatch(/\.pz-doors \.door \{ font-size: 10px/);
+  });
+
   it('wears the citizen\u2019s design — a district switched off has no pill', () => {
     const row = page.slice(page.indexOf('<nav className="doors pz-doors"'), page.indexOf('</nav>'));
     expect(row).toMatch(/hubOn\(bay\.key\)/);

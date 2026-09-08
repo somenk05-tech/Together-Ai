@@ -1081,16 +1081,30 @@ html.tc-immersive .csdock { margin-bottom: calc(var(--safe-bottom) + 12px); }
    WRAPPING RATHER THAN SCROLLING. Four uppercase labels do not fit one line on
    a phone and a horizontal scroller hides the fourth door behind a gesture
    nobody is told about — so the row wraps and every door stays visible. */
+/* A GRID, NOT A WRAP (owner, 8 Sep: "all button sizes needs to be same").
+   Flex sized every pill to its own word, so a row read as six different
+   buttons rather than one row of doors — DIGITAL STORE twice the width of
+   PETS. Equal columns make every pill the same width, and stretching the row
+   makes them the same HEIGHT too, which is what saves a two-line label from
+   standing taller than its neighbours. */
 .doors {
-  display: flex; flex-wrap: wrap; justify-content: center; gap: 12px;
-  /* Wider than the block above it on purpose: four pills sit on ONE line on a
-     desk, and the wrap is what a phone gets rather than what everyone gets. */
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  justify-content: center; align-items: stretch; gap: 12px;
   margin: 26px auto 0; max-width: 780px;
+}
+/* Four doors do not go three to a line on a phone; two and two is the pair
+   the eye reads. (The nine on Personalize DO — see .pz-doors.) */
+@media (max-width: 899px) {
+  .doors { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .door {
   position: relative; isolation: isolate; overflow: hidden;
   display: inline-flex; align-items: center; justify-content: center;
-  min-height: 46px; padding: 0 26px; border-radius: var(--r-full);
+  /* The width comes from the grid column now, so the padding only has to keep
+     the word off the rounded ends. `text-align` and the tight line-height are
+     for the labels that take two lines in a narrow column. */
+  width: 100%; min-height: 46px; padding: 6px 14px; text-align: center;
+  line-height: 1.25; border-radius: var(--r-full);
   font-size: var(--fs-3); font-weight: 500; letter-spacing: var(--track-display);
   text-transform: uppercase; color: var(--ink); text-decoration: none;
   background: var(--card); box-shadow: var(--e1);
@@ -1113,14 +1127,37 @@ html.tc-immersive .csdock { margin-bottom: calc(var(--safe-bottom) + 12px); }
   background: var(--door-bloom); opacity: .6;
   transition: opacity var(--dur-base) var(--ease-out);
 }
-.door-word { position: relative; }
+/* `min-width: 0` because the word is a FLEX ITEM: without it a long label
+   refuses to shrink below its one-line width and rides out over the rounded
+   end instead of wrapping at its own space. */
+.door-word { position: relative; min-width: 0; }
 .door:hover { box-shadow: var(--e2); transform: translateY(-1px); }
 .door:hover .door-bloom { opacity: 1; }
 .door:active { transform: translateY(1px); box-shadow: var(--e1); }
-/* THE SAME PILL, NINE OF THEM, UNDER THE HALL (owner, 8 Sep). Wider than the
-   home row because there are nine rather than four, and centred on the hall
-   photograph's own width so the two read as one block. */
-.pz-doors { max-width: 1180px; margin: 18px auto 0; padding: 0 24px; }
+/* THE SAME PILL, NINE OF THEM, UNDER THE HALL (owner, 8 Sep). Three to a line
+   at every width — his call for the phone, and the shape that makes nine read
+   as a block rather than as a row with a remainder: 6 + 3 left a short second
+   line that looked like an accident. Three by three is a square under a wide
+   photograph, and every pill in it is the same size. */
+.pz-doors {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 960px; margin: 20px auto 0; padding: 0 24px;
+}
+@media (max-width: 899px) {
+  /* Still three, per the owner — the labels take two lines where they must,
+     and the stretched row keeps every pill the same height anyway. */
+  .pz-doors { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 0 14px; }
+  /* A third of 390px is 115px, and MATCHMAKING does not break — so the
+     tracking goes first (it is the widest thing in a short uppercase word)
+     and the type follows it down. The two-word labels wrap and the stretched
+     row keeps every pill the height of the tallest. */
+  /* The padding is what makes the two longest labels WRAP rather than ride
+     out over the rounded end: it is the horizontal room they are measured
+     against, and 14px of it puts "Astra – Astrology" onto two lines at every
+     phone width instead of onto one that only just fits at some of them.
+     Equal heights come free — the row stretches. */
+  .pz-doors .door { font-size: 10px; letter-spacing: .02em; padding: 6px 14px; }
+}
 
 /* ---- SEARCH IN MAIL (10 Aug). One bar above the list, the shape every mail
    client uses: a rounded field with the glass on the left and a clear on the

@@ -164,6 +164,22 @@ export function Personalize() {
 
           A district switched off is not drawn at all here: a pill is a thing
           you press, and a dead one is worse than an absence. */}
+      {/* THE LINE COMES OUT OF THE COLUMN (owner, 8 Sep): "add the
+          personalization line below the master image, then the buttons." It
+          was the first thing in the sticky left column beside the banners, a
+          screen and a half below the photograph it belongs to — so on a phone
+          the page opened on a hall, then nine pills, and only then said what
+          any of it was for. It is the caption of the picture now, and the
+          doors sit under the sentence that sends you through them.
+
+          THE REST OF THE COLUMN STAYS PUT: the eyebrow, the promise and the
+          sign-off are the lockup that holds the nine banners together, which
+          is what makes them a column rather than a preamble. */}
+      <h1 className="pz-head pz-head-hall">
+        Personalize every aspect of your life.{' '}
+        <i>See only what&rsquo;s relevant to you.</i>
+      </h1>
+
       <nav className="doors pz-doors" aria-label="The districts that personalize">
         {BAYS.filter((bay) => hubOn(bay.key)).map((bay) => (
           <Link key={bay.key} className="door" to={HUBS[bay.key].backPath} data-hub={bay.key}>
@@ -185,10 +201,6 @@ export function Personalize() {
             a million products to scroll past. Every claim in it is a room that
             exists: the Personalized Store is /ecommerce/store, and its own rail
             already calls it "the shelves that read your profiles". */}
-        <h1 className="pz-head">
-          Personalize every aspect of your life.{' '}
-          <i>See only what&rsquo;s relevant to you.</i>
-        </h1>
         <p className="pz-lede">
           Personalize once, and Together City builds your own personalized store
           in the digital city&mdash;so you never have to scroll through a million

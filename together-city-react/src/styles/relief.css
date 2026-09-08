@@ -6069,6 +6069,19 @@ button.own-month-day:hover { border-color: var(--accent); }
 /* And the sign-off, back in the page's ink — three words the reader leaves
    with, set a step above the paragraph they close. */
 .pz-claim { margin: var(--s-2) 0 0; font-size: var(--fs-5); line-height: 1.45; font-weight: 600; color: var(--ink); }
+/* THE HEADLINE MOVED UNDER THE PHOTOGRAPH (owner, 8 Sep), so it is the
+   caption of the hall rather than the first line of the column beside the
+   banners: centred on the picture's own width, and the tail keeps the quiet
+   ink it had. The sticky column below still opens on the eyebrow. */
+.pz-head-hall {
+  max-width: 22ch; margin: clamp(20px, 2.4vw, 34px) auto 0;
+  text-align: center;
+}
+.pz-head-hall i { display: inline; font-size: .8em; }
+@media (max-width: 899px) {
+  .pz-head-hall { max-width: 18ch; }
+  .pz-head-hall i { display: block; }
+}
 .pz-feet {
   margin: var(--s-3) 0 0; font-size: var(--fs-2); font-weight: 700;
   letter-spacing: .18em; text-transform: uppercase; color: var(--muted);
