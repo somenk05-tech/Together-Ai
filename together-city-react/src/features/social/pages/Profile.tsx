@@ -347,6 +347,7 @@ function PostReader({
  *  same pictures — one grid, not two that drift apart the first time a
  *  video poster or the lightbox changes. */
 export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' | 'photo' | 'video'; category?: 'all' | 'work' | 'personal' }) {
+  const navigate = useNavigate();
   const posts = useMyPosts();
   const reorder = useReorderMyPosts();
   const me = useMyProfile();
@@ -581,10 +582,27 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
               <span aria-hidden style={{ position: 'absolute', top: 6, right: 6, color: 'var(--on-accent)', background: 'var(--scrim-deep)', borderRadius: 'var(--r-1)', width: 22, height: 22, lineHeight: 0, display: 'grid', placeItems: 'center' }}><Icon name="reorder" size={14} /></span>
             </div>
           ) : (
-            <button key={p.id} data-tile={p.id} type="button" onClick={(e) => { openFrom.current = e.currentTarget.getBoundingClientRect(); setOpenId(p.id); }}
-              style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', font: 'inherit' }}>
-              <PostTile p={p} />
-            </button>
+            <div key={p.id} data-tile={p.id} style={{ position: 'relative' }}>
+              <button type="button"
+                aria-label={hasVideo(p) ? 'Play on Together TV' : 'Open post'}
+                onClick={(e) => {
+                  if (hasVideo(p)) { navigate(tvHref(p.id)); return; }
+                  openFrom.current = e.currentTarget.getBoundingClientRect(); setOpenId(p.id);
+                }}
+                style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', font: 'inherit' }}>
+                <PostTile p={p} />
+              </button>
+              {hasVideo(p) && (
+                <button type="button" aria-label="Cover and sorting for this post"
+                  onClick={(e) => { openFrom.current = e.currentTarget.getBoundingClientRect(); setOpenId(p.id); }}
+                  style={{ position: 'absolute', top: 0, left: 0, width: 44, height: 44, padding: 0, border: 'none', cursor: 'pointer', background: 'none', display: 'grid', placeItems: 'center', lineHeight: 0 }}>
+                  {/* 44 to the thumb, 26 to the eye — the mark sits inside the tap target. */}
+                  <span aria-hidden style={{ width: 26, height: 26, color: 'var(--on-accent)', background: 'var(--scrim-deep)', borderRadius: 'var(--r-1)', display: 'grid', placeItems: 'center' }}>
+                    <Icon name="edit" size={13} />
+                  </span>
+                </button>
+              )}
+            </div>
           )
         ))}
       </div>
@@ -814,6 +832,7 @@ function FollowButton({ userId, handle, iFollow }: { userId: string; handle: str
 /** Read-only grid of another citizen's posts (Posts / Photos / Videos). */
 function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filter: 'all' | 'photo' | 'video'; onOpenAuthor: (handle: string) => void }) {
   const posts = usePublicPosts(handle);
+  const navigate = useNavigate();
   const [openId, setOpenId] = useState<string | null>(null);
   const openFrom = useRef<DOMRect | null>(null);
   const sentinel = useRef<HTMLDivElement>(null);
@@ -862,7 +881,12 @@ function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filt
     <>
       <div className="rise d1 social-grid" style={{ marginTop: 'var(--space-16)' }}>
         {view.map((p) => (
-          <button key={p.id} type="button" onClick={(e) => { openFrom.current = e.currentTarget.getBoundingClientRect(); setOpenId(p.id); }}
+          <button key={p.id} type="button"
+            aria-label={hasVideo(p) ? 'Play on Together TV' : 'Open post'}
+            onClick={(e) => {
+              if (hasVideo(p)) { navigate(tvHref(p.id)); return; }
+              openFrom.current = e.currentTarget.getBoundingClientRect(); setOpenId(p.id);
+            }}
             style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', font: 'inherit' }}>
             <PostTile p={p} />
           </button>
@@ -1257,6 +1281,21 @@ function FollowList({ kind }: { kind: 'followers' | 'following' }) {
     </div>
   );
 }
+
+
+/**
+ * ── A VIDEO TILE TUNES THE TV; IT DOES NOT OPEN A WINDOW (owner, 8 Sep) ────
+ *
+ * "Don't open a new window when clicked, let it open just the Together TV
+ * page full screen." The reader that expanded out of the tile (4 Sep) stays
+ * for photographs, which the set cannot show; a tile with a video in it now
+ * navigates to the full-screen TV and asks it to start on that post. The
+ * owner's own tools that lived in the reader — set the cover frame, sort the
+ * post — keep one small door on the tile's corner, since a set has no
+ * settings and those two are the shopkeeper's, not the viewer's.
+ */
+const hasVideo = (p: { media: Array<{ kind: string }> }) => p.media.some((m) => m.kind === 'video');
+const tvHref = (postId: string) => `/social/feed?post=${encodeURIComponent(postId)}`;
 
 type Tab = 'posts' | 'photos' | 'videos' | 'personal' | 'work' | 'earn' | 'followers' | 'following';
 

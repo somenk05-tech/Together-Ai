@@ -45,8 +45,11 @@ describe('the reader opens where you touched', () => {
   it('carries the touched tile’s rectangle into the reader', () => {
     expect(reader).toMatch(/originRect\?: DOMRect \| null/);
     expect(reader).toMatch(/openFrom\.current = e\.currentTarget\.getBoundingClientRect\(\)/);
-    // Both walls — the citizen's own grid and another citizen's.
-    expect(reader.match(/getBoundingClientRect\(\); setOpenId/g)?.length).toBe(2);
+    // Both walls — the citizen's own grid and another citizen's — plus the
+    // owner's manage door on a video tile (8 Sep: video tiles tune the TV
+    // instead, and the reader stays for photographs and for the cover/sort
+    // tools, which open from that corner button).
+    expect(reader.match(/getBoundingClientRect\(\); setOpenId/g)?.length).toBe(3);
     expect(reader.match(/originRect=\{openFrom\.current\}/g)?.length).toBe(2);
   });
 

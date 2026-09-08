@@ -72,14 +72,22 @@ export function CityTVPage() {
     </div>
   );
   const channel = pathHandle ?? params.get('channel');
-  const found = channel ? items.findIndex((p) => p.author?.handle === channel) : -1;
+  /* ONE POST, BY ID (owner, 8 Sep): a video tile on a profile grid no longer
+     opens a reader over the page — it tunes the set to that post. Found the
+     same way a channel is: walk the stream up to six pages, start there. A
+     post the stream does not carry (still transcoding, or older than six
+     pages) falls back to the top rather than to nothing. */
+  const postId = params.get('post');
+  const found = postId
+    ? items.findIndex((p) => p.id === postId)
+    : channel ? items.findIndex((p) => p.author?.handle === channel) : -1;
   const { hasNextPage, isFetchingNextPage } = feed;
   // Six pages is as far as the stream keeps; past that a search would run forever.
-  const searching = Boolean(channel) && found < 0 && hasNextPage && (feed.data?.pages.length ?? 0) < 6;
+  const searching = Boolean(channel || postId) && found < 0 && hasNextPage && (feed.data?.pages.length ?? 0) < 6;
   useEffect(() => {
     if (searching && !isFetchingNextPage) void fetchNextPage();
   }, [searching, isFetchingNextPage, fetchNextPage, items.length]);
-  const startAt = channel
+  const startAt = (channel || postId)
     ? Math.max(0, found)
     : params.has('shuffle') && items.length ? Math.floor(Math.random() * items.length) : 0;
 
@@ -105,7 +113,7 @@ export function CityTVPage() {
         </div>
       )}
       {items.length > 0 && !searching && (
-        <CityTV key={channel ?? 'tv'} items={items} startAt={startAt}
+        <CityTV key={postId ?? channel ?? 'tv'} items={items} startAt={startAt}
           hasNextPage={feed.hasNextPage} fetchNextPage={more}
           onOpenChannel={openAuthor} onOpenChannels={openChannels} onLeave={leave} head={head} />
       )}
