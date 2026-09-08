@@ -15,6 +15,7 @@ import { ConnectionsService } from '../connections/connections.service';
 import { SocialGateway } from './social.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { StorageProvider } from '../media/storage.provider';
+import { ladderKeysOf } from '../media/hls-ladder';
 import { TranscodeService } from '../media/transcode.service';
 import { shownName } from '../dating/matching';
 import type { CreateCommentDto, CreatePostDto, FeedQueryDto } from './dto/social.dto';
@@ -24,16 +25,27 @@ const AUTHOR_SELECT = { id: true, handle: true, name: true, profileImage: true }
 /** What a feed row carries: the post, its author and media, live counts, the
  *  viewer's own like, and the original a repost renders — the same for every
  *  list read, so the Saved page and the feed cannot shape a post differently. */
+/**
+ * The two numbers on a card, off the columns rather than a count per row.
+ *
+ * `Post.likeCount` / `Post.commentCount` are written where the like and the
+ * comment land — see the note on the model for why, and for the one drift this
+ * arrangement still has. Clamped at zero here, because a process that died
+ * between the row and the counter is off by one and a card must never read −1.
+ */
+const countsOf = (p: unknown): { likes: number; comments: number } => {
+  const r = p as { likeCount?: number | null; commentCount?: number | null };
+  return { likes: Math.max(0, r.likeCount ?? 0), comments: Math.max(0, r.commentCount ?? 0) };
+};
+
 const POST_INCLUDE = (userId: string) => ({
   author: { select: AUTHOR_SELECT },
   media: true,
-  _count: { select: { likes: true, comments: true } },
   likes: { where: { userId }, select: { id: true } },
   repostOf: {
     include: {
       author: { select: AUTHOR_SELECT },
       media: true,
-      _count: { select: { likes: true, comments: true } },
       likes: { where: { userId }, select: { id: true } },
     },
   },
@@ -940,9 +952,35 @@ export class SocialService {
     const tagged = dto.tagged?.length
       ? dto.tagged.map((t) => ({ id: t.id, name: this.clean(t.name) ?? '', handle: this.clean(t.handle) ?? '' }))
       : null;
+    /* THE NEWEST POST IS THE FIRST POST (owner, 8 Sep), and it has to be
+       WRITTEN DOWN rather than left to the sort.
+
+       The profile grid orders by `sortIndex asc nulls last, createdAt desc`,
+       so an author who has ever pressed Rearrange has an arranged block with
+       indices 0,1,2… and everything else is null — which sorts BELOW it. A
+       post made after that arrangement therefore landed at the BOTTOM of a
+       wall of older photographs, which is the opposite of what the column
+       above this one claims ("new posts surface at top").
+
+       Nulls-first is not the fix: Rearrange saves the order of the posts
+       LOADED so far, so on a profile of fifty-five with eighteen on screen,
+       thirty-seven older posts keep their null and would leap over the
+       arrangement. So the new post takes the top slot explicitly — one below
+       the smallest index this author has — and nothing else moves.
+
+       An author who has never arranged anything has no index at all, and
+       keeps none: all-null falls through to `createdAt desc`, which is
+       already newest-first. */
+    const arranged = await this.prisma.post.aggregate({
+      where: { authorId: userId, sortIndex: { not: null } },
+      _min: { sortIndex: true },
+    });
+    const topIndex = arranged._min.sortIndex == null ? null : arranged._min.sortIndex - 1;
+
     const post = await this.prisma.post.create({
       data: {
         authorId: userId,
+        sortIndex: topIndex,
         text: this.clean(dto.text),
         feeling: this.clean(dto.feeling),
         audience,
@@ -1006,12 +1044,19 @@ export class SocialService {
      * cannot keep the post itself alive. Inline `data:` photos have no object
      * behind them and `keyFromUrl` returns nothing for them.
      */
+    /* `hlsUrl` is read through a cast for the same reason the counters are:
+       `prisma generate` needs binaries.prisma.sh and this machine has no route
+       to it, so the client here does not know the column yet. Every deployment
+       regenerates before it builds. DELETE THE CAST after any generate. */
+    const rows = this.prisma.postMedia as unknown as {
+      findMany(a: unknown): Promise<Array<{ url: string; thumbUrl: string | null; hlsUrl: string | null }>>;
+    };
     // unbounded: every media row of ONE post — the DTO caps a post at ten, and
     // truncating here would orphan exactly the objects this call exists to delete
-    const media = await this.prisma.postMedia.findMany({
+    const media = await rows.findMany({
       where: { postId },
-      select: { url: true, thumbUrl: true },
-    }).catch(swallowed('social.deletePost.media', [] as { url: string; thumbUrl: string | null }[]));
+      select: { url: true, thumbUrl: true, hlsUrl: true },
+    }).catch(swallowed('social.deletePost.media', [] as { url: string; thumbUrl: string | null; hlsUrl: string | null }[]));
     await this.prisma.post.delete({ where: { id: postId } });
     for (const { key, legacy } of this.storageKeys(media)) {
       const gone = legacy ? this.storage.deleteObject(key) : this.storage.deletePrivateObject(key);
@@ -1037,7 +1082,7 @@ export class SocialService {
    * are exactly the files that were reachable forever, so they are the ones
    * that most need to go when a citizen deletes the post.
    */
-  private storageKeys(media: { url: string; thumbUrl: string | null }[]): Array<{ key: string; legacy: boolean }> {
+  private storageKeys(media: { url: string; thumbUrl: string | null; hlsUrl?: string | null }[]): Array<{ key: string; legacy: boolean }> {
     const out = new Map<string, boolean>();
     for (const m of media) {
       for (const u of [m.url, m.thumbUrl]) {
@@ -1046,6 +1091,14 @@ export class SocialService {
         const key = this.storage.keyFromUrl(u);
         if (key && key !== u) out.set(key, true);
       }
+      /* AND THE LADDER, WHICH IS NINE OBJECTS BEHIND ONE POINTER. The row keeps
+         only the master playlist's key; `ladderKeysOf` names every file a
+         ladder can have from it. Some of those never existed — a 360p source
+         has two rungs, not four — and a delete of a key that is not there
+         costs a 404, which is cheaper than the LIST call the alternative
+         needs. Never `legacy`: a ladder has only ever been written to the
+         private bucket. */
+      for (const k of ladderKeysOf(m.hlsUrl)) out.set(k, false);
     }
     return [...out.entries()].map(([key, legacy]) => ({ key, legacy }));
   }
@@ -1062,10 +1115,10 @@ export class SocialService {
     const updated = await this.prisma.post.update({
       where: { id: postId },
       data: data,
-      include: { author: { select: AUTHOR_SELECT }, media: true, _count: { select: { likes: true, comments: true } }, likes: { where: { userId }, select: { id: true } } },
+      include: { author: { select: AUTHOR_SELECT }, media: true, likes: { where: { userId }, select: { id: true } } },
     });
-    const u = updated as unknown as { _count: { likes: number; comments: number }; likes: unknown[] };
-    return this.shapePost(updated, u._count, u.likes.length > 0, await this.signMediaOf([updated]));
+    const u = updated as unknown as { likes: unknown[] };
+    return this.shapePost(updated, countsOf(updated), u.likes.length > 0, await this.signMediaOf([updated]));
   }
 
   /** Cursor-paginated feed, newest first. Cursor = last post id of the previous page. */
@@ -1467,15 +1520,15 @@ export class SocialService {
     const r = row as {
       id: string; createdAt: Date; repostOfId?: string | null;
       author: { name: string; handle: string };
-      _count: { likes: number; comments: number }; likes: unknown[];
-      repostOf?: { id: string; _count: { likes: number; comments: number }; likes: unknown[] } | null;
+      likes: unknown[];
+      repostOf?: { id: string; likes: unknown[] } | null;
     };
     if (r.repostOfId && r.repostOf) {
       const o = r.repostOf;
-      const shaped = this.shapePost(o as never, o._count, (o.likes?.length ?? 0) > 0, signed);
+      const shaped = this.shapePost(o as never, countsOf(o), (o.likes?.length ?? 0) > 0, signed);
       return { ...shaped, savedByMe: saved?.has(o.id) ?? false, key: r.id, createdAt: r.createdAt.toISOString(), repostedBy: { name: r.author.name, handle: r.author.handle } };
     }
-    const shaped = this.shapePost(row as never, r._count, (r.likes?.length ?? 0) > 0, signed);
+    const shaped = this.shapePost(row as never, countsOf(row), (r.likes?.length ?? 0) > 0, signed);
     return { ...shaped, savedByMe: saved?.has(r.id) ?? false, key: r.id, repostedBy: null };
   }
 
@@ -1489,10 +1542,15 @@ export class SocialService {
    */
   private async signMediaOf(rows: unknown[]): Promise<Map<string, string>> {
     const values: Array<string | null | undefined> = [];
+    type M = { url: string; thumbUrl: string | null; hlsUrl?: string | null };
     for (const row of rows) {
-      const r = row as { media?: Array<{ url: string; thumbUrl: string | null }>; repostOf?: { media?: Array<{ url: string; thumbUrl: string | null }> } | null };
-      for (const m of r.media ?? []) values.push(m.url, m.thumbUrl);
-      for (const m of r.repostOf?.media ?? []) values.push(m.url, m.thumbUrl);
+      const r = row as { media?: M[]; repostOf?: { media?: M[] } | null };
+      // `hlsUrl` signs like the other two: it is a key in the same private
+      // bucket, and the edge that serves it is the same edge. What it points at
+      // is a playlist rather than bytes, and the Worker rewrites the links
+      // inside it — see workers/media-edge/worker.js.
+      for (const m of r.media ?? []) values.push(m.url, m.thumbUrl, m.hlsUrl);
+      for (const m of r.repostOf?.media ?? []) values.push(m.url, m.thumbUrl, m.hlsUrl);
     }
     return this.storage.signPostMedia(values);
   }
@@ -1583,13 +1641,11 @@ export class SocialService {
       data: { authorId: userId, repostOfId: postId, audience: inherited },
       include: {
         author: { select: AUTHOR_SELECT },
-        _count: { select: { likes: true, comments: true } },
         likes: { where: { userId }, select: { id: true } },
         repostOf: {
           include: {
             author: { select: AUTHOR_SELECT },
             media: true,
-            _count: { select: { likes: true, comments: true } },
             likes: { where: { userId }, select: { id: true } },
           },
         },
@@ -1657,10 +1713,10 @@ export class SocialService {
       },
       orderBy: { createdAt: 'desc' },
       take: 200,
-      include: { author: { select: AUTHOR_SELECT }, media: true, _count: { select: { likes: true, comments: true } } },
+      include: { author: { select: AUTHOR_SELECT }, media: true },
     });
     const signedMap = await this.signMediaOf(posts);
-    return posts.map((p) => this.shapePost(p, p._count, false, signedMap));
+    return posts.map((p) => this.shapePost(p, countsOf(p), false, signedMap));
   }
 
   // ─────────────── comments ───────────────
@@ -1671,6 +1727,10 @@ export class SocialService {
       data: { postId, authorId: userId, text: this.clean(dto.text) ?? '' },
       include: { author: { select: AUTHOR_SELECT } },
     });
+    // The card's number, moved where the comment lands. See countsOf().
+    await swallow(this.counters.update({
+      where: { id: postId }, data: { commentCount: { increment: 1 } },
+    }), 'social: comment counted', { postId });
     const shaped = {
       id: comment.id,
       postId,
@@ -1769,6 +1829,10 @@ export class SocialService {
     const myPost = post.authorId === userId;
     if (!mine && !myPost) throw new ForbiddenException('Only the person who wrote a comment, or whoever owns the post, can remove it.');
     await this.prisma.comment.delete({ where: { id: commentId } });
+    // The card's number, moved where the comment goes. See countsOf().
+    await swallow(this.counters.update({
+      where: { id: postId }, data: { commentCount: { decrement: 1 } },
+    }), 'social: comment uncounted', { postId });
     // Somebody else took your words down: say so, and say whose post it was on.
     if (!mine) {
       void this.actorName(userId).then((name) =>
@@ -1780,6 +1844,48 @@ export class SocialService {
         })).catch(swallowed('social.notify.commentRemoved', undefined));
     }
     return { ok: true, id: commentId };
+  }
+
+  /**
+   * THE TWO COLUMNS THIS CHECKOUT'S GENERATED CLIENT HAS NOT SEEN.
+   *
+   * `Post.likeCount` and `Post.commentCount` are in schema.prisma and in
+   * 20260906T200000_two_numbers_kept_not_counted; the client in this working
+   * tree predates both, because `prisma generate` has to reach
+   * binaries.prisma.sh and this machine could not. Every deployment
+   * regenerates before it builds, so the types are right where it matters and
+   * wrong only here — the same escape hatch, kept to one accessor, that
+   * photo-moderation.service.ts uses for `etag` and hash-match for `CsamHit`.
+   *
+   * DELETE IT after any `npx prisma generate`: put `this.prisma.post` back at
+   * its five call sites and this comment with it.
+   */
+  private get counters() {
+    return this.prisma.post as unknown as {
+      update(a: { where: { id: string }; data: Record<string, unknown>; select?: Record<string, boolean> }): Promise<{ likeCount: number }>;
+      findUnique(a: { where: { id: string }; select: Record<string, boolean> }): Promise<{ likeCount: number } | null>;
+    };
+  }
+
+  /**
+   * The real number, taken once, when a kept one has drifted below zero.
+   *
+   * The counters on Post are written where the rows land, so the only way to a
+   * negative is a process that died between the two. That is rare enough to
+   * repair rather than prevent — the alternative is a transaction on the
+   * hottest write in the city — and rare enough that the count it costs here is
+   * a count nobody notices.
+   */
+  private async recount(postId: string, which: 'likes' | 'comments'): Promise<number> {
+    const n = which === 'likes'
+      ? await this.prisma.like.count({ where: { postId } })
+      : await this.prisma.comment.count({ where: { postId } });
+    log.warn(`social: ${which} on ${postId} had drifted below zero — repaired to ${n}`);
+    await swallow(this.counters.update({
+      where: { id: postId },
+      data: which === 'likes' ? { likeCount: n } : { commentCount: n },
+    }), 'social: counter repaired', { postId });
+    return n;
   }
 
   // ─────────────── likes ───────────────
@@ -1801,12 +1907,39 @@ export class SocialService {
        was already idempotent for the reason written beside it. */
     const removed = await this.prisma.like.deleteMany({ where: { postId, userId } });
     const wasLiked = removed.count > 0;
-    if (!wasLiked) {
+    /**
+     * ── THE COUNT IS MOVED, NOT RE-TAKEN (1M-DAU pass, 6 Sep) ───────────────
+     *
+     * This read `like.count({ where: { postId } })` on every tap: an index-only
+     * scan of every like on the post, and the taps arrive fastest exactly when
+     * there are the most of them. A post with two hundred thousand likes cost
+     * two hundred thousand index tuples per heart.
+     *
+     * `{ increment: 1 }` is arithmetic Postgres does under the row's own lock,
+     * so two simultaneous taps cannot both read the same number and write it
+     * back. THE ROW DECIDES WHETHER TO MOVE IT: `deleteMany.count` and
+     * `createMany.count` say whether this request was the one that changed
+     * anything, and a double-tap that `skipDuplicates` swallowed moves nothing.
+     */
+    let likes: number;
+    if (wasLiked) {
+      likes = (await this.counters.update({
+        where: { id: postId }, data: { likeCount: { decrement: 1 } }, select: { likeCount: true },
+      })).likeCount;
+    } else {
       // createMany({skipDuplicates}) is idempotent under a concurrent double-tap
       // (the unique [postId,userId] index would otherwise 500 on the 2nd write).
-      await this.prisma.like.createMany({ data: [{ postId, userId }], skipDuplicates: true });
+      const added = await this.prisma.like.createMany({ data: [{ postId, userId }], skipDuplicates: true });
+      likes = added.count > 0
+        ? (await this.counters.update({
+            where: { id: postId }, data: { likeCount: { increment: 1 } }, select: { likeCount: true },
+          })).likeCount
+        : (await this.counters.findUnique({ where: { id: postId }, select: { likeCount: true } }))?.likeCount ?? 0;
     }
-    const likes = await this.prisma.like.count({ where: { postId } });
+    // A NEGATIVE COUNT REPAIRS ITSELF. The only way to reach one is a process
+    // that died between the Like row and the counter, and the honest answer
+    // then is the real number — taken once, here, rather than on every tap.
+    if (likes < 0) likes = await this.recount(postId, 'likes');
     const result = { postId, liked: !wasLiked, likes };
     this.broadcast(post.authorId, post.audience, (r) => this.gateway.likeChanged(result, r));
     // Notify the author when a NEW like lands (not on unlike).
@@ -2390,6 +2523,10 @@ export class SocialService {
       }, async () => {
         await this.prisma.comment.delete({ where: { id: targetId } });
       });
+      // The card's number, moved where the comment goes. See countsOf().
+      await swallow(this.counters.update({
+        where: { id: c.postId }, data: { commentCount: { decrement: 1 } },
+      }), 'social: comment uncounted', { postId: c.postId });
       void this.notifications.create({
         userId: c.authorId, kind: 'comment_removed',
         title: 'A comment of yours was removed',
@@ -2698,7 +2835,7 @@ export class SocialService {
       lng: number | null;
       createdAt: Date;
       author: { id: string; handle: string; name: string; profileImage: string | null };
-      media: { id: string; url: string; kind: string; thumbUrl: string | null; state?: string }[];
+      media: { id: string; url: string; kind: string; thumbUrl: string | null; state?: string; hlsUrl?: string | null }[];
     },
     counts: { likes: number; comments: number },
     likedByMe: boolean,
@@ -2728,6 +2865,11 @@ export class SocialService {
         kind: m.kind,
         thumbUrl: m.thumbUrl ? (signed?.get(m.thumbUrl) ?? m.thumbUrl) : null,
         state: m.state ?? 'ready',
+        /* The adaptive ladder, when the worker built one. Null on every video
+           posted before 6 Sep and on any the ladder could not be made for, and
+           the player falls back to `url` — which is the same progressive MP4 it
+           has always played. */
+        hlsUrl: m.hlsUrl ? (signed?.get(m.hlsUrl) ?? m.hlsUrl) : null,
       })),
       likes: counts.likes,
       comments: counts.comments,

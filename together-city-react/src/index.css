@@ -170,23 +170,26 @@ section.blk { margin: 0 0 40px; }
 .cinema { position: relative; width: 100%; aspect-ratio: 21/9; overflow: hidden; background: var(--media-bg); }
 .cinema img.bg, .cinema video.bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .cinema-strip { position: absolute; top: 18px; left: 18px; z-index: 20; pointer-events: none; }
+/* THE MARK ALONE, AT THE EDGE (owner, 8 Sep). It was a pill with SOUND OFF
+   tracked out beside the glyph, which is a caption sitting on the film. A
+   crossed-out speaker needs no word, so the word is gone and the control is a
+   32px disc tucked into the corner — the label survives in aria-label, where a
+   screen reader still gets a whole sentence. */
 .cinema-sound {
-  position: absolute; right: 18px; bottom: 18px; z-index: 20;
-  display: inline-flex; align-items: center; gap: 8px;
-  min-height: 38px; padding: 0 16px; border-radius: var(--r-full); cursor: pointer;
-  font-family: inherit; font-size: var(--fs-2); font-weight: 600;
-  letter-spacing: .08em; text-transform: uppercase;
+  position: absolute; right: 12px; bottom: 12px; z-index: 20;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; padding: 0; border-radius: var(--r-full); cursor: pointer;
   color: var(--on-film); background: var(--glass-fill); border: 1px solid var(--glass-line);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   transition: background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
 }
 .cinema-sound:hover { background: var(--glass-fill-lit); border-color: var(--glass-line-lit); }
 /* A phone gets the film too (owner, 8 Sep) — at a smaller cut, chosen by
-   <source media> before a byte is downloaded. The control comes in with the
-   edges it sits on. */
+   <source media> before a byte is downloaded. The disc keeps a finger's worth
+   of glass and moves in with the edge it sits on. */
 @media (max-width: 899px) {
   .cinema-strip { top: 12px; left: 12px; }
-  .cinema-sound { right: 12px; bottom: 12px; min-height: 34px; padding: 0 13px; }
+  .cinema-sound { right: 10px; bottom: 10px; }
 }
 
 .cityfallback { display: none; }
@@ -1093,17 +1096,31 @@ html.tc-immersive .csdock { margin-bottom: calc(var(--safe-bottom) + 12px); }
   background: var(--card); box-shadow: var(--e1);
   transition: box-shadow var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
-/* Bigger than the pill on every side, so the blur has room to fall off inside
-   the clip instead of ending in a visible band at the rim. */
+/* THE LIGHT IS INSIDE THE PILL, EXACTLY (owner, 8 Sep: "fix the edges of
+   edges on mobile"). It was a layer 55% larger than the pill, blurred, and
+   trusted to `overflow: hidden` — which iOS Safari does NOT apply to a
+   filtered child. So on a phone the blurred RECTANGLE stood outside the
+   rounded ends and every pill sat on a grey box.
+
+   Nothing to escape the clip, then: the layer is the pill's own box, the
+   softness lives in --door-bloom's stops, and a background clipped by
+   border-radius is the one thing every engine agrees on. `.door` keeps its
+   overflow, but nothing is load-bearing on it any more. Hover raises the
+   light rather than scaling the layer, because a transformed child escapes
+   the same clip in the same browser. */
 .door-bloom {
-  position: absolute; inset: -55%; z-index: -1; border-radius: inherit;
-  background: var(--door-bloom); filter: blur(22px); opacity: .55;
-  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+  position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  background: var(--door-bloom); opacity: .6;
+  transition: opacity var(--dur-base) var(--ease-out);
 }
 .door-word { position: relative; }
 .door:hover { box-shadow: var(--e2); transform: translateY(-1px); }
-.door:hover .door-bloom { opacity: 1; transform: scale(1.12); }
+.door:hover .door-bloom { opacity: 1; }
 .door:active { transform: translateY(1px); box-shadow: var(--e1); }
+/* THE SAME PILL, NINE OF THEM, UNDER THE HALL (owner, 8 Sep). Wider than the
+   home row because there are nine rather than four, and centred on the hall
+   photograph's own width so the two read as one block. */
+.pz-doors { max-width: 1180px; margin: 18px auto 0; padding: 0 24px; }
 
 /* ---- SEARCH IN MAIL (10 Aug). One bar above the list, the shape every mail
    client uses: a rounded field with the glass on the left and a clear on the

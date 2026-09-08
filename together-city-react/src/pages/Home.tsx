@@ -330,8 +330,12 @@ export function Home() {
             setSound(!el.muted);
           }}
         >
-          <Icon name={sound ? 'speak' : 'mute'} size={18} />
-          <span>{sound ? 'Sound on' : 'Sound off'}</span>
+          {/* THE WORD CAME OFF (owner, 8 Sep). A crossed-out speaker is the one
+              icon on the internet nobody has to be told the meaning of, and
+              "SOUND OFF" beside it at 38px was a caption on the film rather
+              than a control at the edge of it. The label lives on in
+              aria-label, so a screen reader still hears a sentence. */}
+          <Icon name={sound ? 'speak' : 'mute'} size={17} />
         </button>
       </div>
 

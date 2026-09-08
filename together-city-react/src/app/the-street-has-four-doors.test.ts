@@ -103,6 +103,24 @@ describe('the row under the code is the same four', () => {
     expect(read('index.css')).toMatch(/background: var\(--door-bloom\)/);
     expect(read('styles/tokens.css')).toMatch(/--door-bloom:/);
   });
+
+  it('keeps the light inside the pill — no filter, no scale (owner, 8 Sep)', () => {
+    /* "Fix the edges of edges on mobile." The bloom was a layer 55% larger
+       than the pill, blurred, and trusted to `overflow: hidden` — which iOS
+       Safari does not apply to a FILTERED child, so on a phone every pill sat
+       on a soft grey rectangle. The layer is the pill's own box now and the
+       softness is in the gradient stops; hover raises the light rather than
+       scaling the layer, because a TRANSFORMED child escapes the same clip in
+       the same browser. Both halves are held here: either one coming back
+       brings the rectangle back with it. */
+    const css = read('index.css');
+    const bloom = css.slice(css.indexOf('.door-bloom {'), css.indexOf('}', css.indexOf('.door-bloom {')));
+    expect(bloom).toMatch(/inset: 0/);
+    expect(bloom).not.toMatch(/filter:/);
+    expect(bloom).not.toMatch(/inset: -/);
+    const hover = css.slice(css.indexOf('.door:hover .door-bloom'), css.indexOf('}', css.indexOf('.door:hover .door-bloom')));
+    expect(hover).not.toMatch(/transform/);
+  });
 });
 
 describe('hidden is not deleted — the other eleven', () => {

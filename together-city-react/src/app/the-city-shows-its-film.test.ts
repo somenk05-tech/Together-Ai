@@ -38,6 +38,20 @@ describe('the film on the home page', () => {
     expect(home).toMatch(/aria-label=\{sound \? 'Mute the film' : 'Play the film with sound'\}/);
   });
 
+  it('is a mark at the edge, not a caption on the film (owner, 8 Sep)', () => {
+    /* It shipped as a pill with SOUND OFF tracked out beside the glyph. A
+       crossed-out speaker is the one icon nobody has to be told the meaning
+       of, so the word came off and the control is a 32px disc in the corner —
+       the sentence survives where it is actually needed, in aria-label. */
+    const cinema = home.slice(home.indexOf('<div className="cinema">'), home.indexOf('{/* ============ WELCOME'));
+    expect(cinema).not.toMatch(/Sound off<\/span>|>\{sound \? 'Sound on'/);
+    expect(cinema).toMatch(/aria-label=\{sound \? 'Mute the film'/);
+    const css = read('index.css');
+    const rule = css.slice(css.indexOf('.cinema-sound {'), css.indexOf('}', css.indexOf('.cinema-sound {')));
+    expect(rule).toMatch(/width: 32px; height: 32px/);
+    expect(rule).not.toMatch(/text-transform/);
+  });
+
   it('has one control on the picture, and it is the sound', () => {
     // No scrub bar, no play button, no fullscreen: the film loops by itself and
     // the only thing a citizen can want from it is to hear it or not.

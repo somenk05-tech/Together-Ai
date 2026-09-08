@@ -150,6 +150,29 @@ export function Personalize() {
         </div>
       </div>
 
+      {/* ── THE NINE DOORS, WRITTEN DOWN (owner, 8 Sep) ──────────────────────
+          The same glass pill the home page put under the QR, one per district
+          in the hall's own left-to-right order, so the row reads as a caption
+          of the picture above it rather than a second menu.
+
+          IT IS NOT A REPEAT OF THE BAYS, and that is the whole reason it
+          exists. A bay is an invisible column over a photograph — no border,
+          no label of its own, nothing to say it can be pressed — and the bays
+          come OFF a phone entirely, where a ninth of the width is 38px of
+          doorway. These are doors you can see, on every device, in the words
+          the citizen reads everywhere else in the city.
+
+          A district switched off is not drawn at all here: a pill is a thing
+          you press, and a dead one is worse than an absence. */}
+      <nav className="doors pz-doors" aria-label="The districts that personalize">
+        {BAYS.filter((bay) => hubOn(bay.key)).map((bay) => (
+          <Link key={bay.key} className="door" to={HUBS[bay.key].backPath} data-hub={bay.key}>
+            <span className="door-bloom" aria-hidden />
+            <span className="door-word">{districtName(bay.key)}</span>
+          </Link>
+        ))}
+      </nav>
+
     <div className="pz">
       {/* Sticky on a desk: nine banners are a long column, and a lockup that
           scrolls away leaves eight of them with nothing to belong to. */}

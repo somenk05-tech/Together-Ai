@@ -1,5 +1,6 @@
 import { swallow, swallowed } from '../shared/swallow';
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { ReadCache } from '../shared/cache/read-cache.service';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { BlockingService } from '../connections/blocking.service';
 import { REACHABLE_ACCOUNT, accountReachable } from '../admin/account-reach';
@@ -17,6 +18,13 @@ export interface ProfileSection { key: string; label: string; value: string | nu
 export interface ProfileSummary { hubs: HubContribution[]; sections: ProfileSection[]; memberSince: string; profileImage: string | null; }
 
 export type Relationship = 'none' | 'pending_out' | 'pending_in' | 'accepted' | 'blocked';
+
+/** How long a profile's six numbers may be stale. A reputation score thirty
+ *  seconds behind is not wrong in any way a citizen can perceive; a profile
+ *  page that re-counts every like an account has ever received on every view
+ *  is. Fails open — ReadCache hands back the real value when Redis is
+ *  down and the caller never knows. */
+const STATS_TTL_SEC = 30;
 
 /** Derived, activity-based reputation & city points — no stored/dummy values. */
 export interface ProfileStats { posts: number; reputation: number; cityPoints: number; connections: number; followers: number; following: number; }
@@ -61,6 +69,7 @@ export class ProfileService {
     private readonly blocking: BlockingService,
     private readonly access: AdminAccessService,
     private readonly storage: StorageProvider,
+    @Optional() private readonly cache?: ReadCache,
   ) {}
 
   /**
@@ -277,34 +286,104 @@ export class ProfileService {
   /** Reputation & city points derived from real activity — 0 for a brand-new
    *  account, growing as the citizen posts and connects. Never seeded. */
   async statsFor(userId: string): Promise<ProfileStats> {
-    const [posts, likesReceived, commentsReceived, sharesReceived, followerRows, followeeRows, connRows] = await Promise.all([
+    /**
+     * ── SIX NUMBERS, AND ONE OF THEM WAS A WAY TO KILL THE CONTAINER ───────
+     *
+     * This read EVERY follower row, EVERY followee row and every accepted
+     * connection, to build three `Set`s and take their `.size`. The comment
+     * defending it — "a truncated set is a wrong number on the profile, not a
+     * slow one" — was right about truncation and wrong about the remedy: the
+     * numbers are exact either way, and only one of the two shapes
+     * materialises half a million rows in this process when somebody opens a
+     * popular account's profile. A handful of clients on `GET /profile/:handle`
+     * for the city's biggest account was an out-of-memory kill, from an
+     * endpoint that needs no permission at all. (1M-DAU pass, 6 Sep.)
+     *
+     * The union is preserved exactly. `followers` is (follow edges to me) ∪
+     * (my connections, which are mutual follows), so its size is
+     * |follows| + |connections| − |overlap|, and each of those three is a
+     * COUNT. The overlap count is bounded by the connection id set, which is
+     * socially bounded in a way a follower list is not — a person accepts
+     * hundreds of connections and can be followed by millions — so that one
+     * read stays as it was.
+     *
+     * The engagement counts underneath are still `count()` over every like and
+     * comment the author has ever received, which is index-only but grows with
+     * the account. The cache below is what makes that affordable today; the
+     * real answer is a denormalised `likeCount` / `commentCount` on Post,
+     * incremented at the write, and it is a bigger change than this pass.
+     */
+    return this.cache
+      ? this.cache.wrap(`profile:stats:${userId}`, STATS_TTL_SEC, () => this.computeStats(userId))
+      : this.computeStats(userId);
+  }
+
+  private async computeStats(userId: string): Promise<ProfileStats> {
+    // unbounded: the accepted-connection id set — socially bounded; feeds the
+    // overlap counts below rather than a list
+    const connRows = await this.prisma.connection.findMany({
+      where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] },
+      select: { userOneId: true, userTwoId: true },
+    });
+    const connIds = connRows.map((c) => (c.userOneId === userId ? c.userTwoId : c.userOneId));
+    const connections = connRows.length;
+
+    const [posts, sums, sharesReceived, followerCount, followeeCount, followerOverlap, followeeOverlap] = await Promise.all([
       this.prisma.post.count({ where: { authorId: userId, repostOfId: null } }),
-      this.prisma.like.count({ where: { post: { authorId: userId } } }),
-      this.prisma.comment.count({ where: { post: { authorId: userId } } }),
+      /**
+       * ── OFF THE COLUMNS NOW, NOT OFF A JOIN (1M-DAU pass, 6 Sep) ─────────
+       *
+       * These were `like.count({ where: { post: { authorId } } })` and its
+       * comment twin, which Prisma compiles to
+       *   SELECT COUNT(*) FROM "Like"
+       *    WHERE "postId" IN (SELECT id FROM "Post" WHERE "authorId" = $1)
+       * — every like row for every post the author ever wrote, exactly counted,
+       * on a page load. The comment version was worse, because `Comment` had no
+       * index on `authorId` at all until this pass.
+       *
+       * `Post.likeCount` / `Post.commentCount` are written where the like and
+       * the comment land, so the same two numbers are one indexed aggregate
+       * over the author's own posts. `_sum` is null for an author with no
+       * posts, which is the `?? 0` below.
+       */
+      this.postSums(userId),
       // Shares = reposts of this citizen's posts.
       // Someone else's repost of your post: a removed one is not a share.
       this.prisma.post.count({ where: { ...VISIBLE_ONLY, repostOf: { authorId: userId } } }),
-      // unbounded ×3: follower/following/connection COUNTS — a truncated set
-      // is a wrong number on the profile, not a slow one
-      // unbounded: the accepted-connection id set — socially bounded; feeds gates, not lists
-      this.prisma.follow.findMany({ where: { followeeId: userId }, select: { followerId: true } }),
-      // unbounded: see above
-      this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } }),
-      // unbounded: see above
-      this.prisma.connection.findMany({ where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] }, select: { userOneId: true, userTwoId: true } }),
+      this.prisma.follow.count({ where: { followeeId: userId } }),
+      this.prisma.follow.count({ where: { followerId: userId } }),
+      // The two intersections, so the union is exact without either list.
+      connIds.length ? this.prisma.follow.count({ where: { followeeId: userId, followerId: { in: connIds } } }) : Promise.resolve(0),
+      connIds.length ? this.prisma.follow.count({ where: { followerId: userId, followeeId: { in: connIds } } }) : Promise.resolve(0),
     ]);
-    const connIds = connRows.map((c) => (c.userOneId === userId ? c.userTwoId : c.userOneId));
-    const connections = connRows.length;
     // Followers/following mirror the real lists: follow edges unioned with
     // connections (which are mutual follows), de-duplicated.
-    const followers = new Set([...followerRows.map((r) => r.followerId), ...connIds]).size;
-    const following = new Set([...followeeRows.map((r) => r.followeeId), ...connIds]).size;
+    const likesReceived = sums.likes;
+    const commentsReceived = sums.comments;
+    const followers = followerCount + connections - followerOverlap;
+    const following = followeeCount + connections - followeeOverlap;
     // Reputation rewards engagement your posts earn plus real connections;
     // city points reward contribution volume. Simple, transparent, real.
     const reputation = likesReceived + commentsReceived * 2 + connections * 3;
     // City points = likes + shares your posts have earned.
     const cityPoints = likesReceived + sharesReceived;
     return { posts, reputation, cityPoints, connections, followers, following };
+  }
+
+  /**
+   * Likes and comments received across everything this citizen has posted, from
+   * the kept counters rather than from a join. Clamped at zero for the same
+   * reason `countsOf` clamps in social.service.ts: a counter that drifted below
+   * zero is a bug to repair, not a negative number to show on a profile.
+   */
+  private async postSums(userId: string): Promise<{ likes: number; comments: number }> {
+    const agg = await (this.prisma.post as unknown as {
+      aggregate(a: unknown): Promise<{ _sum: { likeCount: number | null; commentCount: number | null } }>;
+    }).aggregate({ where: { authorId: userId }, _sum: { likeCount: true, commentCount: true } });
+    return {
+      likes: Math.max(0, agg._sum.likeCount ?? 0),
+      comments: Math.max(0, agg._sum.commentCount ?? 0),
+    };
   }
 
   /** The signed-in citizen's own profile. */
@@ -379,9 +458,17 @@ export class ProfileService {
     const take = Math.min(Math.max(limit, 1), 50);
     const rows = await this.prisma.post.findMany({
       where: { authorId: userId, repostOfId: null },
-      // Author's custom profile arrangement first (sortIndex 0,1,2…), then any
-      // un-arranged posts newest-first. New posts (null sortIndex) surface at top
-      // of the un-arranged group.
+      /* THE ARRANGEMENT, THEN EVERYTHING THE AUTHOR NEVER ARRANGED.
+         sortIndex asc, nulls last: an author who has pressed Rearrange has an
+         explicit order, and the posts they never touched follow it newest
+         first.
+
+         A NEW POST IS ABOVE THE ARRANGEMENT, NOT BELOW IT (owner, 8 Sep), and
+         that is settled where the post is WRITTEN rather than here:
+         SocialService.createPost gives it one index below the author's
+         smallest, so it lands first and nothing else moves. This comment used
+         to claim nulls surfaced at the top, which is the opposite of what
+         `nulls: 'last'` does — the claim was the bug's hiding place. */
       orderBy: [
         { sortIndex: { sort: 'asc', nulls: 'last' } },
         { createdAt: 'desc' },

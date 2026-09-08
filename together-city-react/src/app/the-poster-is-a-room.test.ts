@@ -84,6 +84,35 @@ describe('Personalize is a hub, answered on every surface', () => {
   });
 });
 
+describe('the nine doors under the hall (owner, 8 Sep)', () => {
+  const page = read('pages/Personalize.tsx');
+
+  it('draws the home page\u2019s own pill, once per district, in the hall\u2019s order', () => {
+    /* "Add these buttons on the personalize page too for all the services
+       inside the personalize page." The same .door glass the home row uses —
+       one definition, not a second pill that drifts from it — walked from BAYS
+       so the row reads left to right exactly as the photograph above it. */
+    const row = page.slice(page.indexOf('<nav className="doors pz-doors"'), page.indexOf('</nav>'));
+    expect(row).toMatch(/BAYS\.filter/);
+    expect(row).toMatch(/className="door"/);
+    expect(row).toMatch(/className="door-bloom"/);
+    expect(row).toMatch(/districtName\(bay\.key\)/);
+    expect(read('index.css')).toMatch(/\.pz-doors \{/);
+  });
+
+  it('is not the bays said twice — it is the doors a phone can see', () => {
+    // A bay is an invisible column over a photograph, and the bays come off a
+    // phone entirely. These are visible on every device.
+    expect(page).toMatch(/className="pz-bay"/);
+    expect(page.indexOf('pz-doors')).toBeGreaterThan(page.indexOf('className="pz-bays"'));
+  });
+
+  it('wears the citizen\u2019s design — a district switched off has no pill', () => {
+    const row = page.slice(page.indexOf('<nav className="doors pz-doors"'), page.indexOf('</nav>'));
+    expect(row).toMatch(/hubOn\(bay\.key\)/);
+  });
+});
+
 describe('a hub whose landing is its content', () => {
   it('names its door, because it has no first room to be one', () => {
     expect(HUBS.personalize.items).toEqual([]);

@@ -36,6 +36,8 @@ function svc(over: { exists?: boolean; size?: number | null } = {}) {
   const created: any[] = [];
   const prisma = {
     post: {
+      // See a-picture-nobody-checked: no arrangement here, so no index.
+      aggregate: async () => ({ _min: { sortIndex: null } }),
       create: async (args: any) => {
         created.push(args.data);
         return { ...args.data, id: 'p1', createdAt: new Date(), media: [{ id: 'm1', url: `social/${ME}/a.jpg`, kind: 'image', thumbUrl: null }], author: { id: ME, handle: 'me', name: 'Me' } };

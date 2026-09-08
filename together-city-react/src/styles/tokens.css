@@ -3200,8 +3200,15 @@ html[data-skin="sanmarino"] {
    pill's own opacity rather than restated, which is why there is no dark
    override: one light, two rooms. */
 :root {
-  --door-bloom: radial-gradient(38% 62% at 22% 42%, #b9c9ff 0%, rgba(185,201,255,0) 70%),
-                radial-gradient(42% 70% at 52% 78%, #ffc9d4 0%, rgba(255,201,212,0) 72%),
-                radial-gradient(46% 74% at 78% 34%, #ffd9b0 0%, rgba(255,217,176,0) 74%),
-                radial-gradient(40% 66% at 92% 74%, #cfc4f2 0%, rgba(207,196,242,0) 70%);
+  /* THE SOFTNESS IS IN THE STOPS, NOT IN A BLUR (8 Sep). These four were
+     tighter and were smoothed by `filter: blur(22px)` on a layer larger than
+     the pill — which iOS Safari does not clip to a rounded parent, so on a
+     phone every pill wore a soft grey RECTANGLE behind it. Each gradient is
+     wide and fades to nothing well inside its own box now: a background is
+     clipped by border-radius on every browser there is, and no filter means
+     nothing to escape the clip. */
+  --door-bloom: radial-gradient(62% 120% at 20% 40%, #b9c9ff 0%, rgba(185,201,255,0) 78%),
+                radial-gradient(66% 130% at 50% 82%, #ffc9d4 0%, rgba(255,201,212,0) 80%),
+                radial-gradient(70% 135% at 80% 30%, #ffd9b0 0%, rgba(255,217,176,0) 82%),
+                radial-gradient(62% 120% at 95% 78%, #cfc4f2 0%, rgba(207,196,242,0) 78%);
 }

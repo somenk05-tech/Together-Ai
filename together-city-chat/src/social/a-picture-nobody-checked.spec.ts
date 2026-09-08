@@ -48,11 +48,14 @@ function storageStub(over: { head?: Buffer | null; whole?: string | null } = {})
 }
 
 /** A guard with no Rekognition credentials — the unconfigured deployment. */
-const unconfigured = (storage: any) => new PostMediaGuard(storage, { get: () => '' } as any);
+/* The hash gate (media/hash-match) runs in front of Rekognition on every
+   image surface. These cases are about the classifier, so it answers 'clear';
+   what happens on 'match' and on 'unavailable' is a-hash-gate-in-front.spec.ts. */
+const unconfigured = (storage: any) => new PostMediaGuard(storage, { get: () => '' } as any, { check: async () => 'clear' } as never);
 
 /** A guard whose classifier answers with the labels you give it. */
 function withLabels(storage: any, labels: any[], throws = false) {
-  const g = new PostMediaGuard(storage, { get: () => '' } as any);
+  const g = new PostMediaGuard(storage, { get: () => '' } as any, { check: async () => 'clear' } as never);
   (g as any).client = {
     send: async () => {
       if (throws) throw new Error('rekognition unavailable');
@@ -257,7 +260,7 @@ describe('a thumbnail is a picture somebody sees, so a thumbnail is screened', (
       getPostObjectBase64: async () => ({ base64: JPEG.toString('base64'), contentType: 'image/jpeg' }),
       deletePrivateObject: async (k: string) => { deleted.push(k); },
     } as any;
-    const g = new PostMediaGuard(storage, { get: () => '' } as any);
+    const g = new PostMediaGuard(storage, { get: () => '' } as any, { check: async () => 'clear' } as never);
     (g as any).client = {
       send: async () => ({
         ModerationLabels: last === THUMB
@@ -318,6 +321,10 @@ describe('createPost will not publish media it could not have checked', () => {
     const created: any[] = [];
     const prisma = {
       post: {
+        /* createPost asks for the author's smallest sortIndex so a new post
+           lands above their arrangement (8 Sep). Nobody in this file has ever
+           arranged anything, so the honest answer is "no index at all". */
+        aggregate: async () => ({ _min: { sortIndex: null } }),
         create: async (args: any) => {
           created.push(args.data);
           return { ...args.data, id: 'p1', createdAt: new Date(), media: [], author: { id: ME, handle: 'me', name: 'Me' } };
