@@ -425,6 +425,23 @@ function FolderView({ folder, project }: { folder: Folder; project?: MailProject
 function EmptyTrashButton({ count }: { count: number }) {
   const [armed, setArmed] = useState(false);
   const empty = useEmptyTrash();
+  /**
+   * THE NUMBER IN THE QUESTION IS THE NUMBER THAT WILL BE DELETED.
+   *
+   * `count` is the rendered row count, and the rendered rows are the folder
+   * capped at FEED_CAP and filtered by whatever is in the search box. The
+   * endpoint takes neither: it empties the whole Trash. So searching "invoice"
+   * in Trash, seeing three rows, and pressing this asked "Delete 3 messages for
+   * good?" and deleted four hundred — a sentence that is wrong in the one
+   * direction nothing can be undone from.
+   *
+   * The account's own count is what the endpoint acts on, so that is what the
+   * question says. `count` stays as the fallback for the half-second before
+   * the account read resolves, and as the caller's gate for showing this at
+   * all.
+   */
+  const acct = useMailAccount();
+  const held = acct.data?.counts.trash ?? count;
 
   if (empty.isSuccess && empty.data) {
     return (
@@ -441,7 +458,8 @@ function EmptyTrashButton({ count }: { count: number }) {
       {armed ? (
         <>
           <span className="muted" style={{ fontSize: 13 }}>
-            Delete {count} {count === 1 ? 'message' : 'messages'} for good?
+            Delete {held} {held === 1 ? 'message' : 'messages'} for good?
+            {held !== count && ' — everything in Trash, not just what is listed.'}
           </span>
           <Button variant="ghost" onClick={() => setArmed(false)} disabled={empty.isPending}>Keep</Button>
           <Button onClick={() => empty.mutate()} disabled={empty.isPending}>
@@ -525,8 +543,12 @@ function ProjectFolders({ project }: { project: MailProject }) {
  * Rename, the sub-address, archive, delete.
  *
  * DELETE SAYS WHAT IT DOES BEFORE IT DOES IT, and what it does is nothing to
- * the mail: the count of conversations that will return to All Email is read
- * out of the project itself, so the sentence cannot drift from the truth.
+ * the mail: the count that will return to All Email is read out of the project
+ * itself, so the sentence cannot drift from the truth. It says MESSAGES,
+ * because that is what `total` counts — `groupBy projectId, _count._all` over
+ * MailMessage. It said "conversations" and the same number is printed as
+ * "messages" on the folder wall two screens away, so one of the two was wrong
+ * about a number somebody reads immediately before pressing Delete.
  * Archive is offered first because most "delete this project" impulses are
  * really "I have finished with this project".
  */
@@ -625,7 +647,7 @@ function ProjectSettings({ project }: { project: MailProject }) {
             <p style={{ margin: '0 0 10px', fontSize: 13, lineHeight: 1.55 }}>
               {project.total === 0
                 ? 'This project holds nothing. Deleting it removes the room and nothing else.'
-                : `${project.total} conversation${project.total === 1 ? '' : 's'} will return to All Email, where they have been all along. Nothing is deleted.`}
+                : `${project.total} message${project.total === 1 ? '' : 's'} will return to All Email, where they have been all along. Nothing is deleted.`}
             </p>
             <div style={{ display: 'flex', gap: 8 }}>
               <Button variant="line" size="sm" disabled={remove.isPending}

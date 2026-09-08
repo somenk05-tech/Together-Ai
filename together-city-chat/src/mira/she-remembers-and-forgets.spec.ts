@@ -25,7 +25,7 @@ function bare(over: Partial<Record<string, any>> = {}) {
   svc.ledger = { record: () => undefined, forget: async (u: string, t?: string) => { svc.__ledgerForget = [...(svc.__ledgerForget ?? []), [u, t]]; } };
   svc.ai = { enabled: true, converse: async () => 'Yeah, I remember.' };
   svc.prisma = {
-    miraPass: { findUnique: async () => null, upsert: async () => undefined },
+    miraPass: { updateMany: async () => ({ count: 0 }),  findUnique: async () => null, upsert: async () => undefined },
     miraTurn: {
       /** `skip` is the retention trim asking for the 2000th-newest row. An
        *  empty answer means "nothing to trim", which is true of every stub

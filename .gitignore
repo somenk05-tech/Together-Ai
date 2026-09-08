@@ -58,3 +58,16 @@ pet-district/
 /beauty-claims-to-fill.xlsx
 /beauty-core-database.json
 /beauty-core-database.xlsx
+
+# Session scratch that must never reach the repository (8 Sep).
+# .msg/ holds a landing script's staged blobs and commit message; _shots/ is
+# 267 MB of downloaded product photographs; .wrangler/ is the worker's local
+# state; "Claude outputs/" and the root-level *-Sep.md are session notes that
+# live in the Claude project, not here.
+.msg/
+.landing/
+.verify/
+together-city-react/_shots/
+workers/media-edge/.wrangler/
+/Claude outputs/
+/*-Sep.md

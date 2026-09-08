@@ -8,6 +8,7 @@ import { MasterProfileService } from '../profile/master-profile.service';
 import { refuseDateOfBirth } from '../shared/age';
 import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
+import { runAsPaidWork } from '../shared/request-context';
 import {
   NatalChart, geocodeApprox, natalChart, scanMonth, tzOffsetMinutes, SIGNS,
 } from './astro-engine';
@@ -1021,7 +1022,14 @@ export class AstrologyService {
     // context, the answers are what this one must not sound like.
     const previous = priorRows.slice(0, 3).map((q) => q.answer).filter(Boolean);
 
-    const answer = await this.writeAnswer(dto.topic, dto.question, brief, firstName, history, previous);
+    // A PAID CONSULTATION IS NOT FREE WORK (launch audit, 6 Sep) — see the
+    // same note in BeautyService.analyzePhotos. Without this the ₹100
+    // question that opens the next pack is counted against the citizen's
+    // 60-a-day free key and refused at the city's 20,000-a-day ceiling.
+    // `assertCanPay` above has already confirmed the money is there.
+    const answer = price > 0
+      ? await runAsPaidWork(() => this.writeAnswer(dto.topic, dto.question, brief, firstName, history, previous))
+      : await this.writeAnswer(dto.topic, dto.question, brief, firstName, history, previous);
     if (!answer) return { needsProfile: false as const, pending: true as const };
 
     // Charge and save together, AFTER the answer exists. The AI call could not

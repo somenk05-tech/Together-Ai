@@ -1,6 +1,7 @@
 import { swallow } from '../shared/swallow';
 import { RedisService } from '../shared/redis/redis.service';
 import { StorageProvider } from '../media/storage.provider';
+import { ladderKeysOf } from '../media/hls-ladder';
 import { isDisposableEmail } from './disposable-domains';
 import {
   BadRequestException,
@@ -494,7 +495,7 @@ export class AuthService {
     }
     const storage = this.storage;
     const media = this.prisma as unknown as {
-      postMedia: { findMany: (a: unknown) => Promise<Array<{ id: string; url: string; thumbUrl: string | null }>> };
+      postMedia: { findMany: (a: unknown) => Promise<Array<{ id: string; url: string; thumbUrl: string | null; hlsUrl: string | null }>> };
     };
     const deadline = Date.now() + AuthService.PURGE_BUDGET_MS;
     let cursor: string | undefined;
@@ -504,7 +505,7 @@ export class AuthService {
     for (let guard = 0; guard < 200; guard++) {
       const rows = await swallow(media.postMedia.findMany({
         where: { post: { authorId: userId } },
-        select: { id: true, url: true, thumbUrl: true },
+        select: { id: true, url: true, thumbUrl: true, hlsUrl: true },
         orderBy: { id: 'asc' },
         take: 500,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -512,7 +513,14 @@ export class AuthService {
       if (!rows?.length) break;
       // Legacy inline `data:` photos and old public https URLs are not keys and
       // have nothing in the private bucket to remove.
-      const keys = rows.flatMap((row) => [row.url, row.thumbUrl])
+      /* THE LADDER GOES TOO, and it is nine objects behind one pointer. The
+         row keeps only the master playlist's key; `ladderKeysOf` names every
+         file a ladder can have from it. Some of those never existed — a 360p
+         source has two rungs — and a delete of an absent key costs a 404,
+         which is cheaper than a LIST per row on a job with a time budget.
+         Added 6 Sep with the ladder: without it, deleting an account left
+         every rung of every video it ever posted in the bucket. */
+      const keys = rows.flatMap((row) => [row.url, row.thumbUrl, ...ladderKeysOf(row.hlsUrl)])
         .filter((k): k is string => Boolean(k) && storage.isPostKey(k as string));
       /* THE ANSWER IS READ, WHICH IT WAS NOT BEFORE. This was a try/catch
          around `deleteObject`, which caught its own error and returned void —

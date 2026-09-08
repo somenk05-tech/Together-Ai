@@ -12,15 +12,32 @@ export const http: AxiosInstance = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 20000,
-  // NOTE: we deliberately do NOT set `withCredentials: true`. This is a
-  // cross-origin app (frontend on Vercel, API on Railway). Credentialed
-  // requests require the API to echo the exact origin in
-  // Access-Control-Allow-Origin AND send Allow-Credentials:true — if the
-  // deployed backend ever answers with `*` (or the CORS config drifts), the
-  // browser blocks EVERY response, including login, which surfaces to users as
-  // a bogus "Invalid handle or password". Persistent sessions run entirely on
-  // the Bearer access token + the refresh token stored in localStorage, so no
-  // cookie is needed. Keep this off unless the API is same-origin.
+  /**
+   * ── CREDENTIALED, SINCE 6 SEP ─────────────────────────────────────────────
+   *
+   * This was off, and the note here explained why: a credentialed request needs
+   * the API to echo the exact origin and send Allow-Credentials, and a CORS
+   * drift to `*` would block EVERY response including login — surfacing as a
+   * bogus "Invalid handle or password". That risk is real and it is bounded:
+   * main.ts refuses to start with `CORS_ORIGIN=*` in production, and the
+   * origin function it passes to `enableCors` echoes the request origin rather
+   * than a wildcard.
+   *
+   * What the note cost was larger. With this off, the HttpOnly `tc_refresh`
+   * cookie the server has always set was never sent, so the 60-day refresh
+   * token lived in localStorage — readable by any script on the origin, which
+   * means one XSS, or one bad dependency in this bundle, is sixty days of
+   * somebody's blood tests, prescriptions, vault, mail, wallet and dating
+   * conversations. The server side was already built for the other way round,
+   * down to withholding the token from the body on the cookie path.
+   *
+   * The cookie is cross-site (Vercel ↔ Railway), so Safari's ITP blocks it and
+   * the localStorage fallback stays for those browsers — the store decides
+   * which of the two it is on, per browser, and persists nothing where the
+   * cookie works. Same-siting the API (api.togethercity.app) removes the
+   * fallback entirely; until then this is the half that can be done in code.
+   */
+  withCredentials: true,
 });
 
 /**

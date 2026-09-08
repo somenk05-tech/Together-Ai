@@ -15,6 +15,10 @@ const withPassword = (password: string) => ({ headers: { 'x-dev-password': passw
 export interface EnvRow {
   name: string; group: string; purpose: string; whenMissing: string;
   required: boolean; secret: boolean; set: boolean;
+  /** Unset is the correct state on a public deployment — drawn "off", not counted. */
+  expectUnset?: boolean;
+  /** What has to exist before it can be set (an account, a Worker, a volume). */
+  needs?: string | null;
 }
 export interface Diagnostics {
   build: { commit: string | null; branch: string | null; nodeEnv: string; nodeVersion: string; upSeconds: number };

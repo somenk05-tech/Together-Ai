@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { DetectModerationLabelsCommand, RekognitionClient } from '@aws-sdk/client-rekognition';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { StorageProvider } from '../media/storage.provider';
+import { HashMatchService } from '../media/hash-match/hash-match.service';
 import { swallow } from '../shared/swallow';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { DATING_PHOTO_MAX_BYTES as PHOTO_MAX_BYTES, DATING_PHOTO_MIME as PHOTO_MIME } from '../media/media.service';
@@ -54,6 +55,7 @@ export class PhotoModerationService implements OnModuleInit {
     private readonly storage: StorageProvider,
     private readonly config: ConfigService,
     private readonly analytics: AnalyticsService,
+    private readonly hashes: HashMatchService,
   ) {
     this.mode = this.config.get<string>('photoModeration.mode') ?? 'rekognition';
     this.holdAt = this.config.get<number>('photoModeration.holdAt') ?? 60;
@@ -204,6 +206,32 @@ export class PhotoModerationService implements OnModuleInit {
     const etag = obj.etag;
     if (obj.bytes.length > PHOTO_MAX_BYTES) return this.record(key, userId, 'rejected', '', `Larger than ${PHOTO_MAX_BYTES} bytes.`, etag);
     if (!PHOTO_MIME[obj.contentType]) return this.record(key, userId, 'rejected', '', `Not a photo (${obj.contentType}).`, etag);
+  /**
+   * ── THE HASH GATE RUNS FIRST ──────────────────────────────────────────────
+   *
+   * Rekognition answers "does this picture look explicit". It does not answer
+   * "is this a known image", and only the second question finds child sexual
+   * abuse material reliably. media/hash-match asks it, on the bytes already
+   * read for the line below, and there are three answers:
+   *
+   *   'unavailable' — no matcher, or it could not answer. FAIL CLOSED. Never
+   *                   turned into a pass.
+   *   'match'       — stop. The service has already preserved the object,
+   *                   written the CsamHit row and suspended the account. This
+   *                   refusal must NOT delete the file: it is evidence.
+   *   'clear'       — carry on to the classifier below.
+   */
+    const inline = entry.startsWith('data:');
+    const hash = await this.hashes.check(obj.bytes, obj.contentType, {
+      userId, surface: 'dating-photo', storageKey: inline ? null : entry, bucket: inline ? null : 'private',
+    });
+    if (hash === 'unavailable') return 'pending';
+    if (hash === 'match') {
+      // `record` writes the verdict and nothing else — the delete lives in
+      // `decide`, which a moderator drives. So the object stays where it is.
+      return this.record(key, userId, 'rejected', 'known-bad hash', 'This photograph matched a known-bad hash list.', etag);
+    }
+
     if (!entry.startsWith('data:') && !etag) return 'pending';
     let labels: Array<{ Name?: string; ParentName?: string; Confidence?: number }>;
     try {

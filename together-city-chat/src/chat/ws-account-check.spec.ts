@@ -42,11 +42,13 @@ describe('TokenService.assertAccountLive', () => {
 });
 
 describe('the gateway', () => {
-  function build(verify: () => Promise<unknown>) {
+  function build(verify: () => Promise<unknown>, sockets = 1) {
     const g: any = Object.create(ChatGateway.prototype);
     g.logger = { log: () => undefined, warn: () => undefined };
     g.tokens = { verifyAccessAndAccount: verify, assertAccountLive: async () => undefined };
-    g.presence = { markOnline: async () => false, markOffline: async () => false };
+    // markOnline returns the socket COUNT as well since 6 Sep — the gateway
+    // refuses a citizen's seventh connection, and the count is what it reads.
+    g.presence = { markOnline: async () => ({ transitioned: false, sockets }), markOffline: async () => false };
     g.messages = { conversationIdsFor: async () => [], deliverBacklog: async () => 0, pendingForUser: async () => [] };
     g.bus = { publish: () => undefined };
     g.redis = { setOpenConversation: async () => undefined };
@@ -84,6 +86,43 @@ describe('the gateway', () => {
       jest.useRealTimers();
     }
   });
+
+  /**
+   * ── SIX SOCKETS, AND THE SEVENTH IS TOLD SO ───────────────────────────────
+   *
+   * Every rate limit on this gateway hangs off the socket object, so before
+   * this one account could open five hundred connections and have five hundred
+   * times every ceiling — plus five hundred re-check intervals and five hundred
+   * room joins per burst — without ever touching the HTTP throttler, because a
+   * Socket.IO handshake is not an HTTP route.
+   *
+   * The two cases below are the whole property: the count comes from the Redis
+   * SADD (so it is true across containers), and the refusal happens BEFORE the
+   * expensive part of a handshake rather than after it.
+   */
+  it('lets a citizen’s sixth socket in', async () => {
+    const { g, client, state } = build(async () => ({ sub: 'u1', handle: 'h', iat: 1 }), 6);
+    await g.handleConnection(client);
+    expect(state().disconnected).toBe(false);
+    await g.handleDisconnect(client);
+  });
+
+  it('refuses the seventh, says why, and does no work for it', async () => {
+    const { g, client, clientOut, state } = build(async () => ({ sub: 'u1', handle: 'h', iat: 1 }), 7);
+    let joined = 0;
+    g.messages.conversationIdsFor = async () => { joined += 1; return []; };
+    let backlog = 0;
+    g.messages.deliverBacklog = async () => { backlog += 1; return 0; };
+    await g.handleConnection(client);
+    expect(state().disconnected).toBe(true);
+    expect(clientOut).toEqual([{ e: 'error_event', p: { status: 429, kind: 'connect', message: expect.stringMatching(/Too many open connections/) } }]);
+    // The point of putting the cap first: a refused handshake costs one SADD,
+    // not a room-join read and a backlog delivery.
+    expect(joined).toBe(0);
+    expect(backlog).toBe(0);
+    // And no re-check timer is left behind for a socket that is going away.
+    expect(client.recheck).toBeUndefined();
+  });
 });
 
 describe('the socket send ceiling', () => {
@@ -92,6 +131,10 @@ describe('the socket send ceiling', () => {
     const sent: unknown[] = [];
     const errors: unknown[] = [];
     g.messages = { send: async () => { sent.push(1); return { id: 'm' }; } };
+    /* The per-CITIZEN send ceiling (6 Sep) lives in Redis and fails open, so
+       "Redis is away" is the state that leaves this case testing exactly what
+       it was written to test: the per-socket bucket, on its own. */
+    g.redis = { up: false };
     const client: any = { userId: 'u1', emit: (e: string, p: unknown) => { if (e === 'error_event') errors.push(p); } };
     const body = { conversationId: '11111111-1111-4111-8111-111111111111', clientId: 'c', text: 'hi' };
     for (let i = 0; i < 61; i += 1) await g.onSend(client, body);

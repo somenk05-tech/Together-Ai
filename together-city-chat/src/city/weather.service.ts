@@ -36,10 +36,43 @@ const DEFAULT_CITY = { name: 'Mumbai', lat: 19.076, lng: 72.8777 };
 @Injectable()
 export class WeatherService {
   private readonly log = new Logger(WeatherService.name);
+  /**
+   * ── THREE MAPS THAT COULD ONLY GROW ─────────────────────────────────────
+   *
+   * `GET /city/header` is @Public and unauthenticated, and it takes `lat` and
+   * `lng` straight off the query string. Every distinct pair used to be a new
+   * entry in one of these maps and none of them evicted anything, ever: a
+   * caller varying the coordinates walked the process into an out-of-memory
+   * kill, from a route that exists to say what the weather is.
+   *
+   * And `reverseGeocode` had no cache AT ALL, unlike the two below it — so the
+   * same unauthenticated caller was also one BigDataCloud request per call on a
+   * keyless free endpoint.
+   *
+   * Two changes, both small. A cap with a plain FIFO eviction, so the maps have
+   * a ceiling; and the reverse geocode is cached like its neighbours, on
+   * coordinates rounded to two places (~1 km — a city name does not change
+   * inside a kilometre). (1M-DAU pass, 6 Sep.)
+   *
+   * Per-instance, deliberately. These are keyless public endpoints and the
+   * values are the same for everybody; a shared Redis cache would be tidier and
+   * is not worth a dependency here. What mattered was the ceiling.
+   */
+  private static readonly CACHE_MAX = 5_000;
   // Cache weather by rounded coords (~1 km) for 15 min to spare the upstream API.
   private readonly cache = new Map<string, { at: number; w: { temperatureC: number | null; feelsLikeC: number | null; code: number | null } }>();
   private readonly geoCache = new Map<string, { lat: number; lng: number; name: string; region: string | null } | null>();
+  private readonly revCache = new Map<string, { at: number; v: { name: string; region: string | null } | null }>();
   private readonly TTL = 15 * 60 * 1000;
+
+  /** Insert with a ceiling. Oldest key out first — a Map iterates in insertion order. */
+  private static put<V>(m: Map<string, V>, key: string, value: V): void {
+    if (m.size >= WeatherService.CACHE_MAX) {
+      const oldest = m.keys().next();
+      if (!oldest.done) m.delete(oldest.value);
+    }
+    m.set(key, value);
+  }
 
   private async fetchJson(url: string, timeoutMs = 4500): Promise<unknown | null> {
     try {
@@ -63,16 +96,26 @@ export class WeatherService {
     const j = await this.fetchJson(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`) as { results?: Array<{ latitude: number; longitude: number; name: string; admin1?: string }> } | null;
     const g = j?.results?.[0];
     const out = g ? { lat: g.latitude, lng: g.longitude, name: g.name, region: g.admin1 ?? null } : null;
-    this.geoCache.set(key, out);
+    WeatherService.put(this.geoCache, key, out);
     return out;
   }
 
-  /** Coordinates → city name (BigDataCloud reverse geocoder, keyless). */
+  /** Coordinates → city name (BigDataCloud reverse geocoder, keyless). Cached
+   *  on coordinates rounded to ~1 km: a city name does not change inside one,
+   *  and this is the call an unauthenticated caller could otherwise make once
+   *  per request for ever. */
   async reverseGeocode(lat: number, lng: number): Promise<{ name: string; region: string | null } | null> {
+    const key = `${lat.toFixed(2)},${lng.toFixed(2)}`;
+    const hit = this.revCache.get(key);
+    if (hit && Date.now() - hit.at < this.TTL) return hit.v;
     const j = await this.fetchJson(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`) as { city?: string; locality?: string; principalSubdivision?: string } | null;
     if (!j) return null;
     const name = j.city || j.locality || '';
-    return name ? { name, region: j.principalSubdivision ?? null } : null;
+    const v = name ? { name, region: j.principalSubdivision ?? null } : null;
+    // Only a real answer is remembered — a failed fetch returns above, so a
+    // provider blip does not pin "unknown" to a coordinate for fifteen minutes.
+    WeatherService.put(this.revCache, key, { at: Date.now(), v });
+    return v;
   }
 
   /** Current weather at coordinates (cached). */
@@ -85,7 +128,7 @@ export class WeatherService {
     const w = c
       ? { temperatureC: Math.round(c.temperature_2m), feelsLikeC: Math.round(c.apparent_temperature), code: c.weather_code }
       : { temperatureC: null, feelsLikeC: null, code: null };
-    if (c) this.cache.set(key, { at: Date.now(), w });
+    if (c) WeatherService.put(this.cache, key, { at: Date.now(), w });
     return w;
   }
 

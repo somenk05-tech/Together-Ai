@@ -16,8 +16,12 @@ import { useMailProjects, useFileThread, PROJECT_CAP, mailError } from './api';
  * folder invites is that mail has gone somewhere it cannot be found again,
  * and the answer is one sentence rather than a help page.
  */
-export function MoveToProject({ threadId, projectId, count, onDone }: {
-  threadId: string; projectId?: string | null; count: number; onDone?: () => void;
+export function MoveToProject({ threadId, projectId, count, countPending, onDone }: {
+  threadId: string; projectId?: string | null; count: number;
+  /** The trail request has not resolved, so `count` is the ONE message the
+   *  reader was opened on rather than the length of the conversation. */
+  countPending?: boolean;
+  onDone?: () => void;
 }) {
   const q = useMailProjects();
   const file = useFileThread();
@@ -43,8 +47,15 @@ export function MoveToProject({ threadId, projectId, count, onDone }: {
       {open && (
       <div className="card mmove">
       <h3 className="mmove-h">Move this conversation</h3>
+      {/* THE NUMBER IS THE TRAIL'S, OR THERE IS NO NUMBER.
+          The reader falls back to `[m]` while the thread request is in flight,
+          so this said "One message" over a nine-message conversation — and
+          then moved all nine. A sentence that undercounts what an action will
+          do is worse than one that counts nothing. */}
       <p className="muted mmove-hint">
-        {count === 1 ? 'One message' : `All ${count} messages`}, and every reply from now on.
+        {countPending
+          ? 'This whole conversation, and every reply from now on.'
+          : `${count === 1 ? 'One message' : `All ${count} messages`}, and every reply from now on.`}
       </p>
       {/* A MOVE THAT WAS REFUSED LEFT THE SHEET OPEN AND THE ROW HIGHLIGHTED
           NOWHERE — indistinguishable from a press that did not register, so

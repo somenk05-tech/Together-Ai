@@ -90,6 +90,68 @@ function sameBytes(a, b) {
 }
 
 /**
+ * ── HOW LONG A LINK INSIDE A PLAYLIST LIVES ─────────────────────────────────
+ *
+ * Six hours, and it is a different question from how long the playlist's own
+ * link lives. A media token is an hour by default, which is fine for a
+ * photograph and was a bug for video the moment the owner allowed a sixty-minute
+ * upload: a player that started at minute fifty-nine of the token's hour would
+ * lose the file mid-playback, and the TV's error path advances to the next
+ * video rather than re-minting. The one-hour cap plus a pause, a seek and a
+ * long lunch fits comfortably inside six.
+ *
+ * It is safe to be generous here for the same reason the hour was safe: the key
+ * is a uuid written once and never rewritten, so an old link names bytes that
+ * have not changed. And a ladder is nine such keys, so this is the only place
+ * that has to know the number.
+ */
+const HLS_CHILD_TTL_SEC = 6 * 60 * 60;
+
+/** Mint the same `<base64url({k,e})>.<hmac>` the API's media-link.ts mints. */
+async function mintToken(secret, key, ttlSec, nowMs) {
+  const body = toB64Url(enc.encode(JSON.stringify({ k: key, e: Math.floor(nowMs / 1000) + ttlSec })));
+  const sig = await hmac(await mediaKey(secret), body);
+  return `${body}${SEP}${toB64Url(sig)}`;
+}
+
+/**
+ * ── A PLAYLIST IS A LIST OF LINKS, AND EVERY ONE OF THEM NEEDS SIGNING ──────
+ *
+ * The transcoder writes a ladder as relative names — `v0.m3u8` in the master,
+ * `v0.ts` in each variant — because that is what ffmpeg emits and because a
+ * baked-in absolute URL could not carry a token that expires. So the rewriting
+ * happens HERE, at the only place that both holds the secret and knows which
+ * object it just read.
+ *
+ * The alternative was an API route that reads the playlist and signs it, and it
+ * fails on the browser that matters least often and complains loudest: Safari
+ * plays HLS natively and cannot be told to send an Authorization header, so a
+ * playlist behind a bearer token is a playlist Safari cannot fetch. A token IN
+ * the URL is the only shape both native HLS and hls.js can follow.
+ *
+ * WHAT IT DOES NOT DO: nothing here rewrites a `URI="…"` attribute (EXT-X-KEY,
+ * EXT-X-MEDIA, EXT-X-MAP). The ladder this app writes has none of them —
+ * mpegts, no encryption, no alternate audio — and a rewriter that pretended to
+ * handle a form it has never seen would be the more dangerous of the two. If a
+ * ladder ever grows one, this is the function that has to learn about it.
+ */
+async function signPlaylist(secret, playlistKey, text, nowMs) {
+  const dir = playlistKey.slice(0, playlistKey.lastIndexOf('/') + 1);
+  const lines = text.split('\n');
+  const out = [];
+  for (const line of lines) {
+    const t = line.trim();
+    // Blank lines and tags pass through untouched; everything else in a
+    // playlist is a URI by definition.
+    if (!t || t.startsWith('#')) { out.push(line); continue; }
+    // Already absolute — not something we wrote, and not ours to sign.
+    if (/^[a-z][a-z0-9+.-]*:/i.test(t) || t.startsWith('/')) { out.push(line); continue; }
+    out.push(`/m/${await mintToken(secret, dir + t, HLS_CHILD_TTL_SEC, nowMs)}`);
+  }
+  return out.join('\n');
+}
+
+/**
  * The key a token names AND when it stops naming it, or null — one answer for
  * every kind of failure.
  *
@@ -151,8 +213,12 @@ export default {
       return seen;
     }
 
+    /* A PLAYLIST IS READ WHOLE, ALWAYS. It is a few kilobytes, a player never
+       asks for part of one, and honouring a Range on it would hand back a
+       fragment of a document this Worker is about to rewrite. */
+    const isPlaylist = key.endsWith('.m3u8');
     const object = await env.MEDIA.get(key, {
-      range: request.headers.get('range') ?? undefined,
+      range: isPlaylist ? undefined : (request.headers.get('range') ?? undefined),
     });
     if (!object) return new Response('Not found', { status: 404 });
 
@@ -201,6 +267,25 @@ export default {
     headers.set('accept-ranges', 'bytes');
 
     headers.set('x-tc-cache', 'miss');
+
+    if (isPlaylist) {
+      /* The links inside are minted now and outlive this response, so the
+         playlist may be cached for as long as its own token lasts — but NOT
+         `immutable`, because unlike a photograph its body is a function of the
+         moment it was written rather than of the key alone. */
+      const body = await signPlaylist(env.LINK_SECRET, key, await object.text(), now);
+      headers.set('content-type', 'application/vnd.apple.mpegurl');
+      headers.set('cache-control', `public, max-age=${ttl}`);
+      headers.delete('accept-ranges');
+      const playlist = new Response(body, { status: 200, headers });
+      ctx.waitUntil(
+        cache.put(request, playlist.clone()).catch((err) => {
+          console.error('media-edge: cache.put refused', key, String(err));
+        }),
+      );
+      return playlist;
+    }
+
     const res = new Response(object.body, { status: ranged ? 206 : 200, headers });
     /* Only whole responses go in the edge cache; a 206 is one reader's window,
        and `cache.put` throws on one outright. A rejected put is otherwise

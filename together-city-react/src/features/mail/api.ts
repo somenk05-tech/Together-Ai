@@ -61,7 +61,13 @@ export interface MailProject {
 /** Fifty per citizen, counted out loud from the first one rather than sprung
  *  at the limit. Mirrors PROJECT_CAP in the API's mail dto. */
 export const PROJECT_CAP = 50;
-export interface MailMessage extends MailItem { body: string }
+
+/** A file a DRAFT is holding, named rather than numbered — the row keeps only
+ *  Drive ids, and a chip needs a name, a type and a size. Empty on everything
+ *  that is not a draft: a message in a thread reads its files through the
+ *  thread route, which checks participation. */
+export interface DraftFile { id: string; name: string; mimeType: string | null; sizeBytes: number }
+export interface MailMessage extends MailItem { body: string; attachments?: DraftFile[] }
 export interface DirectoryEntry { handle: string; name: string; address: string }
 
 /**
@@ -103,8 +109,13 @@ export const mailApi = {
   thread: (threadId: string) => api.get<MailMessage[]>(`/mail/thread/${threadId}`).then((r) => r.data),
   send: (input: { to: string; cc?: string[]; bcc?: string[]; subject: string; body: string; threadId?: string; attachmentFileIds?: string[]; draftId?: string; projectKey?: string }) =>
     api.post<SendResult>('/mail/send', input).then((r) => r.data),
-  saveDraft: (input: { id?: string; to: string; subject: string; body: string; threadId?: string }) =>
-    api.post<MailMessage>('/mail/draft', input).then((r) => r.data),
+  /** Everything the composer is holding, not four fields of it — a draft that
+   *  drops the Cc, the Bcc, the files and the room while saying "Draft saved"
+   *  is a promise the folder's name makes and the endpoint did not keep. */
+  saveDraft: (input: {
+    id?: string; to: string; cc?: string[]; bcc?: string[]; subject: string; body: string;
+    threadId?: string; attachmentFileIds?: string[]; projectKey?: string;
+  }) => api.post<MailMessage>('/mail/draft', input).then((r) => r.data),
   discardDraft: (id: string) => api.delete<MailItem[]>(`/mail/draft/${id}`).then((r) => r.data),
   retry: (id: string) => api.post<MailItem[]>(`/mail/${id}/retry`, {}).then((r) => r.data),
   threadAttachments: (threadId: string) =>
@@ -258,7 +269,10 @@ export function useSendMail() {
  */
 export function useSaveDraft() {
   return useMutation({
-    mutationFn: (v: { id?: string; to: string; subject: string; body: string; threadId?: string }) => mailApi.saveDraft(v),
+    mutationFn: (v: {
+      id?: string; to: string; cc?: string[]; bcc?: string[]; subject: string; body: string;
+      threadId?: string; attachmentFileIds?: string[]; projectKey?: string;
+    }) => mailApi.saveDraft(v),
   });
 }
 export function useDiscardDraft() {
@@ -296,7 +310,6 @@ export function useEmptyTrash() {
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['mail'] }); },
   });
 }
-
 export function useRemoveMail() {
   const qc = useQueryClient();
   return useMutation({

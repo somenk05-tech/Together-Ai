@@ -14,6 +14,11 @@ function build(fx: Fixtures) {
   (svc as any).log = { warn: () => undefined };
   (svc as any).cache = new Map();
   (svc as any).geoCache = new Map();
+  // Added 6 Sep with the reverse-geocode cache — this builder sets the fields
+  // itself, so a new one has to be named here as well. Typed rather than `any`:
+  // the lint ceiling counts every one of those, and a new line should not spend
+  // one when it does not have to.
+  (svc as unknown as { revCache: Map<string, unknown> }).revCache = new Map();
   (svc as any).TTL = 15 * 60 * 1000;
   (svc as any).fetchJson = async (url: string) => {
     urls.push(new URL(url).hostname + new URL(url).pathname);

@@ -1,13 +1,14 @@
 import { Injectable, Logger, Optional, type OnModuleInit } from '@nestjs/common';
 import { spawn } from 'child_process';
 import { randomUUID } from 'crypto';
-import { mkdtemp, rm, stat } from 'fs/promises';
+import { mkdir, mkdtemp, rm, stat } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { optional } from '../shared/swallow';
 import { QueueService } from '../shared/queue/queue.service';
 import { StorageProvider } from './storage.provider';
-import { optional } from '../shared/swallow';
+import { hlsContentType, ladderArgs, ladderFiles, readFps, readSize, rungsFor } from './hls-ladder';
 
 /**
  * A VIDEO THE WHOLE CITY CAN PLAY — Together City TV audit, 5 Sep.
@@ -35,10 +36,18 @@ import { optional } from '../shared/swallow';
  * start. The TV plays only 'ready' videos; the wall shows a processing
  * video by its poster.
  *
- * ONE AT A TIME. The queue's worker runs four jobs at once, and four
- * encodes on one container is one encode four times slower plus a disk
- * full of inputs. A local gate lets one encode through at a time in this
- * process; the others wait in line, not in Redis.
+ * ONE AT A TIME, AND NOT ON THE BOX SERVING THE CITY (1M-DAU pass, 6 Sep).
+ * `libx264 -preset veryfast` holds a full vCPU for as long as the video is
+ * long, and the owner allows an hour of it. This work belongs on the
+ * `media` lane (see shared/queue/queue.service.ts), whose worker runs one
+ * job at a time and runs only on a container with JOBS_ROLE=worker. The
+ * local gate below stays as a second belt for a container configured to run
+ * more than one.
+ *
+ * AND THE FALLBACK IS ROLE-AWARE. `enqueue` used to run the encode in this
+ * process whenever the queue said no. On a citizen-serving container that is
+ * the failure it was written to prevent, so it now leaves the row
+ * 'processing' and lets `media.sweep` pick it up when the queue is back.
  *
  * FFMPEG. `FFMPEG_PATH` if set; otherwise the binary `ffmpeg-static` ships;
  * otherwise `ffmpeg` on PATH. Without any of them the worker marks the
@@ -52,6 +61,10 @@ import { optional } from '../shared/swallow';
 export type MediaState = 'ready' | 'processing' | 'failed';
 
 const JOB = 'transcode-video';
+/** Re-queues videos left 'processing' — a lost job, a queue outage, a killed worker. */
+const JOB_SWEEP = 'media.sweep';
+/** How many stuck rows one sweep tick will re-queue. */
+const SWEEP_BATCH = 200;
 /** Longest an encode may run before it is killed and the video marked failed. */
 const ENCODE_TIMEOUT_MS = 60 * 60 * 1000;
 
@@ -112,19 +125,66 @@ export class TranscodeService implements OnModuleInit {
       const last = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
       await this.process(String(data.mediaId), last);
     });
+    this.jobs?.handle(JOB_SWEEP, async () => { await this.sweepStuck(); });
+    void this.jobs?.schedule(JOB_SWEEP, '*/15 * * * *');
   }
 
-  /** Queue a video for the worker; without a queue, run it here, off the request. */
+  /**
+   * WHAT THE QUEUE DROPPED. A video is 'processing' from the moment the post
+   * is written until the worker has finished with it, so a row still in that
+   * state half an hour later means the job never ran: Redis was down when the
+   * post landed, the worker was killed mid-encode, or the deploy that queued
+   * it and the deploy that would have run it were not the same deploy. Before
+   * the encode moved off the API container that was invisible, because the
+   * fallback ran it here. It is not invisible now, so it is swept.
+   *
+   * Re-adding by the same `jobId` is free when one is genuinely still queued.
+   */
+  private async sweepStuck(): Promise<void> {
+    // NO AGE FILTER, AND NO NEED FOR ONE. PostMedia carries no createdAt, and
+    // rather than add a column to the largest media table for a housekeeping
+    // job, the de-duplication does the work: `jobId` is `transcode:<id>`, so a
+    // video that is genuinely queued or genuinely being encoded right now has
+    // that id in Redis and the re-add is dropped. Only a row nobody is on gets
+    // a new job. Served by the partial index in
+    // 20260906T170000_a_worker_of_its_own — the whole table is not scanned.
+    // unbounded: capped at SWEEP_BATCH — a backlog drains over several ticks.
+    const rows = await this.prisma.postMedia.findMany({
+      where: { kind: 'video', state: 'processing' },
+      select: { id: true }, orderBy: { id: 'asc' }, take: SWEEP_BATCH,
+    });
+    if (!rows.length) return;
+    let requeued = 0;
+    for (const r of rows) if (await this.jobs?.add(JOB, { mediaId: r.id }, { jobId: `transcode:${r.id}`, attempts: 2 })) requeued++;
+    if (requeued) this.logger.log(`media sweep re-queued ${requeued} video(s) left processing`);
+  }
+
+  /**
+   * Queue a video for the worker.
+   *
+   * Without a queue, run it here — but ONLY on a container that runs jobs at
+   * all. On a citizen-serving container (JOBS_ROLE=api) an hour of ffmpeg is
+   * the thing this whole arrangement exists to keep off the box, so the row
+   * stays 'processing' and `media.sweep` re-queues it once Redis is back.
+   */
   async enqueue(mediaId: string): Promise<void> {
     const queued = await this.jobs?.add(JOB, { mediaId }, { jobId: `transcode:${mediaId}`, attempts: 2 });
-    if (!queued) void this.process(mediaId).catch((e: Error) => this.logger.warn(`transcode ${mediaId} failed in-process: ${e.message}`));
+    if (queued) return;
+    if (this.jobs && !this.jobs.consuming) {
+      this.logger.warn(`video ${mediaId} could not be queued and will not be encoded here (JOBS_ROLE=api) — left for the sweep`);
+      return;
+    }
+    void this.process(mediaId).catch((e: Error) => this.logger.warn(`transcode ${mediaId} failed in-process: ${e.message}`));
   }
 
   /** The job. Serialised through `line`; safe to call twice for one row. */
   process(mediaId: string, final = true): Promise<void> {
     const turn = this.line.then(() => this.processNow(mediaId, final));
-    // The line only needs to move on; the failure itself is thrown to the
-    // caller on `turn` and marked on the row. Silence here is the intent.
+    // The GATE's copy of the promise, not the caller's. Its only job is to keep
+    // the queue moving after a failed encode; the failure itself is returned to
+    // the caller on `turn` and handled there, so silence here is the whole
+    // point rather than a swallowed error. (`optional` over a bare catch, 6 Sep
+    // — see shared/swallow.ts for which of the three this is.)
     this.line = optional(turn).then(() => undefined);
     return turn;
   }
@@ -142,7 +202,8 @@ export class TranscodeService implements OnModuleInit {
     try {
       if (!(await this.storage.downloadPostObjectToFile(row.url, input))) throw new Error('object could not be read');
 
-      const probe = readProbe((await run(bin, ['-hide_banner', '-i', input], 60_000)).stderr);
+      const banner = (await run(bin, ['-hide_banner', '-i', input], 60_000)).stderr;
+      const probe = readProbe(banner);
       if (!probe.video) throw new Error('no video stream');
 
       let key = row.url;
@@ -172,9 +233,23 @@ export class TranscodeService implements OnModuleInit {
         }
       }
 
+      /* ── AND THE LADDER, WHICH IS ALLOWED TO FAIL ──────────────────────
+         Built from whichever file is now canonical — the re-encode if there
+         was one, the original if it was already playable — and never from the
+         source when a rendition exists, or a rung would be a second-generation
+         encode of a first-generation encode.
+
+         Its failure is not the video's failure. `url` above is a progressive
+         H.264 MP4 that plays everywhere; the ladder is what makes it play
+         WELL on a phone that cannot hold 4 Mbit/s. So this is caught here,
+         logged, and the row goes out with `hlsUrl` null — the player falls
+         back to the file it already had. */
+      const hlsUrl = await this.buildLadder(bin, key === row.url ? input : output, dir, owner, banner)
+        .catch((e: Error) => { this.logger.warn(`video ${mediaId} has no adaptive ladder: ${e.message}`); return null; });
+
       // The row points at the rendition BEFORE the original goes, so a
       // delete that fails leaves a leftover and never a hole.
-      await this.prisma.postMedia.update({ where: { id: mediaId }, data: { url: key, thumbUrl, state: 'ready' } });
+      await this.ladder.update({ where: { id: mediaId }, data: { url: key, thumbUrl, state: 'ready', hlsUrl } });
       if (key !== row.url) {
         await this.storage.deletePrivateObject(row.url)
           .catch((e: Error) => this.logger.warn(`original ${row.url} not deleted after transcode: ${e.message}`));
@@ -185,8 +260,57 @@ export class TranscodeService implements OnModuleInit {
       if (final) await this.mark(mediaId, 'failed');
       throw e;
     } finally {
-      await optional(rm(dir, { recursive: true, force: true })); // a scratch dir that would not go is not this job's failure
+      // Best-effort, and genuinely optional: the directory is under tmpdir(),
+      // the container is ephemeral, and a cleanup that failed must not turn a
+      // finished encode into an error.
+      await optional(rm(dir, { recursive: true, force: true }));
     }
+  }
+
+  /**
+   * THE COLUMN THIS CHECKOUT'S GENERATED CLIENT HAS NOT SEEN.
+   *
+   * `PostMedia.hlsUrl` is in schema.prisma and in
+   * 20260906T220000_a_ladder_a_phone_can_climb; the client in this working tree
+   * predates both, because `prisma generate` has to reach binaries.prisma.sh
+   * and this machine could not. Every deployment regenerates before it builds.
+   * DELETE THIS after any `npx prisma generate` and put `this.prisma.postMedia`
+   * back at its one call site.
+   */
+  private get ladder() {
+    return this.prisma.postMedia as unknown as {
+      update(a: { where: { id: string }; data: Record<string, unknown> }): Promise<unknown>;
+    };
+  }
+
+  /**
+   * Encode the adaptive ladder and put it in the bucket. Returns the master
+   * playlist's key, or null when there is nothing to build from.
+   *
+   * ONE FFMPEG PASS for every rung: the source is decoded once and `split`
+   * feeds each scaler, which on a long video is most of the saving. The rungs
+   * are chosen from the source height — never above it — so a phone video does
+   * not pay for a 720p rung of a 480p picture. See hls-ladder.ts.
+   *
+   * The whole ladder lands under one uuid prefix, so `ladderKeysOf` can name
+   * every file of it from the master key alone when the post is deleted.
+   */
+  private async buildLadder(bin: string, source: string, dir: string, owner: string, banner: string): Promise<string | null> {
+    const size = readSize(banner);
+    if (!size) return null;
+    const rungs = rungsFor(size.height);
+    const outDir = join(dir, 'hls');
+    await mkdir(outDir, { recursive: true });
+    const enc = await run(bin, ladderArgs(source, outDir, rungs, readFps(banner)), ENCODE_TIMEOUT_MS);
+    if (enc.code !== 0) throw new Error(`ffmpeg exited ${enc.code}: ${enc.stderr.slice(-300)}`);
+
+    const prefix = `social/${owner}/${randomUUID()}`;
+    for (const name of ladderFiles(rungs)) {
+      const ok = await this.storage.putPostObjectFromFile(`${prefix}/${name}`, join(outDir, name), hlsContentType(name));
+      if (!ok) throw new Error(`${name} could not be stored`);
+    }
+    this.logger.log(`ladder for ${prefix}: ${rungs.map((r) => `${r.height}p`).join(', ')}`);
+    return `${prefix}/master.m3u8`;
   }
 
   private async mark(mediaId: string, state: MediaState): Promise<void> {

@@ -23,21 +23,43 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
-/** Body Goal — the integrated program tying target composition → diet → workout → health. */
-export function BodyGoal() {
+/**
+ * ── THE BODY GOAL, ON THE WORKOUT PAGE (owner, 8 Sep) ───────────────────────
+ *
+ * "Merge body goals and workout and just create one page." Body Goal was room
+ * 02 of this hub: the integrated programme tying target composition → diet →
+ * workout → health. Every line of it is a fact the session below is built
+ * from, and reading them one door apart made the two look like two opinions.
+ * So the room is folded into this one as its first section: the goal, the
+ * day's diet targets, the training emphasis and what the programme improves
+ * in the citizen's health — then the session that acts on all of it.
+ *
+ * It fails small rather than failing the page: a programme that cannot be
+ * built (no profile yet) is one card saying so, and the timer below it still
+ * runs.
+ */
+export function BodyGoalPanel() {
   const q = useBodyProgram();
 
-  if (q.isLoading) return <Spinner label="Building your program…" />;
-  if (q.isError || !q.data) return <EmptyState title="Couldn't load your program" hint="Set your profile (with a body goal) first." />;
+  if (q.isLoading) return <section className="blk"><Spinner label="Building your programme…" /></section>;
+  if (q.isError || !q.data) {
+    return (
+      <section className="blk">
+        <div className="blk-head"><h2>Your body goal</h2></div>
+        <EmptyState title="Couldn't load your programme" hint="Set your Training Profile (with a body goal) first." />
+      </section>
+    );
+  }
   const p = q.data;
 
   return (
-    <div>
-      <div className="eyebrow">Fitness · Body Goal</div>
-      <h1 style={{ fontSize: 26 }}>{p.goalLabel}</h1>
-      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 14px' }}>
-        {p.tag}
-      </p>
+    <section className="blk">
+      <div className="blk-head"><h2>Your body goal</h2><span className="muted" style={{ fontSize: 12 }}>Diet + workout + health, integrated</span></div>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div className="eyebrow">Goal</div>
+        <div style={{ fontWeight: 800, fontSize: 20 }}>{p.goalLabel}</div>
+        <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 0' }}>{p.tag}</p>
+      </div>
 
       {/* "Numbers below use population defaults for now" is the sentence this
           replaces. It was true, and it sat above four figures printed under the
@@ -126,6 +148,6 @@ export function BodyGoal() {
       )}
 
       <p className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>{p.disclaimer}</p>
-    </div>
+    </section>
   );
 }

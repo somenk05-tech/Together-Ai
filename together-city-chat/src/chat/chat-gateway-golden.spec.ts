@@ -25,7 +25,8 @@ function build() {
   // is the live-account case; the refusals are in ws-account-check.spec.ts.
   const verify = async (t: string) => { if (t !== 'good') throw new Error('bad'); return { sub: 'u1', handle: 'asha' }; };
   (g as any).tokens = { verifyAccess: verify, verifyAccessAndAccount: verify, assertAccountLive: async () => undefined };
-  (g as any).presence = { markOnline: async () => true, markOffline: async () => true, heartbeat: async () => undefined };
+  // markOnline returns the socket COUNT as well since 6 Sep (the connection cap reads it).
+  (g as any).presence = { markOnline: async () => ({ transitioned: true, sockets: 1 }), markOffline: async () => true, heartbeat: async () => undefined };
   (g as any).messages = {
     pendingForUser: async () => [{ id: 'm-offline' }],
     // The two the connection handshake now depends on. A socket that cannot

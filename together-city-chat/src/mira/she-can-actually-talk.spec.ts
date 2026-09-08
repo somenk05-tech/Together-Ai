@@ -31,13 +31,13 @@ function bare(over: Partial<Record<string, any>> = {}) {
   svc.ledger = { record: () => undefined };
   svc.ai = { enabled: true, converse: async () => 'Lonely evenings are the worst kind of quiet. What happened today?' };
   svc.prisma = {
-    miraPass: {
+    miraPass: { 
       findUnique: async () => null,
       upsert: async (args: any) => { svc.__upserts = [...(svc.__upserts ?? []), args]; },
       // subscribe() writes inside the money's transaction: a create when there
       // is no pass yet, a conditional updateMany when there is. See mira.service.
       create: async (args: any) => { svc.__created = args; return args.data; },
-      updateMany: async (args: any) => { svc.__moved = args; return { count: 1 }; },
+      updateMany: async (args: any) => { svc.__moved = args; svc.__claims = [...(svc.__claims ?? []), args]; return { count: 1 }; },
     },
     user: { findUnique: async () => ({ name: 'Somen Kumar' }) },
   };
@@ -139,8 +139,14 @@ describe('the meter and the pass', () => {
   it('a model turn spends one of the two hundred, and says how many remain', async () => {
     const svc = bare();
     const t = await svc.ask('just feeling lonely', ctx());
-    expect(svc.__upserts).toHaveLength(1);
-    expect(svc.__upserts[0].update.chatUsed).toEqual({ increment: 1 });
+    /* THE METER IS CLAIMED, NOT INCREMENTED (6 Sep). `spendChat` used to
+       upsert with `{ increment: 1 }`, which is a read-then-act with a model
+       call in the gap — twenty parallel turns at freeLeft 1 all passed it. It
+       now carries the value it read into the WHERE and lets Postgres arbitrate,
+       so what proves one conversation was spent is one CLAIM, not one upsert. */
+    expect(svc.__claims).toHaveLength(1);
+    expect(svc.__claims[0].where.chatUsed).toBe(0);
+    expect(svc.__claims[0].data.chatUsed).toEqual({ increment: 1 });
     // The price and the free total ride with the meter now: the web app typed
     // ₹999 at three call sites with nothing checking any of them.
     expect(t.pass).toEqual({ freeLeft: FREE_CHATS - 1, inr: SUB_INR, freeTotal: FREE_CHATS });
@@ -149,7 +155,7 @@ describe('the meter and the pass', () => {
   it(`turn ${FREE_CHATS + 1} is the paywall, and the model is never called`, async () => {
     const svc = bare({
       ai: { enabled: true, converse: async () => { throw new Error('the meter must answer first'); } },
-      prisma: { miraPass: { findUnique: async () => ({ chatUsed: FREE_CHATS, paidUntil: null }) }, user: { findUnique: async () => null } },
+      prisma: { miraPass: {  findUnique: async () => ({ chatUsed: FREE_CHATS, paidUntil: null }) }, user: { findUnique: async () => null } },
     });
     const t = await svc.ask('just feeling lonely', ctx());
     expect(t.paywall).toBe(true);
@@ -171,7 +177,7 @@ describe('the meter and the pass', () => {
     const svc = bare({
       ai: { enabled: true, converse: async () => 'That is a lot to be carrying on your own. What did they say?' },
       prisma: {
-        miraPass: { findUnique: async () => ({ chatUsed: FREE_CHATS, paidUntil: null }), upsert: async () => undefined },
+        miraPass: { updateMany: async () => ({ count: 0 }),  findUnique: async () => ({ chatUsed: FREE_CHATS, paidUntil: null }), upsert: async () => undefined },
         user: { findUnique: async () => null },
       },
     });
@@ -185,7 +191,7 @@ describe('the meter and the pass', () => {
     const svc = bare({
       ai: { enabled: false, converse: async () => { throw new Error('must not be called'); } },
       prisma: {
-        miraPass: { findUnique: async () => ({ chatUsed: FREE_CHATS, paidUntil: null }), upsert: async () => undefined },
+        miraPass: { updateMany: async () => ({ count: 0 }),  findUnique: async () => ({ chatUsed: FREE_CHATS, paidUntil: null }), upsert: async () => undefined },
         user: { findUnique: async () => null },
       },
     });
@@ -197,7 +203,7 @@ describe('the meter and the pass', () => {
     const tomorrow = new Date(Date.now() + 86_400_000);
     const svc = bare({
       prisma: {
-        miraPass: { findUnique: async () => ({ chatUsed: 999, paidUntil: tomorrow }), upsert: async () => { throw new Error('a subscriber is not counted'); } },
+        miraPass: { updateMany: async () => ({ count: 0 }),  findUnique: async () => ({ chatUsed: 999, paidUntil: tomorrow }), upsert: async () => { throw new Error('a subscriber is not counted'); } },
         user: { findUnique: async () => ({ name: 'Somen' }) },
       },
     });
@@ -238,7 +244,7 @@ describe('the subscription', () => {
     const tenDaysOut = new Date(Date.now() + 10 * 86_400_000);
     const svc = bare({
       prisma: {
-        miraPass: {
+        miraPass: { 
           findUnique: async () => ({ chatUsed: 0, paidUntil: tenDaysOut }),
           create: async () => { throw new Error('a pass that exists is moved, not created'); },
           // The read date travels into the WHERE, so a second press that read
@@ -258,7 +264,7 @@ describe('the subscription', () => {
     const tenDaysOut = new Date(Date.now() + 10 * 86_400_000);
     const svc = bare({
       prisma: {
-        miraPass: {
+        miraPass: { 
           findUnique: async () => ({ chatUsed: 0, paidUntil: tenDaysOut }),
           updateMany: async () => ({ count: 0 }),
         },
@@ -448,7 +454,8 @@ describe('a reply that breaks her voice gets one more go', () => {
     expect(secondPrompt).toContain('Of course!');
     expect(t.text).toBe('Lonely evenings are the worst kind of quiet.');
     // One conversation, not two: the retry is her problem, not the citizen's.
-    expect(svc.__upserts).toHaveLength(1);
+    // Counted at the claim since 6 Sep — see the note in "a model turn spends one".
+    expect(svc.__claims).toHaveLength(1);
   });
 
   it('and stops at one — the deterministic line stands, unbilled', async () => {
@@ -486,7 +493,7 @@ describe('and the persona is built from the account, not the request', () => {
     const met = (firstSeenAt: Date) => bare({
       ai: { enabled: true, converse: async (s: string) => { system = s; return 'Yeah.'; } },
       prisma: {
-        miraPass: { findUnique: async () => ({ chatUsed: 0, paidUntil: null, firstSeenAt, greetings: [] }), upsert: async () => undefined },
+        miraPass: { updateMany: async () => ({ count: 0 }),  findUnique: async () => ({ chatUsed: 0, paidUntil: null, firstSeenAt, greetings: [] }), upsert: async () => undefined },
         user: { findUnique: async () => null },
       },
     });

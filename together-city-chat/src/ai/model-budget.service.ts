@@ -76,7 +76,35 @@ export class ModelBudgetService {
   constructor(private readonly redis: RedisService) {}
 
   static readonly DEFAULT_DAILY = 60;
-  static readonly DEFAULT_GLOBAL_DAILY = 20_000;
+  /**
+   * ── THE CITY'S DAY, AND WHY THIS NUMBER MOVED ──────────────────────────
+   *
+   * It was 20,000, and 20,000 is a private beta's number. At 100,000 daily
+   * citizens it is 0.2 model calls per citizen per day; a new citizen's
+   * first-run personalisation alone costs about seven, so onboarding a million
+   * accounts would have taken the better part of a year — and every day, at
+   * whatever hour the twenty-thousandth call landed, every citizen in the city
+   * got `Together City has used today's allowance of model calls.`
+   *
+   * 250,000 is sized for ~100,000 daily citizens at roughly 2.5 calls each,
+   * which is what the free tier actually costs once Mira, the food journal and
+   * Jobs are open (owner's decision, 6 Sep: everything stays open and the
+   * ceiling rises to meet it). IT IS NOT A NUMBER TO INHERIT. Set
+   * AI_DAILY_CALLS_GLOBAL from this deployment's own daily actives — the
+   * arithmetic is calls-per-citizen × citizens, and the notices below tell you
+   * which one you are living in.
+   *
+   * THE CAP IS STILL A CAP. It is the last thing between a runaway loop and an
+   * invoice, so it does not degrade into "warn and allow". What changed is that
+   * it no longer arrives without warning: NOTICE_AT fires at half, four fifths
+   * and nineteen twentieths of the day's allowance, once each, at error level —
+   * so it reaches Sentry and the /dev tally with hours to spare rather than
+   * announcing itself as an outage.
+   */
+  static readonly DEFAULT_GLOBAL_DAILY = 250_000;
+
+  /** Fractions of the day's allowance that say something, once each. */
+  static readonly NOTICE_AT = [0.5, 0.8, 0.95] as const;
 
   get dailyCap(): number {
     const n = Number(process.env.AI_DAILY_CALLS_PER_CITIZEN);
@@ -149,8 +177,23 @@ export class ModelBudgetService {
   async spendGlobal(kind: string): Promise<void> {
     const used = await this.count(ModelBudgetService.globalKeyFor());
     if (used == null) return;
-    if (used > this.globalDailyCap) {
-      this.logger.error(`model budget: the city's day is spent — refused a ${kind} call at ${used - 1}, cap ${this.globalDailyCap}`);
+    const cap = this.globalDailyCap;
+    /**
+     * SAY IT BEFORE IT IS AN OUTAGE. `used` is the value after this call's
+     * INCR, so the comparison is exact rather than approximate and each notice
+     * fires on precisely one call in the day — no state to keep, no risk of a
+     * second replica repeating it.
+     */
+    for (const f of ModelBudgetService.NOTICE_AT) {
+      if (used === Math.floor(cap * f)) {
+        this.logger.error(
+          `model budget: the city has used ${Math.round(f * 100)}% of today's ${cap} model calls (${used}). `
+          + 'Raise AI_DAILY_CALLS_GLOBAL now, or the rest of the day is refused for everybody.',
+        );
+      }
+    }
+    if (used > cap) {
+      this.logger.error(`model budget: the city's day is spent — refused a ${kind} call at ${used - 1}, cap ${cap}`);
       throw new HttpException(
         'Together City has used today\'s allowance of model calls. It resets at midnight UTC.',
         HttpStatus.TOO_MANY_REQUESTS,

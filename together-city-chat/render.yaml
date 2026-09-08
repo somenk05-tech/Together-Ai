@@ -106,6 +106,17 @@ services:
         sync: false
       - key: CSAM_MATCH_PASSWORD
         sync: false
+      # ── BOT CHECK ───────────────────────────────────────────────────────
+      # Fatal in production since 6 Sep. Unset, TurnstileService.assert
+      # returned at its first line and sign-up was defended by a per-IP
+      # throttle alone; assertProductionConfig() refuses to boot rather than
+      # let that be a default. HOSTNAMES is togethercity.app and never
+      # localhost — a sitekey is public and valid on every domain its widget
+      # lists. See .env.example for the whole argument.
+      - key: TURNSTILE_SECRET
+        sync: false
+      - key: TURNSTILE_HOSTNAMES
+        value: togethercity.app
       # ── OBJECT STORAGE ──────────────────────────────────────────────────
       # MEDIA_PRIVATE_BUCKET is not optional in production. StorageProvider
       # falls back to MEDIA_BUCKET when it is empty, which would put blood

@@ -1,4 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { WeatherService } from './weather.service';
 import { Public } from '../shared/public.decorator';
 
@@ -12,6 +13,15 @@ import { Public } from '../shared/public.decorator';
 export class CityController {
   constructor(private readonly weather: WeatherService) {}
 
+  /**
+   * TIGHTER THAN THE GLOBAL 120/MIN, because this one is @Public and reaches
+   * two keyless third-party APIs on coordinates the caller chooses. Being
+   * public, AccountThrottlerGuard keys it on the IP — which is the right unit
+   * here: the header is read once or twice per page load by a browser that has
+   * a location, and thirty a minute is far more than any honest client asks
+   * for. (1M-DAU pass, 6 Sep.)
+   */
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Public()
   @Get('header')
   header(@Query('lat') lat?: string, @Query('lng') lng?: string, @Query('city') city?: string) {

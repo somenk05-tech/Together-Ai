@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
+import { useDialogFocus } from '@/hooks/useDialogFocus';
 import { Button, Spinner } from '@/components/ui';
 import { uploadErrorMessage } from '@/api/media.api';
 import { useDrive, useUploadFile, fmtBytes, fileIcon, type DriveFile } from '@/features/drive/api';
@@ -28,6 +29,26 @@ export function DrivePicker({ onClose, onPick, alreadyPicked }: {
   const [busyMsg, setBusyMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  /**
+   * IT LOOKED LIKE A DIALOG AND WAS NOT ONE.
+   *
+   * A fixed overlay with a backdrop click, and nothing else: no role, so a
+   * screen reader announced a div that had appeared; no name, so there was
+   * nothing to announce it AS; no Escape, which is the key everybody presses
+   * first; and no focus management, so opening it left focus on the Attach
+   * button behind the scrim and Tab walked straight out the back into the
+   * message underneath — a keyboard could open this picker and could not get
+   * out of it or use it.
+   *
+   * `Modal` has had all four since audit 9.1 and this is the same kind of
+   * thing, so the behaviour is shared rather than copied. The LOOK is not:
+   * this is a full-bleed panel with a sticky header and an inner scroll, which
+   * is not the shape Modal's padded, whole-dialog-scrolls body is for — a file
+   * list whose header scrolls away is a worse picker.
+   */
+  const panel = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const { onKeyDown } = useDialogFocus(true, onClose, panel);
   const upload = useUploadFile();
   const listing = useDrive(folderId);
   const data = listing.data;
@@ -67,10 +88,12 @@ export function DrivePicker({ onClose, onPick, alreadyPicked }: {
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,16,.55)', display: 'grid', placeItems: 'center', padding: 18, zIndex: 80 }}>
-      <div onClick={(e) => e.stopPropagation()} className="card"
-        style={{ width: 'min(560px, 96vw)', maxHeight: '82vh', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
+      <div ref={panel} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
+        onKeyDown={onKeyDown}
+        onClick={(e) => e.stopPropagation()} className="card"
+        style={{ width: 'min(560px, 96vw)', maxHeight: '82vh', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden', outline: 'none' }}>
         <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <strong style={{ fontSize: 15 }}>📎 Attach from Drive</strong>
+          <strong id={titleId} style={{ fontSize: 15 }}>📎 Attach from Drive</strong>
           <button type="button" onClick={onClose} aria-label="Close" style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--muted)' }}>×</button>
         </div>
 

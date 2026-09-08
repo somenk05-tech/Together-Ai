@@ -114,7 +114,6 @@ const BeautyMarket = lazy(() => import('@/features/beauty/pages/Market').then((m
 const BeautyOrders = lazy(() => import('@/features/beauty/pages/Orders').then((m) => ({ default: m.Orders })));
 const FitnessProfile = lazy(() => import('@/features/fitness/pages/Profile').then((m) => ({ default: m.Profile })));
 const FitnessPlan = lazy(() => import('@/features/fitness/pages/Plan').then((m) => ({ default: m.Plan })));
-const FitnessBodyGoal = lazy(() => import('@/features/fitness/pages/BodyGoal').then((m) => ({ default: m.BodyGoal })));
 const FitnessLog = lazy(() => import('@/features/fitness/pages/Log').then((m) => ({ default: m.Log })));
 const FinWallet = lazy(() => import('@/features/financial/pages/Wallet').then((m) => ({ default: m.Wallet })));
 const FinSpending = lazy(() => import('@/features/financial/pages/Spending').then((m) => ({ default: m.Spending })));
@@ -545,7 +544,6 @@ const ROUTE_BLOCKS: RouteObject[] = [
     element: <HubLayout hub={HUBS.fitness} />,
     children: [
       { path: '/fitness/profile', element: <RequireAuth>{wrap(<FitnessProfile />)}</RequireAuth> },
-      { path: '/fitness/body-goal', element: <RequireAuth>{wrap(<FitnessBodyGoal />)}</RequireAuth> },
       { path: '/fitness/plan', element: <RequireAuth>{wrap(<FitnessPlan />)}</RequireAuth> },
       { path: '/fitness/log', element: <RequireAuth>{wrap(<FitnessLog />)}</RequireAuth> },
       { path: '/fitness/workout', element: <RequireAuth>{wrap(<FitWorkout />)}</RequireAuth> },

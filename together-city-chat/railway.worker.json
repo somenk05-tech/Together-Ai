@@ -1,0 +1,13 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "//": "THE WORKER SERVICE. Same image as the API, different job. Point a SECOND Railway service at this repo with Config-as-code path together-city-chat/railway.worker.json, then set JOBS_ROLE=worker and MIGRATE_ON_BOOT=off on it. See docs/WORKER-SERVICE.md.",
+  "build": { "builder": "DOCKERFILE", "dockerfilePath": "Dockerfile" },
+  "deploy": {
+    "//": "No preDeployCommand. Migrations belong to exactly one service — the API's railway.json runs them, and two services racing `migrate deploy` is a lock fight at the worst moment of a deploy.",
+    "healthcheckPath": "/api/health",
+    "healthcheckTimeout": 120,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 5,
+    "numReplicas": 1
+  }
+}

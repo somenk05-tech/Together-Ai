@@ -1,8 +1,9 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { HttpException, Injectable, Logger, Optional } from '@nestjs/common';
 import { ModelBudgetService } from './model-budget.service';
 import { salutation } from '../shared/salutation';
 import { acceptOrFallback, cityVoice, violations } from '../shared/voice';
 import Anthropic from '@anthropic-ai/sdk';
+import { downscaleAllForVision } from './vision-downscale';
 
 /**
  * Thin wrapper over the Anthropic API used by the AI features (recipe, dating,
@@ -66,6 +67,60 @@ export function readMarks(raw: unknown, findings: string[]): PhotoMark[] {
   return out;
 }
 
+/**
+ * ── THE SAME FORTY THOUSAND CHARACTERS, RE-SENT EVERY TURN ──────────────────
+ *
+ * `converse` is the highest-volume model call in the city, and every turn of it
+ * re-sent the WHOLE thing at full price: Mira's persona, built from a
+ * twenty-one kilobyte source file, plus a thirty-message recall window at up to
+ * fifteen hundred characters each. About thirteen thousand input tokens, of
+ * which roughly twelve thousand nine hundred were byte-identical to the turn
+ * before. `cache_control` appeared nowhere in the server.
+ *
+ * With two hundred free conversations per citizen for life, that is ~2.6M input
+ * tokens of free allowance per account. Prompt caching is a ~90% cut on the
+ * repeated part and it costs two marks in the request. (1M-DAU pass, 6 Sep.)
+ *
+ * TWO MARKS, NOT ONE, because the prompt has two stable halves:
+ *
+ *   · the SYSTEM block — identical for every turn of a conversation, and
+ *     nearly identical across conversations;
+ *   · the TRANSCRIPT PREFIX — every turn except the newest, which is exactly
+ *     the part that was identical last time. Marking the second-to-last
+ *     message caches everything up to and including it.
+ *
+ * The threshold exists because a cache write costs more than an ordinary read
+ * and the minimum cacheable prefix is a thousand-odd tokens: below that a mark
+ * is a small loss rather than a small win. Eight thousand characters is
+ * comfortably above the minimum for every model this file uses.
+ *
+ * Nothing about correctness changes if the cache misses. A miss is an ordinary
+ * request at an ordinary price, which is what every request was before this.
+ */
+const CACHEABLE_CHARS = 8_000;
+
+/** Worth a cache mark: long enough that the write pays for itself. */
+export function cacheable(system: string): boolean {
+  return system.length >= CACHEABLE_CHARS;
+}
+
+/**
+ * Mark the transcript prefix — everything up to and including the
+ * second-to-last turn, which is the part that was already sent last time.
+ * Fewer than four turns is a conversation with no prefix worth keeping.
+ */
+export function withCachedPrefix(
+  turns: Array<{ role: 'user' | 'assistant'; content: string }>,
+): Anthropic.MessageParam[] {
+  if (turns.length < 4) return turns;
+  const at = turns.length - 2;
+  const total = turns.slice(0, at + 1).reduce((n, t) => n + t.content.length, 0);
+  if (total < CACHEABLE_CHARS) return turns;
+  return turns.map((t, i) => (i === at
+    ? { role: t.role, content: [{ type: 'text' as const, text: t.content, cache_control: { type: 'ephemeral' as const } }] }
+    : t));
+}
+
 @Injectable()
 export class AiService {
   private readonly logger = new Logger('AiService');
@@ -77,6 +132,24 @@ export class AiService {
   private readonly model = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5';
   private readonly bloodModel = process.env.ANTHROPIC_BLOOD_MODEL || 'claude-opus-5';
   private readonly visionModel = process.env.ANTHROPIC_VISION_MODEL || 'claude-opus-5';
+  /**
+   * ── A SKIN READ IS NOT A LAB REPORT ───────────────────────────────────────
+   *
+   * `visionModel` is Opus because a blood panel and a handwritten menu are jobs
+   * where a misread costs somebody something real — the comments at those two
+   * call sites make the case and it is a good one. The beauty review is a
+   * different job wearing the same clothes: its entire output is a
+   * thirteen-value enum of visible attributes, a short note and up to four
+   * bounding boxes. It went to Opus because it was written next to the others,
+   * not because anybody argued it needed to.
+   *
+   * On the free tier at a million daily citizens that is the single largest
+   * vision line in the city. Sonnet reads a face for texture and pigmentation
+   * as well as Opus does, at roughly a fifth of the price.
+   * ANTHROPIC_SKIN_MODEL moves it back for anyone who disagrees, with one
+   * variable rather than a deploy. (1M-DAU pass, 6 Sep.)
+   */
+  private readonly skinModel = process.env.ANTHROPIC_SKIN_MODEL || 'claude-sonnet-5';
   readonly enabled: boolean;
 
   /** The model id used for blood-report interpretation (recorded on stored analyses). */
@@ -150,7 +223,11 @@ export class AiService {
        * here, which is what every caller of this method already handles.
        */
       const res = await this.client.messages.create(
-        { model: this.model, max_tokens: maxTokens, system, messages: turns },
+        {
+          model: this.model, max_tokens: maxTokens,
+          system: cacheable(system) ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }] : system,
+          messages: withCachedPrefix(turns),
+        },
         { timeout: AiService.CHAT_TIMEOUT_MS, maxRetries: 1 },
       );
       /**
@@ -244,14 +321,34 @@ export class AiService {
    */
   private async createWithFallback(params: Omit<Anthropic.MessageCreateParamsNonStreaming, 'model'> & { model: string }): Promise<Anthropic.Message> {
     if (!this.client) throw new Error('AI disabled');
-    await this.meter(params.model === this.visionModel ? 'vision' : 'extract');
     // Try the preferred model, then walk a chain of known-good current models.
     // Extraction/interpretation calls are read-only and idempotent, so retrying on
     // ANY failure (retired model id, 404, overloaded, transient 5xx) is safe and
     // maximises the chance the user's report is read on the first upload.
     const chain = [...new Set([params.model, this.bloodModel, 'claude-sonnet-5', this.model])];
+    const kind = params.model === this.visionModel || params.model === this.skinModel ? 'vision' : 'extract';
     let lastErr: unknown = null;
     for (const model of chain) {
+      /**
+       * ── THE METER MOVES ONCE PER PROVIDER CALL, NOT ONCE PER WALK ────────
+       *
+       * It used to be charged above the loop, so one budget unit bought up to
+       * FOUR `messages.create` calls — and with `maxRetries: 1` on the client,
+       * up to eight HTTP attempts. The city's daily allowance therefore
+       * permitted four times the provider calls it was written to permit, and
+       * the under-count was worst exactly when it mattered most: on a
+       * systematic failure (a retired model id, an Anthropic incident, a run
+       * of 529s) every call walked the whole chain and ENDED on the most
+       * expensive model in it, four times over, while the counter said one.
+       *
+       * `converse()` was fixed for this on its own terms and its docblock says
+       * why — "a Haiku turn that fails silently escalating to Opus 5 is a bill
+       * nobody chose". The same sentence was always true here. (6 Sep.)
+       *
+       * Still outside the try, so a 429 from the budget propagates rather than
+       * being read as this model failing and walking to the next one.
+       */
+      await this.meter(kind);
       try {
         return await this.client.messages.create({ ...params, model });
       } catch (e) {
@@ -667,9 +764,15 @@ export class AiService {
     try {
       const content: Anthropic.ContentBlockParam[] = [];
       if (input.image) {
+        // Downscaled for the same reason the skin review is: a plate at a
+        // thousand pixels across is the same plate, at a sixteenth of the
+        // token count, and this is the highest-frequency free vision call in
+        // the city — no counter above it beyond the daily ceiling, and one per
+        // photographed meal. (1M-DAU pass, 6 Sep.)
+        const [img] = await downscaleAllForVision([input.image]);
         content.push({
           type: 'image',
-          source: { type: 'base64', media_type: (input.image.mediaType || 'image/jpeg') as 'image/jpeg', data: input.image.base64 },
+          source: { type: 'base64', media_type: (img.mediaType || 'image/jpeg') as 'image/jpeg', data: img.base64 },
         } as unknown as Anthropic.ContentBlockParam);
       }
       content.push({
@@ -814,12 +917,26 @@ export class AiService {
       'face: only when quality="ok" and a face is clearly visible — keys ' + Object.keys(FACE_ENUMS).join(', ') + ', each value strictly one of its allowed set: ' +
       Object.entries(FACE_ENUMS).map(([k, v]) => `${k}: ${v.join('|')}`).join('; ') + '. Omit any key you cannot judge; face=null if no clear face.';
     try {
-      const blocks = images.slice(0, 6).map((im) => ({
+      /**
+       * ── THREE PHOTOGRAPHS, EACH ABOUT A THOUSAND PIXELS ACROSS ──────────
+       *
+       * It was six, at whatever size the phone produced and the controller
+       * allowed (four million base64 characters each), on the Opus tier. An
+       * image is billed at roughly (w × h) / 750 tokens, so a stock phone photo
+       * is ~16,000 tokens by itself and six of them is a six-figure token count
+       * for one FREE analysis.
+       *
+       * Three is what the review actually reads — the routine asks for a face,
+       * a scalp and one concern area — and a thousand pixels across is more
+       * than a texture-and-pigmentation judgement needs. The downscale is
+       * best-effort: a photo sharp could not touch goes through as it was.
+       */
+      const blocks = (await downscaleAllForVision(images.slice(0, 3))).map((im) => ({
         type: 'image',
         source: { type: 'base64', media_type: (im.mediaType || 'image/jpeg') as 'image/jpeg', data: im.base64 },
       } as unknown as Anthropic.ContentBlockParam));
       const res = await this.createWithFallback({
-        model: this.visionModel,
+        model: this.skinModel,
         max_tokens: 768,
         system: `${system}\n\nRespond with ONLY valid JSON — no prose, no markdown fences.`,
         messages: [{ role: 'user', content: [...blocks, { type: 'text', text: 'Review these photos and return the JSON.' }] }],
@@ -847,8 +964,23 @@ export class AiService {
       const marks = quality === 'ok' ? readMarks((parsed as { marks?: unknown } | null)?.marks, findings) : [];
       return { quality, findings, note, face, marks };
     } catch (e) {
+      /**
+       * A FAILED READ IS NOT AN ACCEPTED ANALYSIS. (Launch audit, 6 Sep.)
+       *
+       * This returned `quality: 'ok'`, which downstream reads as "a model
+       * looked and found nothing" — so BeautyService.analyzePhotos treated it
+       * as accepted, spent the citizen's one free analysis of the month and
+       * charged ₹100 for a call that never reached a model. `'unclear'` is the
+       * quality that path already treats as rejected: nothing recorded,
+       * nothing charged, and the citizen is asked for a clearer photo.
+       *
+       * The city ceiling's 429 is RETHROWN rather than swallowed, per
+       * ModelBudgetService's own rule that a budget refusal the caller turns
+       * into a fallback is a budget that does not exist.
+       */
+      if (e instanceof HttpException) throw e;
       this.logger.warn(`Skin photo review failed: ${(e as Error).message}`);
-      return { quality: 'ok', findings: [], note: '', face: null, marks: [] };
+      return { quality: 'unclear', findings: [], note: '', face: null, marks: [] };
     }
   }
 

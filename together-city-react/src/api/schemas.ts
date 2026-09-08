@@ -23,7 +23,12 @@ export type User = z.infer<typeof UserSchema>;
 
 export const TokenPairSchema = z.object({
   accessToken: z.string(),
-  refreshToken: z.string(),
+  /* OPTIONAL, because /auth/refresh deliberately withholds it on the cookie
+     path: "a caller that authenticated with the ambient cookie is one whose JS
+     did not need to know the token". Required here, that answer failed to
+     parse — which is how a security feature the server had shipped stayed
+     unusable by the client. */
+  refreshToken: z.string().optional(),
 });
 export type TokenPair = z.infer<typeof TokenPairSchema>;
 

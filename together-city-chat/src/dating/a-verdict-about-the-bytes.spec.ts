@@ -41,6 +41,7 @@ function build(row: Row) {
   const s = new PhotoModerationService(
     prisma as never, { healthObjectETag: async () => null } as never,
     { get: () => undefined } as never, { track: () => undefined } as never,
+    { check: async () => 'clear' } as never,
   );
   return { s, updates };
 }

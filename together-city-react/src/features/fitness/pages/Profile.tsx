@@ -293,7 +293,7 @@ export function Profile() {
             place: place || undefined, sessionMinutes: sessionMinutes === '' ? undefined : sessionMinutes }, { onSuccess: () => { setCollapsed(true); successToast('Profile saved.'); } }); }}>
           {save.isPending ? 'Saving…' : 'Save & build my plan'}
         </Button>
-        {save.isSuccess && <span style={{ fontSize: 13, color: 'var(--accent-ink)', fontWeight: 700 }}>✓ Saved — see My Plan & Body Goal</span>}
+        {save.isSuccess && <span style={{ fontSize: 13, color: 'var(--accent-ink)', fontWeight: 700 }}>✓ Saved — see your Workout</span>}
       </div>
       {save.isError && (
         <p role="alert" style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600, margin: '10px 0 0' }}>

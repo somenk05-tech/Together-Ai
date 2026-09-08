@@ -43,7 +43,7 @@ function build(rows: any[] = [], over: { region?: string; key?: string; secret?:
       'photoModeration.secretAccessKey': over.secret ?? '',
     } as Record<string, unknown>)[k],
   };
-  const svc = new PhotoModerationService(prisma as never, {} as never, config as never, { track: () => undefined } as never);
+  const svc = new PhotoModerationService(prisma as never, {} as never, config as never, { track: () => undefined } as never, { check: async () => 'clear' } as never);
   (svc as any).logger = { warn: () => undefined, log: () => undefined };
   (svc as any).review = async (key: string) => { reviewed.push(key); return 'approved'; };
   return { svc, prisma, found, reviewed };

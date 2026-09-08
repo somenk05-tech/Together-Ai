@@ -33,7 +33,14 @@ const draw = (items: Post[], startAt = 0) => renderToStaticMarkup(
 describe('the screen', () => {
   it('draws a video, autoplaying, with its poster and caption', () => {
     const html = draw([post('2', [{ id: 'm2', url: 'https://x/b.mp4', kind: 'video', thumbUrl: 'https://x/b.jpg' }], 'the sea')]);
-    expect(html).toMatch(/<video[^>]*class="tv-media"[^>]*src="https:\/\/x\/b\.mp4"/);
+    /* NO `src` IN THE MARKUP, AND THAT IS THE CHANGE (6 Sep). The source is
+       attached in an effect now, because a video may have an adaptive LADDER
+       behind it and `<video src>` cannot hand an element to hls.js. This is a
+       static render — `renderToStaticMarkup` runs no effects — so what it can
+       prove is that the SCREEN is drawn, and the attachment is asserted at the
+       source below, in the same idiom as the other guards in this folder. */
+    expect(html).toMatch(/<video[^>]*class="tv-media"/);
+    expect(html).not.toMatch(/<video[^>]*class="tv-media"[^>]*src=/);
     expect(html).toMatch(/<video[^>]*autoplay/i);
     expect(html).toContain('poster="https://x/b.jpg"');
     expect(html).toContain('the sea');
@@ -81,8 +88,26 @@ describe('the screen', () => {
       post('2', [{ id: 'm2', url: 'https://x/b.jpg', kind: 'image', thumbUrl: null }, { id: 'm3', url: 'https://x/c.mp4', kind: 'video', thumbUrl: null }]),
     ];
     const html = draw(items, 1);
-    expect(html).toContain('src="https://x/c.mp4"');
+    // The video is the one drawn — its poster is the video row's, not the
+    // photograph's — and no image is ever painted on the screen.
+    expect(html).toMatch(/<video[^>]*class="tv-media"/);
     expect(html).not.toContain('<img class="tv-media"');
+  });
+
+  /**
+   * ── AND THE SOURCE IS HANDED OVER, LADDER FIRST ─────────────────────────
+   *
+   * The one thing a static render cannot show, asserted where it lives. A post
+   * has two addresses now — `url`, a progressive MP4 that every browser plays,
+   * and `hlsUrl`, an adaptive ladder — and City TV must pass BOTH to
+   * `attachVideo`, which is the only place that decides between native HLS,
+   * hls.js and the fallback. Passing only `url` would silently un-do the ladder
+   * on the one surface that needed it.
+   */
+  it('hands the video to attachVideo with its ladder as well as its file', () => {
+    const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'features/social/CityTV.tsx'), 'utf8');
+    expect(src).toMatch(/attachVideo\(el, \{ url: currentUrl, hlsUrl: currentHls \}\)/);
+    expect(src).toMatch(/const currentHls = current\?\.hlsUrl \?\? null;/);
   });
 });
 

@@ -455,6 +455,9 @@ export function deriveOne(row) {
     // characters. Disambiguating upstream keeps every one of them; letting
     // idFor() decide would silently drop a quarter of the shelf.
     id: row.id ?? idFor(row.name), name: row.name, brand: row.brand, category, group, site,
+    // WHO IT IS SOLD TO (6 Sep). The sheet's own Women | Men | Unisex column,
+    // carried only where it narrows — absence means anyone, like `site`.
+    audience: row.gender === 'Women' ? 'women' : row.gender === 'Men' ? 'men' : undefined,
     priceInr: row.priceInr, tier: row.tier,
     tags, profileKeys,
     suitableSkin: suitableSkinFor(group, row.skinHair),
@@ -482,7 +485,7 @@ const arr = (xs) => `[${xs.map(q).join(', ')}]`;
 function emit(p) {
   // `site` is emitted only where it differs from the group's default. See
   // src/beauty/product-site.ts — absence means the default, not "unknown".
-  return `  { id: ${q(p.id)}, name: ${q(p.name)}, brand: ${q(p.brand)}, category: ${q(p.category)}, group: ${q(p.group)},${p.site ? ` site: ${q(p.site)},` : ''}\n`
+  return `  { id: ${q(p.id)}, name: ${q(p.name)}, brand: ${q(p.brand)}, category: ${q(p.category)}, group: ${q(p.group)},${p.site ? ` site: ${q(p.site)},` : ''}${p.audience ? ` audience: ${q(p.audience)},` : ''}\n`
     + `    priceInr: ${p.priceInr}, tier: ${q(p.tier)}, usage: ${q(p.usage)},\n`
     + `    tags: ${arr(p.tags)}, profileKeys: ${arr(p.profileKeys)}, suitableSkin: ${arr(p.suitableSkin)},\n`
     + `    actives: ${arr(p.actives)}, keyIngredient: ${q(p.keyIngredient)},\n`

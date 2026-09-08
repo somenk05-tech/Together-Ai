@@ -23,9 +23,44 @@ export function isTokenExpired(token?: string | null): boolean {
   }
 }
 
+/**
+ * ── WHERE THE SIXTY-DAY TOKEN LIVES ─────────────────────────────────────────
+ *
+ * In localStorage, until 6 September, for every browser — readable by any
+ * script on the origin. The server had always set an HttpOnly `tc_refresh`
+ * cookie and gone to real trouble over it (POST /auth/refresh withholds the
+ * token from the body when the cookie authenticated the call, precisely so a
+ * cross-site page riding it cannot read the token out); the client simply never
+ * sent the cookie, because `withCredentials` was off.
+ *
+ * It is on now, and this store decides per browser which of the two it is on:
+ *
+ *   `cookieSession: true`   the cookie works. The refresh token is NEVER
+ *                           persisted and is not even held in memory — the
+ *                           server has it, and `refresh()` sends nothing.
+ *   `cookieSession: false`  the cookie was blocked (Safari's ITP refuses a
+ *                           cross-site one). The body fallback is used and
+ *                           persisted, exactly as before. Nobody is locked out
+ *                           for a browser policy.
+ *
+ * It is PROVEN, not assumed: right after a login the store makes one
+ * cookie-only refresh, and only a success flips the flag. So the token is in
+ * localStorage for the width of one request on a cookie-capable browser, and
+ * for the session on one that is not.
+ *
+ * The ACCESS token is still persisted either way. It lives fifteen minutes, and
+ * dropping it would cost a refresh round trip on every reload before the app
+ * could render as signed in.
+ *
+ * The fallback goes away entirely when the API is same-site — api.togethercity.app
+ * rather than a railway.app host — at which point the cookie is first-party and
+ * every browser keeps it. That is a DNS change, not a code one.
+ */
 interface AuthState {
   user: User | null;
   tokens: AuthTokens | null;
+  /** True once a cookie-only refresh has succeeded on this browser. */
+  cookieSession: boolean;
   ready: boolean;
   isAuthenticated: () => boolean;
   login: (handle: string, password: string) => Promise<void>;
@@ -37,12 +72,36 @@ interface AuthState {
 
 let refreshInFlight: Promise<string | null> | null = null;
 
+/**
+ * One cookie-only refresh, right after a login, to find out whether this
+ * browser will hold the HttpOnly cookie.
+ *
+ * On success the refresh token is dropped from state — and therefore from
+ * localStorage, which is the whole point — and the rotated access token is
+ * adopted. On failure nothing changes and the body fallback stays in force, so
+ * a browser that refuses the cookie is exactly as signed in as it was.
+ *
+ * Awaited rather than fired and forgotten: it must settle before the first
+ * persist, or a cookie-capable browser writes the token to disk for as long as
+ * it takes to come back.
+ */
+async function proveCookie(set: (s: Partial<AuthState>) => void): Promise<void> {
+  try {
+    const tokens = await authApi.refresh();
+    set({ tokens: { accessToken: tokens.accessToken }, cookieSession: true });
+  } catch {
+    // The cookie was blocked, or the server said no. Either way the tokens
+    // already in state are the ones that work; leave them alone.
+  }
+}
+
 /** Typed auth store over the NestJS handle+password endpoints. */
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
       tokens: null,
+      cookieSession: false,
       ready: false,
       isAuthenticated: () => Boolean(get().tokens?.accessToken && get().user),
 
@@ -54,6 +113,7 @@ export const useAuthStore = create<AuthState>()(
         const { accessToken, refreshToken } = await authApi.login({ handle, password, turnstileToken: await getTurnstileToken('login') });
         set({ tokens: { accessToken, refreshToken } });
         set({ user: await authApi.me() });
+        await proveCookie(set);
       },
 
       register: async (handle, name, password, contact) => {
@@ -62,6 +122,7 @@ export const useAuthStore = create<AuthState>()(
         const { accessToken, refreshToken } = await authApi.register({ handle, name, password, email: contact.email, phone: contact.phone || undefined, dateOfBirth: contact.dateOfBirth, gender: contact.gender, genderOther: contact.genderOther || undefined, orientation: contact.orientation, orientationOther: contact.orientationOther || undefined, turnstileToken: await getTurnstileToken('register') });
         set({ tokens: { accessToken, refreshToken } });
         set({ user: await authApi.me() });
+        await proveCookie(set);
       },
 
 
@@ -71,9 +132,23 @@ export const useAuthStore = create<AuthState>()(
         // two concurrent rotations meant the loser was told "invalid" and the
         // citizen was signed out of a live session mid-use.
         refreshInFlight ??= (async (): Promise<string | null> => {
-          // Persistent login runs on the refresh token in localStorage (no cookie).
-          // Without one there's nothing to refresh, so clear cleanly to the login
-          // screen instead of firing a doomed request.
+          /* THE COOKIE FIRST, ALWAYS. It costs one request that fails fast when
+             there is no cookie, and it is what keeps the refresh token out of
+             localStorage on every browser that will hold one. A definitive
+             "no" here is not the end of the session — it is the signal to try
+             the body fallback below. An OUTAGE is neither, and returns null
+             without touching the stored session, for the reason spelled out in
+             the catch further down. */
+          try {
+            const tokens = await authApi.refresh();
+            set({ tokens: { accessToken: tokens.accessToken }, cookieSession: true });
+            return tokens.accessToken;
+          } catch (e) {
+            const status = (e as { response?: { status?: number } } | null)?.response?.status;
+            if (status !== 400 && status !== 401 && status !== 403) return null;
+          }
+          // No cookie the server would take. Fall back to the token this
+          // browser had to keep because its cookie policy left us no choice.
           const rt = get().tokens?.refreshToken;
           if (!rt) {
             set({ user: null, tokens: null });
@@ -81,7 +156,7 @@ export const useAuthStore = create<AuthState>()(
           }
           try {
             const tokens = await authApi.refresh(rt);
-            set({ tokens });
+            set({ tokens: { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken }, cookieSession: false });
             return tokens.accessToken;
           } catch (e) {
             // Only a definitive server "no" ends the session. A timeout, a cold
@@ -115,7 +190,7 @@ export const useAuthStore = create<AuthState>()(
         // the right behaviour there. sessionStorage, not localStorage: the
         // marker is for this browser tab's next login, not for posterity.
         try { sessionStorage.setItem('tc:signed-out', '1'); } catch { /* private mode */ }
-        set({ user: null, tokens: null });
+        set({ user: null, tokens: null, cookieSession: false });
         // Drop the query cache + every per-user persisted store so the next user
         // on this browser starts clean (no inherited data). In-memory-only stores
         // are wiped by the reload the login screen triggers.
@@ -124,11 +199,17 @@ export const useAuthStore = create<AuthState>()(
 
       hydrate: async () => {
         const t = get().tokens;
-        // No stored session at all → straight to the login screen. (Persistent
-        // login is restored from the refresh token in localStorage below, when
-        // one exists but the access token has expired.)
+        /* No stored access token. On a cookie session that is the NORMAL state
+           after a long absence — the fifteen-minute token expired and was
+           dropped, and the cookie is what restores the session — so this tries
+           a refresh before deciding nobody is signed in. On a browser with no
+           cookie and no stored refresh token it is one request that 401s, and
+           the login screen. */
         if (!t?.accessToken) {
+          const fresh = await get().refresh();
           set({ ready: true });
+          if (!fresh) return;
+          authApi.me().then((user) => set({ user })).catch(() => undefined);
           return;
         }
         // Stored access token already expired: refresh ONCE before rendering as
@@ -147,7 +228,20 @@ export const useAuthStore = create<AuthState>()(
     }),
     // Persist the user too, so a reload shows the app instantly instead of
     // waiting on /users/me (which is slow right after a deploy).
-    { name: 'tc:auth', partialize: (s) => ({ tokens: s.tokens, user: s.user }) },
+    /* WHAT IS WRITTEN TO localStorage, AND WHAT IS NOT.
+       On a cookie session the refresh token is dropped here rather than
+       persisted — the server holds it, and this browser never needs to. The
+       access token stays either way: it lives fifteen minutes, and dropping it
+       would cost a refresh round trip on every reload before the app could
+       render as signed in. See the note above AuthState. */
+    {
+      name: 'tc:auth',
+      partialize: (s) => ({
+        tokens: s.cookieSession && s.tokens ? { accessToken: s.tokens.accessToken } : s.tokens,
+        user: s.user,
+        cookieSession: s.cookieSession,
+      }),
+    },
   ),
 );
 

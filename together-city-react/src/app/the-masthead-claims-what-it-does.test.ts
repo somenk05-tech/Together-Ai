@@ -70,7 +70,12 @@ describe('the masthead claims what the engine does', () => {
 
   it('says powered by AI, and the answer is written by one', () => {
     expect(copy()).toMatch(/powered by AI/i);
-    expect(api('astrology/astrology.service.ts')).toMatch(/const answer = await this\.writeAnswer\(/);
+    // The claim is that `answer` COMES FROM the model, not that the call sits
+    // on the same line as the assignment. Widened 6 Sep, when the paid
+    // consultation was wrapped in runAsPaidWork so the city's free daily
+    // ceiling could not refuse a ₹100 question — a wrapper this assertion read
+    // as the answer no longer being written by an AI.
+    expect(api('astrology/astrology.service.ts')).toMatch(/const answer = [\s\S]{0,240}this\.writeAnswer\(/);
   });
 
   /**

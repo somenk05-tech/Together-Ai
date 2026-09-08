@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui';
 import { EXERCISE_MEDIA_ATTRIBUTION, useAddWorkout, useProgramme, useTodaySession, type TodaySession } from '../api';
+import { BodyGoalPanel } from '../components/BodyGoalPanel';
 import { useFoodPref, useNutritionTargets } from '@/features/nutrition/hooks';
 
 /* ---------- shared body profile (from the Nutrition food-preference profile) ---------- */
@@ -355,7 +356,7 @@ export function Workout() {
       <div style={{ marginBottom: 28 }}>
         <div className="eyebrow">Together City · Hub 012</div>
         <h1 style={{ fontSize: 'clamp(26px,3vw,42px)' }}>Your Workout</h1>
-        <p className="lede" style={{ marginTop: 6 }}>Today's session, matched to your level and goal — with a live timer.</p>
+        <p className="lede" style={{ marginTop: 6 }}>Your body goal, the targets behind it, and today's session — with a live timer.</p>
       </div>
 
       <div style={{ marginBottom: 14 }}>
@@ -389,6 +390,9 @@ export function Workout() {
           {hasProfile ? 'Edit profile →' : 'Set up profile →'}
         </Link>
       </div>
+
+      {/* The body goal — room 02 until 8 Sep, now the first section here. */}
+      <BodyGoalPanel />
 
       {/* activity goal */}
       <section className="blk">

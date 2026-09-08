@@ -96,7 +96,7 @@ const as = <N extends number>(o: unknown) => o as ConstructorParameters<typeof M
  */
 const NOBODY = {
   masterProfile: { findUnique: () => Promise.resolve(null) },
-  miraPass: { findUnique: () => Promise.resolve(null), upsert: () => Promise.resolve(undefined) },
+  miraPass: { updateMany: async () => ({ count: 0 }),  findUnique: () => Promise.resolve(null), upsert: () => Promise.resolve(undefined) },
   miraTurn: {
     findMany: () => Promise.resolve([]),
     createMany: () => Promise.resolve(undefined),
@@ -551,7 +551,7 @@ describe('what the request claims is not what she believes', () => {
   const account = (over: Record<string, unknown> = {}) => ({
     ...NOBODY,
     masterProfile: { findUnique: () => Promise.resolve(over.profile ?? null) },
-    miraPass: { findUnique: () => Promise.resolve(over.pass ?? null), upsert: () => Promise.resolve(undefined) },
+    miraPass: { updateMany: async () => ({ count: 0 }),  findUnique: () => Promise.resolve(over.pass ?? null), upsert: () => Promise.resolve(undefined) },
   });
 
   it('takes the hour from the zone on the profile, not from the body', async () => {
@@ -671,7 +671,7 @@ describe('every door she offers opens', () => {
 describe('hello, and she remembers what she said last time', () => {
   const withGreetings = (greetings: string[], sink: Record<string, unknown>[]) => ({
     ...NOBODY,
-    miraPass: {
+    miraPass: { updateMany: async () => ({ count: 0 }), 
       findUnique: () => Promise.resolve({ chatUsed: 0, paidUntil: null, greetings, firstSeenAt: new Date() }),
       upsert: (args: Record<string, unknown>) => { sink.push(args); return Promise.resolve(undefined); },
     },
@@ -704,7 +704,7 @@ describe('hello, and she remembers what she said last time', () => {
   /** A greeting that cannot reach the table is a quieter hello, never an
    *  error in front of somebody. */
   it('still says hello when the account cannot be read', async () => {
-    const broken = { ...NOBODY, miraPass: { findUnique: () => Promise.reject(new Error('down')), upsert: () => Promise.reject(new Error('down')) } };
+    const broken = { ...NOBODY, miraPass: { updateMany: async () => ({ count: 0 }),  findUnique: () => Promise.reject(new Error('down')), upsert: () => Promise.reject(new Error('down')) } };
     const g = await svc({}, broken).greeting('u1', {});
     expect(g.ask.length).toBeGreaterThan(0);
   });

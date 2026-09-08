@@ -42,7 +42,7 @@ function serviceWith(rows: Array<{ key: string; status: string }>, mode = 'rekog
     },
   };
   const config = { get: (k: string) => (k === 'photoModeration.mode' ? mode : undefined) };
-  const svc = new PhotoModerationService(prisma as never, {} as never, config as never, { track: () => undefined } as never);
+  const svc = new PhotoModerationService(prisma as never, {} as never, config as never, { track: () => undefined } as never, { check: async () => 'clear' } as never);
   return { svc, prisma };
 }
 

@@ -36,6 +36,46 @@ import { CallSignalSchema, type CallSignalDto } from '../calls/dto/calls.dto';
 const RECHECK_MS = 60_000;
 
 /**
+ * ── HOW MANY SOCKETS ONE CITIZEN MAY HOLD ───────────────────────────────────
+ *
+ * There was no answer to that question, and the consequence was not subtle.
+ * Every rate limit on this gateway hangs off the SOCKET OBJECT, so one account
+ * opening five hundred connections had five hundred times every ceiling —
+ * 30,000 sends a minute — plus five hundred `setInterval` re-checks and five
+ * hundred `joinOwnConversations` reads per burst. None of it passed the HTTP
+ * throttler, because a Socket.IO handshake is not an HTTP route.
+ *
+ * Six covers a phone, a laptop and a couple of tabs, which is what a person
+ * actually has. Past it the newest connection is refused rather than the oldest
+ * evicted: a citizen who has genuinely filled their six is not helped by having
+ * one of their real windows silently killed, and a script that keeps dialling
+ * gets nothing either way.
+ *
+ * DECIDED ON THE REDIS SET, not in this process. `addSocket` is a SADD, so the
+ * Nth socket for a citizen sees N no matter which container it landed on —
+ * which is the only place that number is true. With Redis away it falls back to
+ * the per-instance map, and the cap degrades to per-instance with it; that is
+ * the same trade every other limit here makes and it is written down rather
+ * than discovered.
+ */
+const SOCKETS_PER_CITIZEN = Math.max(1, Number(process.env.WS_MAX_SOCKETS_PER_CITIZEN ?? 6));
+
+/**
+ * And a per-CITIZEN ceiling on the one frame that costs something.
+ *
+ * The buckets below are per socket and stay that way: they are synchronous,
+ * they cost nothing, and with the cap above they are now bounded rather than
+ * multipliable without limit. A send is the exception — it writes rows, fans
+ * out notifications and can reach a push provider — so it gets a second
+ * ceiling that is keyed on the citizen, lives in Redis, and therefore survives
+ * both a reconnect and a different container. Generous against the per-socket
+ * 60: a person with three devices open is not a person sending 180 messages a
+ * minute, and the number is here to stop a script rather than to shape a
+ * conversation. Fails OPEN, like every other Redis-backed bound in this app.
+ */
+const SENDS_PER_CITIZEN_PER_MINUTE = Math.max(1, Number(process.env.WS_SENDS_PER_CITIZEN ?? 180));
+
+/**
  * How long a citizen has to come back before the calls they were on give up
  * their seat.
  *
@@ -162,6 +202,27 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     private readonly config: ConfigService,
   ) {}
 
+  /**
+   * Has this citizen sent more than their minute's worth, across every socket
+   * and every container?
+   *
+   * One INCR against a key that expires with the minute it counts. Fails OPEN:
+   * with Redis away the per-socket bucket and the socket cap are still in
+   * force, and refusing a message because a cache is down is the wrong way to
+   * be wrong.
+   */
+  private async overCitizenSendLimit(userId: string): Promise<boolean> {
+    if (!this.redis.up) return false;
+    try {
+      const key = `ws:send:${Math.floor(Date.now() / 60_000)}:${userId}`;
+      const n = await this.redis.raw.incr(key);
+      if (n === 1) await this.redis.raw.expire(key, 120);
+      return n > SENDS_PER_CITIZEN_PER_MINUTE;
+    } catch {
+      return false;
+    }
+  }
+
   afterInit(): void {
     // Fan domain events out to the right socket rooms.
     this.bus.subscribe((event, meta) => this.handleBusEvent(event, meta?.origin ?? true));
@@ -179,6 +240,21 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       client.userId = user.sub;
       client.typingTimers = new Map();
       client.tokenIat = user.iat;
+
+      /* ── THE CAP IS THE FIRST THING, BECAUSE EVERYTHING AFTER IT COSTS ─────
+         Presence used to be registered further down, after the room joins and
+         the backlog read. It moves up here so a five-hundred-and-first socket
+         is refused BEFORE it spends a `joinOwnConversations` (three to five
+         queries) and a `deliverBacklog`. `handleDisconnect` below takes the
+         socket back out of the set, so a refusal costs one SADD and one SREM
+         rather than a place in the count. */
+      const { transitioned, sockets } = await this.presence.markOnline(user.sub, client.id);
+      if (sockets > SOCKETS_PER_CITIZEN) {
+        this.logger.warn(`socket refused for ${user.sub}: ${sockets} open, ceiling ${SOCKETS_PER_CITIZEN}`);
+        client.emit(WS.ERROR, { status: 429, kind: 'connect', message: 'Too many open connections for this account. Close a tab and try again.' });
+        client.disconnect(true);
+        return;
+      }
       // A connection is re-checked for as long as it lives. Suspension,
       // deletion and "sign out everywhere" take effect on an OPEN socket within
       // one interval, not at the next reconnect — which for a laptop that
@@ -207,7 +283,6 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
          optimisation — the correctness does not depend on it. */
       await this.joinOwnConversations(client);
 
-      const transitioned = await this.presence.markOnline(user.sub, client.id);
       if (transitioned) this.bus.publish({ kind: 'presence.changed', userId: user.sub, online: true });
 
       /* Everything that arrived while they were away is delivered NOW, and the
@@ -361,6 +436,9 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   async onSend(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
     if (!client.userId) return; // handshake auth not finished — drop the frame (5 Sep: every handler, not just heartbeat)
     if (overLimit(client, 'send')) { refuse(client, 'messages', 'send'); return; }
+    // AND THE CITIZEN'S OWN CEILING, which a reconnect does not reset. See
+    // SENDS_PER_CITIZEN_PER_MINUTE.
+    if (await this.overCitizenSendLimit(client.userId)) { refuse(client, 'messages', 'send'); return; }
     const dto = parseOrThrow(SocketSendSchema, body);
     // MessagesService enforces the connection gate; throws 403 if not connected.
     const message = await this.messages.send(client.userId, dto);

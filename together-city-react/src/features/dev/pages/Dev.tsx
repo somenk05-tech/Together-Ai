@@ -82,8 +82,13 @@ function Prompt({ onUnlock, error, busy }: { onUnlock: (p: string) => void; erro
 
 /* ─────────────────────────── configuration ─────────────────────────── */
 
+/** A row is MISSING when it is not set and unset is not the right answer —
+ *  the number on the tab and on each group counts exactly these. See
+ *  env-manifest.ts (expectUnset) for why the other rows read "off". */
+const missingRow = (r: EnvRow) => !r.set && !r.expectUnset;
+
 function EnvGroupBlock({ group, rows }: { group: string; rows: EnvRow[] }) {
-  const missing = rows.filter((r) => !r.set).length;
+  const missing = rows.filter(missingRow).length;
   return (
     <div style={{ marginBottom: 22 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
@@ -100,7 +105,7 @@ function EnvGroupBlock({ group, rows }: { group: string; rows: EnvRow[] }) {
           <span style={{ flex: '0 0 62px', fontSize: 10.5, fontWeight: 700, letterSpacing: '.07em',
             textTransform: 'uppercase', paddingTop: 2,
             color: r.set ? 'var(--ok-ink)' : r.required ? 'var(--danger-ink)' : 'var(--muted)' }}>
-            {r.set ? 'set' : 'not set'}
+            {r.set ? 'set' : r.expectUnset ? 'off' : 'not set'}
           </span>
           <div className="flex-min">
             <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'ui-monospace, monospace' }}>
@@ -110,7 +115,8 @@ function EnvGroupBlock({ group, rows }: { group: string; rows: EnvRow[] }) {
             <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{r.purpose}</div>
             {!r.set && (
               <div style={{ fontSize: 12.5, marginTop: 3, color: r.required ? 'var(--danger-ink)' : 'var(--ink-soft)' }}>
-                {r.whenMissing}
+                {r.expectUnset ? <><b>Correct as it stands.</b> {r.whenMissing}</> : r.whenMissing}
+                {!r.expectUnset && r.needs ? <span className="muted"> Needs {r.needs}.</span> : null}
               </div>
             )}
           </div>
@@ -360,7 +366,7 @@ export function DevPage() {
 
   const d = diag.data;
   const groups = [...new Set((d?.env ?? []).map((e) => e.group))];
-  const notSet = (d?.env ?? []).filter((e) => !e.set);
+  const notSet = (d?.env ?? []).filter(missingRow);
   const missingRequired = notSet.filter((e) => e.required);
   const hidden = routes.filter((r) => !r.inNavigation && !r.parameterised);
 
@@ -411,7 +417,9 @@ export function DevPage() {
               <p className="muted" style={{ fontSize: 12.5, margin: '0 0 16px', maxWidth: '66ch' }}>
                 Whether each variable is set — never what it is set to, and there is no view that
                 shows that. Half of these are credentials, and a diagnostics page that renders them
-                is one screenshot away from a breach.
+                is one screenshot away from a breach. A row that reads <b>off</b> is a development
+                switch, or one of two routes to the same thing with the other taken — unset is the
+                right answer there, and it is not in the count.
               </p>
               {missingRequired.length > 0 && (
                 <div style={{ border: '1px solid var(--danger-line)', background: 'var(--danger-soft)',

@@ -32,7 +32,7 @@ function bare(over: Partial<Record<string, any>> = {}) {
     },
   };
   svc.prisma = {
-    miraPass: {
+    miraPass: { updateMany: async () => ({ count: 0 }), 
       findUnique: async () => svc.__pass ?? null,
       /** Only a METER upsert counts as spending. The same row now carries the
        *  distress latch, and a latch being held is not somebody being billed. */

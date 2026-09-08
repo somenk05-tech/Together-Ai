@@ -434,6 +434,22 @@ export class ConversationsService {
    * each conversation is unread SINCE ITS OWN `lastReadAt`. One `OR` of
    * per-conversation conditions expresses exactly that in a single query.
    */
+  /**
+   * THE THREE COLUMNS THIS CHECKOUT'S GENERATED CLIENT HAS NOT SEEN.
+   *
+   * `Conversation.lastMessageAt/Text/SenderId` are in schema.prisma and in
+   * 20260906T210000_the_last_line_of_the_room; the client here predates both,
+   * because `prisma generate` has to reach binaries.prisma.sh and this machine
+   * could not. Every deployment regenerates before it builds. DELETE THIS after
+   * any `npx prisma generate` and put `this.prisma.conversation` back.
+   */
+  private get lastLines() {
+    return this.prisma.conversation as unknown as {
+      findMany(a: { where: { id: { in: string[] } }; select: Record<string, boolean> }):
+        Promise<Array<{ id: string; lastMessageAt: Date | null; lastMessageText: string | null; lastMessageSenderId: string | null }>>;
+    };
+  }
+
   async summariesFor(conversationIds: string[], userId: string): Promise<Map<string, Summary>> {
     const out = new Map<string, Summary>();
     if (!conversationIds.length) return out;
@@ -449,16 +465,31 @@ export class ConversationsService {
     }).catch(swallowed('conversations.summariesFor members', [] as Array<{ conversationId: string; lastReadAt: Date | null; clearedAt: Date | null; joinedAt: Date; markedUnread: boolean }>));
     const meOf = new Map(members.map((m) => [m.conversationId, m]));
 
-    // `distinct` after `orderBy` keeps the first row per conversation, which is
-    // the newest — the same row `findFirst` returned one at a time.
-    // unbounded: one row per conversation asked for
-    const lasts = await this.prisma.message.findMany({
-      where: { conversationId: { in: ids }, deleted: false },
-      orderBy: { createdAt: 'desc' },
-      distinct: ['conversationId'],
-      select: { conversationId: true, createdAt: true, text: true, senderId: true },
-    }).catch(swallowed('conversations.summariesFor last', [] as Array<{ conversationId: string; createdAt: Date; text: string | null; senderId: string | null }>));
-    const lastOf = new Map(lasts.map((l) => [l.conversationId, l]));
+    /**
+     * ── THE LAST MESSAGE IN EACH ROOM, OFF THE ROOM ────────────────────────
+     *
+     * This asked Message for it, with `orderBy createdAt desc` +
+     * `distinct: ['conversationId']`, and the comment above it said "distinct
+     * after orderBy keeps the first row per conversation". It does — but not
+     * in Postgres, which rejects `SELECT DISTINCT ON (x) … ORDER BY y` unless
+     * the ORDER BY leads with the DISTINCT ON columns. Prisma could not push it
+     * down, so it fetched EVERY undeleted message in every one of these rooms
+     * into this process and de-duplicated them in JavaScript: a citizen in
+     * forty rooms averaging two thousand messages was eighty thousand rows,
+     * four times a minute. That is not a slow query, it is the heap.
+     *
+     * It is three columns on Conversation now, written on the same UPDATE that
+     * was already moving `updatedAt` when the message was sent, and recomputed
+     * when the message they name is deleted for everyone. So the read is a
+     * primary-key lookup of the rooms the caller already named.
+     * (1M-DAU pass, 6 Sep.)
+     */
+    // unbounded: one row per conversation asked for, and the caller bounds those — the same bound as the membership read above
+    const lasts = await this.lastLines.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, lastMessageAt: true, lastMessageText: true, lastMessageSenderId: true },
+    }).catch(swallowed('conversations.summariesFor last', [] as Array<{ id: string; lastMessageAt: Date | null; lastMessageText: string | null; lastMessageSenderId: string | null }>));
+    const lastOf = new Map(lasts.map((l) => [l.id, l]));
 
     let unreadOf = new Map<string, number>();
     try {
@@ -471,9 +502,9 @@ export class ConversationsService {
     for (const id of ids) {
       const last = lastOf.get(id);
       out.set(id, {
-        lastMessageAt: (last?.createdAt ?? new Date(0)).toISOString(),
-        lastText: last?.text ?? null,
-        lastSenderId: last?.senderId ?? null,
+        lastMessageAt: (last?.lastMessageAt ?? new Date(0)).toISOString(),
+        lastText: last?.lastMessageText ?? null,
+        lastSenderId: last?.lastMessageSenderId ?? null,
         unread: this.withUnreadFloor(unreadOf.get(id) ?? 0, meOf.get(id)?.markedUnread),
       });
     }

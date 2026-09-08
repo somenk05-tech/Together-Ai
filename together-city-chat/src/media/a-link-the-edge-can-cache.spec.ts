@@ -281,3 +281,114 @@ describe('no edge configured changes nothing', () => {
     expect(out.get(KEY) ?? '').not.toContain('/m/');
   });
 });
+
+/**
+ * ── AND A PLAYLIST IS A LIST OF LINKS ───────────────────────────────────────
+ *
+ * The ladder (media/hls-ladder.ts) writes relative names — `v0.m3u8` in the
+ * master, `v0.ts` in each variant — because that is what ffmpeg emits and
+ * because a baked-in absolute URL could not carry a token that expires. The
+ * Worker rewrites them on the way out, and it is the only place that both holds
+ * the secret and knows which object it just read.
+ *
+ * An API route could not do this job: Safari plays HLS natively and cannot be
+ * told to send an Authorization header, so a playlist behind a bearer token is
+ * a playlist Safari cannot fetch. A token IN the URL is the only shape both
+ * native HLS and hls.js can follow.
+ *
+ * These cases run the Worker's own function, over REAL ffmpeg output, and check
+ * the links it produces against the API's own reader — so a drift between the
+ * two implementations fails here rather than as every video 404-ing after a
+ * deploy.
+ */
+describe('the Worker signs the links inside a playlist', () => {
+  const src = readFileSync(join(__dirname, '..', '..', '..', 'workers', 'media-edge', 'worker.js'), 'utf8');
+  const helpers = src.slice(0, src.indexOf('export default'));
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval
+  const signPlaylist = new Function(`${helpers}; return signPlaylist;`)() as
+    (secret: string, playlistKey: string, text: string, nowMs: number) => Promise<string>;
+
+  /** Real ffmpeg 4.4.2 output: `single_file` gives byte ranges over one .ts. */
+  const VARIANT = [
+    '#EXTM3U',
+    '#EXT-X-VERSION:4',
+    '#EXT-X-TARGETDURATION:6',
+    '#EXT-X-PLAYLIST-TYPE:VOD',
+    '#EXTINF:6.000000,',
+    '#EXT-X-BYTERANGE:302492@0',
+    'v0.ts',
+    '#EXTINF:2.000000,',
+    '#EXT-X-BYTERANGE:108852@954664',
+    'v0.ts',
+    '#EXT-X-ENDLIST',
+    '',
+  ].join('\n');
+
+  const MASTER = [
+    '#EXTM3U',
+    '#EXT-X-VERSION:4',
+    '#EXT-X-STREAM-INF:BANDWIDTH=435600,RESOLUTION=426x240,CODECS="avc1.640015,mp4a.40.2"',
+    'v0.m3u8',
+    '',
+    '#EXT-X-STREAM-INF:BANDWIDTH=3185600,RESOLUTION=1280x720,CODECS="avc1.64001f,mp4a.40.2"',
+    'v3.m3u8',
+    '',
+  ].join('\n');
+
+  it('finds the Worker’s rewriter at all', () => {
+    expect(helpers).toContain('async function signPlaylist');
+    expect(typeof signPlaylist).toBe('function');
+  });
+
+  it('turns each relative name into a link the API’s own reader accepts', async () => {
+    const now = Date.now();
+    const out = await signPlaylist(SECRET, 'social/u1/abc/v0.m3u8', VARIANT, now);
+    const links = out.split('\n').filter((l) => l.startsWith('/m/'));
+    expect(links).toHaveLength(2);
+    for (const l of links) {
+      // The key it names is the sibling of the playlist, resolved from the
+      // playlist's own prefix — not the citizen's, not the bucket root.
+      expect(readMediaToken(SECRET, l.slice('/m/'.length), now)).toBe('social/u1/abc/v0.ts');
+    }
+  });
+
+  it('leaves every tag exactly as ffmpeg wrote it', async () => {
+    const out = await signPlaylist(SECRET, 'social/u1/abc/v0.m3u8', VARIANT, Date.now());
+    // The byte ranges ARE the segmentation. A rewriter that touched them would
+    // produce a playlist that parses and plays nothing.
+    expect(out).toContain('#EXT-X-BYTERANGE:302492@0');
+    expect(out).toContain('#EXT-X-BYTERANGE:108852@954664');
+    expect(out).toContain('#EXT-X-TARGETDURATION:6');
+    expect(out).toContain('#EXT-X-ENDLIST');
+    expect(out.split('\n')).toHaveLength(VARIANT.split('\n').length);
+  });
+
+  it('signs the master’s variants too, each to its own playlist', async () => {
+    const now = Date.now();
+    const out = await signPlaylist(SECRET, 'social/u1/abc/master.m3u8', MASTER, now);
+    const keys = out.split('\n').filter((l) => l.startsWith('/m/'))
+      .map((l) => readMediaToken(SECRET, l.slice('/m/'.length), now));
+    expect(keys).toEqual(['social/u1/abc/v0.m3u8', 'social/u1/abc/v3.m3u8']);
+  });
+
+  it('gives those links longer than an hour, because a video may be one', async () => {
+    /* THE BUG THIS CLOSES. A media token is an hour, which was fine for a
+       photograph and wrong for video the moment a sixty-minute upload was
+       allowed: a player starting at minute fifty-nine lost the file mid-stream,
+       and the TV's error path advances rather than re-minting. */
+    const now = Date.now();
+    const out = await signPlaylist(SECRET, 'social/u1/abc/v0.m3u8', VARIANT, now);
+    const token = out.split('\n').find((l) => l.startsWith('/m/'))!.slice('/m/'.length);
+    expect(readMediaToken(SECRET, token, now + 2 * 3600_000)).toBe('social/u1/abc/v0.ts');
+    // Not forever, though: it is still a bearer link with a window.
+    expect(readMediaToken(SECRET, token, now + 7 * 3600_000)).toBeNull();
+  });
+
+  it('does not sign something that was already absolute', async () => {
+    const foreign = ['#EXTM3U', 'https://elsewhere.example/a.ts', '/already/absolute.ts', ''].join('\n');
+    const out = await signPlaylist(SECRET, 'social/u1/abc/v0.m3u8', foreign, Date.now());
+    expect(out).toContain('https://elsewhere.example/a.ts');
+    expect(out).toContain('/already/absolute.ts');
+    expect(out).not.toContain('/m/');
+  });
+});

@@ -1,4 +1,5 @@
 import { publicBaseOf, publicBasesFrom } from '../media/public-bases';
+import { swallow } from '../shared/swallow';
 import {
   BadRequestException,
   ForbiddenException,
@@ -248,14 +249,77 @@ export class MessagesService {
       throw e;
     }
 
-    // 3) touch conversation for ordering + emit realtime event
-    await this.prisma.conversation.update({
+    /* 3) touch conversation for ordering + emit realtime event
+       AND WRITE THE LAST LINE WHILE WE ARE HERE (1M-DAU pass, 6 Sep). The chat
+       list needs the newest undeleted message per room; asking for it at read
+       time meant pulling every message in every room into the API process
+       (see the note on the Conversation model). This row was being written
+       anyway for `updatedAt`, so it is three more columns on the same UPDATE
+       rather than a second write. */
+    await swallow(this.lastLine.update({
       where: { id: dto.conversationId },
-      data: { updatedAt: new Date() },
-    });
+      data: {
+        updatedAt: new Date(),
+        lastMessageAt: message.createdAt,
+        lastMessageText: message.text ?? null,
+        lastMessageSenderId: message.senderId,
+      },
+    }), 'messages: conversation touched', { conversationId: dto.conversationId });
     const dtoOut = this.serialize(message);
     this.bus.publish({ kind: 'message.created', conversationId: dto.conversationId, message: dtoOut, recipientIds });
     return dtoOut;
+  }
+
+  /**
+   * THE THREE COLUMNS THIS CHECKOUT'S GENERATED CLIENT HAS NOT SEEN.
+   *
+   * `Conversation.lastMessageAt/Text/SenderId` are in schema.prisma and in
+   * 20260906T210000_the_last_line_of_the_room; the client in this working tree
+   * predates both, because `prisma generate` has to reach binaries.prisma.sh
+   * and this machine could not. Every deployment regenerates before it builds,
+   * so the types are right where it matters and wrong only here — the same
+   * escape hatch, kept to one accessor, that photo-moderation.service.ts uses
+   * for `etag`.
+   *
+   * DELETE IT after any `npx prisma generate`: put `this.prisma.conversation`
+   * back at its two call sites and this comment with it.
+   */
+  private get lastLine() {
+    return this.prisma.conversation as unknown as {
+      update(a: { where: { id: string }; data: Record<string, unknown> }): Promise<unknown>;
+      findUnique(a: { where: { id: string }; select: Record<string, boolean> }): Promise<{ lastMessageAt: Date | null } | null>;
+    };
+  }
+
+  /**
+   * Put the room's kept last line back in step, when the message it named has
+   * just been deleted for everyone.
+   *
+   * `deletedAt` is the message that went. If it was not the newest one, the
+   * kept columns still name a message that is still there and nothing is
+   * written — which is the common case, because most deletions are of something
+   * said a moment ago and then said again.
+   */
+  private async refreshLastLine(conversationId: string, deletedAt: Date): Promise<void> {
+    const row = await swallow(this.lastLine.findUnique({
+      where: { id: conversationId }, select: { lastMessageAt: true },
+    }), 'messages: last line read', { conversationId });
+    if (!row) return;
+    const kept = row.lastMessageAt;
+    if (kept && kept.getTime() !== deletedAt.getTime()) return;
+    const next = await swallow(this.prisma.message.findFirst({
+      where: { conversationId, deleted: false },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true, text: true, senderId: true },
+    }), 'messages: last line recomputed', { conversationId });
+    await swallow(this.lastLine.update({
+      where: { id: conversationId },
+      data: {
+        lastMessageAt: next?.createdAt ?? null,
+        lastMessageText: next?.text ?? null,
+        lastMessageSenderId: next?.senderId ?? null,
+      },
+    }), 'messages: last line written', { conversationId });
   }
 
   /** Cursor pagination — newest first, no OFFSET. */
@@ -536,6 +600,11 @@ export class MessagesService {
         where: { id: messageId },
         data: { deleted: true, text: null, deletedAt: new Date(), deletedById: userId },
       });
+      // AND THE ROOM'S LAST LINE, IF THIS WAS IT. The kept columns say what the
+      // chat list shows; a message deleted for everyone must not go on showing
+      // there. Only when it WAS the last one, and the recompute is the same
+      // single indexed read the send path avoids doing per request.
+      await this.refreshLastLine(msg.conversationId, msg.createdAt);
       this.bus.publish({ kind: 'message.deleted', conversationId: msg.conversationId, messageId });
       return { deleted: true, scope: 'EVERYONE' };
     }

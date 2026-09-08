@@ -24,7 +24,7 @@ function bare(over: Record<string, any> = {}) {
     },
   };
   svc.prisma = {
-    miraPass: { findUnique: async () => null, upsert: async () => undefined },
+    miraPass: { updateMany: async () => ({ count: 0 }),  findUnique: async () => null, upsert: async () => undefined },
     miraTurn: { findMany: async () => [], createMany: async () => undefined, deleteMany: async () => ({ count: 0 }) },
     miraFact: {
       findMany: async () => svc.__stored ?? [],

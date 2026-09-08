@@ -496,8 +496,25 @@ export function MessageView() {
   const visible = raw.filter((x) => x.id === id || stripCityFooter(x.body).trim() !== '');
   const trail = visible.length > 0 ? visible : [m];
   const latest = trail[trail.length - 1];
-  // Reply goes to the other party of the most recent message.
-  const replyTo = latest.fromAddr === myAddr ? latest.toAddr : latest.fromAddr;
+  /**
+   * REPLY GOES TO THE OTHER PARTY — AND UNTIL WE KNOW WHICH PARTY IS US, IT
+   * GOES NOWHERE.
+   *
+   * `myAddr` is `acct.data?.address ?? ''`, and this test is an equality
+   * against it. Before /mail/account resolves that is `latest.fromAddr === ''`
+   * — false — so the "other party" of a message YOU sent resolved to YOU.
+   * Deep-link into a thread whose newest message is your own (which is every
+   * thread you replied to last), press Reply in that first half-second, and
+   * the composer opened addressed to yourself. The race is not rare: it is a
+   * separate request, and it loses whenever the message is cached and the
+   * account is not.
+   *
+   * `mine` is null until the account is known, and the reply controls wait for
+   * it rather than guessing. One extra beat before a button appears is cheaper
+   * than a letter addressed to the wrong person.
+   */
+  const mine = acct.data ? latest.fromAddr === myAddr : null;
+  const replyTo = mine === null ? '' : mine ? latest.toAddr : latest.fromAddr;
   const replySubject = /^re:/i.test(m.subject) ? m.subject : `Re: ${m.subject}`;
   const totalBytes = trail.reduce((s, x) => s + x.sizeBytes, 0);
   // The rule until somebody overrides it — `id` is the message they clicked in
@@ -553,8 +570,18 @@ export function MessageView() {
               a subject and a snippet; deciding which room a conversation
               belongs in is a decision about what it SAYS, so the control is
               here rather than on the row. */}
-          {m.threadId && <MoveToProject threadId={m.threadId} projectId={m.projectId ?? null} count={trail.length} />}
-          {!m.system && <Button variant="accent" size="sm" onClick={() => setReplying(true)}>↩ Reply</Button>}
+          {m.threadId && (
+            <MoveToProject threadId={m.threadId} projectId={m.projectId ?? null}
+              count={trail.length} countPending={Boolean(m.threadId) && thread.isLoading} />
+          )}
+          {/* Disabled rather than absent while the account resolves: the box it
+              opens is gated on the same fact, so an enabled key here would be
+              a press that does nothing at all. */}
+          {!m.system && (
+            <Button variant="accent" size="sm" disabled={mine === null}
+              title={mine === null ? 'Opening your mailbox…' : undefined}
+              onClick={() => setReplying(true)}>↩ Reply</Button>
+          )}
           <Button variant="line" size="sm" disabled={remove.isPending}
             aria-expanded={permanent ? confirmGone : undefined}
             onClick={() => {
@@ -611,8 +638,10 @@ export function MessageView() {
         <ThreadAttachments threadId={m.threadId} />
       </div>
 
-      {!m.system && (
-        <InlineReply to={replyTo} name={latest.fromAddr === myAddr ? latest.toName : latest.fromName}
+      {/* `mine !== null` is the account having resolved. Without it the reply
+          box opens addressed to whoever this reader happens to be. */}
+      {!m.system && mine !== null && (
+        <InlineReply to={replyTo} name={mine ? latest.toName : latest.fromName}
           subject={replySubject} threadId={m.threadId} latest={latest}
           trailPending={Boolean(m.threadId) && thread.isLoading}
           open={replying} onOpenChange={setReplying} onOpenFull={openFullComposer} />

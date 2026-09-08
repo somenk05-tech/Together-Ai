@@ -90,7 +90,11 @@ function FolderMenu({ p }: { p: MailProject }) {
               <p>
                 {p.total === 0
                   ? 'This project holds nothing. Deleting it closes the room and nothing else.'
-                  : `${plural(p.total, 'conversation')} return to All Emails, where they have been all along. Nothing is deleted.`}
+                  /* MESSAGES, which is what `total` counts. The same number is
+                     printed as "messages" on the card behind this menu, so
+                     "conversations" here made one of the two wrong about a
+                     figure read immediately before pressing Delete. */
+                  : `${plural(p.total, 'message')} return to All Emails, where they have been all along. Nothing is deleted.`}
               </p>
               <Button variant="line" size="sm" disabled={remove.isPending}
                 onClick={() => remove.mutate(p.id, { onSuccess: () => setOpen(false) })}>

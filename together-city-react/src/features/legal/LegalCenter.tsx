@@ -15,7 +15,6 @@ const STYLE = `
 .doc-body li { margin:0 0 .55em; color:var(--ink-soft); }
 .doc-body strong { font-weight:600; color:var(--ink-soft); }
 .doc-body .note { background:var(--accent-soft); border-left:3px solid var(--lg-accent); padding:14px 18px; border-radius:0 10px 10px 0; margin:0 0 1.2em; font-size:.96em; color:var(--warn-ink); }
-.doc-body .tf { background:var(--warn-soft); border-bottom:1px dashed var(--warn-ink); padding:0 4px; border-radius:3px; font-family:'IBM Plex Mono',monospace; font-size:.82em; color:var(--warn-ink); }
 `;
 
 function pill(drafted: boolean) {
@@ -65,7 +64,7 @@ function DraftNote() {
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11, background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 12, padding: '14px 18px', margin: '26px 0 34px' }}>
       <span style={{ fontSize: 17 }}>⚖</span>
       <p style={{ margin: 0, fontSize: 13.5, color: 'var(--warn-ink)' }}>
-        <strong style={{ color: 'var(--warn-ink)' }}>Draft for legal review.</strong> Drafts pending review by Indian counsel; items marked <span className="doc-body"><span className="tf">like this</span></span> are placeholders.
+        <strong style={{ color: 'var(--warn-ink)' }}>Draft for legal review.</strong> These documents are pending review by Indian counsel.
       </p>
     </div>
   );

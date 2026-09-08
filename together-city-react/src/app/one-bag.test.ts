@@ -147,7 +147,8 @@ describe('a hidden surface is declared hidden', () => {
     // pointing straight at it — a link into a room that is off the map is how a
     // hidden surface comes back by accident, and it is the one thing that would
     // make nav-audit and the next reader disagree about whether it exists.
-    expect(code('features/fitness/pages/BodyGoal.tsx')).not.toMatch(/to="\/fitness\/plan"/);
+    // (Body Goal lives inside Workout since 8 Sep; the check follows it.)
+    expect(code('features/fitness/components/BodyGoalPanel.tsx')).not.toMatch(/to="\/fitness\/plan"/);
   });
 
   it('declares both hidden surfaces to nav-audit, with a reason', () => {

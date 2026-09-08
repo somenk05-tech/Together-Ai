@@ -2,11 +2,22 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useScaleLock } from '@/hooks/useScaleLock';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui';
-import { useDirectory, useSendMail, useMailAccount, useSaveDraft, useDiscardDraft, useMailMessage, useMailThread, useMailProjects, type DirectoryEntry } from '../api';
+import { useDirectory, useSendMail, useMailAccount, useSaveDraft, useDiscardDraft, useMailMessage, useMailThread, useMailProjects, mailError, type DirectoryEntry } from '../api';
 import { quoteBlock, withQuote } from '../replyQuote';
 import { payError } from '@/features/financial/api';
 import { DrivePicker } from '../DrivePicker';
-import { fmtBytes, fileIcon, type DriveFile } from '@/features/drive/api';
+import { fmtBytes, fileIcon } from '@/features/drive/api';
+
+/**
+ * WHAT THE COMPOSER NEEDS TO DRAW A CHIP, which is less than a DriveFile.
+ *
+ * A draft resumes from /mail/:id, and that answers with the four fields a chip
+ * is made of — not a folderId, an attachedId or two timestamps. Widening the
+ * mail response to satisfy a Drive type would be inventing five fields to
+ * satisfy a compiler; narrowing the state to what is used costs one line and a
+ * DriveFile still fits through it.
+ */
+type Attached = { id: string; name: string; mimeType: string | null; sizeBytes: number };
 
 /** Compose — write to a connected citizen (directory autocomplete, which only
  *  lists your connections) OR any external/global email address (delivered via
@@ -54,9 +65,25 @@ export function Compose() {
    *  mouse leaves it at — nothing is preselected, so Enter sends what was
    *  typed unless somebody has actually arrowed down to a name. */
   const [sugAt, setSugAt] = useState(-1);
-  const [attachments, setAttachments] = useState<DriveFile[]>([]);
+  const [attachments, setAttachments] = useState<Attached[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  /**
+   * WHY A FAILED AUTOSAVE NEEDED SAYING AFTER ALL.
+   *
+   * "A failed autosave is not worth a red box over somebody's writing — the
+   * words are still in the box, and the next keystroke retries." True for a
+   * blip, and false for the case that actually happens: a FULL MAILBOX 400s
+   * every save, and every retry, forever. `savedAt` was set once and never
+   * cleared, so the line under the composer went on saying "Draft saved 10:32"
+   * for an hour while nothing was being saved at all — and closing the tab
+   * lost everything typed since 10:32, on the strength of a sentence the
+   * screen had kept showing.
+   *
+   * The words being in the box is the reason this is not a modal. It is also
+   * exactly why the screen must not claim they are anywhere else.
+   */
+  const [saveFailed, setSaveFailed] = useState<string | null>(null);
   /**
    * WHO DID NOT GET IT.
    *
@@ -99,6 +126,21 @@ export function Compose() {
     setTo(loaded.data.toAddr ?? '');
     setSubject(loaded.data.subject ?? '');
     setBody(loaded.data.body ?? '');
+    /**
+     * AND THE REST OF THE MESSAGE, which used to be dropped on the floor.
+     * Three fields were restored out of nine, so a draft written with two
+     * files, a Cc and a blind copy came back as the words alone — and the
+     * moment the next autosave fired, the draft became that too.
+     *
+     * The copy row is opened when there is anything in it: a Bcc that is set
+     * but invisible is a recipient somebody cannot see they are writing to.
+     */
+    const cc0 = loaded.data.ccAddrs ?? '';
+    const bcc0 = loaded.data.bccAddrs ?? '';
+    setCc(cc0);
+    setBcc(bcc0);
+    if (cc0 || bcc0) setShowCopies(true);
+    setAttachments(loaded.data.attachments ?? []);
     setSeeded(true);
   }, [loaded.data, seeded]);
 
@@ -139,14 +181,25 @@ export function Compose() {
   const savingRef = useRef(false);
   useEffect(() => {
     if (!seeded || sending || sentRef.current) return;
-    const hasSomething = Boolean(to.trim() || subject.trim() || body.trim());
+    // A file picked and nothing typed is still something to keep: the picker
+    // is a decision, and losing it means finding the file again.
+    const hasSomething = Boolean(to.trim() || subject.trim() || body.trim()) || attachments.length > 0;
     if (!hasSomething) return;
     const t = setTimeout(() => {
       // A create is already in the air; it will carry an id next time.
       if (savingRef.current || sentRef.current) return;
       if (!draftId.current) savingRef.current = true;
       saveDraft.mutate(
-        { id: draftId.current, to, subject, body, threadId },
+        {
+          id: draftId.current, to, subject, body, threadId,
+          // Sent on every save, including empty, because removing the last Bcc
+          // from this box has to remove it from the draft — a draft holding a
+          // recipient the citizen has taken out is the same silence pointed
+          // the other way, and that one sends to them.
+          cc: addrs(cc), bcc: addrs(bcc),
+          attachmentFileIds: attachments.map((f) => f.id),
+          ...(projectKey ? { projectKey } : {}),
+        },
         {
           onSuccess: (d) => {
             savingRef.current = false;
@@ -158,10 +211,21 @@ export function Compose() {
             }
             draftId.current = d.id;
             setSavedAt(new Date());
+            setSaveFailed(null);
           },
-          // A failed autosave is not worth a red box over somebody's writing —
-          // the words are still in the box, and the next keystroke retries.
-          onError: () => { savingRef.current = false; },
+          /**
+           * NOT A RED BOX OVER SOMEBODY'S WRITING — a line under it, saying
+           * the one thing they need to know: this is not saved anywhere but
+           * this window. The comment that stood here was right that a blip is
+           * not worth interrupting for, and wrong that the failure is always a
+           * blip — a full mailbox refuses every save and every retry, and the
+           * "Draft saved 10:32" line went on standing under it.
+           */
+          onError: (e) => {
+            savingRef.current = false;
+            setSavedAt(null);
+            setSaveFailed(mailError(e, 'This draft is not being saved.'));
+          },
         },
       );
     }, 1200);
@@ -169,7 +233,7 @@ export function Compose() {
     // saveDraft is a stable mutation object; including it would re-arm the
     // timer on every render and never save.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [to, subject, body, threadId, seeded, sending]);
+  }, [to, cc, bcc, subject, body, attachments, projectKey, threadId, seeded, sending]);
 
   /**
    * A REPLY CARRIES WHAT IT IS ANSWERING, which it did not until now.
@@ -265,6 +329,21 @@ export function Compose() {
    */
   const hasSomething = Boolean(body.trim()) || attachments.length > 0;
   const trailPending = Boolean(threadId) && trail.isLoading;
+  /**
+   * AND A REPLY WHOSE HISTORY NEVER ARRIVED SAID NOTHING AT ALL.
+   *
+   * `trailPending` gates on isLoading, so the half-second race is handled —
+   * but `trail.isError` was never read anywhere, and `quote` falls back to the
+   * empty string. A thread request that FAILS therefore looks exactly like a
+   * thread with nothing to quote: Send lights up, the reply goes out to
+   * somebody's Gmail as a bare "yes, Tuesday works" with nothing saying what
+   * Tuesday was, and no part of this screen ever mentioned it.
+   *
+   * Send is not taken away — the citizen may well want to send anyway, and a
+   * disabled button with no explanation is its own version of this bug. They
+   * are told, and they choose.
+   */
+  const trailFailed = Boolean(threadId) && trail.isError;
   const canSend = to.trim() && hasSomething && !trailPending && !send.isPending;
 
   const inp = { padding: '11px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' as const, background: 'var(--card)' };
@@ -366,6 +445,26 @@ export function Compose() {
               </ul>
               <span className="muted">
                 It’s in Sent — fix those addresses and resend. Recipients will get a second copy.
+              </span>
+            </div>
+          )}
+          {saveFailed && (
+            <div className="mail-mishap" role="alert" style={{ marginTop: 10 }}>
+              <span>⚠ {saveFailed}</span>{' '}
+              <span className="muted">Nothing has been lost — but this message is only in this window,
+                so don’t close it until it saves or you have sent it.</span>
+            </div>
+          )}
+          {trailFailed && (
+            <div className="mail-mishap" role="alert" style={{ marginTop: 10 }}>
+              <span>⚠ Couldn’t load the conversation you’re replying to.</span>{' '}
+              <span className="muted">Your reply will go out on its own, with nothing quoted under it —
+                which may be the first your recipient hears of what it answers.</span>
+              <span className="mail-mishap-keys">
+                <Button variant="line" size="sm" disabled={trail.isFetching}
+                  onClick={() => { void trail.refetch(); }}>
+                  {trail.isFetching ? 'Trying…' : 'Try again'}
+                </Button>
               </span>
             </div>
           )}
@@ -471,11 +570,14 @@ export function Compose() {
               {discard.isPending ? 'Discarding…' : '🗑 Discard'}
             </Button>
           )}
-          {/* Says what actually happened, and where to find it. */}
+          {/* Says what actually happened, and where to find it — including
+              when the answer is "nowhere yet". */}
           <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }} role="status" aria-live="polite">
-            {savedAt
-              ? `Draft saved ${savedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · in Drafts & Failed`
-              : null}
+            {saveFailed
+              ? 'Not saved — this message is only in this window'
+              : savedAt
+                ? `Draft saved ${savedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · in Drafts & Failed`
+                : null}
           </span>
         </div>
       </div>

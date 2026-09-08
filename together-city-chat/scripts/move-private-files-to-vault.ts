@@ -100,6 +100,22 @@ async function main() {
     }
   }
 
+  // ── AND WHAT THE QUERY DID NOT MATCH ──────────────────────────────────────
+  // A row whose column holds something that is neither a vault key nor an
+  // address under MEDIA_PUBLIC_BASE_URL is a row this script cannot move and
+  // will never mention. Say so, with the host and nothing more, so a base
+  // URL that changed since the upload is visible rather than silent.
+  const hostOf = (v: string): string => { try { return new URL(v).host; } catch { return v.split('/')[0]; } };
+  const otherCvs = await prisma.jobProfile.findMany({ where: { resumeUrl: { not: null } }, select: { resumeUrl: true } });
+  const otherVids = await prisma.serviceVerification.findMany({ where: { OR: [{ videoUrl: { not: null } }, { docUrl: { not: null } }] }, select: { videoUrl: true, docUrl: true } });
+  const stray = [...otherCvs.map((r) => r.resumeUrl!), ...otherVids.flatMap((r) => [r.videoUrl, r.docUrl].filter((v): v is string => Boolean(v)))]
+    .filter((v) => !v.startsWith(PUBLIC_BASE) && !/^(cv|kyc)\//.test(v));
+  const byHost = new Map<string, number>();
+  for (const v of stray) byHost.set(hostOf(v), (byHost.get(hostOf(v)) ?? 0) + 1);
+  console.log(`\n${otherCvs.length} CV row(s) and ${otherVids.length} verification row(s) hold a file at all`);
+  if (byHost.size) for (const [h, n] of byHost) console.log(`  ${n} under ${h} — NOT under ${PUBLIC_BASE}; this script leaves them, look at them`);
+  else console.log(`  every one is either already a vault key or under ${PUBLIC_BASE}`);
+
   console.log(`\nmoved ${moved} · would move ${dry} · already gone or not ours ${missing}`);
   await prisma.$disconnect();
 }

@@ -43,6 +43,10 @@ const GOOD_SECRETS = {
      case below keeps testing the bucket rule it was written for; the guard
      that it fires at all is in a-config-guard-that-fires.spec.ts. */
   MEDIA_PUBLIC_BASE_URL: 'https://media.togethercity.app',
+  /* Fatal since 6 Sep, same reasoning: an unset Turnstile secret is not a
+     default, it is sign-up defended by a per-IP throttle. Here so the cases
+     below keep testing the bucket rule they were written for. */
+  TURNSTILE_SECRET: 'ts_secret', TURNSTILE_HOSTNAMES: 'togethercity.app',
 };
 
 /** Load configuration.ts fresh under a given environment and return the throw, if any. */

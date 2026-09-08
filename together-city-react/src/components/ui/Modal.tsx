@@ -1,6 +1,7 @@
-import { useEffect, useId, useRef, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
+import { useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useVisualViewport } from '@/hooks/useVisualViewport';
+import { useDialogFocus } from '@/hooks/useDialogFocus';
 
 export interface ModalProps {
   open: boolean;
@@ -11,10 +12,6 @@ export interface ModalProps {
   footer?: ReactNode;
   width?: number;
 }
-
-/** Elements that can receive keyboard focus — used for the focus trap. */
-const FOCUSABLE =
-  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
  * Branded modal (audit 9.1) — one consistent overlay + card + Esc/backdrop
@@ -27,7 +24,6 @@ const FOCUSABLE =
  */
 export function Modal({ open, onClose, title, children, footer, width = 460 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  const prevFocus = useRef<HTMLElement | null>(null);
   const titleId = useId();
   /* THE KEYBOARD, HANDLED WHERE EVERY DIALOG GETS IT AT ONCE. On iOS,
      focusing a field in a centred fixed overlay does not shrink the window —
@@ -38,45 +34,12 @@ export function Modal({ open, onClose, title, children, footer, width = 460 }: M
      the old values as fallbacks so a desk sees nothing change. */
   useVisualViewport(open);
 
-  // Esc closes.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  // Move focus into the dialog on open; restore it to the opener on close.
-  useEffect(() => {
-    if (!open) return;
-    prevFocus.current = document.activeElement as HTMLElement | null;
-    const node = dialogRef.current;
-    if (node) {
-      const focusables = node.querySelectorAll<HTMLElement>(FOCUSABLE);
-      (focusables[0] ?? node).focus();
-    }
-    return () => { prevFocus.current?.focus?.(); };
-  }, [open]);
+  /* Esc, focus in, focus back, and the Tab cycle — the same four things every
+     dialog needs, now in one hook because DrivePicker is also a dialog and had
+     none of them. Behaviour here is unchanged; it has only moved. */
+  const { onKeyDown } = useDialogFocus(open, onClose, dialogRef);
 
   if (!open) return null;
-
-  // Trap Tab / Shift-Tab so focus cycles within the dialog.
-  const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (e.key !== 'Tab') return;
-    const node = dialogRef.current;
-    if (!node) return;
-    const focusables = Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE))
-      .filter((el) => el.offsetParent !== null);
-    if (focusables.length === 0) { e.preventDefault(); node.focus(); return; }
-    const first = focusables[0];
-    const last = focusables[focusables.length - 1];
-    const active = document.activeElement;
-    if (e.shiftKey) {
-      if (active === first || active === node) { e.preventDefault(); last.focus(); }
-    } else if (active === last) {
-      e.preventDefault(); first.focus();
-    }
-  };
 
   /* THE PORTAL IS LOAD-BEARING, NOT A STYLE CHOICE. A dialog opened from
      inside a feed card used to render inside that card's subtree, and the

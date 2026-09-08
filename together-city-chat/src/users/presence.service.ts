@@ -16,13 +16,20 @@ export class PresenceService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async markOnline(userId: string, socketId: string): Promise<boolean> {
-    const count = await this.redis.addSocket(userId, socketId);
-    if (count === 1) {
-      await this.persistStatus(userId, true);
-      return true; // first connection -> transitioned to online
-    }
-    return false;
+  /**
+   * Register a live socket.
+   *
+   * `sockets` is the count AFTER this one, and it is returned rather than
+   * thrown away because the gateway needs it: `addSocket` is a Redis SADD, so
+   * the Nth socket for a citizen sees N, and that is the only race-free place
+   * to decide whether there are too many. (1M-DAU pass, 6 Sep — before it, one
+   * account could hold five hundred open sockets and nothing counted them.)
+   */
+  async markOnline(userId: string, socketId: string): Promise<{ transitioned: boolean; sockets: number }> {
+    const sockets = await this.redis.addSocket(userId, socketId);
+    // First connection -> transitioned to online.
+    if (sockets === 1) await this.persistStatus(userId, true);
+    return { transitioned: sockets === 1, sockets };
   }
 
   async markOffline(userId: string, socketId: string): Promise<boolean> {

@@ -52,6 +52,9 @@ export const REMOVED_ROUTES: Readonly<Record<string, string>> = {
   // surviving page — a guided session with a timer, which is what somebody
   // following an old Trainer link was after.
   '/fitness/trainer': '/fitness/workout',
+  // Body Goal (8 Sep, owner: "merge body goals and workout and just create
+  // one page"). Its content is now the first section of Workout.
+  '/fitness/body-goal': '/fitness/workout',
   // The family Daily Planner (7 Aug). It rendered today's slice of the same
   // household plan the weekly view shows in full, so the weekly view is where
   // an old link belongs.

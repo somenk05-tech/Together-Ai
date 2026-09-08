@@ -501,7 +501,10 @@ export const HUBS: Record<HubKey, HubConfig> = {
     key: 'fitness', name: 'Fitness', tag: 'Move, recover, fuel', backPath: '/fitness',
     items: [
       { path: '/fitness/profile', index: '01', label: 'Training Profile', sub: 'Age, level, style & body goal' },
-      { path: '/fitness/body-goal', index: '02', label: 'Body Goal', sub: 'Diet + workout + health, integrated' },
+      // BODY GOAL IS FOLDED INTO WORKOUT (owner, 8 Sep: "merge body goals and
+      // workout and just create one page"). Its content is the first section
+      // of /fitness/workout; /fitness/body-goal redirects there in
+      // config/labels.ts. The numbering closes up, as it did at 03 and 04.
       // MY PLAN IS OFF THE MENU (16 Aug), at the owner's word — and the room is
       // left standing, which is the third time this hub-level decision has been
       // taken and the third time on the same argument: deleting a working
@@ -529,18 +532,18 @@ export const HUBS: Record<HubKey, HubConfig> = {
       //
       // The numbering closes up, same as it did at 03: a menu that counts
       // 01-02-04 advertises the thing it is trying not to advertise.
-      { path: '/fitness/workout', index: '03', label: 'Workout', sub: 'Guided live-timer plan' },
-      { path: '/fitness/log', index: '04', label: 'Activity Log', sub: 'What you actually did' },
-      { path: '/fitness/supplements', index: '05', label: 'Supplements', sub: 'Read from your blood work' },
+      { path: '/fitness/workout', index: '02', label: 'Workout', sub: 'Body goal, targets & today\'s session' },
+      { path: '/fitness/log', index: '03', label: 'Activity Log', sub: 'What you actually did' },
+      { path: '/fitness/supplements', index: '04', label: 'Supplements', sub: 'Read from your blood work' },
       // DIRECTLY UNDER THE PLAN, and not down beside the store, because it is
       // an advising screen rather than a selling one — it carries no bag, no
       // price that leads anywhere and no Add. Numbered into the rail rather
       // than hidden behind the plan page, because the most useful thing on it
       // is a refusal and a refusal nobody can find is a refusal nobody reads.
-      { path: '/fitness/multivitamins', index: '06', label: 'Multivitamins', sub: 'Thirty-two labels, assessed' },
-      { path: '/fitness/sleep', index: '07', label: 'Sleep Cycle', sub: 'Duration, quality & schedule' },
-      { path: '/fitness/store', index: '08', label: 'The Store', sub: 'Verified in India · we take no cut' },
-      { path: '/fitness/orders', index: '09', label: 'My Orders', sub: 'Your bag & what you bought' },
+      { path: '/fitness/multivitamins', index: '05', label: 'Multivitamins', sub: 'Thirty-two labels, assessed' },
+      { path: '/fitness/sleep', index: '06', label: 'Sleep Cycle', sub: 'Duration, quality & schedule' },
+      { path: '/fitness/store', index: '07', label: 'The Store', sub: 'Verified in India · we take no cut' },
+      { path: '/fitness/orders', index: '08', label: 'My Orders', sub: 'Your bag & what you bought' },
     ],
   },
   mail: {

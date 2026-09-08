@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, Optional } from '@nestjs/common';
 import { AiService } from '../ai/ai.service';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { swallow, swallowed } from '../shared/swallow';
@@ -28,6 +28,12 @@ import { MiraRegistry, type Capability } from './mira.registry';
 import { MiraLedger, mentions, type Outcome } from './ledger';
 import { acceptOrFallback, violations } from './voice';
 import { persona, confidant, lifePathOf, BANNED_FROM_HER_MOUTH, FREE_CHATS, SUB_INR, PAYWALL_LINE } from './persona';
+import { RedisService } from '../shared/redis/redis.service';
+
+/** Out-of-meter turns one citizen may have in a day on the distress door.
+ *  Generous — more than a bad night produces — because what it is for is the
+ *  script that types the phrase every time, not the person who means it. */
+const DISTRESS_DAILY = 25;
 import { findInCity, whyWeAsk } from './city';
 import { readSituation, type Read } from './relate';
 import { readForget, readForgetConfirm } from './forget';
@@ -558,6 +564,9 @@ export class MiraService {
     private readonly prisma: PrismaService,
     private readonly daybook: DaybookService,
     private readonly pets: PetsService,
+    // Appended, and optional, for the same reason as the four above it: the
+    // spec builds this service with positional stubs.
+    @Optional() private readonly redis?: RedisService,
   ) {}
 
   async ask(text: string, ctx: AskContext): Promise<MiraTurn> {
@@ -1095,6 +1104,25 @@ export class MiraService {
      * What it costs is conversations somebody did not pay for, on the days
      * they are worst. What the old order cost is the person.
      */
+    /**
+     * ── AND THE DOOR STAYS OPEN, WITH A FLOOR UNDER IT ────────────────────
+     *
+     * `distress` is a phrase match on the citizen's own words, and it lets a
+     * turn past a spent meter. The product reasoning above is right and it
+     * stays. What it had no answer for is that the phrase is free to type: an
+     * account appending one to every message got unbounded thirteen-thousand-
+     * token conversations, bounded only by the daily ceiling — and `spendChat`
+     * is never reached on that path either, so nothing anywhere counted them.
+     *
+     * The behaviour does not change for a person. The bound is generous — far
+     * more turns in a day than a distressing evening produces — and crossing
+     * it LOGS rather than silently refusing at zero, so what it catches most
+     * of the time is a script, and what it does the rest of the time is tell
+     * somebody that this account is having a very long night.
+     */
+    if (!pass.paid && pass.freeLeft <= 0 && distress && !(await this.distressLeft(ctx.userId))) {
+      return { outcome: 'paywall', text: PAYWALL_LINE, pass: { freeLeft: 0 } };
+    }
     if (!pass.paid && pass.freeLeft <= 0 && !distress) {
       return { outcome: 'paywall', text: PAYWALL_LINE, pass: { freeLeft: 0 } };
     }
@@ -1185,6 +1213,30 @@ export class MiraService {
     return undefined;
   }
 
+  /**
+   * Has this citizen any of today's out-of-meter distress turns left?
+   *
+   * Counted in Redis on its own key, apart from the model budget, so it is
+   * readable as what it is. Fails OPEN — with Redis away this returns true and
+   * the door is as wide as it was before, which is the right way for a bound on
+   * a compassionate exception to fail.
+   */
+  private async distressLeft(userId: string): Promise<boolean> {
+    const redis = this.redis;
+    if (!redis?.up) return true;
+    try {
+      const key = `mira:distress:${new Date().toISOString().slice(0, 10)}:${userId}`;
+      const n = await redis.raw.incr(key);
+      if (n === 1) await redis.raw.expire(key, 36 * 60 * 60);
+      if (n === DISTRESS_DAILY) {
+        this.logger.warn(`mira: ${userId} has used ${n} out-of-meter distress turns today — the door is closed for the rest of the day.`);
+      }
+      return n <= DISTRESS_DAILY;
+    } catch {
+      return true;
+    }
+  }
+
   /** Where the meter stands. A missing row is a citizen who has never chatted. */
   private async passOf(userId: string): Promise<{ paid: boolean; used: number; freeLeft: number }> {
     // A read that fails reads as "never chatted", which hands out free chats
@@ -1203,11 +1255,35 @@ export class MiraService {
    */
   private async spendChat(userId: string, pass: { paid: boolean; used: number }): Promise<number | null> {
     if (pass.paid) return null;
-    await swallow(this.prisma.miraPass.upsert({
-      where: { userId },
-      update: { chatUsed: { increment: 1 } },
-      create: { userId, chatUsed: 1 },
-    }), 'mira.pass: spend a free chat', { userId });
+    /**
+     * ── A CLAIM, NOT AN INCREMENT (1M-DAU pass, 6 Sep) ─────────────────────
+     *
+     * `passOf` reads `chatUsed`, the gate above compares it to FREE_CHATS, and
+     * this used to increment unconditionally — a read-then-act with a model
+     * call in the gap. MODEL_LIMIT allows twenty requests a minute, so twenty
+     * of them arriving at `freeLeft === 1` all read `used = 199`, all passed
+     * the gate, and all got a full conversation. `AstrologyService.ask` gets
+     * this right and says why: carry the read value into the WHERE and let
+     * Postgres arbitrate.
+     *
+     * A LOST RACE STILL RETURNS. The conversation has already happened — the
+     * model was called before this line — so refusing here would take a reply
+     * the citizen is reading. The claim's job is to stop the COUNTER being
+     * wrong, and `updateMany` matching no rows means somebody else moved it,
+     * which is the same one-conversation-per-increment we wanted.
+     */
+    const claimed = await swallow(this.prisma.miraPass.updateMany({
+      where: { userId, chatUsed: pass.used },
+      data: { chatUsed: { increment: 1 } },
+    }), 'mira.pass: claim a free chat', { userId });
+    if (!claimed || claimed.count === 0) {
+      // Either a concurrent turn moved it, or this citizen has no row yet.
+      await swallow(this.prisma.miraPass.upsert({
+        where: { userId },
+        update: {},
+        create: { userId, chatUsed: 1 },
+      }), 'mira.pass: open the meter', { userId });
+    }
     return Math.max(0, FREE_CHATS - pass.used - 1);
   }
 
@@ -1634,14 +1710,32 @@ export class MiraService {
    */
   private async recall(userId: string): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
     try {
+      /**
+       * ── TWENTY TURNS AT A THOUSAND CHARACTERS (1M-DAU pass, 6 Sep) ───────
+       *
+       * It was thirty at fifteen hundred — up to forty-five thousand
+       * characters, about eleven thousand input tokens, re-sent in full on
+       * every turn of the highest-volume model call in the city.
+       *
+       * The prompt cache in AiService.converse is the larger half of the fix
+       * and it does not need this one: the prefix is marked, so the repeated
+       * part is billed at a tenth. But a cache MISS still pays full price, and
+       * the write itself costs more than a plain read — every conversation
+       * resumed after the window has lapsed pays for whatever is in here. So
+       * the window is trimmed as well, to the shape that carries the same
+       * continuity: twenty turns is ten exchanges, and a thousand characters is
+       * a long paragraph. Nothing a person said in the last ten exchanges is
+       * lost; what is lost is nine hundred characters of a message nobody
+       * writes.
+       */
       const rows = await this.prisma.miraTurn.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
-        take: 30,
+        take: 20,
       });
       return rows.reverse().map((t: { who: string; text: string }) => ({
         role: t.who === 'you' ? ('user' as const) : ('assistant' as const),
-        content: t.text.slice(0, 1500),
+        content: t.text.slice(0, 1000),
       }));
     } catch {
       return [];
