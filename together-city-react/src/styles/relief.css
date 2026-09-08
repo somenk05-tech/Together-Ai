@@ -6040,19 +6040,25 @@ button.own-month-day:hover { border-color: var(--accent); }
   .pz-bays { display: none; }
 }
 
+/* ── THREE IN A ROW, IN THE WALK'S OWN SHAPE (owner, 8 Sep, pointing at Walk
+   the districts: "the banners make it three in one row - in this style") ────
+   The page was two columns: a sticky lockup on the left and nine banners
+   stacked one to a row on the right, which is nine screens of scroll for nine
+   districts and a column of text with nothing beside it for most of them.
+
+   It is the walk's grid now — `repeat(3, 1fr)` at the same 1240px, the same
+   gap, the same drop to `auto-fill` on a phone — so the two pages that show
+   the same nine districts finally show them in the same shape as well as the
+   same material. The lockup stops being a column and becomes what it always
+   read as: the paragraph over the run. */
 .pz {
-  display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 7fr);
-  gap: clamp(24px, 3.4vw, 64px); align-items: start;
-  max-width: 1360px; margin: 0 auto;
-  padding: clamp(20px, 3vw, 56px) clamp(16px, 2vw, 36px) clamp(32px, 4vw, 64px);
+  display: block;
+  max-width: 1240px; margin: 0 auto;
+  padding: clamp(20px, 3vw, 40px) clamp(16px, 2vw, 36px) clamp(32px, 4vw, 64px);
 }
-/* Nine banners is a long column, and a lockup that scrolls away leaves eight
-   of them with nothing to belong to. */
-.pz-say { position: sticky; top: 92px; max-width: 34ch; }
-@media (max-width: 899px) {
-  .pz { grid-template-columns: 1fr; gap: clamp(20px, 4vw, 32px); }
-  .pz-say { position: static; }
-}
+/* No longer sticky: there is nothing beside it to stay level with, and a
+   paragraph that follows the reader down a grid is a paragraph in the way. */
+.pz-say { max-width: 62ch; margin: 0 auto clamp(22px, 2.6vw, 40px); text-align: center; }
 /* The one enormous light line the reference sets its promise in. Light rather
    than bold, and the tail in the muted ink, because the sentence has a setup
    and a payoff and only one of them is the promise. */
@@ -6088,7 +6094,13 @@ button.own-month-day:hover { border-color: var(--accent); }
 }
 .pz-empty { font-size: var(--fs-4); line-height: 1.6; }
 
-.pz-run { display: grid; grid-template-columns: 1fr; gap: clamp(12px, 1.2vw, 20px); }
+.pz-run { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(16px, 1.8vw, 26px); }
+/* The walk's own answer, copied rather than re-derived: `auto-fill` at 230px
+   holds two on a tablet and one on a phone without a second breakpoint being
+   spent to say where the phone starts. */
+@media (max-width: 899px) {
+  .pz-run { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+}
 
 /* ── AND THE BANNER BECOMES A CARD (owner, 7 Sep: "the personalized tabs,
    make it look like walk the hub but more wide feel") ─────────────────────

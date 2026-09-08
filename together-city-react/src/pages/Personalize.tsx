@@ -190,8 +190,10 @@ export function Personalize() {
       </nav>
 
     <div className="pz">
-      {/* Sticky on a desk: nine banners are a long column, and a lockup that
-          scrolls away leaves eight of them with nothing to belong to. */}
+      {/* The paragraph over the run (owner, 8 Sep). It was a sticky column
+          beside a single stack of banners; the banners are three to a row in
+          the walk's own grid now, so there is no column for it to be one half
+          of. */}
       <div className="pz-say">
         <div className="eyebrow">Together City</div>
         {/* THE OWNER'S OWN WORDS, 7 SEP. The headline was one sentence with a

@@ -281,15 +281,25 @@ describe('the banner is the whole card', () => {
     expect(code('pages/Personalize.tsx')).not.toMatch(/districtLine|BANNER_LINE/);
   });
 
-  it('runs one to a row, on a desk as well as on a phone', () => {
-    // Two to a row is a paragraph of real copy at about four pixels tall.
-    expect(css).toMatch(/\.pz-run \{ display: grid; grid-template-columns: 1fr;/);
+  it('runs three to a row, in the walk\u2019s own grid (owner, 8 Sep)', () => {
+    /* It ran one to a row - nine screens of scroll for nine districts, with a
+       column of text beside the first two and nothing beside the other seven.
+       The owner pointed at Walk the districts: "the banners make it three in
+       one row - in this style." So it is that grid, not a new one: the same
+       three columns, the same gap, and the same drop to `auto-fill` at 230px
+       on a phone, which is where a card stops being one. */
+    expect(css).toMatch(/\.pz-run \{ display: grid; grid-template-columns: repeat\(3, 1fr\)/);
+    expect(css).toMatch(/@media \(max-width: 899px\) \{[\s\S]*?\.pz-run \{ grid-template-columns: repeat\(auto-fill, minmax\(230px, 1fr\)\)/);
+    // and the run reads the same as the walk's, which is the point of copying it
+    expect(css).toMatch(/\.district-run \{[\s\S]*?grid-template-columns: repeat\(3, 1fr\)/);
   });
 
-  it('holds the lockup while the column runs past it', () => {
-    expect(css).toMatch(/\.pz-say \{ position: sticky/);
-    // …and lets go of it on a phone, where there is no column beside it.
-    expect(css).toMatch(/@media \(max-width: 899px\) \{[\s\S]*?\.pz-say \{ position: static; \}/);
+  it('and the lockup is a paragraph over the run, not a column beside it', () => {
+    // Nothing to stay level with any more: a sticky paragraph over a grid is
+    // a paragraph in the reader's way.
+    expect(css).not.toMatch(/\.pz-say \{ position: sticky/);
+    expect(css).toMatch(/\.pz-say \{ max-width: 62ch/);
+    expect(css).toMatch(/\.pz \{\s*display: block/);
   });
 });
 
