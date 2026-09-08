@@ -23,6 +23,14 @@ export interface ServiceCategory {
   key: string;
   label: string;
   group: string;
+  /**
+   * RETIRED — the trade is no longer offered (owner, 8 Sep: "remove all
+   * these categories for now from local services"). The key stays here so a
+   * listing already filed under it keeps its label and its page; it is off
+   * the picker, off the browse chips, off the word search and off the
+   * create/update enum. "For now": un-retire by deleting the flag.
+   */
+  retired?: true;
 }
 
 export const SERVICE_CATEGORIES: ServiceCategory[] = [
@@ -100,15 +108,15 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
   { key: 'personal_trainers', label: 'Personal trainers', group: 'Fitness & Sports' },
 
   // Travel & Hospitality
-  { key: 'hotels', label: 'Hotels', group: 'Travel & Hospitality' },
-  { key: 'hostels', label: 'Hostels', group: 'Travel & Hospitality' },
-  { key: 'resorts', label: 'Resorts', group: 'Travel & Hospitality' },
-  { key: 'travel_agencies', label: 'Travel agencies', group: 'Travel & Hospitality' },
-  { key: 'bus_stations', label: 'Bus stations', group: 'Travel & Hospitality' },
-  { key: 'railway_stations', label: 'Railway stations', group: 'Travel & Hospitality' },
-  { key: 'airports', label: 'Airports', group: 'Travel & Hospitality' },
-  { key: 'taxi_stands', label: 'Taxi stands', group: 'Travel & Hospitality' },
-  { key: 'car_rentals', label: 'Car rentals', group: 'Travel & Hospitality' },
+  { key: 'hotels', label: 'Hotels', group: 'Travel & Hospitality', retired: true },
+  { key: 'hostels', label: 'Hostels', group: 'Travel & Hospitality', retired: true },
+  { key: 'resorts', label: 'Resorts', group: 'Travel & Hospitality', retired: true },
+  { key: 'travel_agencies', label: 'Travel agencies', group: 'Travel & Hospitality', retired: true },
+  { key: 'bus_stations', label: 'Bus stations', group: 'Travel & Hospitality', retired: true },
+  { key: 'railway_stations', label: 'Railway stations', group: 'Travel & Hospitality', retired: true },
+  { key: 'airports', label: 'Airports', group: 'Travel & Hospitality', retired: true },
+  { key: 'taxi_stands', label: 'Taxi stands', group: 'Travel & Hospitality', retired: true },
+  { key: 'car_rentals', label: 'Car rentals', group: 'Travel & Hospitality', retired: true },
 
   // Shopping
   { key: 'clothing_stores', label: 'Clothing stores', group: 'Shopping' },
@@ -184,23 +192,23 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
   { key: 'hobby_clubs', label: 'Hobby clubs', group: 'Learning' },
 
   // Experiences
-  { key: 'adventure_sports', label: 'Adventure sports', group: 'Experiences' },
-  { key: 'trekking', label: 'Trekking', group: 'Experiences' },
-  { key: 'camping', label: 'Camping', group: 'Experiences' },
-  { key: 'yacht_rentals', label: 'Yacht rentals', group: 'Experiences' },
-  { key: 'hot_air_balloons', label: 'Hot air balloons', group: 'Experiences' },
-  { key: 'helicopter_rides', label: 'Helicopter rides', group: 'Experiences' },
-  { key: 'theme_parks', label: 'Theme parks', group: 'Experiences' },
-  { key: 'escape_rooms', label: 'Escape rooms', group: 'Experiences' },
-  { key: 'city_tours', label: 'City tours', group: 'Experiences' },
+  { key: 'adventure_sports', label: 'Adventure sports', group: 'Experiences', retired: true },
+  { key: 'trekking', label: 'Trekking', group: 'Experiences', retired: true },
+  { key: 'camping', label: 'Camping', group: 'Experiences', retired: true },
+  { key: 'yacht_rentals', label: 'Yacht rentals', group: 'Experiences', retired: true },
+  { key: 'hot_air_balloons', label: 'Hot air balloons', group: 'Experiences', retired: true },
+  { key: 'helicopter_rides', label: 'Helicopter rides', group: 'Experiences', retired: true },
+  { key: 'theme_parks', label: 'Theme parks', group: 'Experiences', retired: true },
+  { key: 'escape_rooms', label: 'Escape rooms', group: 'Experiences', retired: true },
+  { key: 'city_tours', label: 'City tours', group: 'Experiences', retired: true },
 
   // Emergency
-  { key: 'sos', label: 'SOS', group: 'Emergency' },
-  { key: 'roadside_assistance', label: 'Roadside assistance', group: 'Emergency' },
-  { key: 'emergency_contacts', label: 'Emergency contacts', group: 'Emergency' },
-  { key: 'nearby_hospitals', label: 'Nearby hospitals', group: 'Emergency' },
-  { key: 'blood_donors', label: 'Blood donors', group: 'Emergency' },
-  { key: 'disaster_alerts', label: 'Disaster alerts', group: 'Emergency' },
+  { key: 'sos', label: 'SOS', group: 'Emergency', retired: true },
+  { key: 'roadside_assistance', label: 'Roadside assistance', group: 'Emergency', retired: true },
+  { key: 'emergency_contacts', label: 'Emergency contacts', group: 'Emergency', retired: true },
+  { key: 'nearby_hospitals', label: 'Nearby hospitals', group: 'Emergency', retired: true },
+  { key: 'blood_donors', label: 'Blood donors', group: 'Emergency', retired: true },
+  { key: 'disaster_alerts', label: 'Disaster alerts', group: 'Emergency', retired: true },
 
   // Other
   // LAST ON PURPOSE, and one entry rather than eighteen. Somebody whose trade is
@@ -216,9 +224,14 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
 
 const BY_KEY = new Map(SERVICE_CATEGORIES.map((c) => [c.key, c]));
 
+/** The trades a business may pick TODAY — everything not retired. */
+export const OFFERED_CATEGORIES: ServiceCategory[] = SERVICE_CATEGORIES.filter((c) => !c.retired);
+/** Known to the vocabulary — retired keys included, so an old listing still resolves. */
 export const isCategory = (key: string): boolean => BY_KEY.has(key);
 export const categoryLabel = (key: string): string => BY_KEY.get(key)?.label ?? key;
-export const CATEGORY_KEYS: string[] = SERVICE_CATEGORIES.map((c) => c.key);
+/** The keys a NEW or EDITED listing may carry — the DTO enum. A retired key is
+ *  not among them: nothing new is filed under a trade that is not offered. */
+export const CATEGORY_KEYS: string[] = OFFERED_CATEGORIES.map((c) => c.key);
 
 /**
  * The group a category sits in, which the screens use to choose their words.
@@ -233,7 +246,7 @@ export const categoryGroup = (key: string): string => BY_KEY.get(key)?.group ?? 
 /** Grouped for the picker, in the order the groups first appear above. */
 export function categoriesByGroup(): Array<{ group: string; items: ServiceCategory[] }> {
   const out: Array<{ group: string; items: ServiceCategory[] }> = [];
-  for (const c of SERVICE_CATEGORIES) {
+  for (const c of OFFERED_CATEGORIES) {
     const g = c.group || 'Other';
     let bucket = out.find((b) => b.group === g);
     if (!bucket) { bucket = { group: g, items: [] }; out.push(bucket); }
@@ -244,7 +257,7 @@ export function categoriesByGroup(): Array<{ group: string; items: ServiceCatego
 
 /** The group names, in order — the browse screen leads with these rather than
  *  with a hundred and forty chips nobody can scan. */
-export const CATEGORY_GROUPS: string[] = [...new Set(SERVICE_CATEGORIES.map((c) => c.group))];
+export const CATEGORY_GROUPS: string[] = [...new Set(OFFERED_CATEGORIES.map((c) => c.group))];
 export const isCategoryGroup = (group: string): boolean => CATEGORY_GROUPS.includes(group);
 
 /**
@@ -256,4 +269,26 @@ export const isCategoryGroup = (group: string): boolean => CATEGORY_GROUPS.inclu
  * and a directory that answers that press with the whole city has not listened.
  */
 export const categoryKeysInGroup = (group: string): string[] =>
-  SERVICE_CATEGORIES.filter((c) => c.group === group).map((c) => c.key);
+  OFFERED_CATEGORIES.filter((c) => c.group === group).map((c) => c.key);
+
+/**
+ * THE TRADES A WORD NAMES (8 Sep).
+ *
+ * "plumber" typed into the search box used to find only a business with
+ * "plumber" in its NAME or its blurb — the very listing filed under Plumbers,
+ * called "Sharma Services", was invisible to the word the placeholder invited.
+ * This reads the vocabulary the way a person does: a word matches a trade when
+ * it sits inside the trade's label or its group ("plumb" → Plumbers, "car" →
+ * every automotive trade), and a plain-English singular/plural is tolerated
+ * ("plumber" finds "Plumbers"; "salons" finds "Salon"). Empty in, empty out —
+ * a blank word must not match every category and turn the search into nothing.
+ */
+export function categoryKeysMatching(word: string): string[] {
+  const w = word.trim().toLowerCase();
+  if (w.length < 2) return [];
+  const stems = new Set<string>([w]);
+  if (w.endsWith('s') && w.length > 3) stems.add(w.slice(0, -1));
+  if (w.endsWith('es') && w.length > 4) stems.add(w.slice(0, -2));
+  const hit = (s: string) => { const t = s.toLowerCase(); return [...stems].some((x) => t.includes(x)); };
+  return OFFERED_CATEGORIES.filter((c) => hit(c.label) || hit(c.group)).map((c) => c.key);
+}

@@ -223,7 +223,10 @@ export class VerificationService {
 
   /** Threads the business has not been given at all. */
   async waiting(listingId: string): Promise<number> {
-    return this.prisma.serviceEnquiry.count({ where: { listingId, openedAt: null } });
+    /* A room with no words in it is not a neighbour waiting (8 Sep): the
+       card's Message button makes the row before anything is typed, and the
+       count on the verification tab must not promise people who never wrote. */
+    return this.prisma.serviceEnquiry.count({ where: { listingId, openedAt: null, messages: { some: {} } } });
   }
 
   /**
@@ -249,8 +252,11 @@ export class VerificationService {
    * indefinitely.
    */
   async releaseFor(l: TrustableListing, now = new Date()): Promise<number> {
+    // Only rooms somebody has actually spoken in — an empty one is not a
+    // neighbour, and releasing it would hand the business a blank page and
+    // spend a day's allowance on it.
     const held = await this.prisma.serviceEnquiry.findMany({
-      where: { listingId: l.id, openedAt: null },
+      where: { listingId: l.id, openedAt: null, messages: { some: {} } },
       select: { id: true, createdAt: true },
       orderBy: { createdAt: 'asc' },
       take: 200,

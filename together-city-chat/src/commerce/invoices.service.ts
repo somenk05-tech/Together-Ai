@@ -375,8 +375,8 @@ export class InvoicesService {
 
   async create(ownerId: string, listingId: string, dto: CreateInvoiceDto) {
     const listing = await this.ownListing(ownerId, listingId);
-    if (listing.moderation === 'removed') {
-      throw new BadRequestException('This listing is closed. Reopen it before billing anybody.');
+    if (listing.moderation !== 'approved') {
+      throw new BadRequestException('This listing is not live. Reopen it before billing anybody.');
     }
     await this.assertBillable(listingId, dto.customerId);
     const totals = priceInvoice(dto);

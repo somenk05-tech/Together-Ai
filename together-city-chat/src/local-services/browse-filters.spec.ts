@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { LocalServicesService } from './local-services.service';
-import { categoryKeysInGroup, isCategoryGroup } from './categories';
+import { categoryKeysInGroup, categoryKeysMatching, isCategoryGroup } from './categories';
 
 /**
  * PRESSING A GROUP HAS TO NARROW SOMETHING.
@@ -77,9 +77,61 @@ describe('browsing by group', () => {
   it('every trade belongs to a group the filter can reach', async () => {
     // If a category's group is not a real group, that trade is unreachable
     // from the first row of chips — visible only to somebody who guessed.
-    const { CATEGORY_GROUPS, SERVICE_CATEGORIES } = await import('./categories');
-    for (const c of SERVICE_CATEGORIES) expect(CATEGORY_GROUPS).toContain(c.group);
+    // Every OFFERED trade — a retired one is unreachable on purpose (8 Sep).
+    const { CATEGORY_GROUPS, OFFERED_CATEGORIES } = await import('./categories');
+    for (const c of OFFERED_CATEGORIES) expect(CATEGORY_GROUPS).toContain(c.group);
     const covered = CATEGORY_GROUPS.flatMap((g) => categoryKeysInGroup(g));
-    expect(covered.sort()).toEqual(SERVICE_CATEGORIES.map((c) => c.key).sort());
+    expect(covered.sort()).toEqual(OFFERED_CATEGORIES.map((c) => c.key).sort());
+  });
+});
+
+/**
+ * THE WORD FINDS THE TRADE (8 Sep).
+ *
+ * The box says "Salon, doctor, plumber…" and for a month "plumber" found only
+ * a business with the word in its own name. The trades a word names now ride
+ * in the same OR as the name and the blurb.
+ */
+describe('searching by word', () => {
+  const orOf = (w: Record<string, unknown>) => (w.OR as Array<Record<string, unknown>>) ?? [];
+
+  it('reads a word as the trades it names, singular or plural', () => {
+    expect(categoryKeysMatching('plumber')).toContain('plumbers');
+    expect(categoryKeysMatching('Plumbers')).toContain('plumbers');
+    expect(categoryKeysMatching('salon')).toEqual(expect.arrayContaining(['hair_salons', 'beauty_salons', 'nail_salons']));
+    expect(categoryKeysMatching('')).toEqual([]);
+    expect(categoryKeysMatching('x')).toEqual([]);
+  });
+
+  it('searches the trade alongside the name and the blurb', async () => {
+    const h = harness();
+    await h.svc.browse({ q: 'plumber' });
+    const or = orOf(h.where());
+    expect(or.some((c) => 'businessName' in c)).toBe(true);
+    expect(or.some((c) => 'about' in c)).toBe(true);
+    const trade = or.find((c) => 'categoryKey' in c) as { categoryKey: { in: string[] } } | undefined;
+    expect(trade?.categoryKey.in).toContain('plumbers');
+  });
+
+  it('keeps a pressed group: the word only reaches trades inside it', async () => {
+    const h = harness();
+    await h.svc.browse({ q: 'salon', group: 'Home Services' });
+    expect(h.where().categoryKey).toEqual({ in: categoryKeysInGroup('Home Services') });
+    // No salon trade lives in Home Services, so the word reaches only names.
+    expect(orOf(h.where()).some((c) => 'categoryKey' in c)).toBe(false);
+  });
+
+  it('with the trade chip already pressed, its own name narrows nothing', async () => {
+    const h = harness();
+    await h.svc.browse({ q: 'plumber', category: 'plumbers' });
+    expect(h.where().categoryKey).toBe('plumbers');
+    expect(h.where().OR).toBeUndefined();
+  });
+
+  it('a word that names no trade still searches the name and the blurb only', async () => {
+    const h = harness();
+    await h.svc.browse({ q: 'sharma' });
+    expect(orOf(h.where()).some((c) => 'categoryKey' in c)).toBe(false);
+    expect(orOf(h.where())).toHaveLength(2);
   });
 });

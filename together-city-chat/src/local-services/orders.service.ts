@@ -300,6 +300,15 @@ export class ServiceOrdersService {
       where: { listingId_seekerId: { listingId, seekerId: userId } }, select: { id: true },
     });
     if (!enquiry) throw new BadRequestException('Could not open a conversation with this business.');
+    /* A PAID ORDER IS NOT A NEW NEIGHBOUR TO BE QUEUED (8 Sep). The five-a-day
+       gate holds a fresh thread on an unverified listing until a day has room
+       — and an order placed into a held room was money taken for a card the
+       kitchen could not see. Money changes the question: the room is handed
+       over now, whatever the day's count says. Idempotent — a room already
+       given away is untouched. */
+    await this.prisma.serviceEnquiry.updateMany({
+      where: { id: enquiry.id, openedAt: null }, data: { openedAt: this.clock.now() },
+    }).catch(swallowed('serviceOrders.openHeldThread', undefined));
 
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
     const customerName = user?.name ?? 'A customer';

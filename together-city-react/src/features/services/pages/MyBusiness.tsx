@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Button, Spinner, EmptyState } from '@/components/ui';
 import {
-  useCloseService, useDeleteServiceForever, useMyServices, useServiceInbox, useMyOffers,
+  useCloseService, useReopenService, useDeleteServiceForever, useMyServices, useServiceInbox, useMyOffers,
   usePostOffer, useRemoveOffer, useReviews, useReplyToReview, rupees, offerWhen, stars,
   serviceHref,
 } from '../api';
@@ -215,6 +215,70 @@ function Offers({ listingId }: { listingId: string }) {
  * stops existing. A modal saying "are you sure?" asks a question nobody has the
  * information to answer.
  */
+/**
+ * WHAT STATE THE PAGE IS IN, IN THE OWNER'S WORDS (8 Sep).
+ *
+ * Four states used to render as two — live, or "Closed" — so a listing a
+ * moderator had refused showed an OPEN badge and its whole toolkit as if it
+ * were in the directory. Each state now says what it is and offers only the
+ * moves that are true of it: a closed page reopens, a taken-down page can
+ * only be deleted, a refused or waiting page can be edited and nothing else.
+ */
+type Standing = 'live' | 'closed' | 'takenDown' | 'refused' | 'waiting';
+const standingOf = (moderation: string): Standing =>
+  moderation === 'approved' ? 'live'
+    : moderation === 'closed' ? 'closed'
+      : moderation === 'removed' ? 'takenDown'
+        : moderation === 'rejected' ? 'refused'
+          : 'waiting';
+const STANDING_LABEL: Record<Exclude<Standing, 'live'>, string> = {
+  closed: 'Closed', takenDown: 'Taken down', refused: 'Not approved', waiting: 'Waiting for review',
+};
+const STANDING_NOTE: Record<Exclude<Standing, 'live'>, string> = {
+  closed: 'Closed and out of the directory. Reopen it whenever you are ready — everything on it is kept.',
+  takenDown: 'Out of the directory. Deleting removes it and everything in it for good.',
+  refused: 'This page was not approved for the directory. Edit it and it will be looked at again.',
+  waiting: 'Being looked at. It joins the directory as soon as it is approved.',
+};
+
+/** Close is one press to arm and one to confirm — a live shopfront should
+ *  not leave the directory on a slip of the thumb. */
+function CloseListing({ id }: { id: string }) {
+  const close = useCloseService();
+  const [armed, setArmed] = useState(false);
+  if (!armed) {
+    return <Button variant="line" size="sm" onClick={() => setArmed(true)}>Close listing</Button>;
+  }
+  return (
+    <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+      <span style={{ fontSize: 12.5 }}>Take it out of the directory? You can reopen it later.</span>
+      <Button variant="line" size="sm" onClick={() => setArmed(false)}>Keep it open</Button>
+      <Button variant="accent" size="sm" disabled={close.isPending} onClick={() => close.mutate(id, { onSettled: () => setArmed(false) })}>
+        {close.isPending ? 'Closing…' : 'Close it'}
+      </Button>
+    </span>
+  );
+}
+
+function ReopenListing({ id }: { id: string }) {
+  const reopen = useReopenService();
+  const [err, setErr] = useState<string | null>(null);
+  return (
+    <span style={{ display: 'inline-grid', gap: 4 }}>
+      <Button variant="accent" size="sm" disabled={reopen.isPending}
+        onClick={() => reopen.mutate(id, {
+          onError: (e: unknown) => {
+            const raw = (e as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
+            setErr(Array.isArray(raw) ? raw.join(', ') : raw ?? 'That could not be reopened just now.');
+          },
+        })}>
+        {reopen.isPending ? 'Reopening…' : 'Reopen listing'}
+      </Button>
+      {err && <span role="alert" style={{ color: 'var(--danger-ink)', fontSize: 12.5 }}>{err}</span>}
+    </span>
+  );
+}
+
 function DeleteForever({ id, name, conversations }: { id: string; name: string; conversations: number }) {
   const del = useDeleteServiceForever();
   const [armed, setArmed] = useState(false);
@@ -255,7 +319,6 @@ function DeleteForever({ id, name, conversations }: { id: string; name: string; 
 export function MyBusiness() {
   const mine = useMyServices();
   const inbox = useServiceInbox();
-  const close = useCloseService();
 
   const asked = new Map<string, number>();
   for (const t of inbox.data?.receiving ?? []) {
@@ -286,15 +349,16 @@ export function MyBusiness() {
       <h1 style={{ fontSize: 26 }}>My business</h1>
       <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
         {rows.map((l) => {
-          const removed = l.moderation === 'removed';
+          const standing = standingOf(l.moderation);
+          const removed = standing !== 'live';
           const n = asked.get(l.id) ?? 0;
           return (
             <Card key={l.id} style={{ display: 'grid', gap: 8, opacity: removed ? .6 : 1 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
                 <strong style={{ fontSize: 17 }}>{l.businessName}</strong>
                 <span className="muted" style={{ fontSize: 12.5 }}>{l.categoryLabel}</span>
-                {removed ? (
-                  <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '2px 8px' }}>Closed</span>
+                {standing !== 'live' ? (
+                  <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '2px 8px' }}>{STANDING_LABEL[standing]}</span>
                 ) : (
                   /* OPEN OR CLOSED RIGHT NOW, worked out from the hours below
                      rather than from a switch somebody has to remember. A
@@ -338,9 +402,11 @@ export function MyBusiness() {
                 {/* First, and accented. Everything else on this card acts on a
                     part of the listing; this is the listing itself, and it is
                     the thing an owner comes back here to do. */}
-                {!removed && (
-                  <Link to={`/services/${l.id}/edit`}><Button variant="accent" size="sm">Edit business page</Button></Link>
+                {/* A refused or waiting page is edited, not abandoned. */}
+                {(standing === 'live' || standing === 'refused' || standing === 'waiting') && (
+                  <Link to={`/services/${l.id}/edit`}><Button variant={standing === 'live' ? 'accent' : 'line'} size="sm">Edit business page</Button></Link>
                 )}
+                {standing === 'closed' && <ReopenListing id={l.id} />}
                 <Link to="/services/messages"><Button variant="line" size="sm">Messages</Button></Link>
                 {/* THE TILL. Two doors rather than one, because writing a bill
                     and getting paid are different errands on different days —
@@ -356,21 +422,14 @@ export function MyBusiness() {
                 )}
                 {/* Only on a closed listing. Deleting is the step AFTER closing,
                     and a live shopfront should not be one press from gone. */}
-                {removed && <DeleteForever id={l.id} name={l.businessName} conversations={n} />}
-                {!removed && (
-                  <Button variant="line" size="sm" disabled={close.isPending}
-                    onClick={() => close.mutate(l.id)}>
-                    {close.isPending ? 'Closing…' : 'Close listing'}
-                  </Button>
-                )}
+                {(standing === 'closed' || standing === 'takenDown') && <DeleteForever id={l.id} name={l.businessName} conversations={n} />}
+                {standing === 'live' && <CloseListing id={l.id} />}
               </div>
-              {removed ? (
-                <p className="muted" style={{ fontSize: 11.5, margin: 0 }}>
-                  Closed and out of the directory. Deleting removes it and everything in it for good.
-                </p>
+              {standing !== 'live' ? (
+                <p className="muted" style={{ fontSize: 11.5, margin: 0 }}>{STANDING_NOTE[standing]}</p>
               ) : (
                 <p className="muted" style={{ fontSize: 11.5, margin: 0 }}>
-                  Closing takes it out of the directory. Conversations already open stay open.
+                  Closing takes it out of the directory and can be undone. Conversations already open stay open.
                 </p>
               )}
             </Card>

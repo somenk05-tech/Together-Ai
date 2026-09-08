@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, Chip, EmptyState, Spinner, Button } from '@/components/ui';
 import { useAuthStore } from '@/store/auth.store';
 import {
   serviceHref, useBrowseServices, useServiceCategories, useServiceFacets, useRegulars,
-  currentPosition, type ServiceCard,
+  useSettled, currentPosition, type ServiceCard,
 } from '../api';
 import { BusinessCard } from '../components/BusinessCard';
 import { SearchModule } from '../components/SearchModule';
@@ -58,6 +58,14 @@ export function ServicesBrowse() {
   const [area, setArea] = useState('');
   const [q, setQ] = useState(() => params.get('q') ?? '');
   const [view, setView] = useState<'list' | 'map'>('list');
+  /* THE PAGE, AND THE THING THAT RESETS IT. Twenty-four cards a page and,
+     until today, no way to the twenty-fifth — the server paginated and the
+     screen never asked. Any change to what is being searched goes back to
+     page one; page two of a different question is nobody's answer. */
+  const [page, setPage] = useState(1);
+  const typedQ = useSettled(q);
+  const typedCity = useSettled(city);
+  const typedArea = useSettled(area);
   // "Near me" is off until somebody asks for it. The permission prompt is the
   // cost of this feature and it is only worth paying when it was requested.
   const [near, setNear] = useState<{ lat: number; lng: number } | null>(null);
@@ -73,11 +81,19 @@ export function ServicesBrowse() {
      shown a salon is the page not listening: the group chips are the first row
      on the screen and until this was sent they narrowed nothing at all. The
      leaf wins when both are set — the server applies the same precedence. */
-  const list = useBrowseServices({
+  const ask = {
     category: category || undefined, group: category ? undefined : (group || undefined),
-    city: city || undefined, area: area || undefined, q: q || undefined,
+    city: typedCity || undefined, area: typedArea || undefined, q: typedQ || undefined,
     ...(near ? { near: `${near.lat},${near.lng}`, withinKm } : {}),
-  });
+  };
+  const askKey = JSON.stringify(ask);
+  useEffect(() => { setPage(1); }, [askKey]);
+  const list = useBrowseServices({ ...ask, page: page > 1 ? page : undefined });
+
+  const filtered = Boolean(category || group || typedCity || typedArea || typedQ || near);
+  const clearAll = () => {
+    setGroup(''); setCategory(''); setCity(''); setArea(''); setQ(''); setNear(null); setPage(1);
+  };
 
   const findMe = async () => {
     setLocBusy(true); setLocErr(null);
@@ -202,21 +218,42 @@ export function ServicesBrowse() {
         {list.isLoading ? <Spinner label="Looking…" />
           : list.isError ? <EmptyState title="Couldn't load the directory" hint="Nothing is lost — try again in a moment." />
           : items.length === 0 ? (
-            <EmptyState
-              title={cityTotal === 0 ? 'Nobody has listed a business yet' : 'Nothing in this corner yet'}
-              hint={cityTotal === 0
-                ? 'Run something — a trade, a class, a kitchen? Be the first to list it.'
-                : 'Try another category, widen the area, or clear the search.'}
-            />
+            <div style={{ display: 'grid', gap: 12, justifyItems: 'center' }}>
+              <EmptyState
+                title={cityTotal === 0 ? 'Nobody has listed a business yet' : 'Nothing in this corner yet'}
+                hint={cityTotal === 0
+                  ? 'Run something — a trade, a class, a kitchen? Be the first to list it.'
+                  : 'Try another category, widen the area, or clear the search.'}
+              />
+              {/* The sentence above names three moves; this is the one that
+                  needs a button, because "clear the search" was five fields. */}
+              {cityTotal > 0 && filtered && (
+                <Button variant="line" size="sm" onClick={clearAll}>Show everything in the city</Button>
+              )}
+            </div>
           ) : view === 'map' ? (
             <NearbyMap items={items} centre={near} withinKm={withinKm} />
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(268px,1fr))', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(268px,1fr))', gap: 16, opacity: list.isFetching ? .7 : 1 }}>
               {items.map((s) => (
                 <BusinessCard key={s.id} s={s} saved={savedIds.has(s.id)} />
               ))}
             </div>
           )}
+
+        {/* THE REST OF THE LIST. Shown only when there is one — a pager on a
+            single page is furniture. */}
+        {(list.data?.pages ?? 1) > 1 && view === 'list' && (
+          <nav aria-label="More businesses" style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'center', paddingTop: 4 }}>
+            <Button variant="line" size="sm" disabled={page <= 1 || list.isFetching} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+              ← Previous
+            </Button>
+            <span className="muted" style={{ fontSize: 12.5 }}>Page {list.data?.page ?? page} of {list.data?.pages}</span>
+            <Button variant="line" size="sm" disabled={page >= (list.data?.pages ?? 1) || list.isFetching} onClick={() => setPage((p) => p + 1)}>
+              Next →
+            </Button>
+          </nav>
+        )}
       </section>
 
       {/* ── the other side of the market, and it stays the quieter one ───── */}

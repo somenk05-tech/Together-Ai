@@ -92,10 +92,12 @@ function harness(opts: {
       count: async () => enquiries.length,
       create: async ({ data }: any) => { const r = { id: `E${++seq}`, lastMessageAt: new Date(), seekerUnread: 0, ownerUnread: 0, closed: false, revealName: false, createdAt: new Date(), ...data }; enquiries.push(r); return r; },
       update: async ({ where, data }: any) => { const r = enquiries.find((e) => e.id === where.id); applyData(r, data); return r; },
+      updateMany: async ({ where, data }: any) => { const hit = enquiries.filter((e) => cmp(where, e)); for (const r of hit) applyData(r, data); return { count: hit.length }; },
     },
     serviceMessage: {
       create: async ({ data }: any) => { const r = { id: `S${++seq}`, createdAt: new Date(), ...data }; messages.push(r); return r; },
       findMany: async () => messages,
+      count: async ({ where }: any) => messages.filter((m) => (!where?.enquiryId || m.enquiryId === where.enquiryId) && (!where?.senderSide || m.senderSide === where.senderSide)).length,
     },
     invoice: {
       count: async () => invoices.length,
@@ -297,6 +299,15 @@ describe('placing an order: pay, then promise', () => {
     expect(messages).toHaveLength(1);
     expect(messages[0].orderId).toBe(orders[0].id);
     expect(notes.map((n: any) => n.kind)).toContain('service_order');
+  });
+
+  it('a paid order opens a held room — money is not a neighbour to be queued (8 Sep)', async () => {
+    const { svc, enquiries } = harness();
+    // An unverified listing on a full day: a fresh thread would be held.
+    svc.services.verification.holdsNewThread = async () => true;
+    await svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 490, ...DELIVERY });
+    expect(enquiries).toHaveLength(1);
+    expect(enquiries[0].openedAt).toBeInstanceOf(Date);
   });
 
   it('the thread message names nobody and locates nobody — the identity is on the order, for the owner', async () => {

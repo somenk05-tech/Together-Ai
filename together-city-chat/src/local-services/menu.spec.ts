@@ -62,6 +62,7 @@ function harness(opts: { menu?: any[]; extract?: any } = {}) {
     serviceMessage: {
       create: async ({ data }: any) => { const r = { id: `S${++seq}`, createdAt: new Date(), ...data }; messages.push(r); return r; },
       findMany: async () => messages,
+      count: async ({ where }: any) => messages.filter((m) => (!where?.enquiryId || m.enquiryId === where.enquiryId) && (!where?.senderSide || m.senderSide === where.senderSide)).length,
     },
   };
   /* The same two shapes the real client answers: an array of writes, or a

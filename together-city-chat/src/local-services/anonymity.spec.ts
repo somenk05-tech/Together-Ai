@@ -111,6 +111,7 @@ function harness(opts: { listings?: any[]; enquiries?: any[]; messages?: any[] }
     },
     serviceMessage: {
       findMany: async ({ where }: any) => messages.filter((m) => m.enquiryId === where.enquiryId),
+      count: async ({ where }: any) => messages.filter((m) => (!where?.enquiryId || m.enquiryId === where.enquiryId) && (!where?.senderSide || m.senderSide === where.senderSide)).length,
       create: async ({ data }: any) => { const r = { id: `M${++seq}`, createdAt: new Date('2026-08-05T10:05:00Z'), ...data }; messages.push(r); return r; },
     },
   };
@@ -383,5 +384,52 @@ describe('a business phone is published only when its owner published it', () =>
   it('publishes nothing when there is nothing to publish, whatever the flag says', () => {
     const c = cardOf({ ...row(true), phone: null });
     expect('phone' in c).toBe(false);
+  });
+});
+
+/**
+ * A ROOM NOBODY HAS SPOKEN IN IS NOT A NEIGHBOUR (8 Sep).
+ *
+ * "Message" on a card makes the thread before a word is typed. That row must
+ * not reach the business, must not spend one of its five daily new threads,
+ * and must not raise a notification — and the moment the citizen does write,
+ * the gate is asked and the room is handed over.
+ */
+describe('the room is handed over at the first word, not at the door', () => {
+  it('a pressed-but-silent room stays out of the inbox and asks the gate nothing', async () => {
+    const { svc, enquiries, notes } = harness();
+    let asked = 0;
+    svc.verification.holdsNewThread = async () => { asked += 1; return false; };
+    await svc.enquire(SEEKER, 'L1');
+    expect(enquiries).toHaveLength(1);
+    expect(enquiries[0].openedAt).toBeNull();
+    expect(asked).toBe(0);
+    expect((await svc.inbox(OWNER)).receiving).toHaveLength(0);
+    expect(notes).toHaveLength(0);
+  });
+
+  it('the first message asks the gate once and opens the room when there is room today', async () => {
+    const { svc, enquiries, notes } = harness();
+    let asked = 0;
+    svc.verification.holdsNewThread = async () => { asked += 1; return false; };
+    const t = await svc.enquire(SEEKER, 'L1');
+    await svc.post(SEEKER, t.id, 'Do you fix geysers?');
+    await svc.post(SEEKER, t.id, 'Today, ideally.');
+    expect(asked).toBe(1);
+    expect(enquiries[0].openedAt).toBeInstanceOf(Date);
+    expect((await svc.inbox(OWNER)).receiving).toHaveLength(1);
+    expect(notes.filter((n) => n.kind === 'service_enquiry')).toHaveLength(2);
+  });
+
+  it('when the day is full the room waits, silently, and a second message does not ask again', async () => {
+    const { svc, enquiries, notes } = harness();
+    let asked = 0;
+    svc.verification.holdsNewThread = async () => { asked += 1; return true; };
+    const t = await svc.enquire(SEEKER, 'L1', 'Do you fix geysers?');
+    await svc.post(SEEKER, t.id, 'Hello?');
+    expect(asked).toBe(1);
+    expect(enquiries[0].openedAt).toBeNull();
+    expect((await svc.inbox(OWNER)).receiving).toHaveLength(0);
+    expect(notes).toHaveLength(0);
   });
 });

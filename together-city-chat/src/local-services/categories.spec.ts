@@ -45,26 +45,48 @@ describe('the service vocabulary', () => {
     expect(SERVICE_CATEGORIES.filter((c) => !c.label.trim()).map((c) => c.key)).toEqual([]);
   });
 
-  it('carries the owner’s eighteen groups', () => {
-    // Not a count for its own sake: this is the list supplied on 5 Aug, and a
-    // group quietly disappearing in a merge is the kind of thing that shows up
-    // as "the directory feels smaller" six weeks later.
-    // Eighteen from the owner, plus "Other" — which must be LAST, or it lands
-    // in the middle of the browse chips and reads as a trade rather than an
-    // escape hatch.
-    expect(CATEGORY_GROUPS).toHaveLength(19);
+  it('carries the owner’s groups — eighteen on 5 Aug, fifteen since three were retired on 8 Sep', () => {
+    // Not a count for its own sake: a group quietly disappearing in a merge is
+    // the kind of thing that shows up as "the directory feels smaller" six
+    // weeks later. Fifteen offered, plus "Other" — which must be LAST, or it
+    // lands in the middle of the browse chips and reads as a trade rather than
+    // an escape hatch.
+    expect(CATEGORY_GROUPS).toHaveLength(16);
     expect(CATEGORY_GROUPS[CATEGORY_GROUPS.length - 1]).toBe('Other');
     expect(SERVICE_CATEGORIES[SERVICE_CATEGORIES.length - 1].key).toBe('other');
-    const want = ['Healthcare', 'Food & Daily Needs', 'Home Services', 'Emergency', 'Learning', 'Experiences'];
+    const want = ['Healthcare', 'Food & Daily Needs', 'Home Services', 'Learning', 'Personal Care', 'Automotive'];
     expect(want.filter((g) => !CATEGORY_GROUPS.includes(g))).toEqual([]);
+  });
+
+  /**
+   * RETIRED, NOT DELETED (owner, 8 Sep: "remove all these categories for now
+   * from local services"). Emergency, Experiences and Travel & Hospitality
+   * come off the picker, the chips, the word search and the DTO enum — and
+   * their keys stay in the vocabulary, so a listing filed under one keeps its
+   * label instead of rendering its key. "For now" is the flag: delete
+   * `retired: true` and the group is back.
+   */
+  it('keeps a retired trade’s key but offers it nowhere', () => {
+    const gone = ['Emergency', 'Experiences', 'Travel & Hospitality'];
+    for (const g of gone) {
+      expect(CATEGORY_GROUPS).not.toContain(g);
+      expect(categoriesByGroup().find((x) => x.group === g)).toBeUndefined();
+      expect(SERVICE_CATEGORIES.filter((c) => c.group === g).every((c) => c.retired)).toBe(true);
+      expect(SERVICE_CATEGORIES.some((c) => c.group === g)).toBe(true);
+    }
+    expect(isCategory('hotels')).toBe(true);           // an old listing still resolves…
+    expect(categoryLabel('hotels')).toBe('Hotels');
+    expect(CATEGORY_KEYS).not.toContain('hotels');     // …but nothing new is filed there
+    expect(CATEGORY_KEYS).not.toContain('sos');
+    expect(CATEGORY_KEYS).not.toContain('trekking');
   });
 
   it('groups the picker in the order the list was written', () => {
     const grouped = categoriesByGroup();
     expect(grouped.map((g) => g.group)).toEqual(CATEGORY_GROUPS);
     expect(grouped[0].group).toBe('Healthcare');
-    // Every category lands in exactly one bucket.
-    expect(grouped.reduce((n, g) => n + g.items.length, 0)).toBe(SERVICE_CATEGORIES.length);
+    // Every OFFERED category lands in exactly one bucket; the retired ones in none.
+    expect(grouped.reduce((n, g) => n + g.items.length, 0)).toBe(SERVICE_CATEGORIES.filter((c) => !c.retired).length);
   });
 
   it('resolves a key to its label, and refuses one that is not ours', () => {
@@ -75,20 +97,4 @@ describe('the service vocabulary', () => {
     expect(categoryLabel('not_a_trade')).toBe('not_a_trade');
   });
 
-  /**
-   * A HANDFUL OF THESE ARE NOT BUSINESSES, AND THAT IS THE OWNER'S CALL.
-   *
-   * "SOS", "Emergency contacts" and "Disaster alerts" are features rather than
-   * things a citizen lists themselves as, and "Nearby hospitals" restates
-   * Healthcare › Hospitals. They ship as given. This test does not fail on
-   * them — it names them, so that when somebody wonders why the Emergency
-   * group is empty, the answer is here rather than in a chat log.
-   */
-  it('records which Emergency entries nobody will ever list themselves under', () => {
-    const emergency = categoriesByGroup().find((g) => g.group === 'Emergency');
-    expect(emergency?.items.map((i) => i.label)).toEqual([
-      'SOS', 'Roadside assistance', 'Emergency contacts',
-      'Nearby hospitals', 'Blood donors', 'Disaster alerts',
-    ]);
-  });
 });
