@@ -5,7 +5,7 @@ import { useHubTheme } from '@/hooks/useHubTheme';
 import { useCityDesign } from '@/hooks/useCityDesign';
 import { useAuthStore } from '@/store/auth.store';
 import { useMasterProfile } from '@/features/profile/hooks';
-import { districtName } from '@/pages/Home';
+import { districtLine, districtName, splitDistrictLine } from '@/pages/Home';
 
 /**
  * ── PERSONALIZE ─────────────────────────────────────────────────────────────
@@ -234,6 +234,24 @@ export function Personalize() {
               width={1600} height={533}
               loading={i < 2 ? 'eager' : 'lazy'} decoding="async"
               fetchPriority={i === 0 ? 'high' : undefined} />
+            {/* THE NAME UNDER THE PICTURE (owner, 8 Sep: "add the hub name
+                below in the personalized tab too"). This reverses the 7 Sep
+                "no need to write it separately": three to a row the banner's
+                own eyebrow is nine-point type, and the card needs a label a
+                person can read from the chair. The same foot as the walk on
+                Home — one name, one line, one set of classes — so the two
+                pages that show the nine districts read as one city. */}
+            {(() => {
+              const { lead, emph } = splitDistrictLine(districtLine(key));
+              return (
+                <span className="district-card-foot">
+                  <span className="district-card-name">{districtName(key)}</span>
+                  <span className="district-card-line">
+                    {lead && <span className="district-card-lead">{lead} </span>}{emph}
+                  </span>
+                </span>
+              );
+            })()}
           </Link>
           );
         })}

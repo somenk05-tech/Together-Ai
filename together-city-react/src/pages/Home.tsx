@@ -156,7 +156,7 @@ export function districtName(key: HubKey): string {
 
 /** The district's one sentence. The hub's own tag stands in where the master
  *  list has not given the district a line (Local Services, deliberately). */
-function districtLine(key: HubKey): string {
+export function districtLine(key: HubKey): string {
   return DISTRICT_COPY[key]?.line ?? HUBS[key].tag;
 }
 

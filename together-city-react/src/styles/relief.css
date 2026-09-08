@@ -6111,10 +6111,10 @@ button.own-month-day:hover { border-color: var(--accent); }
    material as `.district-card` a thousand lines up, deliberately: two pages
    showing the same nine districts in two materials is two cities.
 
-   WHAT IS NOT COPIED FROM THE WALK is the label and the sentence under the
-   photograph. There they exist because the plate is a bare billboard; here
-   every banner carries its own eyebrow, headline and sentence, painted in.
-   The card is the treatment, not the caption. */
+   THE LABEL AND THE SENTENCE UNDER THE PHOTOGRAPH ARE COPIED TOO (owner,
+   8 Sep) — the same `.district-card-foot` the walk uses, because three to a
+   row the banner's painted eyebrow is too small to read and a card needs a
+   name a person can read from the chair. One set of classes, two pages. */
 .pz-card {
   display: block; box-sizing: border-box;
   padding: clamp(9px, .8vw, 12px);

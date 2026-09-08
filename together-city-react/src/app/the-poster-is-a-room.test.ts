@@ -229,13 +229,19 @@ describe('the nine banners', () => {
     expect(problems).toEqual([]);
   });
 
-  it('writes nothing beside the picture, because the picture is written on', () => {
-    /* Owner: "use these images directly and no need to write it separately."
-       Every banner carries its own eyebrow, headline, sentence and icon row.
-       A name and a line set on paper next to it is the same sentence twice. */
-    expect(page).not.toMatch(/pz-card-name|pz-card-line|pz-card-say|pz-card-mark/);
-    expect(page).not.toMatch(/districtLine|BANNER_LINE/);
-    // The name still reaches a screen reader — through the link, not a label.
+  it('writes the name and the line under the picture, in the walk’s own foot', () => {
+    /* 7 Sep: "use these images directly and no need to write it separately."
+       8 Sep, three to a row: "add the hub name below in the personalized tab
+       too." The banner's painted eyebrow is nine-point type at this width; the
+       card gets the same foot as the walk on Home — the SAME classes, so the
+       two pages that show the nine districts stay one city — and no second
+       vocabulary of its own. */
+    expect(page).toMatch(/district-card-foot/);
+    expect(page).toMatch(/district-card-name/);
+    expect(page).toMatch(/district-card-line/);
+    expect(page).toMatch(/splitDistrictLine\(districtLine\(key\)\)/);
+    expect(page).not.toMatch(/pz-card-name|pz-card-line|pz-card-say|pz-card-mark|BANNER_LINE/);
+    // The name reaches a screen reader once — through the link.
     expect(page).toMatch(/aria-label=\{districtName\(key\)\}/);
     expect(page).toMatch(/alt=""/);
   });
@@ -274,11 +280,13 @@ describe('the banner is the whole card', () => {
     expect(css).toMatch(/\.pz-card img \{[\s\S]*?aspect-ratio: 3 \/ 1/);
   });
 
-  it('takes the card and not the caption \u2014 nothing is written beside the banner', () => {
-    // The walk labels its plates because they are bare billboards. Every
-    // banner here carries its own eyebrow, headline and sentence, painted in.
+  it('takes the card AND the walk\u2019s caption \u2014 and grows no caption vocabulary of its own', () => {
+    // 8 Sep: the name and line go under the banner, in the walk's own foot.
+    // What must not appear is a second set of caption classes for this page:
+    // one foot, two pages.
     expect(css).not.toMatch(/\.pz-card-art|\.pz-card-say|\.pz-card-name|\.pz-card-line/);
-    expect(code('pages/Personalize.tsx')).not.toMatch(/districtLine|BANNER_LINE/);
+    expect(code('pages/Personalize.tsx')).toMatch(/district-card-foot/);
+    expect(code('pages/Personalize.tsx')).not.toMatch(/BANNER_LINE/);
   });
 
   it('runs three to a row, in the walk\u2019s own grid (owner, 8 Sep)', () => {
