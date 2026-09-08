@@ -259,6 +259,12 @@
   --glass-fill-lit: rgba(255, 255, 255, .26);
   --glass-line: rgba(255, 255, 255, .28);
   --glass-line-lit: rgba(255, 255, 255, .5);
+  /* The ink ON glass, which is always over a picture and never over paper:
+     white, at full strength, because the material under it is a photograph
+     and a softened white on film reads as a smudge. `.hero .btn-ghost` wrote
+     `#fff` by hand for the same reason and can be pointed here next time it
+     is touched — the same story the four names above tell. */
+  --on-film: #ffffff;
 
   /* ── THE FACES ──────────────────────────────────────────────────────────
      Classic neumorphism sits on a mid-grey ground so that a WHITE highlight
@@ -1970,7 +1976,7 @@
 
    --media-bg SURVIVES, and it is the piece of the old room that was never
    about the room: a video letterbox and a camera viewfinder are black because
-   that is what a picture is shown in, on any ground. .citymap and .poster-hero
+   that is what a picture is shown in, on any ground. .cinema and .poster-hero
    read it in relief.css and always did. */
 [data-hub="entertainment"] {
   --media-bg: #05090a;

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -34,16 +34,38 @@ describe('a phone holds the city', () => {
   });
 
   /**
-   * THE HOME LOOP IS 9–15 MB. SignIn already decided a phone gets the still
-   * poster (its comment carries the argument); Home mounts the same loop and
-   * must make the same decision, or page one of the app downloads a feature
-   * film's trailer over mobile data. Same 900px line in both files.
+   * THE SIGN-IN LOOP IS 9–15 MB, and a phone gets the still poster instead —
+   * or page one of the app downloads a feature film's trailer over mobile data
+   * for a BACKDROP behind a form. The 900px line stays there.
+   *
+   * HOME IS NO LONGER THAT CASE (owner, 8 Sep). Its hero is the commercial,
+   * which is the message rather than the wallpaper, and the owner asked for it
+   * on every device. So the phone is served a smaller CUT rather than a still:
+   * `<source media>` picks it before a byte is downloaded, which is the part
+   * worth pinning — a phone must never be handed the desk file.
    */
-  it('a phone gets the still city, not the 15 MB loop — on Home AND SignIn', () => {
-    for (const page of ['pages/Home.tsx', 'features/auth/pages/SignIn.tsx']) {
-      const src = read(page);
-      expect(src, `${page} gates the loop at 900px`).toMatch(/matchMedia\('\(min-width: 900px\)'\)/);
-    }
+  it('a phone gets the still city, not the 15 MB loop — on SignIn', () => {
+    const src = read('features/auth/pages/SignIn.tsx');
+    expect(src, 'SignIn gates the loop at 900px').toMatch(/matchMedia\('\(min-width: 900px\)'\)/);
+  });
+
+  it('a phone gets its own cut of the home commercial, chosen before the download', () => {
+    const src = read('pages/Home.tsx');
+    // The phone source comes FIRST: the browser takes the first <source> whose
+    // media matches, so a desk-file-first list would hand every phone the desk
+    // file and never reach the small one.
+    const phone = src.indexOf('together-city-commercial-phone.mp4');
+    const desk = src.indexOf('together-city-commercial.mp4');
+    expect(phone).toBeGreaterThan(-1);
+    expect(phone).toBeLessThan(desk);
+    expect(src).toMatch(/media="\(max-width: 899px\)"/);
+  });
+
+  it('and that cut is actually smaller — a second name for the same bytes is not a fix', () => {
+    const V = join(SRC, '..', 'public/assets/video');
+    const desk = statSync(join(V, 'together-city-commercial.mp4')).size;
+    const phone = statSync(join(V, 'together-city-commercial-phone.mp4')).size;
+    expect(phone).toBeLessThan(desk / 2);
   });
 
   /**

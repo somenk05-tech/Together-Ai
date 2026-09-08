@@ -156,13 +156,38 @@ section.blk { margin: 0 0 40px; }
 .trust span { display: flex; align-items: center; gap: 8px; }
 .tag.soon { background: transparent; color: var(--muted); border: 1px dashed var(--muted); }
 
-/* pavilion city map (homepage hero) */
-.citymap { position: relative; width: 100%; aspect-ratio: 1903/826; overflow: hidden; background: var(--media-bg); }
-.citymap img.bg, .citymap video.bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.citymap svg.bmap { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 5; }
-.citymap svg.bmap a, .citymap svg.bmap [data-hub-zone] { cursor: pointer; outline: none; }
-.citymap svg.bmap polygon, .citymap svg.bmap ellipse { fill: rgba(255,255,255,0); stroke: none; pointer-events: fill; }
-/* City map (hero video + clickable building zones) now shows on mobile too. */
+/* ---- THE COMMERCIAL (homepage hero, owner 8 Sep) ----
+   The pavilion-city map and its eleven invisible click zones are gone with the
+   render they were measured against; this box holds one film at the frame it
+   was shot in (2100x900 is 21:9 to the pixel), on the black every letterboxed
+   picture in this city stands on.
+
+   ONE CONTROL, AND IT IS THE SOUND. No scrub bar, no play button, no fullscreen:
+   the film loops by itself and the only thing a citizen can want from it is to
+   hear it or not. It sits bottom-right, on the glass the city already owns —
+   the same fill, line and blur as every other floating control — because a
+   chip invented for one button is a second design system. */
+.cinema { position: relative; width: 100%; aspect-ratio: 21/9; overflow: hidden; background: var(--media-bg); }
+.cinema img.bg, .cinema video.bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cinema-strip { position: absolute; top: 18px; left: 18px; z-index: 20; pointer-events: none; }
+.cinema-sound {
+  position: absolute; right: 18px; bottom: 18px; z-index: 20;
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 38px; padding: 0 16px; border-radius: var(--r-full); cursor: pointer;
+  font-family: inherit; font-size: var(--fs-2); font-weight: 600;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--on-film); background: var(--glass-fill); border: 1px solid var(--glass-line);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  transition: background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
+}
+.cinema-sound:hover { background: var(--glass-fill-lit); border-color: var(--glass-line-lit); }
+/* A phone gets the film too (owner, 8 Sep) — at a smaller cut, chosen by
+   <source media> before a byte is downloaded. The control comes in with the
+   edges it sits on. */
+@media (max-width: 899px) {
+  .cinema-strip { top: 12px; left: 12px; }
+  .cinema-sound { right: 12px; bottom: 12px; min-height: 34px; padding: 0 13px; }
+}
 
 .cityfallback { display: none; }
 @media (max-width: 899px) {

@@ -213,7 +213,7 @@ h1 { letter-spacing: .015em; }
    hero, the poster hero, the city fallback tile, the avatar disc, the row
    thumbnail. Each already wraps its own <img>, so each is already the shape
    of a case; all that is missing is the well and the rim. */
-.pcard .ph, .hero, .poster-hero, .cityfallback a, .citymap, .case-auto {
+.pcard .ph, .hero, .poster-hero, .cityfallback a, .cinema, .case-auto {
   position: relative; isolation: isolate;
 }
 .pcard .ph::after, .hero::before, .poster-hero::after, .cityfallback a::after, .case-auto::after {
@@ -246,7 +246,7 @@ h1 { letter-spacing: .015em; }
 
 /* A video letterbox and a camera viewfinder stay black — see --media-bg in
    tokens.css. They get the case, not the white. */
-.citymap, .poster-hero { background: var(--media-bg); }
+.cinema, .poster-hero { background: var(--media-bg); }
 
 /* ══ SURFACES, AND THERE ARE NOT ANY ══════════════════════════════════════
    Owner, 23 Aug: "remove all plates and cards, make everything flat on the
@@ -1260,7 +1260,7 @@ img:not(:where(.no-case, .bg)), video:not(:where(.no-case, .bg)), .case-auto > i
    somebody's logo. `.tc-logo img` is the one carrying the wordmark now. */
 .tc-logo img, .mark img, .av img, .tc-avatar img, .icon img, svg image,
 .case > img, .case > video, .case > picture > img,
-.pcard .ph img, .hero .bg, .poster-hero img, .cityfallback a img, .citymap .bg,
+.pcard .ph img, .hero .bg, .poster-hero img, .cityfallback a img, .cinema .bg,
 img[src$=".svg"], .no-case {
   outline: none; box-shadow: none; background: none;
 }

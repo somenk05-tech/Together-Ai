@@ -1,4 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useHubTheme } from '@/hooks/useHubTheme';
 import { useAuthStore } from '@/store/auth.store';
 import { CityHeader } from '@/components/CityHeader';
@@ -8,31 +9,21 @@ import { useCityDesign, useMiraShown } from '@/hooks/useCityDesign';
 import type { HubKey } from '@/types';
 import { InstallCity } from '@/components/InstallCity';
 import { CityDoors } from '@/components/CityDoors';
+import { Icon } from '@/components/ui/Icon';
 
-/** A clickable building silhouette on the pavilion-city map. */
-interface Zone { to: string; label: string; shape: 'poly' | 'ellipse'; points?: string; cx?: number; cy?: number; rx?: number; ry?: number; }
-// Clickable building zones, mapped to the new homepage video (buildings are
-// static; only the billboards animate). Coords are in the SVG viewBox (1903x826).
-// The News and E-Commerce buildings are in the photograph and have no hub
-// behind them, so they are not zoned — E-Commerce is no longer a district. The
-// Cars building is still in the render and no longer clickable — the hub it led
-// to is gone, and a zone onto a redirect is a link that lies about where it goes.
-// The Travel building is still in the render and no longer clickable, for the
-// same reason the Cars one is not: the owner took Travel off the street
-// (15 Aug). The hub is alive — /travel and every room under it still answer —
-// it simply has no door on this page any more.
-const ZONES: Zone[] = [
-  { to: '/nutrition', label: 'Nutrition & Groceries', shape: 'poly', points: '178.4,364.2 461.2,364.2 461.2,496.4 178.4,496.4' },
-  { to: '/social', label: 'Together TV', shape: 'poly', points: '173.3,502.5 381.9,502.5 381.9,652.1 173.3,652.1' },
-  { to: '/astrology', label: 'Astrology Hub', shape: 'poly', points: '183.5,665.3 381.9,665.3 381.9,794.5 183.5,794.5' },
-  { to: '/dating', label: 'Matchmaking Hub', shape: 'ellipse', cx: 951.5, cy: 524.9, rx: 132.2, ry: 73.2 },
-  { to: '/medical', label: 'Medical Hub', shape: 'poly', points: '1144.8,290.9 1441.8,290.9 1441.8,415.0 1144.8,415.0' },
-  { to: '/jobs', label: 'Jobs Hub', shape: 'poly', points: '1195.6,504.6 1401.1,504.6 1401.1,652.1 1195.6,652.1' },
-  { to: '/beauty', label: 'Beauty Market', shape: 'poly', points: '1154.9,659.2 1401.1,659.2 1401.1,789.4 1154.9,789.4' },
-  { to: '/financial', label: 'Financial District', shape: 'poly', points: '1490.6,199.4 1790.7,199.4 1790.7,345.9 1490.6,345.9' },
-  { to: '/realestate', label: 'Real Estate', shape: 'poly', points: '1490.6,372.3 1795.8,372.3 1795.8,518.8 1490.6,518.8' },
-  { to: '/fitness', label: 'Fitness Hub', shape: 'poly', points: '1490.6,557.4 1790.7,557.4 1790.7,753.8 1490.6,753.8' },
-];
+/* THE CLICKABLE BUILDINGS ARE GONE (owner, 8 Sep), and the array they were
+   went with them. Ten polygons and an ellipse, measured against the CGI
+   pavilion render this page used to open on — Nutrition at 178,364, Medical
+   at 1144,290, Matchmaking as an ellipse over the arena. The page opens on
+   the commercial now, and a coordinate cut to a picture that is no longer
+   underneath it is not a door, it is a trap: an invisible rectangle over live
+   footage that opens Medical when somebody clicks a car.
+
+   KEPT RATHER THAN COMMENTED OUT. Nothing here is lost that the walk below,
+   the foot grid, Personalize, the command palette and each hub's own route do
+   not already answer; and if the map ever comes back as a section of its own,
+   it comes back against the picture it is measured for, not against these
+   numbers. git remembers them. */
 
 interface Pavilion { to: string; img: string; title: string; }
 const PAVILIONS: Pavilion[] = [
@@ -258,7 +249,6 @@ export function Home() {
      standing in, the city grid at the foot, and the resume shelf after it. */
   const phone = typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches;
   useHubTheme(null);
-  const navigate = useNavigate();
   const img = (f: string) => `/assets/img/${f}`;
   /* DESIGN YOUR SERVICES: the home page shows the citizen's city. A hub
      switched off in the profile section loses its map zone, its billboard on
@@ -267,62 +257,82 @@ export function Home() {
      a photograph is not a menu. Hidden is not deleted: the routes still
      answer, and the profile section puts everything back in one press. */
   const { hubOn } = useCityDesign();
+  /* The film and whether it is speaking. `sound` follows the element rather
+     than leading it — see the button below. */
+  const film = useRef<HTMLVideoElement>(null);
+  const [sound, setSound] = useState(false);
   // The sixth door (owner, 5 Sep): the hero's "Talk to Mira" follows the
   // operator's switch like her other five. Off, the door is not drawn — she
   // keeps answering, and an open conversation stays open.
   const miraShown = useMiraShown();
-  const zones = ZONES.filter((z) => hubOn(z.to.slice(1)));
   const districts = DISTRICTS.filter((p) => hubOn(p.key));
   const tiles = FALLBACK.filter((p) => hubOn(p.to.slice(1)));
 
   return (
     <div>
-      {/* ============ THE PAVILION CITY ============ */}
-      <div className="citymap" style={{ position: 'relative', background: 'var(--media-bg)' }}>
-        {/* Dynamic city strip — location · date · live weather, top-left in the sky.
-            z-index above the clickable map SVG (which is z-index 5). */}
-        <div style={{ position: 'absolute', top: 18, left: 18, zIndex: 20, pointerEvents: 'none' }}>
-          <CityHeader />
-        </div>
-        {/* Looping city background video. The still image is the poster, so the
-            page looks identical until the video loads (and if the video is ever
-            missing) — the clickable building zones below never break.
+      {/* ============ THE COMMERCIAL ============ */}
+      {/* THE FILM REPLACES THE MAP (owner, 8 Sep). The page opened on a CGI
+          pavilion city with fifteen lit billboards and ten invisible click
+          zones cut to its buildings — a picture of the product's metaphor. It
+          opens on the product now: thirty seconds of a street, shot, with the
+          city's promise said out loud at the end.
 
-            A PHONE GETS THE STILL, exactly as SignIn already decided for the
-            same loop: `autoPlay preload="auto"` downloads the 9–15 MB file on
-            page one over mobile data, for a backdrop. Same 900px line, same
-            mount-time decision — rotating a phone never crosses 900px. */}
-        {window.matchMedia('(min-width: 900px)').matches ? (
-          <video
-            className="bg"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            poster={img('final-homepage.webp')}
-            aria-label="Together City — golden-hour pavilion city on the waterfront"
-          >
-            <source src="/assets/video/together-city-loop.webm" type="video/webm" />
-            <source src="/assets/video/together-city-loop.mp4" type="video/mp4" />
-          </video>
-        ) : (
-          <img
-            className="bg"
-            src={img('final-homepage.webp')}
-            alt="Together City — golden-hour pavilion city on the waterfront"
-          />
-        )}
-        <svg className="bmap" viewBox="0 0 1903 826" preserveAspectRatio="xMidYMid slice" aria-label="Together City map">
-          {zones.map((z) => (
-            <g key={z.to} role="link" aria-label={z.label} onClick={() => navigate(z.to)} style={{ cursor: 'pointer' }}>
-              <title>{z.label}</title>
-              {z.shape === 'ellipse'
-                ? <ellipse cx={z.cx} cy={z.cy} rx={z.rx} ry={z.ry} />
-                : <polygon points={z.points} />}
-            </g>
-          ))}
-        </svg>
+          AND THE ZONES WENT WITH THE PICTURE THEY WERE CUT FROM. Their
+          coordinates were measured against that render, and over live footage
+          every one of them is a trap: an invisible rectangle at 1144,290 that
+          opens Medical when a citizen clicks a passing car. Ten hubs lose this
+          door and keep every other one — the walk, the foot grid below, the
+          command palette, Personalize, their switch on Design Your Services
+          and their route. Hidden is not deleted; a door onto the wrong room
+          is worse than no door. */}
+      <div className="cinema">
+        {/* Location · date · live weather, top-left, above the film. */}
+        <div className="cinema-strip"><CityHeader /></div>
+        {/* SOUND IS OFFERED, NEVER TAKEN. Every browser refuses to autoplay a
+            film with sound, and a page that shouted at its first visitor would
+            deserve the refusal — so it starts muted, and the one control on
+            the picture turns the sound ON. The state is the video's own
+            property rather than a mirror of it: `muted` is set on the element
+            and read back, so the button can never disagree with what the
+            citizen is hearing.
+
+            IT PLAYS ON A PHONE TOO (owner's call, 8 Sep), which reverses the
+            900px rule the old loop had: that rule was for a BACKDROP, and
+            this is the message. The phone is served a 1280-wide cut at a third
+            of the bytes, chosen by <source media> so the browser picks before
+            it downloads anything. */}
+        <video
+          ref={film}
+          className="bg"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          poster={img('together-city-commercial.webp')}
+          aria-label="Together City — the film"
+        >
+          <source src="/assets/video/together-city-commercial-phone.mp4" type="video/mp4" media="(max-width: 899px)" />
+          <source src="/assets/video/together-city-commercial.mp4" type="video/mp4" />
+        </video>
+        <button
+          type="button"
+          className="cinema-sound"
+          aria-pressed={!sound}
+          aria-label={sound ? 'Mute the film' : 'Play the film with sound'}
+          onClick={() => {
+            const el = film.current;
+            if (!el) return;
+            el.muted = !el.muted;
+            // A film that was paused by the browser starts when the sound is
+            // asked for; a rejected play() is not an error worth showing.
+            if (!el.muted) void el.play().catch(() => undefined);
+            setSound(!el.muted);
+          }}
+        >
+          <Icon name={sound ? 'speak' : 'mute'} size={18} />
+          <span>{sound ? 'Sound on' : 'Sound off'}</span>
+        </button>
       </div>
 
       <div className="wrap" style={{ maxWidth: 1240, margin: '0 auto', padding: '88px 32px 24px' }}>
