@@ -129,6 +129,29 @@ const PROBES: Probe[] = [
     ],
   },
   {
+    /**
+     * A CHILD IS PROBEABLE FOR THE SAME REASON A PET IS — one call, no upload,
+     * no second party — and it earns a real probe rather than a line on the
+     * UNPROBED list for a reason the pets entry does not have: a child's name
+     * and date of birth are the two facts an impersonation is built out of, and
+     * this is the one record in the city that holds both about somebody who
+     * cannot consent to it. If any hub should be the last taken on trust, it is
+     * this one.
+     *
+     * No birthday in the create body on purpose. The record is deliberately
+     * usable without one — a parent may decline to give it — so the probe is
+     * built the way the least-filled-in real row is.
+     */
+    hub: 'babycare',
+    create: { path: '/api/babycare/children', body: { name: 'Aarav' } },
+    list: '/api/babycare/children',
+    attempts: (id) => [
+      { method: 'PATCH', path: `/api/babycare/children/${id}`, body: { name: 'mine now' } },
+      { method: 'PATCH', path: `/api/babycare/children/${id}`, body: { dob: '2020-01-01' } },
+      { method: 'DELETE', path: `/api/babycare/children/${id}` },
+    ],
+  },
+  {
     hub: 'drive',
     create: { path: '/api/drive/folders', body: { name: 'Private papers' } },
     list: '/api/drive',

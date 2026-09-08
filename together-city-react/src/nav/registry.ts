@@ -24,6 +24,11 @@ export const HUB_ICON: Partial<Record<HubKey, IconName>> = {
   social: 'people', dating: 'heart', realestate: 'property', jobs: 'job', medical: 'heart',
   financial: 'product', beauty: 'sparkles', fitness: 'star', mail: 'mail', family: 'people',
   services: 'connection', pets: 'paw', ecommerce: 'product',
+  /* A SHIELD, WHICH IS A THIRD OF WHAT THIS DISTRICT IS. There is no infant
+     glyph in the set, and the honest second choice is the one that names the
+     part of the hub nothing else in the city does — gates, guards, car seats,
+     and a feeding shelf that obeys a statute. */
+  babycare: 'shield',
   /* A GRID, BECAUSE THAT IS LITERALLY WHAT IS BEHIND THE DOOR — ten districts
      laid out as banners. Not 'personal': that glyph belongs to the citizen's
      own drawer, and these two already sit next to each other on the tab row. */

@@ -23,7 +23,7 @@
  * renamed or retired hub can never brick a citizen's saved design.
  */
 export const DESIGNABLE_HUBS = [
-  'astrology', 'beauty', 'dating', 'ecommerce', 'entertainment', 'financial',
+  'astrology', 'babycare', 'beauty', 'dating', 'ecommerce', 'entertainment', 'financial',
   'fitness', 'jobs', 'medical', 'nutrition', 'personalize', 'pets', 'realestate',
   'services', 'social',
 ] as const;

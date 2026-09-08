@@ -25,7 +25,7 @@
  * problems and points at the file and line instead of at a 400 kB chunk.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 
 const SRC = new URL('../src/', import.meta.url).pathname;
 
@@ -129,6 +129,18 @@ const labels = readFileSync(join(SRC, 'config/labels.ts'), 'utf8');
 
 const declared = new Set();
 for (const m of router.matchAll(/path:\s*'([^']+)'/g)) declared.add(m[1]);
+/* AND THE ROUTES THE ROUTER IMPORTS RATHER THAN SPELLS.
+   A hub big enough to own its rooms exports them as a plain array —
+   `features/<hub>/routes.tsx` — and router.tsx spreads it in one line. Those
+   paths were invisible here, so every internal link into such a hub read as a
+   link to an undeclared route. Pets got away with it by building all of its
+   links out of template strings, which this file's LINK regex cannot see
+   either; Baby Care writes `to="/babycare/shop"` and found the hole.
+   Read the same literal from wherever it is written. */
+for (const f of files) {
+  if (!f.endsWith(`${sep}routes.tsx`)) continue;
+  for (const m of source.get(f).matchAll(/path:\s*'([^']+)'/g)) declared.add(m[1]);
+}
 // REMOVED_ROUTES keys are declared by the spread at the bottom of the router.
 for (const m of labels.matchAll(/^\s*'(\/[^']+)':/gm)) declared.add(m[1]);
 

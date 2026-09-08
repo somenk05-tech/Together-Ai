@@ -18,6 +18,10 @@ import './styles/relief.css';
    stylesheet is how they came to be deleted by a stale copy without anybody
    noticing for two days. */
 import './styles/social.css';
+/* Baby Care's own stylesheet — see its header: the district arrived with one
+   rather than 125 inline style objects, because the size ratchet's rule is
+   'lower the number or raise nothing'. */
+import './styles/babycare.css';
 import './styles/mira.css';
 // The one menu design every kitchen wears — see the file's own head note.
 import './styles/menu-paper.css';

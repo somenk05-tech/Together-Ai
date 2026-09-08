@@ -188,11 +188,15 @@ describe('one grid, two meanings', () => {
     expect(hubs).toMatch(/key: 'mail'/);
   });
 
-  it('still has the fourteen hubs the API guard was written against', () => {
+  /* SIXTEEN NOW — Baby Care joined the street on 8 Sep. The count in this
+     test's name is not the point of it; the LITERAL is. A hub arriving in
+     DESIGNABLE_HUBS means an operator can switch its API off for everybody
+     from /dev, and that is a decision somebody has to type here on purpose. */
+  it('still has exactly the hubs the API kill switch was written against', () => {
     expect([...DESIGNABLE_HUBS].sort()).toEqual([
-      'astrology', 'beauty', 'dating', 'ecommerce', 'entertainment', 'financial',
-      'fitness', 'jobs', 'medical', 'nutrition', 'personalize', 'pets', 'realestate',
-      'services', 'social',
+      'astrology', 'babycare', 'beauty', 'dating', 'ecommerce', 'entertainment',
+      'financial', 'fitness', 'jobs', 'medical', 'nutrition', 'personalize', 'pets',
+      'realestate', 'services', 'social',
     ]);
   });
 });

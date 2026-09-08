@@ -17,7 +17,14 @@ export type HubKey =
      a door on the street that a citizen can close. What is behind the door is
      not rooms of its own but the ten districts that read a profile, laid out
      the way the owner's poster lays them out. */
-  | 'personalize';
+  | 'personalize'
+  /* BABY CARE IS A HUB (owner, 8 Sep): "a store just for baby care for all the
+     products available in Mumbai from 0-10 year old". A district rather than a
+     tab under the Digital Store because it is the one shelf in this city that
+     reads a record nobody else keeps — a child's birthday — and because part of
+     it is governed by a criminal statute (see features/babycare/ims.ts), which
+     is not a rule you want living inside somebody else's storefront. */
+  | 'babycare';
 
 export type AuthProvider = 'email' | 'google' | 'phone';
 

@@ -266,6 +266,7 @@ model User {
   groceryList       GroceryListItem[]
   pets              Pet[]
   petPhotos         PetPhoto[]
+  children          Child[]
   adminGrants  AdminGrant[] @relation("adminGrantHolder")
   adminAudits  AdminAudit[] @relation("adminAuditActor")
 }
@@ -4525,4 +4526,52 @@ model CsamHit {
   @@index([reportedAt, detectedAt])
   @@index([userId])
   @@index([sha256])
+}
+
+/// A CHILD, AND NOTHING DERIVED FROM ONE.
+///
+/// The Baby Care district's only record. A name so a parent with two children
+/// knows which shelf they are looking at, an OPTIONAL birthday, and the
+/// parent's own notes.
+///
+/// THE AGE IS NOT HERE AND MUST NOT BE. Every band, every age in words and
+/// every shelf is derived from `dob` in the browser, every time it is asked
+/// for. A stored age is wrong the morning after it is written, and this
+/// district's whole promise is a shelf that moves with the child. The service's
+/// spec asserts the absence, because the pressure to add an `ageMonths` column
+/// "for queries" arrives about a month after a model like this ships.
+///
+/// `dob` IS A STRING, NOT A DateTime, and for the same reason the Pet District
+/// stores one: a birthday is a calendar date, not an instant, and a DateTime
+/// column drags a timezone into it that will one day move a child's birthday by
+/// a day for somebody travelling. Format is enforced by zod at the controller,
+/// including the check that the date exists.
+///
+/// `notes` IS STORED AND NEVER INTERPRETED. Nothing on the server or in the hub
+/// reads it: it does not filter the shelf, does not reach a recommendation and
+/// is not searched. It exists so a parent has somewhere to put "eczema,
+/// fragrance-free only", and the form promises exactly that. A store that
+/// filtered a catalogue on this sentence would be practising medicine with a
+/// substring match.
+///
+/// NO PHOTOGRAPH. The Pet District has a private vault and the pattern is right
+/// there to copy — and a photograph of a child is a different object with a
+/// different risk. Until that has been thought about properly, this record is
+/// four fields of text.
+model Child {
+  id     String @id @default(uuid())
+  userId String
+
+  name String
+  /// ISO YYYY-MM-DD. Nullable: "we did not ask" and "born today" are different
+  /// facts, and only one of them belongs on a shelf.
+  dob   String?
+  notes String @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

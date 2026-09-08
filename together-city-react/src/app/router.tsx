@@ -11,6 +11,7 @@ import { Dashboard } from '@/pages/Dashboard';
 import { HubLanding } from '@/pages/HubLanding';
 import { Personalize } from '@/pages/Personalize';
 import { petsRoutes } from '@/features/pets/routes';
+import { babycareRoutes } from '@/features/babycare/routes';
 import { RequireAuth } from '@/features/auth/AuthGate';
 import { NotFound } from '@/pages/NotFound';
 
@@ -535,6 +536,19 @@ const ROUTE_BLOCKS: RouteObject[] = [
        profile, and this is the shape that makes forgetting impossible. */
     element: <HubLayout hub={HUBS.pets} />,
     children: petsRoutes.map((route) => ({
+      ...route,
+      element: <RequireAuth>{wrap(route.element as JSX.Element)}</RequireAuth>,
+    })),
+  },
+  {
+    /* BABY CARE DISTRICT.
+       Same shape as Pets, and the auth gate matters for the same reason: the
+       rooms behind it read a citizen's children. The SHOP itself would survive
+       being public — it is retail data with source links — but it draws the
+       child bar on every shelf, so a signed-out visitor would get a page
+       forever telling them it is not reading a child. One gate, not five. */
+    element: <HubLayout hub={HUBS.babycare} />,
+    children: babycareRoutes.map((route) => ({
       ...route,
       element: <RequireAuth>{wrap(route.element as JSX.Element)}</RequireAuth>,
     })),

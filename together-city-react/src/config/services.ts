@@ -24,7 +24,7 @@ import type { HubKey } from '@/types';
  * without a save failing loudly.
  */
 export const DESIGNABLE_HUBS: readonly HubKey[] = [
-  'astrology', 'beauty', 'dating', 'ecommerce', 'entertainment', 'financial',
+  'astrology', 'babycare', 'beauty', 'dating', 'ecommerce', 'entertainment', 'financial',
   'fitness', 'jobs', 'medical', 'nutrition', 'personalize', 'pets', 'realestate',
   'services', 'social',
 ];

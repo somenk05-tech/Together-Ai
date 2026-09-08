@@ -3150,6 +3150,21 @@ html[data-skin="sanmarino"] {
   --on-lamp-soft: rgba(255, 255, 255, .82);
 }
 
+/* Baby Care — a warm amber. Nursery-warm without being the pink a baby aisle
+   reaches for by reflex, which would also have collided with Matchmaking's
+   crimson and Beauty's plum. It is DE 8.8 from its nearest neighbour (b45309
+   against pets' 8f5528) and reads 5.0:1 on the white ground. */
+[data-hub="babycare"] {
+  --accent: #b45309;
+  --accent-ink: #b45309;
+  --accent-soft: rgba(180, 83, 9, .10);
+  --accent-line: rgba(180, 83, 9, .30);
+  --lamp-face: linear-gradient(180deg, #b45309 0%, #93440a 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
+}
+
 [data-hub="pets"] {
   --accent: #8f5528;
   --accent-ink: #8f5528;

@@ -1,6 +1,7 @@
 import type { HubKey } from '@/types';
 import { LABELS } from './labels';
 import { PETS_SIDEBAR } from '@/features/pets/routes';
+import { BABYCARE_SIDEBAR } from '@/features/babycare/routes';
 
 /**
  * ONE TAB IS NOT A DISTRICT.
@@ -92,7 +93,14 @@ export function hubIsOpen(cfg: HubConfig): boolean {
  *  sorted again where it is used, so an append lands in its place instead of
  *  at the end.                                                              */
 export const NAV: NavItem[] = [
+  /* BABY CARE (owner, 8 Sep) sorts between Astrology and Beauty — this list is
+     asserted to be in localeCompare order by a-drawer-of-ones-own.test.ts, so
+     the entry goes where the sort puts it rather than at the head. It is NOT on
+     HEADER_TABS: the street is four doors wide (7 Sep) and this hub keeps what
+     the other eleven keep — its route, its switch on Design Your Services and
+     the command palette. */
   { key: 'astrology', label: 'Astrology', path: '/astrology' },
+  { key: 'babycare', label: 'Baby Care', path: '/babycare' },
   { key: 'beauty', label: 'Beauty', path: '/beauty' },
   /* E-COMMERCE IS BACK ON THE STREET (owner, 22 Aug), and this time it has
      rooms. It sorts between Beauty and Entertainment — it used to say Dating,
@@ -244,6 +252,27 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/services/messages', index: '08', label: 'Messages', sub: 'Anonymous, and only in this hub' },
       { path: '/services/orders', index: '09', label: 'My orders', sub: 'Paid from your wallet, tracked to the door' },
     ],
+  },
+  /* ── BABY CARE (owner, 8 Sep) ────────────────────────────────────────────
+     "Create a store just for baby care for all the products available in
+     Mumbai from 0-10 year old."
+
+     THE RAIL IS THE SHOP FIRST AND THE FORM SECOND, which is the opposite of
+     how every profile-reading district in this city is built and is deliberate:
+     the shop works with no child on the account — it says "showing everything"
+     at the top of every shelf — and it gets shorter the moment a birthday is
+     there. A form as the first door is a toll gate on a shop.
+
+     04 IS THE ONE ROOM THAT WOULD NOT EXIST IN AN ORDINARY STOREFRONT. Part of
+     this shelf is governed by India's IMS Act 1992, which makes promoting
+     infant formula, infant food and feeding bottles for under-twos a criminal
+     offence — so this shop lists them and never badges, ranks, discounts or
+     recommends them, and that reads as a missing feature until somebody
+     explains it. Safety & the law is where it is explained, with the statute
+     under it. See features/babycare/ims.ts for the mechanism. */
+  babycare: {
+    key: 'babycare', name: 'Baby Care', tag: 'Everything for 0-10, from sellers who print their prices', backPath: '/babycare',
+    items: BABYCARE_SIDEBAR,
   },
   travel: {
     key: 'travel', name: 'Travel', tag: 'Explore, dream, discover — together', backPath: '/travel',

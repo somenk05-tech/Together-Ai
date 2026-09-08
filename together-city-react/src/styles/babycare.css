@@ -1,0 +1,165 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   BABY CARE'S OWN STYLESHEET
+   ══════════════════════════════════════════════════════════════════════════
+
+   A FILE RATHER THAN 125 INLINE OBJECTS, and the reason is a ratchet.
+   `scripts/size-system-ceiling.mjs` counts inline style objects across the app
+   and fails when the number grows — 6,527 is the recorded ceiling, and this
+   district's first draft added exactly 125 to it. Its own header says what to
+   do about that: "Lower the number or raise nothing — the ceiling is the
+   point." So the district's styling arrived as a stylesheet on the day it
+   shipped rather than as a debt somebody pays down later.
+
+   Social Life's stylesheet is the precedent, and its header carries the other
+   half of the argument: a block of rules living in the middle of a 235KB file
+   disappears silently in a bad merge, and a whole missing FILE does not.
+
+   EVERY COLOUR HERE IS A TOKEN. `relief.spec.ts` holds the city to one place
+   for colour and there are no literals below — the hub's amber arrives through
+   `--accent-ink` and friends, set by `[data-hub="babycare"]` in tokens.css, so
+   this file works in both themes without knowing either.
+
+   NAMING: `bc-` throughout, so a grep for the district's styling is one word.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── The stack every room is built out of ──────────────────────────────── */
+.bc-stack { display: grid; gap: var(--s-4); }
+.bc-stack-tight { display: grid; gap: var(--s-2); }
+.bc-head { display: grid; gap: var(--s-1); }
+.bc-lede { margin: 0; font-size: 13.5px; line-height: 1.6; max-width: 64ch; color: var(--muted); }
+.bc-narrow { max-width: 760px; }
+
+/* A row of things that wrap on a phone. Used for chips, filters and buttons. */
+.bc-row { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+.bc-row-end { display: flex; gap: var(--s-2); flex-wrap: wrap; align-items: flex-end; }
+.bc-row-split {
+  display: flex; gap: var(--s-3); flex-wrap: wrap;
+  align-items: baseline; justify-content: space-between;
+}
+
+/* ── The child bar, at the top of every room that changes with the age ─── */
+.bc-bar { display: grid; gap: var(--s-2); border-bottom: 1px solid var(--line); padding-bottom: var(--s-3); }
+.bc-bar-line { margin: 0; font-size: 13px; line-height: 1.6; }
+.bc-quiet { margin: 0; font-size: 12.5px; color: var(--muted); }
+
+/* ── Chips: aisles, children, on/off ───────────────────────────────────── */
+.bc-chip {
+  border: 1px solid var(--line); border-radius: var(--r-full); padding: 7px 14px;
+  background: transparent; color: var(--ink-soft);
+  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; min-height: 36px;
+}
+.bc-chip[aria-pressed='true'] { background: var(--accent-soft); color: var(--accent-ink); }
+.bc-chip-count { margin-left: 6px; font-weight: 500; color: var(--muted); }
+
+/* ── A note the room prints about itself, in the margin ─────────────────── */
+.bc-note {
+  margin: 0; font-size: 12.5px; line-height: 1.6; max-width: 72ch; color: var(--muted);
+  border-left: 2px solid var(--line); padding-left: var(--s-3);
+}
+.bc-shout {
+  margin: 0; font-size: 12.5px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+
+/* ── The shelf ─────────────────────────────────────────────────────────── */
+.bc-grid { display: grid; gap: var(--s-3); grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+.bc-tile { display: flex; flex-direction: column; gap: var(--s-2); padding: 14px; min-width: 0; }
+.bc-tile-link { display: grid; gap: var(--s-2); color: inherit; text-decoration: none; min-width: 0; }
+.bc-tile-name { display: grid; gap: 3px; min-width: 0; }
+.bc-brand {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted);
+}
+.bc-title { font-size: 13.5px; line-height: 1.4; font-weight: 500; }
+.bc-size { font-size: 11.5px; color: var(--muted); }
+.bc-marks { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; padding-top: 4px; }
+
+/* The drawn mark that stands in for a photograph. The catalogue holds the
+   seller's image URL for research; republishing it is a licence question
+   nobody has answered, so the shelf draws two letters on a wash instead. */
+.bc-mark {
+  background: var(--wash); border: 1px solid var(--line); border-radius: var(--r-1);
+  height: 84px; display: grid; place-items: center;
+}
+.bc-mark span { font-size: 22px; font-weight: 300; letter-spacing: .14em; color: var(--muted); }
+
+/* ── Price ─────────────────────────────────────────────────────────────── */
+.bc-price { display: inline-flex; align-items: baseline; gap: var(--s-2); flex-wrap: wrap; }
+.bc-price-now { font-size: 15px; font-weight: 700; }
+.bc-price-was { font-size: 11px; color: var(--muted); text-decoration: line-through; }
+.bc-price-off { font-size: 10px; font-weight: 800; letter-spacing: .04em; color: var(--ok-ink); }
+.bc-price-none { font-size: 11px; font-weight: 600; color: var(--muted); }
+.bc-price.is-sm .bc-price-now { font-size: 12.5px; }
+.bc-price.is-lg .bc-price-now { font-size: 22px; }
+.bc-price.is-lg .bc-price-was { font-size: 16px; }
+.bc-price.is-lg .bc-price-off { font-size: 14px; }
+
+/* ── The four marks a tile can wear ────────────────────────────────────── */
+.bc-tag {
+  display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; border-radius: var(--r-full); padding: 3px 9px;
+}
+.bc-tag-gate { color: var(--warn-ink); border: 1px solid var(--warn-line); background: var(--warn-soft); }
+.bc-tag-cert {
+  color: var(--ok-ink); border: 1px solid var(--ok-line); background: var(--ok-soft);
+  letter-spacing: .06em; text-transform: none;
+}
+.bc-tag-gate.is-long { text-transform: none; letter-spacing: normal; font-weight: 600; line-height: 1.55; }
+.bc-tag-age {
+  display: inline-block; font-size: 11px; font-weight: 600; color: var(--ink-soft);
+  border: 1px solid var(--line); border-radius: var(--r-full); padding: 3px 9px;
+  text-transform: none; letter-spacing: normal;
+}
+.bc-tag-age.is-blank { color: var(--muted); font-style: italic; }
+
+/* ── The notice a restricted row carries ───────────────────────────────── */
+.bc-restricted {
+  border: 1px solid var(--line); background: var(--wash); border-radius: var(--r-1);
+  padding: 10px 12px; display: grid; gap: 6px;
+}
+.bc-restricted strong {
+  font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft);
+}
+.bc-restricted p { margin: 0; font-size: 12px; line-height: 1.55; color: var(--muted); }
+.bc-restricted a { font-size: 12px; font-weight: 600; }
+
+/* ── The product page ──────────────────────────────────────────────────── */
+.bc-source { margin: 0; font-size: 11px; line-height: 1.5; color: var(--muted); }
+.bc-source a { color: inherit; }
+.bc-back { font-size: 12.5px; font-weight: 600; }
+.bc-h1 { margin: 0; font-size: 24px; line-height: 1.25; }
+.bc-sub { font-size: 13px; color: var(--muted); }
+.bc-facts { display: grid; gap: var(--s-3); margin: 0; }
+.bc-fact { display: grid; gap: 3px; }
+.bc-fact dt {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted);
+}
+.bc-fact dd { margin: 0; font-size: 13.5px; line-height: 1.6; }
+
+/* ── Forms ─────────────────────────────────────────────────────────────── */
+.bc-field { display: grid; gap: 5px; font-size: 12.5px; }
+.bc-field-grow { flex: 1 1 180px; min-width: 180px; }
+.bc-field-date { min-width: 160px; }
+.bc-hint { font-size: 11.5px; color: var(--muted); line-height: 1.55; }
+
+/* ── The essentials room ───────────────────────────────────────────────── */
+.bc-section { display: grid; gap: var(--s-2); }
+.bc-section-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  border-bottom: 1px solid var(--line); padding-bottom: 6px; gap: var(--s-3); flex-wrap: wrap;
+}
+.bc-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--s-2); }
+.bc-list li { display: flex; gap: var(--s-3); align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
+.bc-list a { font-size: 13.5px; font-weight: 500; }
+.bc-list span { font-size: 12.5px; color: var(--muted); }
+.bc-band { font-size: 15px; }
+.bc-divide { border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 4px; }
+
+/* ── Safety & the law ──────────────────────────────────────────────────── */
+.bc-law { display: grid; gap: var(--s-2); }
+.bc-law h2 { margin: 0; font-size: 16px; line-height: 1.35; }
+.bc-law p { margin: 0; font-size: 13.5px; line-height: 1.7; }
+.bc-law ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.bc-law a { font-size: 12.5px; }
+.bc-page { display: grid; gap: var(--s-5); }

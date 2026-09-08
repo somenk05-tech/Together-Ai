@@ -121,6 +121,14 @@ const DISTRICT_COPY: Partial<Record<HubKey, { name: string; line: string }>> = {
      reading Pet Care. Nothing else moves: this map is read by the home run
      alone. */
   pets: { name: 'Pet Products', line: 'Your pets are your babies. Everything they need, all in one place.' },
+  /* BABY CARE HAS A LINE AND NO PLATE (owner, 8 Sep). The billboard copy lives
+     here for every district, whether or not the district is currently on the
+     walk — Entertainment, Financial and Personalize all keep theirs. Baby Care
+     is off PANELS and off PAVILIONS for one reason and it is not a decision
+     about the hub: there is no photograph for it yet. Drop a 1800px hero into
+     public/assets/img and a tile beside it, add the two entries, and the plate
+     is live. Entertainment's Personalize banner is held back the same way. */
+  babycare: { name: 'Baby Care', line: 'Everything for the first ten years. Prices you can check yourself.' },
   /* SINGULAR, MATCHING THE TAB. The owner's list heads this one DIGITAL
      STORES; the nav, the hub and the breadcrumb say Digital Store, renamed the
      same afternoon. One of the two spellings has to be the city's, and it is

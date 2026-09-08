@@ -55,6 +55,7 @@ import { PrivacyModule } from './privacy/privacy.module';
 import { ThoughtsModule } from './thoughts/thoughts.module';
 import { DaybookModule } from './daybook/daybook.module';
 import { PetsModule } from './pets/pets.module';
+import { BabyCareModule } from './babycare/babycare.module';
 import { PrescriptionsModule } from './prescriptions/prescriptions.module';
 import { CallsModule } from './calls/calls.module';
 import { AvatarsModule } from './avatars/avatars.module';
@@ -124,6 +125,7 @@ import { QueueModule } from './shared/queue/queue.module';
     ThoughtsModule,
     DaybookModule,
     PetsModule,
+    BabyCareModule,
     PrescriptionsModule,
     CallsModule,
     AvatarsModule,
