@@ -34,6 +34,15 @@ const SAFE: NodeJS.ProcessEnv = {
   // Attachment origins, added 3 Sep — see the case below that proves the guard
   // notices when it goes.
   MEDIA_PUBLIC_BASE_URL: 'https://media.togethercity.app',
+  // The bot check, added 6 Sep. An unset secret used to boot green with
+  // Turnstile silently off; it now refuses, so "sound" includes it — and the
+  // case below proves the guard notices when it goes.
+  TURNSTILE_SECRET: 'ts_secret', TURNSTILE_HOSTNAMES: 'togethercity.app',
+  // The hash gate, added 6 Sep. Unset it is a WARNING rather than a refusal,
+  // and only because the gate itself already refuses every image — so a
+  // "sound" configuration includes it, and the case below proves the warning
+  // fires when it goes.
+  CSAM_MATCH_URL: 'https://matcher.example/check',
 };
 
 function withEnv(over: NodeJS.ProcessEnv, run: () => void): string[] {
@@ -108,7 +117,12 @@ describe('what refuses to start', () => {
   });
 
   it('a Turnstile secret with no hostname allowlist', () => {
-    withEnv({ TURNSTILE_SECRET: 'k' }, () => {
+    // And the secret missing entirely, which is the wider door: the check
+    // below only ever fired once somebody had set it (6 Sep).
+    withEnv({ TURNSTILE_SECRET: '' }, () => {
+      expect(() => assertProductionConfig()).toThrow(/TURNSTILE_SECRET is unset/);
+    });
+    withEnv({ TURNSTILE_SECRET: 'k', TURNSTILE_HOSTNAMES: '' }, () => {
       expect(() => assertProductionConfig()).toThrow(/TURNSTILE_HOSTNAMES/);
     });
     withEnv({ TURNSTILE_SECRET: 'k', TURNSTILE_HOSTNAMES: '  ,  ' }, () => {
@@ -158,6 +172,29 @@ describe('what refuses to start', () => {
 });
 
 describe('what only warns', () => {
+  /**
+   * THE ONE CHECK REKOGNITION IS NOT. A missing hash matcher does not refuse
+   * the boot, because the gate itself already refuses every photograph in the
+   * city — taking the whole API down as well would stop the routes that have
+   * nothing to do with images, and hide the reason. It goes on the list so the
+   * reason is in the deploy log rather than only in the support queue.
+   */
+  it('no known-bad hash matcher — the gate fails closed and the log says why', () => {
+    const warned = withEnv({ CSAM_MATCH_URL: '' }, () => {
+      expect(() => assertProductionConfig()).not.toThrow();
+    });
+    expect(warned.join(' ')).toMatch(/CSAM_MATCH_URL is unset/);
+    expect(warned.join(' ')).toMatch(/fails CLOSED/);
+  });
+
+  it('the hash gate switched off on purpose — boots, and is listed as a problem', () => {
+    const warned = withEnv({ CSAM_MATCH_URL: 'off' }, () => {
+      expect(() => assertProductionConfig()).not.toThrow();
+    });
+    expect(warned.join(' ')).toMatch(/CSAM_MATCH_URL=off/);
+    expect(warned.join(' ')).toMatch(/BYPASSED/);
+  });
+
   it('an unstated photo-screening posture — safe, and unrecorded', () => {
     const said = withEnv({ PHOTO_MODERATION: '' }, () => {
       expect(() => assertProductionConfig()).not.toThrow();

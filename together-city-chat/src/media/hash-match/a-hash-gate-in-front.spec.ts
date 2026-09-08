@@ -59,6 +59,23 @@ describe('the hash gate, in front of the classifier', () => {
     expect(created).toHaveLength(0);
   });
 
+  /**
+   * THE WORD "off" (owner, 8 Sep). The gate shipped before any matcher was
+   * signed and closed every photograph in the city. "off" is the operator
+   * saying so in writing: clear without looking, loudly, and with no memory
+   * — a bypass must never seed the thirty-day clear cache a real matcher
+   * would then trust.
+   */
+  it('"off" waves images through, says so as a bypass, and remembers nothing', async () => {
+    const remembered: string[] = [];
+    const redis = { up: true, raw: { get: async () => null, set: async (k: string) => { remembered.push(k); return 'OK'; } } };
+    const config = { get: (k: string) => (k === 'csamMatch.url' ? 'OFF' : k === 'csamMatch.token' ? '' : 8000) };
+    const s = new HashMatchService({} as never, config as never, redis as never);
+    expect(s.status).toEqual({ name: 'bypass', ready: true });
+    expect(await s.check(JPEG, 'image/jpeg', { userId: 'u1', surface: 'post-media' })).toBe('clear');
+    expect(remembered).toEqual([]);
+  });
+
   it('records the hit, suspends the citizen, and keeps the file', async () => {
     const { s, created, suspended } = svc({ url: 'https://matcher.test/check' });
     const original = globalThis.fetch;

@@ -70,6 +70,29 @@ export interface HashMatchProvider {
   check(bytes: Buffer, contentType: string, sha256: string): Promise<HashVerdict>;
 }
 
+/**
+ * THE WORD THAT SWITCHES THE GATE OFF, ON PURPOSE (owner, 8 Sep).
+ *
+ * `CSAM_MATCH_URL=off`. Not unset — unset is an accident and fails closed —
+ * but this one word, typed by an operator who has read what it costs. It
+ * exists because the gate shipped to production before any vendor was
+ * signed, and a city where nobody can post a photograph is not a safer city,
+ * it is a closed one. It is temporary by construction: assertProductionConfig
+ * lists it as a problem on every boot and on /dev until a real URL replaces
+ * it, and the service never caches a "clear" it did not earn, so the day a
+ * matcher arrives every image is asked again.
+ */
+export const HASH_MATCH_OFF = 'off';
+
+/** The operator said "off". Every image is waved through, and every boot says so. */
+export class BypassHashMatchProvider implements HashMatchProvider {
+  readonly name = 'bypass';
+  readonly ready = true;
+  check(): Promise<HashVerdict> {
+    return Promise.resolve({ match: false });
+  }
+}
+
 /** No vendor configured. Answers nothing, and says so every time. */
 export class NoHashMatchProvider implements HashMatchProvider {
   readonly name = 'none';

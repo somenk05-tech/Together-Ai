@@ -71,6 +71,27 @@ describe('the developer page never says what anything is set to', () => {
     const json = JSON.stringify(reportEnv(env));
     expect(json).not.toMatch(/SECRET-/);
   });
+
+  /**
+   * UNSET IS THE RIGHT ANSWER FOR SOME ROWS (owner, 5 Sep). The page read
+   * "77 unset" on a deployment where a dozen of those were development escape
+   * hatches whose job is to stay absent. Those rows say so on the wire, and
+   * the rows that wait on an account say what account.
+   */
+  it('marks the development escape hatches as correctly unset, and says what the rest need', () => {
+    const rows = reportEnv({});
+    const off = rows.filter((r) => r.expectUnset).map((r) => r.name).sort();
+    expect(off).toEqual([
+      'ALLOW_INBOUND_SECRET_IN_URL', 'ALLOW_STUB_MESSAGING', 'ALLOW_UNSIGNED_INBOUND', 'PAYMENTS_SANDBOX',
+      'SEED_DEMO', 'TEST_DATABASE_URL', 'TURN_CREDENTIAL', 'TURN_SHARED_SECRET', 'TURN_URL', 'TURN_USERNAME',
+      'WALLET_SELF_TOPUP',
+    ]);
+    // Nothing required is ever "correctly unset" — that would be a contradiction the page could not draw.
+    expect(rows.filter((r) => r.expectUnset && r.required)).toEqual([]);
+    for (const n of ['TWILIO_ACCOUNT_SID', 'ADZUNA_APP_ID', 'JOOBLE_API_KEY', 'MEDIA_CDN_BASE', 'MIRA_LOG_DIR', 'FCM_PRIVATE_KEY']) {
+      expect(rows.find((r) => r.name === n)?.needs).toMatch(/.{12,}/);
+    }
+  });
 });
 
 /**

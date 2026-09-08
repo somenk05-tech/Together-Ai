@@ -61,6 +61,11 @@ export interface AppConfig {
     holdAt: number;
     rejectAt: number;
   };
+  csamMatch: {
+    url: string;
+    token: string;
+    timeoutMs: number;
+  };
 }
 
 const int = (v: string | undefined, d: number): number =>
@@ -177,6 +182,25 @@ export function assertProductionConfig(): void {
    * It is between a boot that fails loudly in the deploy log and a city where
    * nobody can sign in and nothing says why.
    */
+  /**
+   * AND AN UNSET SECRET IS THE SAME DOOR, WIDER. (Launch audit, 6 Sep.)
+   *
+   * The check below only fires once TURNSTILE_SECRET is set, and nothing else
+   * in this file asks for it — so a production deploy that never sets it boots
+   * green with `TurnstileService.assert` returning at its first line and the
+   * bot check silently off. What is left guarding registration is
+   * `@Throttle({ limit: 5, ttl: 60_000 })` counted PER IP, because /auth/register
+   * is @Public and has no account to key on. A residential proxy pool of a
+   * thousand addresses is 300,000 accounts an hour, and those accounts are what
+   * mass-report a citizen off the dating browse and fill the moderation queue.
+   *
+   * Fatal for the same reason as the JWT secrets: the failure this prevents is
+   * silent and the failure it causes is a line in the deploy log.
+   */
+  if (!(process.env.TURNSTILE_SECRET ?? '').trim()) {
+    fatal.push('TURNSTILE_SECRET is unset — the bot check is off and sign-up is defended only by a '
+      + 'per-IP throttle. Set it (and TURNSTILE_HOSTNAMES=togethercity.app).');
+  }
   if ((process.env.TURNSTILE_SECRET ?? '').trim() && hostList(process.env.TURNSTILE_HOSTNAMES).size === 0) {
     fatal.push('TURNSTILE_SECRET is set but TURNSTILE_HOSTNAMES is empty — a token minted on any domain the '
       + 'widget lists would be accepted. Set TURNSTILE_HOSTNAMES=togethercity.app (never localhost in production).');
@@ -186,6 +210,27 @@ export function assertProductionConfig(): void {
     throw new Error(`Refusing to start with insecure config:\n  - ${fatal.join('\n  - ')}`);
   }
   const problems: string[] = [];
+  /**
+   * A WARNING, NOT A REFUSAL — and only because the gate itself already
+   * refuses everything (6 Sep). With CSAM_MATCH_URL unset, media/hash-match
+   * answers `unavailable` for every image, and every surface reads that as
+   * "do not show this to anybody": dating photos stay pending, chat images and
+   * snaps are refused, nothing with a picture on it can be posted. So the
+   * failure is impossible to miss without also taking down the routes that
+   * have nothing to do with images. It goes on the list so the reason is in
+   * the deploy log rather than only in the support queue.
+   */
+  if (!(process.env.CSAM_MATCH_URL ?? '').trim()) {
+    problems.push('CSAM_MATCH_URL is unset — there is no known-bad hash matcher, so the gate fails CLOSED: '
+      + 'no photograph can be posted, sent or approved anywhere in the city. Rekognition label detection is '
+      + 'NOT hash matching and does not cover this.');
+  } else if ((process.env.CSAM_MATCH_URL ?? '').trim().toLowerCase() === 'off') {
+    // The owner's explicit bypass (8 Sep) — a problem on every boot and on
+    // /dev, never fatal, until a matcher URL replaces the word.
+    problems.push('CSAM_MATCH_URL=off — the known-bad hash gate is BYPASSED and every image is waved through it. '
+      + 'Rekognition still screens each one, but that is not hash matching. Replace "off" with a matcher URL '
+      + 'as soon as a provider is signed.');
+  }
   const cors = process.env.CORS_ORIGIN ?? '';
   if (!cors || cors === '*') problems.push('CORS_ORIGIN is unset/"*" — set an explicit origin list.');
   if (!storageOn) {
@@ -312,6 +357,23 @@ export default (): AppConfig => {
     // look at; at or above `rejectAt` it is refused outright.
     holdAt: int(process.env.PHOTO_MODERATION_HOLD_AT, 60),
     rejectAt: int(process.env.PHOTO_MODERATION_REJECT_AT, 90),
+  },
+  /**
+   * THE KNOWN-BAD HASH MATCHER (6 Sep). See media/hash-match — this is the
+   * check Rekognition is not: label detection answers "does this look
+   * explicit", hash matching answers "is this a known image". Unset, the gate
+   * fails CLOSED and no photograph moves anywhere in the city, which is loud
+   * on purpose and is the owner's call.
+   *
+   * The URL is any endpoint speaking the contract in hash-match.provider.ts —
+   * a small adapter in front of Cloudflare's CSAM Scanning Tool, Thorn Safer
+   * or PhotoDNA, all of which need a verified account this repository cannot
+   * hold for you.
+   */
+  csamMatch: {
+    url: process.env.CSAM_MATCH_URL ?? '',
+    token: process.env.CSAM_MATCH_TOKEN ?? '',
+    timeoutMs: int(process.env.CSAM_MATCH_TIMEOUT_MS, 8_000),
   },
   fcm: {
     enabled: process.env.FCM_ENABLED === 'true',

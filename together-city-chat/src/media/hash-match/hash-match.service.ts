@@ -5,6 +5,8 @@ import { PrismaService } from '../../shared/prisma/prisma.service';
 import { RedisService } from '../../shared/redis/redis.service';
 import { swallow } from '../../shared/swallow';
 import {
+  BypassHashMatchProvider,
+  HASH_MATCH_OFF,
   HashMatchUnavailable,
   HttpHashMatchProvider,
   NoHashMatchProvider,
@@ -116,7 +118,17 @@ export class HashMatchService {
     const url = (config.get<string>('csamMatch.url') ?? '').trim();
     const token = (config.get<string>('csamMatch.token') ?? '').trim();
     const timeoutMs = config.get<number>('csamMatch.timeoutMs') ?? 8_000;
-    this.provider = url ? new HttpHashMatchProvider(url, token, timeoutMs) : new NoHashMatchProvider();
+    this.provider = url.toLowerCase() === HASH_MATCH_OFF
+      ? new BypassHashMatchProvider()
+      : url ? new HttpHashMatchProvider(url, token, timeoutMs) : new NoHashMatchProvider();
+    if (this.provider.name === 'bypass') {
+      // Error level on purpose: this line should be the loudest thing in a
+      // boot log until a matcher is signed.
+      this.logger.error(
+        'CSAM_MATCH_URL=off — the known-bad hash gate is BYPASSED. Every image is waved through it '
+        + '(Rekognition still screens each one). Replace "off" with a matcher URL as soon as one is signed.',
+      );
+    }
     if (!this.provider.ready) {
       // Said once, at boot, in the words of what is lost. assertProductionConfig
       // says it again on the problems list; this one is here so it appears in
@@ -139,6 +151,10 @@ export class HashMatchService {
    */
   async check(bytes: Buffer, contentType: string, ctx: HashContext): Promise<HashResult> {
     const sha256 = createHash('sha256').update(bytes).digest('hex');
+    /* A BYPASS EARNS NO MEMORY. A "clear" remembered for thirty days is a
+       hash a real matcher would then never be asked about; the bypass answers
+       clear without looking, so it writes nothing and reads nothing. */
+    if (this.provider.name === 'bypass') return 'clear';
     if (await this.cachedClear(sha256)) return 'clear';
 
     let verdict;
