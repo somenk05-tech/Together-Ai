@@ -5,7 +5,7 @@ import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { LocalServicesService } from './local-services.service';
 import { categoriesByGroup } from './categories';
-import { BUSINESS_TYPES } from './business-types';
+import { BUSINESS_TYPES, CATALOGUES } from './business-types';
 import { PLACES } from './places';
 import { Throttle } from '@nestjs/throttler';
 import {
@@ -44,7 +44,12 @@ export class LocalServicesController {
    * check it against.
    */
   @Get('business-types')
-  businessTypes() { return { types: BUSINESS_TYPES }; }
+  businessTypes() {
+    // The catalogues ride with the types so the picker can say, in the
+    // catalogue's own words, what the chosen business will publish — without
+    // the web holding a second copy of those words.
+    return { types: BUSINESS_TYPES, catalogues: CATALOGUES };
+  }
 
   /** Country → state → city → areas, served like the trades: one file, one
    *  deploy, and the form can never be a version behind the tree. */

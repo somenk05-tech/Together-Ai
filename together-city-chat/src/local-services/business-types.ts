@@ -31,6 +31,8 @@
  * QUESTIONS it asks — the structure, not the skin.
  */
 
+import { GROCERY_CATEGORIES } from './grocery';
+
 export type FieldKind =
   | 'text'      // one line
   | 'longtext'  // a paragraph
@@ -63,6 +65,75 @@ export type SectionKind =
   | 'about' | 'menu' | 'priceList' | 'offers' | 'gallery'
   | 'reviews' | 'credentials' | 'availability' | 'location';
 
+/**
+ * ── THE CATALOGUE: WHAT THIS KIND OF BUSINESS PUBLISHES, AND HOW (owner, 8 Sep) ──
+ *
+ * "If it's a restaurant have menu scanning ability; if it's a grocery store,
+ * let them update material list, upload files; similarly for every other
+ * vendor a different style of web page."
+ *
+ * Every business publishes the same ROWS — ServiceMenuItem: a name, a
+ * section, a price — and the rows are what the city orders from, asks about
+ * and reads on the Grocery Store shelf. What differs by trade is the WORD
+ * for them and the DOOR they come in through. A kitchen photographs a menu
+ * card; a kirana keeps a stock sheet and would rather upload it than retype
+ * four hundred lines; a salon has a rate card; a photographer sells packages;
+ * a taxi stand quotes fares. The kind names the words and the ways in, and
+ * every screen — the owner's editor, the business page, the type picker —
+ * reads it from here rather than guessing from a category label.
+ */
+export type CatalogueKind = 'menu' | 'stock' | 'rateCard' | 'packages' | 'fares' | 'none';
+/** How lines get in: a photograph read by the model, a spreadsheet (CSV / XLSX), or typed. */
+export type CatalogueWay = 'photo' | 'sheet' | 'typed';
+
+export interface Catalogue {
+  kind: CatalogueKind;
+  /** The heading on the owner's editor and on the public page. */
+  title: string;
+  /** One line under the heading on the owner's editor: what to put here. */
+  blurb: string;
+  /** The word for one row / many rows — "item", "product", "service", "package", "fare". */
+  noun: string;
+  plural: string;
+  /** The doors, in the order the editor offers them. First is the lead. */
+  ways: readonly CatalogueWay[];
+  /** Whether a citizen can put these in a cart and pay (food, groceries) or only ask. */
+  orderable: boolean;
+}
+
+export const CATALOGUES: Record<CatalogueKind, Catalogue> = {
+  menu: {
+    kind: 'menu', title: 'Menu', noun: 'item', plural: 'items', orderable: true,
+    blurb: 'Photograph your menu card and it is typed out for you. Citizens order from it and pay from their wallet.',
+    ways: ['photo', 'typed', 'sheet'],
+  },
+  stock: {
+    kind: 'stock', title: 'Stock list', noun: 'product', plural: 'products', orderable: true,
+    blurb: 'Upload your stock sheet (CSV or Excel: name, price, section) or photograph a price list. Your products go on the city’s Grocery Store shelf beside every other shop’s.',
+    ways: ['sheet', 'photo', 'typed'],
+  },
+  rateCard: {
+    kind: 'rateCard', title: 'Services & rates', noun: 'service', plural: 'services', orderable: false,
+    blurb: 'What you do and what it starts at. Citizens pick from it and write to you — it starts a message, not a booking.',
+    ways: ['typed', 'photo', 'sheet'],
+  },
+  packages: {
+    kind: 'packages', title: 'Packages', noun: 'package', plural: 'packages', orderable: false,
+    blurb: 'Your packages and what each includes, with a starting price. Citizens pick one and write to you.',
+    ways: ['typed', 'sheet', 'photo'],
+  },
+  fares: {
+    kind: 'fares', title: 'Fares & vehicles', noun: 'fare', plural: 'fares', orderable: false,
+    blurb: 'Your vehicles, routes or hourly rates. Citizens pick one and write to you to book.',
+    ways: ['typed', 'sheet'],
+  },
+  none: {
+    kind: 'none', title: 'Price list', noun: 'line', plural: 'lines', orderable: false,
+    blurb: 'Anything you sell or do, with a price. Optional.',
+    ways: ['typed', 'photo', 'sheet'],
+  },
+};
+
 export interface BusinessType {
   key: string;
   label: string;
@@ -72,6 +143,8 @@ export interface BusinessType {
   blurb: string;
   fields: readonly FieldDef[];
   sections: readonly SectionKind[];
+  /** Which catalogue this kind of business publishes — see CATALOGUES. */
+  catalogue: CatalogueKind;
 }
 
 /** Every page has these, whatever the trade. Types add to them, never replace. */
@@ -107,6 +180,7 @@ const VISIT_FEE: FieldDef = {
 export const BUSINESS_TYPES: readonly BusinessType[] = [
   {
     key: 'restaurant', label: 'Restaurant', group: 'Food & Daily Needs',
+    catalogue: 'menu',
     blurb: 'Sit-down meals, with a menu.',
     sections: ['about', 'menu', 'offers', 'gallery', 'reviews', 'availability', 'location'],
     fields: [
@@ -122,6 +196,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   },
   {
     key: 'cafe', label: 'Café or tea house', group: 'Food & Daily Needs',
+    catalogue: 'menu',
     blurb: 'Coffee, tea, and somewhere to sit.',
     sections: ['about', 'menu', 'offers', 'gallery', 'reviews', 'availability', 'location'],
     fields: [
@@ -133,6 +208,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   },
   {
     key: 'bakery', label: 'Bakery or sweets', group: 'Food & Daily Needs',
+    catalogue: 'menu',
     blurb: 'Baked and made fresh, sold over a counter.',
     sections: ['about', 'menu', 'offers', 'gallery', 'reviews', 'availability', 'location'],
     fields: [
@@ -143,7 +219,22 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
     ],
   },
   {
+    key: 'grocery', label: 'Grocery, kirana or supermarket', group: 'Food & Daily Needs',
+    catalogue: 'stock',
+    blurb: 'Vegetables, staples, dairy, household things — a shelf people order from.',
+    sections: ['about', 'menu', 'offers', 'gallery', 'reviews', 'availability', 'location'],
+    fields: [
+      { key: 'stocks', label: 'What you stock', kind: 'chips',
+        options: ['Fruit & vegetables', 'Staples & grains', 'Dairy & eggs', 'Meat & fish', 'Bakery', 'Snacks & drinks', 'Household & cleaning', 'Personal care', 'Baby', 'Pet food'] },
+      { key: 'delivers', label: 'Home delivery', kind: 'toggle', hint: 'Turn on if you send orders out.' },
+      { key: 'minOrder', label: 'Minimum order for delivery', kind: 'money', hint: 'Leave blank if there is none.' },
+      { key: 'deliveryMinutes', label: 'Typical delivery time', kind: 'minutes', max: 600 },
+      OPEN_TODAY,
+    ],
+  },
+  {
     key: 'salon', label: 'Salon or spa', group: 'Personal Care',
+    catalogue: 'rateCard',
     blurb: 'Hair, skin, nails, treatments — booked by appointment.',
     sections: ['about', 'priceList', 'offers', 'gallery', 'reviews', 'availability', 'location'],
     fields: [
@@ -157,6 +248,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   },
   {
     key: 'clinic', label: 'Clinic or doctor', group: 'Healthcare',
+    catalogue: 'rateCard',
     blurb: 'Consultations, by appointment.',
     sections: ['about', 'credentials', 'priceList', 'gallery', 'reviews', 'availability', 'location'],
     fields: [
@@ -172,6 +264,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   },
   {
     key: 'diagnostics', label: 'Diagnostics or pharmacy', group: 'Healthcare',
+    catalogue: 'rateCard',
     blurb: 'Tests, scans, medicines.',
     sections: ['about', 'priceList', 'offers', 'gallery', 'reviews', 'availability', 'location'],
     fields: [
@@ -183,6 +276,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   },
   {
     key: 'trade', label: 'Repairs and trades', group: 'Home Services',
+    catalogue: 'rateCard',
     blurb: 'Plumbing, electrics, carpentry, appliances, pest control.',
     sections: ['about', 'priceList', 'offers', 'gallery', 'reviews', 'availability', 'location'],
     fields: [
@@ -196,6 +290,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   },
   {
     key: 'cleaning', label: 'Cleaning and help at home', group: 'Home Services',
+    catalogue: 'rateCard',
     blurb: 'Deep cleaning, housekeeping, laundry, cooks.',
     sections: ['about', 'priceList', 'offers', 'gallery', 'reviews', 'availability', 'location'],
     fields: [
@@ -207,6 +302,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   },
   {
     key: 'retail', label: 'Shop', group: 'Shopping',
+    catalogue: 'stock',
     blurb: 'A counter or a shopfront, selling things.',
     sections: ['about', 'priceList', 'offers', 'gallery', 'reviews', 'availability', 'location'],
     fields: [
@@ -219,6 +315,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   },
   {
     key: 'gym', label: 'Gym or studio', group: 'Fitness & Sports',
+    catalogue: 'packages',
     blurb: 'Training, classes, memberships.',
     sections: ['about', 'priceList', 'offers', 'gallery', 'reviews', 'availability', 'location'],
     fields: [
@@ -231,6 +328,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   },
   {
     key: 'professional', label: 'Professional practice', group: 'Professional Services',
+    catalogue: 'rateCard',
     blurb: 'Legal, accounts, architecture, design, consulting.',
     sections: ['about', 'credentials', 'priceList', 'gallery', 'reviews', 'availability', 'location'],
     fields: [
@@ -246,6 +344,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   },
   {
     key: 'creative', label: 'Photography and creative work', group: 'Event Services',
+    catalogue: 'packages',
     blurb: 'Shoots, films, design, decor, performance.',
     sections: ['about', 'priceList', 'gallery', 'offers', 'reviews', 'availability', 'location'],
     fields: [
@@ -258,6 +357,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   },
   {
     key: 'tuition', label: 'Teaching and coaching', group: 'Learning',
+    catalogue: 'packages',
     blurb: 'Tuition, music, languages, exam coaching, driving.',
     sections: ['about', 'priceList', 'offers', 'gallery', 'reviews', 'availability', 'location'],
     fields: [
@@ -271,6 +371,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   },
   {
     key: 'petcare', label: 'Pet care', group: 'Pet Services',
+    catalogue: 'rateCard',
     blurb: 'Vets, grooming, boarding, walking, training.',
     sections: ['about', 'priceList', 'offers', 'gallery', 'reviews', 'availability', 'location'],
     fields: [
@@ -284,6 +385,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   },
   {
     key: 'transport', label: 'Vehicles and transport', group: 'Automotive',
+    catalogue: 'fares',
     blurb: 'Servicing, repairs, hire, driving, moving.',
     sections: ['about', 'priceList', 'offers', 'gallery', 'reviews', 'availability', 'location'],
     fields: [
@@ -297,6 +399,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   },
   {
     key: 'general', label: 'Something else', group: 'Other',
+    catalogue: 'none',
     blurb: 'Nothing above fits. Say what you do in your own words.',
     sections: BASE_SECTIONS,
     fields: [
@@ -330,6 +433,27 @@ export function typesForGroup(group: string): BusinessType[] {
 /** The sections a page of this type renders, in order. Unknown type → the base. */
 export function sectionsFor(typeKey: string | null): readonly SectionKind[] {
   return (typeKey && BY_KEY.get(typeKey)?.sections) || BASE_SECTIONS;
+}
+
+/**
+ * THE CATALOGUE A LISTING PUBLISHES — by its type, and when it has none (a
+ * listing older than the schema, or one filed as "something else"), by the
+ * trade it is filed under: a grocery category is a stock list whatever the
+ * type said, food is a menu, a taxi stand quotes fares, and the rest is a
+ * rate card. The category never OVERRIDES a real type: a restaurant that is
+ * filed under Food is a menu because it is a restaurant, not because of the
+ * filing.
+ */
+export function catalogueFor(typeKey: string | null, categoryKey: string | null, categoryGroup: string | null): Catalogue {
+  const typed = typeKey ? BY_KEY.get(typeKey) : null;
+  if (typed && typed.key !== 'general') return CATALOGUES[typed.catalogue];
+  if (categoryKey && (GROCERY_CATEGORIES as readonly string[]).includes(categoryKey)) return CATALOGUES.stock;
+  if (categoryGroup === 'Food & Daily Needs') return CATALOGUES.menu;
+  if (categoryGroup === 'Automotive' || categoryGroup === 'Travel & Hospitality') return CATALOGUES.fares;
+  if (categoryGroup === 'Shopping') return CATALOGUES.stock;
+  if (categoryGroup === 'Event Services' || categoryGroup === 'Learning' || categoryGroup === 'Fitness & Sports') return CATALOGUES.packages;
+  if (typed) return CATALOGUES.none;
+  return CATALOGUES.rateCard;
 }
 
 /**

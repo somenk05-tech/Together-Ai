@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button, Spinner } from '@/components/ui';
-import { useMenu, useAskAboutMenu, menuVoice, rupees } from './api';
+import { useMenu, useAskAboutMenu, menuVoice, rupees, type Catalogue } from './api';
 
 /**
  * THE MENU, AND ASKING ABOUT SOME OF IT.
@@ -14,8 +14,8 @@ import { useMenu, useAskAboutMenu, menuVoice, rupees } from './api';
  * silently leaves out the "ask" items is a number the citizen will hold the
  * business to, and it is wrong in the direction that causes an argument.
  */
-export function MenuView({ listingId, group, onSent }: { listingId: string; group?: string; onSent?: (threadId: string) => void }) {
-  const voice = menuVoice(group ?? '');
+export function MenuView({ listingId, group, catalogue, onSent }: { listingId: string; group?: string; catalogue?: Catalogue | null; onSent?: (threadId: string) => void }) {
+  const voice = menuVoice(group ?? '', catalogue);
   const q = useMenu(listingId);
   const ask = useAskAboutMenu(listingId);
   const [picked, setPicked] = useState<string[]>([]);

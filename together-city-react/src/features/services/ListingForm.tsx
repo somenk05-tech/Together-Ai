@@ -238,6 +238,7 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
    */
   const offeredTypes = (types.data?.types ?? []).filter((t) => t.group === group || t.key === 'general');
   const chosenType = (types.data?.types ?? []).find((t) => t.key === businessType) ?? null;
+  const chosenCatalogue = chosenType ? types.data?.catalogues?.[chosenType.catalogue] ?? null : null;
 
   /** A live preview of what the address will be if they leave it blank. */
   const normalisedName = businessName.trim().toLowerCase()
@@ -391,6 +392,18 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
             </select>
             {chosenType && (
               <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0' }}>{chosenType.blurb}</p>
+            )}
+            {/* WHAT THIS KIND OF BUSINESS PUBLISHES (owner, 8 Sep): a
+                restaurant is told it will get a menu it can photograph, a
+                grocer a stock list it can upload as a sheet, a salon a rate
+                card — before the page exists, so nobody is surprised by the
+                editor they are handed. Words come from the server with the
+                types. */}
+            {chosenCatalogue && chosenCatalogue.kind !== 'none' && (
+              <p className="muted" style={{ fontSize: 11.5, margin: '4px 0 0' }}>
+                <strong>You'll publish a {chosenCatalogue.title.toLowerCase()}.</strong>{' '}
+                {chosenCatalogue.blurb}
+              </p>
             )}
           </div>
         )}

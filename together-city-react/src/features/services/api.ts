@@ -25,6 +25,24 @@ export interface FieldDef {
   options?: string[];
   max?: number;
 }
+/**
+ * WHAT A BUSINESS PUBLISHES, AND THROUGH WHICH DOOR (8 Sep). Decided on the
+ * server from the type and the trade — see business-types.ts CATALOGUES —
+ * and read here by the owner's editor, the type picker and the public page,
+ * so none of them holds a second copy of the words.
+ */
+export type CatalogueKind = 'menu' | 'stock' | 'rateCard' | 'packages' | 'fares' | 'none';
+export type CatalogueWay = 'photo' | 'sheet' | 'typed';
+export interface Catalogue {
+  kind: CatalogueKind;
+  title: string;
+  blurb: string;
+  noun: string;
+  plural: string;
+  ways: CatalogueWay[];
+  orderable: boolean;
+}
+
 export interface BusinessTypeDef {
   key: string;
   label: string;
@@ -32,6 +50,7 @@ export interface BusinessTypeDef {
   blurb: string;
   fields: FieldDef[];
   sections: SectionKind[];
+  catalogue: CatalogueKind;
 }
 
 export interface ServiceCard {
@@ -48,6 +67,8 @@ export interface ServiceCard {
   businessType: string | null;
   /** Which sections this page renders, in order — from the schema, not here. */
   sections: SectionKind[];
+  /** The rows this business publishes and how — menu, stock list, rate card… */
+  catalogue: Catalogue;
   /** Already labelled by the schema. The screen never holds a second copy of
    *  a field's wording. */
   details: Array<{ label: string; value: string }>;
@@ -489,7 +510,7 @@ export const servicesApi = {
   browse: (q: { category?: string; group?: string; city?: string; area?: string; q?: string; page?: number; near?: string; withinKm?: number }) =>
     api.get<{ items: ServiceCard[]; total: number; page: number; pages: number; saved: string[] }>('/services', { params: q }).then((r) => r.data),
   businessTypes: () =>
-    api.get<{ types: BusinessTypeDef[] }>('/services/business-types').then((r) => r.data),
+    api.get<{ types: BusinessTypeDef[]; catalogues: Record<CatalogueKind, Catalogue> }>('/services/business-types').then((r) => r.data),
   detail: (idOrSlug: string) => api.get<ServiceCard>(`/services/${idOrSlug}`).then((r) => r.data),
   slugAvailable: (slug: string) =>
     api.get<{ slug: string; available: boolean; reason: string | null }>(
@@ -761,7 +782,22 @@ export interface MenuVoice {
   unit: (n: number) => string;
 }
 const FOOD = 'Food & Daily Needs';
-export function menuVoice(group: string): MenuVoice {
+export function menuVoice(group: string, catalogue?: Catalogue | null): MenuVoice {
+  /* THE CATALOGUE SPEAKS FIRST (8 Sep): its title and its nouns are the
+     server's answer for this kind of business; the group is the fallback for
+     a card that arrived without one. */
+  if (catalogue) {
+    const booking = catalogue.kind === 'rateCard' || catalogue.kind === 'packages' || catalogue.kind === 'fares';
+    return {
+      heading: catalogue.title,
+      blurb: booking
+        ? 'Pick what you need and send it across. It starts a message, not a booking.'
+        : 'Pick what you want and send it across. It starts a message, not an order.',
+      action: booking ? 'Ask to book these' : 'Ask about these',
+      caveat: booking ? 'It is a question, not a booking' : 'It is a question, not an order',
+      unit: (n) => (n === 1 ? catalogue.noun : catalogue.plural),
+    };
+  }
   if (group === FOOD) {
     return {
       heading: 'Menu',

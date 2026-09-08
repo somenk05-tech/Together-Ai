@@ -297,11 +297,16 @@ export function BusinessPage() {
           takes a question — and "order a haircut × 2" is the app telling the
           citizen it has not understood what a salon does. Both end in the same
           thread. */}
-      {s.categoryGroup === 'Food & Daily Needs' ? (
+      {/* THE CATALOGUE DECIDES (8 Sep): a kitchen's menu and a kirana's stock
+          list take a cart; a salon's rate card, a photographer's packages and
+          a taxi stand's fares take a question. The kind comes from the type
+          and the trade on the server, so this page and the owner's editor
+          cannot disagree. */}
+      {(s.catalogue?.orderable ?? s.categoryGroup === 'Food & Daily Needs') ? (
         <OrderMenu listingId={s.id} businessName={s.businessName} logoUrl={s.logoUrl ?? s.photos[0]?.url ?? null}
           onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
       ) : (
-        <MenuView listingId={s.id} group={s.categoryGroup} onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
+        <MenuView listingId={s.id} group={s.categoryGroup} catalogue={s.catalogue} onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
       )}
 
       {/* Photographs on a dark ground, which is where photographs look their

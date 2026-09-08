@@ -9,7 +9,7 @@ import { customerLabel, mintAlias } from './alias';
 import { AISLES, GROCERY_CATEGORIES, aisleOf, aisleRank } from './grocery';
 import { boundingBox, haversineKm, parsePoint } from './geo';
 import { looksLikeId, normaliseSlug, slugProblem, SLUG_MESSAGES, suggestSlug } from './slug';
-import { cleanDetails, isBusinessType, readDetails, sectionsFor } from './business-types';
+import { catalogueFor, cleanDetails, isBusinessType, readDetails, sectionsFor } from './business-types';
 import { normaliseHours, parseHours } from './hours';
 import { VerificationService } from './verification.service';
 import { PostMediaGuard } from '../social/post-media-guard';
@@ -81,6 +81,9 @@ const csv = (s?: string): string[] =>
   (s ?? '').split(',').map((x) => x.trim()).filter(Boolean);
 
 const PAGE_SIZE = 24;
+/** A kirana's stock sheet is longer than a menu card (8 Sep): five hundred
+ *  lines is a shelf a shop actually keeps; the DTO holds the same number. */
+export const MENU_CAP = 500;
 
 /**
  * WHAT THE GROCERY STORE READS IN ONE GO. Sixty shops and twelve hundred rows
@@ -197,6 +200,14 @@ export class LocalServicesService {
        */
       businessType: l.businessType,
       sections: sectionsFor(l.businessType),
+      /**
+       * WHAT THIS BUSINESS PUBLISHES AND HOW (8 Sep): a menu a kitchen
+       * photographs, a stock sheet a kirana uploads, a rate card, packages,
+       * fares. Decided once here from the type (and the trade, for a listing
+       * with no type), so the owner's editor and the public page cannot
+       * disagree about what to call the rows or which door to offer.
+       */
+      catalogue: catalogueFor(l.businessType, l.categoryKey, categoryGroup(l.categoryKey)),
       details: readDetails(l.businessType, parse<Record<string, unknown>>(l.detailsJson, {})),
       businessName: l.businessName,
       categoryKey: l.categoryKey,
@@ -1445,7 +1456,7 @@ export class LocalServicesService {
        line that keeps its id keeps all of it; a line without one is new;
        whatever was not sent is gone, exactly as the screen says. */
     const existing = await this.prisma.serviceMenuItem.findMany({
-      where: { listingId }, select: { id: true }, take: 300,
+      where: { listingId }, select: { id: true }, take: MENU_CAP * 2,
     }) as unknown as Array<{ id: string }>;
     const known = new Set(existing.map((x) => x.id));
     const keep = new Set(dto.items.map((it) => it.id).filter((id): id is string => !!id && known.has(id)));
@@ -1666,7 +1677,7 @@ export class LocalServicesService {
   async menu(listingId: string, viewerId: string) {
     const [rows, listing] = await Promise.all([
       this.prisma.serviceMenuItem.findMany({
-        where: { listingId }, orderBy: { sortOrder: 'asc' }, take: 300,
+        where: { listingId }, orderBy: { sortOrder: 'asc' }, take: MENU_CAP,
       }) as unknown as Promise<Array<{
         id: string; section: string | null; name: string; description: string | null; priceInr: number | null;
         available: boolean; veg: string | null; spice: number | null; photoUrl: string | null;

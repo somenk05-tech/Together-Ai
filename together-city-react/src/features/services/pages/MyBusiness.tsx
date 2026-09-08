@@ -395,7 +395,7 @@ export function MyBusiness() {
                   the editor below it rewrites the document (photograph a new
                   menu, retype the lines). Different errands, both one tap. */}
               {!removed && <MenuCommandCenter listingId={l.id} />}
-              {!removed && <MenuEditor listingId={l.id} />}
+              {!removed && <MenuEditor listingId={l.id} catalogue={l.catalogue} />}
               {!removed && <Offers listingId={l.id} />}
               <ReviewsReceived listingId={l.id} />
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>

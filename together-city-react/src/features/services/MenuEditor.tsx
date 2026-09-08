@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
-import { useMenu, useScanMenu, useSaveMenu, menuPhotoToDataUrl, type MenuDraftItem } from './api';
+import { useMenu, useScanMenu, useSaveMenu, menuPhotoToDataUrl, type Catalogue, type MenuDraftItem } from './api';
+import { readSheetFile } from './sheet';
 
 /**
  * THE OWNER'S MENU: PHOTOGRAPH IT, TYPE IT, OR CHANGE IT LATER.
@@ -36,7 +37,28 @@ const cell: React.CSSProperties = {
 
 const BLANK: MenuDraftItem = { name: '', priceInr: null };
 
-export function MenuEditor({ listingId }: { listingId: string }) {
+/** The words when a card arrived without a catalogue — the menu, as it always was. */
+const MENU_WORDS: Catalogue = {
+  kind: 'menu', title: 'Menu', noun: 'item', plural: 'items', orderable: true,
+  blurb: 'Photograph your menu and it is typed out for you. Nothing publishes until you approve every line.',
+  ways: ['photo', 'typed', 'sheet'],
+};
+
+/**
+ * ── ONE EDITOR, EVERY TRADE'S OWN DOORS (owner, 8 Sep) ────────────────────────
+ *
+ * "If it's a restaurant have menu scanning ability; if it's a grocery store,
+ * let them update material list, upload files; similarly for every other
+ * vendor." The rows are the same for everyone and so is the review grid;
+ * what the catalogue changes is the heading, the noun, and WHICH doors are
+ * offered in WHICH order. A kitchen is offered the camera first; a kirana is
+ * offered the sheet first; a salon is offered the typed rate card first and
+ * the camera second. No door is taken away — a grocer may still photograph
+ * a price list — but the first one on the screen is the one that trade
+ * actually reaches for.
+ */
+export function MenuEditor({ listingId, catalogue }: { listingId: string; catalogue?: Catalogue | null }) {
+  const words = catalogue ?? MENU_WORDS;
   const live = useMenu(listingId);
   const scan = useScanMenu(listingId);
   const save = useSaveMenu(listingId);
@@ -93,6 +115,19 @@ export function MenuEditor({ listingId }: { listingId: string }) {
   const patch = (i: number, next: Partial<MenuDraftItem>) =>
     setDraft((d) => (d ? d.map((it, n) => (n === i ? { ...it, ...next } : it)) : d));
 
+  /** A CSV / TSV / .xlsx into the same review grid the photograph feeds. */
+  const readSheet = async (file?: File) => {
+    if (!file) return;
+    setBusy(true); setErr(null);
+    try {
+      const out = await readSheetFile(file);
+      if (!out.items.length) { setErr(out.note); return; }
+      begin(out.items, out.note);
+    } catch (e) {
+      setErr((e as Error).message || 'That file could not be read. A CSV or an .xlsx with a name and a price column works best.');
+    } finally { setBusy(false); }
+  };
+
   const stop = () => { setDraft(null); setNote(''); setScanUrl(undefined); setErr(null); setOpen(false); };
 
   const publish = () => {
@@ -106,9 +141,9 @@ export function MenuEditor({ listingId }: { listingId: string }) {
   return (
     <div style={{ borderTop: '1px solid var(--line)', paddingTop: 10, marginTop: 4 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <strong style={{ fontSize: 13.5 }}>Menu</strong>
+        <strong style={{ fontSize: 13.5 }}>{words.title}</strong>
         <span className="muted" style={{ fontSize: 12.5 }}>
-          {count === 0 ? 'Nothing published' : `${count} ${count === 1 ? 'item' : 'items'} live`}
+          {count === 0 ? 'Nothing published' : `${count} ${count === 1 ? words.noun : words.plural} live`}
         </span>
         {draft ? (
           <Button variant="line" size="sm" onClick={stop}>Cancel</Button>
@@ -116,41 +151,70 @@ export function MenuEditor({ listingId }: { listingId: string }) {
           <>
             <Button variant="line" size="sm" onClick={editLive}>Edit</Button>
             <Button variant="line" size="sm" onClick={() => { setOpen((v) => !v); setErr(null); }}>
-              {open ? 'Close' : 'Photograph a new one'}
+              {open ? 'Close' : 'Replace it'}
             </Button>
           </>
         ) : (
           <Button variant="line" size="sm" onClick={() => { setOpen((v) => !v); setErr(null); }}>
-            {open ? 'Cancel' : 'Add a menu'}
+            {open ? 'Cancel' : `Add your ${words.title.toLowerCase()}`}
           </Button>
         )}
       </div>
 
       {open && !draft && (
-        <div style={{ marginTop: 10 }}>
-          <p className="muted" style={{ fontSize: 12.5, margin: '0 0 8px' }}>
-            Photograph your menu and it&rsquo;s typed out for you. Nothing publishes until you
-            approve every line.
-          </p>
-          <input type="file" accept="image/*" disabled={busy}
-            aria-label="Photograph of your menu"
-            onChange={(e) => { void readMenu(e.target.files?.[0]); e.target.value = ''; }}
-            style={{ fontSize: 13, fontFamily: 'inherit' }} />
-          {busy && <p className="muted" style={{ fontSize: 12.5, margin: '6px 0 0' }}>Reading the menu…</p>}
-          {err && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: '6px 0 0' }} role="alert">{err}</p>}
-          <p className="muted" style={{ fontSize: 12.5, margin: '10px 0 6px' }}>
-            No photograph handy? Type it out instead.
-          </p>
-          <Button variant="line" size="sm" disabled={busy} onClick={() => begin([{ ...BLANK }])}>
-            Type the menu out
-          </Button>
+        <div style={{ marginTop: 10, display: 'grid', gap: 12 }}>
+          <p className="muted" style={{ fontSize: 12.5, margin: 0 }}>{words.blurb}</p>
+          {/* The doors, in the catalogue's order — the first is the one this
+              trade reaches for, and it is the only one that is not a line of
+              small type. */}
+          {words.ways.map((way, i) => {
+            const lead = i === 0;
+            if (way === 'photo') {
+              return (
+                <div key={way}>
+                  <p style={{ fontSize: 12.5, margin: '0 0 6px', fontWeight: lead ? 700 : 500 }} className={lead ? undefined : 'muted'}>
+                    {lead ? `Photograph your ${words.title.toLowerCase()} and it is typed out for you.` : 'Or photograph a printed list.'}
+                  </p>
+                  <input type="file" accept="image/*" disabled={busy}
+                    aria-label={`Photograph of your ${words.title.toLowerCase()}`}
+                    onChange={(e) => { void readMenu(e.target.files?.[0]); e.target.value = ''; }}
+                    style={{ fontSize: 13, fontFamily: 'inherit' }} />
+                </div>
+              );
+            }
+            if (way === 'sheet') {
+              return (
+                <div key={way}>
+                  <p style={{ fontSize: 12.5, margin: '0 0 6px', fontWeight: lead ? 700 : 500 }} className={lead ? undefined : 'muted'}>
+                    {lead ? 'Upload your sheet — CSV or Excel, with a name and a price column.' : 'Or upload a sheet (CSV or Excel).'}
+                  </p>
+                  <input type="file" accept=".csv,.tsv,.txt,.xlsx,.xlsm,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={busy}
+                    aria-label={`Spreadsheet of your ${words.title.toLowerCase()}`}
+                    onChange={(e) => { void readSheet(e.target.files?.[0]); e.target.value = ''; }}
+                    style={{ fontSize: 13, fontFamily: 'inherit' }} />
+                </div>
+              );
+            }
+            return (
+              <div key={way}>
+                <p style={{ fontSize: 12.5, margin: '0 0 6px', fontWeight: lead ? 700 : 500 }} className={lead ? undefined : 'muted'}>
+                  {lead ? `Type your ${words.plural} in, one line each.` : 'Or type it out.'}
+                </p>
+                <Button variant={lead ? 'accent' : 'line'} size="sm" disabled={busy} onClick={() => begin([{ ...BLANK }])}>
+                  Type it out
+                </Button>
+              </div>
+            );
+          })}
+          {busy && <p className="muted" style={{ fontSize: 12.5, margin: 0 }}>Reading…</p>}
+          {err && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: 0 }} role="alert">{err}</p>}
         </div>
       )}
 
       {draft && (
         <div style={{ marginTop: 10 }}>
           <p style={{ fontSize: 12.5, margin: '0 0 4px', fontWeight: 700 }}>
-            {scanUrl ? 'Read from your photo — check every price before publishing.' : 'Change anything, then publish.'}
+            {scanUrl ? 'Read from your photo — check every price before publishing.' : note ? 'Read from your sheet — check every price before publishing.' : 'Change anything, then publish.'}
           </p>
           {note && <p className="muted" style={{ fontSize: 12, margin: '0 0 10px' }}>{note}</p>}
 
@@ -158,7 +222,7 @@ export function MenuEditor({ listingId }: { listingId: string }) {
             {draft.map((it, i) => (
               <div key={i} className="menu-edit-row">
                 <input style={cell} className="menu-edit-name" value={it.name} aria-label={`Item ${i + 1} name`}
-                  placeholder="Item" onChange={(e) => patch(i, { name: e.target.value })} maxLength={90} />
+                  placeholder={words.noun[0].toUpperCase() + words.noun.slice(1)} onChange={(e) => patch(i, { name: e.target.value })} maxLength={90} />
                 <input style={cell} value={it.section ?? ''} aria-label={`Item ${i + 1} section`} placeholder="Section"
                   onChange={(e) => patch(i, { section: e.target.value || undefined })} maxLength={60} />
                 <input style={cell} inputMode="numeric" aria-label={`Item ${i + 1} price in rupees`}
@@ -178,12 +242,12 @@ export function MenuEditor({ listingId }: { listingId: string }) {
           </div>
 
           <p className="muted" style={{ fontSize: 11.5, margin: '10px 0 0' }}>
-            A blank price shows as “Ask” rather than as free. Publishing replaces the whole menu
+            A blank price shows as “Ask” rather than as free. Publishing replaces the whole {words.title.toLowerCase()}
             with these lines.
           </p>
           <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
             <Button variant="accent" size="sm" disabled={save.isPending || draft.every((d) => !d.name.trim())} onClick={publish}>
-              {save.isPending ? 'Publishing…' : `Publish ${draft.length} ${draft.length === 1 ? 'item' : 'items'}`}
+              {save.isPending ? 'Publishing…' : `Publish ${draft.length} ${draft.length === 1 ? words.noun : words.plural}`}
             </Button>
             <Button variant="line" size="sm" onClick={() => setDraft((d) => (d ? [...d, { ...BLANK }] : d))}>Add a line</Button>
             <Button variant="line" size="sm" onClick={stop}>Discard</Button>

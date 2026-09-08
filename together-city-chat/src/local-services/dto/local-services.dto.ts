@@ -171,7 +171,7 @@ export const SaveMenuSchema = z.object({
     description: z.string().trim().max(140).optional(),
     // null is "ask", and it is not the same as free.
     priceInr: z.number().int().min(0).max(500_000).nullable().optional(),
-  })).max(200),
+  })).max(500), // MENU_CAP — a stock sheet, not only a menu card (8 Sep)
 });
 export type SaveMenuDto = z.infer<typeof SaveMenuSchema>;
 
