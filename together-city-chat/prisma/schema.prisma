@@ -241,6 +241,27 @@ model User {
   callParticipations   CallParticipant[]
 
   @@index([onlineStatus])
+  /// AND FOUR MORE PRISMA CANNOT WRITE, in
+  /// 20260906T190000_the_four_reads_a_million_makes: two partial, one trigram
+  /// and one with a non-default operator class.
+  ///   User_reachable_idx        ON ("id") WHERE deletedAt IS NULL AND suspendedAt IS NULL
+  ///     — REACHABLE_USER compiles to a semi-join over this table on EVERY
+  ///       feed page, and neither column was indexed.
+  ///   User_purge_due_idx        ON ("deletedAt") WHERE purgedAt IS NULL AND deletedAt IS NOT NULL
+  ///   User_name_trgm_idx        USING gin ("name" gin_trgm_ops)  — people search is ILIKE '%q%'
+  ///   User_handle_pattern_idx   ON ("handle" varchar_pattern_ops) — the startsWith half of the same OR
+  /// They are over there because Prisma has no syntax for any of the four, and
+  /// this note is here so the next person reading the model knows they exist.
+  /// SIGN-IN, RECOVERY AND REGISTRATION READ THIS TABLE BY email AND BY phone,
+  /// AND NEITHER COLUMN HAD AN INDEX. The only email index is the partial
+  /// UNIQUE on LOWER("email") from 20260730120000_verification_codes, which
+  /// Postgres cannot use for `WHERE "email" = $1` (an expression index needs
+  /// the expression) and which excludes unverified rows the recovery path
+  /// deliberately wants. `phone` had nothing at all — `phoneE164` is a
+  /// different column. Every password-reset and every registration was a
+  /// sequential scan of a million rows. (Launch audit, 6 Sep.)
+  @@index([email])
+  @@index([phone])
   dailyTargets      DailyTargetSnapshot[]
   groceryList       GroceryListItem[]
   pets              Pet[]
@@ -329,6 +350,25 @@ model Conversation {
   /// NOT an enum: a Prisma enum needs a migration to add a value, and the next
   /// hub with its own chat surface should cost one line here.
   kind      String           @default("city")
+  /// ── THE LAST LINE OF THE ROOM, KEPT ON THE ROOM ─────────────────────────
+  ///
+  /// The chat list needs one message per conversation: the newest one that has
+  /// not been deleted. `summariesFor` asked for it with `findMany` +
+  /// `orderBy createdAt desc` + `distinct: ['conversationId']`, which Postgres
+  /// cannot serve — `SELECT DISTINCT ON (x) … ORDER BY y` is rejected unless
+  /// the ORDER BY leads with the DISTINCT ON columns — so Prisma pulled EVERY
+  /// undeleted message in every one of those rooms into the API process and
+  /// de-duplicated them in JavaScript. Forty rooms of two thousand messages was
+  /// eighty thousand rows, four times a minute, per open client.
+  ///
+  /// Written where the message is sent, and recomputed when the message that
+  /// was here is deleted for everyone. `updatedAt` above already moves on the
+  /// same write, so this is three more columns on a row that was being touched
+  /// anyway rather than a second write. (1M-DAU pass, 6 Sep.)
+  lastMessageAt       DateTime?
+  /// Null for a media-only message, exactly as `Message.text` is.
+  lastMessageText     String?
+  lastMessageSenderId String?
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
@@ -457,6 +497,13 @@ model Message {
   /// and two devices can pick the same string. What must never happen twice is
   /// the same person sending the same one.
   @@unique([senderId, clientId])
+  /// THE SELF-REFERENCE NOBODY INDEXED. `replyTo` is optional with no
+  /// onDelete, so Prisma's default is SetNull: deleting ONE message emits
+  /// UPDATE "Message" SET "replyToMessageId" = NULL WHERE "replyToMessageId" =
+  /// $1 — a sequential scan of the largest table in the city. It is reached by
+  /// cascade from Conversation and from User, so purging an account with five
+  /// thousand messages was five thousand of those scans. (Launch audit, 6 Sep.)
+  @@index([replyToMessageId])
 }
 
 model MessageStatus {
@@ -1006,6 +1053,26 @@ model Post {
   taggedJson String? // JSON [{id, name, handle}] — tagged friends
   lat       Float?
   lng       Float?
+  /// ── THE TWO NUMBERS ON A CARD, KEPT RATHER THAN COUNTED ──────────────────
+  ///
+  /// Every heart tap used to run `like.count({ where: { postId } })` — an
+  /// index-only scan of every like on that post, arriving fastest exactly when
+  /// the post has the most of them — and every feed page asked Prisma for
+  /// `_count` on two relations per row, twice per row once reposts unwrap: up
+  /// to 84 correlated aggregate subqueries for twenty-one cards.
+  ///
+  /// These two columns are that answer, written at the moment the like or the
+  /// comment lands. Postgres does the arithmetic under the row lock, so a
+  /// concurrent tap cannot lose an increment the way a read-modify-write would.
+  ///
+  /// DRIFT, AND WHY THERE IS SO LITTLE OF IT. The purge plan KEEPS Like and
+  /// Comment — "a like is a number on somebody else's post; removing it edits
+  /// their post" — so no cascade ever removes them behind these counters. A
+  /// deleted post takes its own rows with it. What remains is a process that
+  /// dies between the row and the counter, which drifts by one; the readers
+  /// clamp at zero and repair from a real count if a number ever goes negative.
+  likeCount    Int @default(0)
+  commentCount Int @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1057,6 +1124,25 @@ model PostMedia {
   /// whole city can play (5 Sep); a photograph is 'ready' as it is. The TV
   /// plays only 'ready' videos; the wall shows a processing one by its poster.
   state    String  @default("ready")
+  /// ── THE ADAPTIVE LADDER, WHEN THERE IS ONE ──────────────────────────────
+  ///
+  /// The key of an HLS master playlist beside the MP4, or null. `url` stays
+  /// what it always was — one progressive H.264 file — and remains the
+  /// fallback for a player that cannot do HLS and the source the poster is cut
+  /// from. This is the addressable version: four rungs at 240/360/480/720,
+  /// capped at the source, each ONE object with a byte-range playlist (see
+  /// media/hls-ladder.ts for why that shape and not several hundred segments).
+  ///
+  /// Null is not a failure state. A ladder that could not be built leaves this
+  /// null and the video plays progressively, exactly as it did before — the
+  /// encode that matters for correctness is the MP4, and this one is allowed
+  /// to fail without taking the post with it.
+  ///
+  /// ONE POINTER, NOT NINE. The rung count is deliberately not stored:
+  /// `ladderKeysOf` derives every name a ladder can have from this key, which
+  /// is what the two deletion paths use. A second column could disagree with
+  /// the bucket; a derived list cannot.
+  hlsUrl   String?
 
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
@@ -1066,6 +1152,15 @@ model PostMedia {
   /// walks Post in date order and probes here for each one: finding 21 videos
   /// among a city's photographs cost hundreds of rows scanned per page.
   @@index([postId, kind])
+  /// AND ONE PRISMA CANNOT WRITE. `media.sweep` (media/transcode.service.ts)
+  /// asks every fifteen minutes which videos are still 'processing' — a
+  /// handful of rows in a table with one per photograph in the city. A plain
+  /// index on `state` would be two values over millions of rows and the
+  /// planner would never use it, so the index is PARTIAL and lives as raw SQL
+  /// in 20260906T170000_a_worker_of_its_own:
+  ///   ON "PostMedia"("id") WHERE "state" = 'processing' AND "kind" = 'video'
+  /// Prisma cannot express a partial index, which is why it is over there and
+  /// this comment is here.
 }
 
 model Comment {
@@ -1079,6 +1174,9 @@ model Comment {
   author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([postId, createdAt])
+  /// A Cascade foreign key with no index behind it: purging one account scanned
+  /// every comment in the city. (Launch audit, 6 Sep.)
+  @@index([authorId])
 }
 
 model Like {
@@ -1114,6 +1212,12 @@ model Bookmark {
   @@unique([userId, postId])
   /// The Saved page reads one citizen's bookmarks newest first, by keyset.
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  /// AND THE OTHER DIRECTION, WHICH NOTHING ASKS FOR AND EVERY DELETE NEEDS.
+  /// Both indexes above lead with userId, so the cascade Postgres runs on
+  /// `post.delete` — DELETE FROM "Bookmark" WHERE "postId" = $1 — could only
+  /// be a sequential scan of the whole table. Deleting an account with 200
+  /// posts was 200 of them, inside one request. (Launch audit, 6 Sep.)
+  @@index([postId])
 }
 
 model Follow {
@@ -2790,6 +2894,7 @@ model ProfileEdit {
   @@index([userId, createdAt])
 }
 
+
 model AstroQuestion {
   id        String   @id @default(uuid())
   userId    String
@@ -4381,4 +4486,43 @@ model PetPhoto {
 
   @@index([petId, position])
   @@index([userId])
+}
+
+/// ── WHAT THE HASH GATE CAUGHT (1M-DAU pass, 6 Sep) ──────────────────────────
+///
+/// One row per known-bad-hash match, written by media/hash-match. It is the
+/// report queue: an unreported row is a report somebody still has to file, and
+/// `reportedAt` / `reportRef` are where they record that they filed it.
+///
+/// NO RELATION TO User, DELIBERATELY. Every other table that names a citizen
+/// carries `onDelete: Cascade`, so closing an account takes its rows with it.
+/// This is evidence in a criminal matter and it must survive the account —
+/// including an account closed by the person who uploaded the material. So
+/// `userId` is a plain column with an index on it, and the purge plan leaves
+/// this table alone.
+model CsamHit {
+  id     String  @id @default(uuid())
+  /// The citizen the bytes came from. Not a foreign key — see above.
+  userId String
+  /// dating-photo | chat-image | chat-snap | post-media | inline-image
+  surface String
+  /// Where the preserved object is. Null for an inline data URL, which had no object.
+  storageKey String?
+  /// 'public' | 'private' — which bucket storageKey is in.
+  bucket     String?
+  /// Digest of the exact bytes that matched.
+  sha256 String
+  /// What the matcher said it matched against.
+  source String
+
+  detectedAt DateTime  @default(now())
+  /// Set when a person has filed the report. Null means it is still owed.
+  reportedAt DateTime?
+  /// The reference the receiving authority gave back.
+  reportRef  String?
+
+  /// The queue: unreported first, oldest first.
+  @@index([reportedAt, detectedAt])
+  @@index([userId])
+  @@index([sha256])
 }
