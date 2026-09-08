@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RekognitionClient, DetectModerationLabelsCommand } from '@aws-sdk/client-rekognition';
 import { StorageProvider } from '../media/storage.provider';
+import { HashMatchService } from '../media/hash-match/hash-match.service';
 import { swallowed } from '../shared/swallow';
 import { verdictFor } from '../dating/photo-moderation.service';
 
@@ -124,7 +125,11 @@ export class ChatMediaGuard {
   private readonly holdAt: number;
   private readonly rejectAt: number;
 
-  constructor(private readonly storage: StorageProvider, config: ConfigService) {
+  constructor(
+    private readonly storage: StorageProvider,
+    config: ConfigService,
+    private readonly hashes: HashMatchService,
+  ) {
     const region = config.get<string>('photoModeration.region') ?? process.env.REKOGNITION_REGION ?? '';
     const id = process.env.REKOGNITION_ACCESS_KEY_ID ?? '';
     const secret = process.env.REKOGNITION_SECRET_ACCESS_KEY ?? '';
@@ -193,6 +198,23 @@ export class ChatMediaGuard {
     const bytes = Buffer.from(obj.base64, 'base64');
     if (bytes.length > MAX_SCREEN_BYTES) {
       return await this.refuse(key, senderId, 'That image is too large to send here.');
+    }
+    /**
+     * THE HASH GATE RUNS FIRST. Rekognition answers "does this look explicit";
+     * only a known-bad-hash match answers "is this a known image", which is
+     * what finds child sexual abuse material. 'unavailable' fails closed and is
+     * never turned into a pass. A 'match' refuses WITHOUT `refuse()` — that
+     * deletes the object, and this one is evidence the service has already
+     * recorded, preserved and suspended the account over.
+     */
+    const hash = await this.hashes.check(bytes, `image/${actual}`, {
+      userId: senderId, surface: 'chat-image', storageKey: key, bucket: 'public',
+    });
+    if (hash === 'unavailable') {
+      return { ok: false, retryable: true, reason: 'We could not check that image just now, so it has not been sent. Try again in a moment.' };
+    }
+    if (hash === 'match') {
+      return { ok: false, retryable: false, reason: 'That image did not pass our automated check, so it has not been sent.' };
     }
     let labels: Array<{ Name?: string; ParentName?: string; Confidence?: number }>;
     try {
@@ -263,6 +285,23 @@ export class ChatMediaGuard {
     const bytes = Buffer.from(obj.base64, 'base64');
     if (bytes.length > MAX_SCREEN_BYTES) {
       return await this.refuseSnap(key, senderId, 'That photo is too large to send as a snap.');
+    }
+    /**
+     * THE HASH GATE RUNS FIRST. Rekognition answers "does this look explicit";
+     * only a known-bad-hash match answers "is this a known image", which is
+     * what finds child sexual abuse material. 'unavailable' fails closed and is
+     * never turned into a pass. A 'match' refuses WITHOUT `refuse()` — that
+     * deletes the object, and this one is evidence the service has already
+     * recorded, preserved and suspended the account over.
+     */
+    const hash = await this.hashes.check(bytes, `image/${kind}`, {
+      userId: senderId, surface: 'chat-snap', storageKey: key, bucket: 'private',
+    });
+    if (hash === 'unavailable') {
+      return { ok: false, retryable: true, reason: 'We could not check that photo just now, so it has not been sent. Try again in a moment.' };
+    }
+    if (hash === 'match') {
+      return { ok: false, retryable: false, reason: 'That photo did not pass our automated check, so it has not been sent.' };
     }
     let labels: Array<{ Name?: string; ParentName?: string; Confidence?: number }>;
     try {

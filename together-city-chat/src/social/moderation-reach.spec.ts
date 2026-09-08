@@ -89,6 +89,8 @@ describe('moderation reaches every list read of Post', () => {
       post: {
         findUnique: async () => ({ authorId: 'author' }),
         updateMany: async ({ data }: { data: { moderation: string } }) => { removed.push(`post:${data.moderation}`); return { count: 1 }; },
+        // The card's two numbers are kept on Post now (6 Sep).
+        update: async () => ({ likeCount: 0, commentCount: 0 }),
       },
       comment: {
         findUnique: async () => ({ authorId: 'rude' }),

@@ -155,6 +155,17 @@ export interface BeautyProduct {
    * went wrong before this field existed.
    */
   site?: ProductSite;
+  /**
+   * WHO THE BOTTLE IS SOLD TO, when the sheet says (owner, 6 Sep: "don't show
+   * female products to male users"). The data sheet grades every row Women,
+   * Men or Unisex; only the first two are carried, the way `site` is carried
+   * only where it differs from the default — absence means anyone. Read by
+   * offeredTo() in recommendProducts(): a women's shower gel is not put in a
+   * man's routine, a men's beard wash not in a woman's, and a citizen whose
+   * gender is Other or unsaid is shown everything, because a guess about who
+   * a bottle is for is not ours to make on their behalf.
+   */
+  audience?: 'women' | 'men';
   priceInr: number;
   /** 'Budget' | 'Mid-range' | 'Premium', as the data sheet grades it. */
   tier: string;
@@ -308,10 +319,20 @@ export function everythingIn(p: Pick<BeautyProduct, 'actives' | 'keyIngredient' 
   return [...p.actives, p.keyIngredient, ...(p.ingredients ?? [])];
 }
 
+/** True when a product may be shown to a citizen of this gender (the hub's
+ *  own Female | Male | Other, or nothing). Pure; exported for the spec. */
+export function offeredTo(p: Pick<BeautyProduct, 'audience'>, gender?: string | null): boolean {
+  if (!p.audience) return true;
+  const g = (gender ?? '').toLowerCase();
+  if (g === 'male') return p.audience !== 'women';
+  if (g === 'female') return p.audience !== 'men';
+  return true;
+}
+
 export function recommendProducts(opts: {
   readings: ReadingLite[];
   concerns: string[];
-  profile: { skinType?: string; budget?: string; allergies?: string[]; conditions?: string[] };
+  profile: { skinType?: string; budget?: string; allergies?: string[]; conditions?: string[]; gender?: string | null };
   insights: BeautyInsight[];
 }): RecommendedProduct[] {
   const { readings, concerns, profile, insights } = opts;
@@ -368,6 +389,10 @@ export function recommendProducts(opts: {
     // "you told us this reacts with you", the other is "not while you are
     // pregnant", and a shelf that conflates them explains neither.
     .filter((p) => isSafeForConditions(p.name, everythingIn(p), conditions))
+    // And nothing sold to somebody else (6 Sep). A women's shower gel was the
+    // Wash step of a man's body routine; the sheet had said "Women" all along
+    // and the catalogue never carried the word.
+    .filter((p) => offeredTo(p, profile.gender))
     .map((p) => {
       /**
        * NOT `p.profileKeys` — the keys this product may be MATCHED on.

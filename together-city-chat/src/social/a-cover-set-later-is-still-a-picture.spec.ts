@@ -157,7 +157,7 @@ describe('the refusal tells the truth about what did not happen', () => {
   }) as any;
 
   it('says the cover has not changed, not that the post has not gone up', async () => {
-    const g = new PostMediaGuard(storage(JPEG), { get: () => '' } as any);
+    const g = new PostMediaGuard(storage(JPEG), { get: () => '' } as any, { check: async () => 'clear' } as never);
     (g as any).client = {
       send: async () => ({ ModerationLabels: [{ Name: 'Explicit Nudity', ParentName: 'Explicit Nudity', Confidence: 99 }] }),
     };
@@ -168,7 +168,7 @@ describe('the refusal tells the truth about what did not happen', () => {
   });
 
   it('still says the post has not gone up when it is a post being screened', async () => {
-    const g = new PostMediaGuard(storage(JPEG), { get: () => '' } as any);
+    const g = new PostMediaGuard(storage(JPEG), { get: () => '' } as any, { check: async () => 'clear' } as never);
     (g as any).client = {
       send: async () => ({ ModerationLabels: [{ Name: 'Violence', ParentName: 'Violence', Confidence: 99 }] }),
     };
@@ -179,7 +179,7 @@ describe('the refusal tells the truth about what did not happen', () => {
   it('does not blame the citizen’s file for a frame the app produced', async () => {
     // "That file isn’t a photo we can read" is actionable when they chose the
     // file, and baffling when ffmpeg made it.
-    const g = new PostMediaGuard(storage(Buffer.from('%PDF-1.7 padding padding', 'latin1')), { get: () => '' } as any);
+    const g = new PostMediaGuard(storage(Buffer.from('%PDF-1.7 padding padding', 'latin1')), { get: () => '' } as any, { check: async () => 'clear' } as never);
     const cover = await g.screenCover(ME, NEW_COVER) as any;
     expect(cover.reason).not.toMatch(/That file isn’t a photo/);
     expect(cover.reason).toMatch(/cover hasn’t changed/);

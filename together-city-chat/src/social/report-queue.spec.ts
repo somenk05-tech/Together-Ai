@@ -47,6 +47,9 @@ function stub(
         for (const p of hit) Object.assign(p, data);
         return { count: hit.length };
       },
+      // The card's two numbers are kept on Post now, moved where the like or
+      // the comment lands rather than counted per read (6 Sep).
+      update: async () => ({ likeCount: 0, commentCount: 0 }),
     },
     user: { findUnique: async () => null },
     // A comment can be removed from the queue now (30 Aug audit), so the stub

@@ -27,6 +27,7 @@ import { ConversationsModule } from './conversations/conversations.module';
 import { MessagesModule } from './messages/messages.module';
 import { ChatModule } from './chat/chat.module';
 import { MediaModule } from './media/media.module';
+import { HashMatchModule } from './media/hash-match/hash-match.module';
 import { DriveModule } from './drive/drive.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ProfileModule } from './profile/profile.module';
@@ -97,6 +98,8 @@ import { QueueModule } from './shared/queue/queue.module';
     MessagesModule,
     NotificationsModule,
     MediaModule,
+    // Global: the hash gate runs on three guards in three hubs. See its module.
+    HashMatchModule,
     DriveModule,
     ChatModule,
     ProfileModule,

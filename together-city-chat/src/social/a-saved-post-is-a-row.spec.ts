@@ -48,6 +48,9 @@ function build(over: { bookmarks?: any[]; posts?: any[]; likeTold?: boolean } = 
       findFirst: rec('post', 'findFirst', (a: any) => posts.find((p) => p.id === a.where.id) ?? null),
       findUnique: rec('post', 'findUnique', (a: any) => posts.find((p) => p.id === a.where.id) ?? null),
       findMany: rec('post', 'findMany', (a: any) => posts.filter((p) => a.where.id.in.includes(p.id) && p.moderation === 'visible')),
+      // The card's two numbers are kept on Post now, moved where the like or
+      // the comment lands rather than counted per read (6 Sep).
+      update: rec('post', 'update', { likeCount: 1, commentCount: 0 }),
     },
     like: {
       deleteMany: rec('like', 'deleteMany', { count: 0 }),

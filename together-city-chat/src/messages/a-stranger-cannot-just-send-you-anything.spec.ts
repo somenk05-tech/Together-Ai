@@ -224,6 +224,7 @@ describe('a stranger cannot just send you anything', () => {
       const g = new ChatMediaGuard(
         { deleteObject: async () => false } as never,
         { get: () => '' } as never,
+        { check: async () => 'clear' } as never,
       );
       (g as unknown as { logger: { error: (m: string) => void } }).logger = {
         error: (m: string) => logged.push(m),

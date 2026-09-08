@@ -30,6 +30,9 @@ function build(opts: { granted?: boolean } = {}) {
     post: {
       updateMany: jest.fn(async () => ({ count: 1 })),
       findUnique: jest.fn(async () => ({ authorId: 'author' })),
+      // The card's two numbers are kept on Post now, moved where the like or
+      // the comment lands rather than counted per read (6 Sep).
+      update: jest.fn(async () => ({ likeCount: 0, commentCount: 0 })),
     },
     comment: {
       findUnique: jest.fn(async () => ({ authorId: 'author', postId: 'p1', text: 'the words that were reported' })),

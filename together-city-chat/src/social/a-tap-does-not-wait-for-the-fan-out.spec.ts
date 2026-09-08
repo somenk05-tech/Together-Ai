@@ -42,11 +42,15 @@ function rig() {
          not deleted, not suspended — and that is a clause on the query rather
          than a second lookup. See admin/account-reach.ts. */
       findFirst: async () => ({ id: 'p1', authorId: AUTHOR, audience: 'public' }),
+      /* THE COUNT IS MOVED, NOT RE-TAKEN (6 Sep). `toggleLike` used to answer
+         with `like.count({ where: { postId } })` — every like on the post, on
+         every tap. It now moves `Post.likeCount` by one and reads back what
+         Postgres wrote, so the number this rig hands out is the row's. */
+      update: async () => ({ likeCount: 7 }),
     },
     like: {
       deleteMany: async () => ({ count: 0 }),
       createMany: async () => ({ count: 1 }),
-      count: async () => 7,
     },
     // The two reads postRecipients makes. Neither ever answers.
     connection: { findMany: async () => { started.push('connections'); return hang(); } },
@@ -92,8 +96,8 @@ describe('a heart tap answers before the fan-out does', () => {
   it('sends the frame once the recipients do arrive', async () => {
     const gateway = { likeChanged: jest.fn() } as any;
     const prisma = {
-      post: { findFirst: async () => ({ id: 'p1', authorId: AUTHOR, audience: 'public' }) },
-      like: { deleteMany: async () => ({ count: 0 }), createMany: async () => ({ count: 1 }), count: async () => 3 },
+      post: { findFirst: async () => ({ id: 'p1', authorId: AUTHOR, audience: 'public' }), update: async () => ({ likeCount: 3 }) },
+      like: { deleteMany: async () => ({ count: 0 }), createMany: async () => ({ count: 1 }) },
       connection: { findMany: async () => [] },
       follow: { findMany: async () => [{ followerId: 'f1' }] },
       user: { findUnique: async () => ({ name: 'Someone' }) },

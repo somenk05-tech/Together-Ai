@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RekognitionClient, DetectModerationLabelsCommand } from '@aws-sdk/client-rekognition';
 import { StorageProvider } from '../media/storage.provider';
+import { HashMatchService } from '../media/hash-match/hash-match.service';
 import { swallowed } from '../shared/swallow';
 import { verdictFor } from '../dating/photo-moderation.service';
 import { sniffImage } from '../messages/chat-media-guard';
@@ -165,7 +166,11 @@ export class PostMediaGuard {
   private readonly holdAt: number;
   private readonly rejectAt: number;
 
-  constructor(private readonly storage: StorageProvider, config: ConfigService) {
+  constructor(
+    private readonly storage: StorageProvider,
+    config: ConfigService,
+    private readonly hashes: HashMatchService,
+  ) {
     const region = config.get<string>('photoModeration.region') ?? process.env.REKOGNITION_REGION ?? '';
     const id = process.env.REKOGNITION_ACCESS_KEY_ID ?? '';
     const secret = process.env.REKOGNITION_SECRET_ACCESS_KEY ?? '';
@@ -303,6 +308,23 @@ export class PostMediaGuard {
     if (!this.client) {
       return { ok: false, retryable: true, reason: `We couldn’t check that photo just now, ${consequence}. Try again in a moment.` };
     }
+    /**
+     * THE HASH GATE RUNS FIRST. Rekognition answers "does this look explicit";
+     * only a known-bad-hash match answers "is this a known image", which is
+     * what finds child sexual abuse material. 'unavailable' fails closed and is
+     * never turned into a pass. A 'match' refuses WITHOUT `refuse()` — that
+     * deletes the file, and this one is evidence the service has already
+     * recorded, preserved and suspended the account over.
+     */
+    const hash = await this.hashes.check(bytes, `image/${actual}`, {
+      userId, surface: 'inline-image', storageKey: null, bucket: null,
+    });
+    if (hash === 'unavailable') {
+      return { ok: false, retryable: true, reason: `We couldn’t check that photo just now, ${consequence}. Try again in a moment.` };
+    }
+    if (hash === 'match') {
+      return { ok: false, retryable: false, reason: `That photo didn’t pass our automated check, ${consequence}.` };
+    }
     let labels: Array<{ Name?: string; ParentName?: string; Confidence?: number }>;
     try {
       const res = await this.client.send(new DetectModerationLabelsCommand({
@@ -369,6 +391,24 @@ export class PostMediaGuard {
     const bytes = Buffer.from(obj.base64, 'base64');
     if (bytes.length > MAX_SCREEN_BYTES) {
       return this.refuse(key, userId, `That ${noun} is too large to check — try a smaller one.`, shelf);
+    }
+
+    /**
+     * THE HASH GATE RUNS FIRST. Rekognition answers "does this look explicit";
+     * only a known-bad-hash match answers "is this a known image", which is
+     * what finds child sexual abuse material. 'unavailable' fails closed and is
+     * never turned into a pass. A 'match' refuses WITHOUT `refuse()` — that
+     * deletes the file, and this one is evidence the service has already
+     * recorded, preserved and suspended the account over.
+     */
+    const hash = await this.hashes.check(bytes, `image/${actual}`, {
+      userId, surface: 'post-media', storageKey: key, bucket: shelf === 'public' ? 'public' : 'private',
+    });
+    if (hash === 'unavailable') {
+      return { ok: false, retryable: true, reason: `We couldn’t check that ${noun} just now, ${consequence}. Try again in a moment.` };
+    }
+    if (hash === 'match') {
+      return { ok: false, retryable: false, reason: `That ${noun} didn’t pass our automated check, ${consequence}.` };
     }
 
     let labels: Array<{ Name?: string; ParentName?: string; Confidence?: number }>;
