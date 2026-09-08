@@ -14,7 +14,18 @@ export interface FollowPerson extends PostAuthor { iFollow: boolean; followsMe: 
 /** `state` (5 Sep): a video is 'processing' from the post until the server's
  *  worker has made it playable everywhere, 'ready' after, 'failed' if it
  *  could not be read. Absent on rows written before the column: ready. */
-export interface PostMedia { id: string; url: string; kind: 'image' | 'video'; thumbUrl: string | null; state?: 'ready' | 'processing' | 'failed' }
+export interface PostMedia {
+  id: string;
+  /** The progressive H.264 MP4. Always present, and the fallback for every path in lib/hls.ts. */
+  url: string;
+  kind: 'image' | 'video';
+  thumbUrl: string | null;
+  state?: 'ready' | 'processing' | 'failed';
+  /** The HLS master playlist, when the encoder built a ladder (6 Sep). Null on
+   *  everything posted before it, and on any video the ladder failed for — in
+   *  both cases the player uses `url`, which is what it always did. */
+  hlsUrl?: string | null;
+}
 export interface Post {
   id: string;
   text: string | null;
