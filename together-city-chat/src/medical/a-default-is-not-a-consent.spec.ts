@@ -154,8 +154,17 @@ describe('the ask on Blood Test Analysis', () => {
   it('says the thing that makes it worth asking — nothing is read until they say so (4 Sep)', () => {
     expect(card).toMatch(/nothing\s*\n?\s*until you say so/);
     expect(card).not.toMatch(/on now, and you have not been asked before/);
-    // The affirmative button is the affirmative act; the other keeps it off.
-    expect(card).toMatch(/'Turn it on'/);
+    /* The affirmative button is the affirmative act; the other keeps it off.
+       THE WORDS, NOT THEIR QUOTING (9 Sep). This read /'Turn it on'/ — with
+       the single quotes — because the label used to be a hand-rolled
+       `{busy ? 'Saving…' : 'Turn it on'}` ternary. `one save, one fold`
+       (a9ad8119) replaced that with the shared Button's own `state` and
+       `loadingLabel`, so the label is JSX children now and the quotes are
+       gone. The rule this test holds is what the button SAYS; the spelling of
+       the busy state was never it, and pinning to it made a correct change
+       fail. */
+    expect(card).toMatch(/>Turn it on</);
+    expect(card).toMatch(/loadingLabel="Saving…"/);
     expect(card).toMatch(/Keep it off/);
   });
 

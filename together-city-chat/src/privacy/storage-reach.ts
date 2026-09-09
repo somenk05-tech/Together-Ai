@@ -100,6 +100,7 @@ export const STORAGE_COLUMNS: StorageColumn[] = [
   { model: 'ServiceVerification', column: 'videoUrl', holds: 'private-object', carriedAwayBy: 'LocalServicesService.purgeListingObjects (vault branch) + the listing’s purge rule', reason: 'A verification video — the owner in their shop saying their name. A vault key under kyc/<ownerId>/ since 2 Sep (launch blocker 3); a public URL on rows from before, until the migration moves them.' },
 
   // ── Not ours ──────────────────────────────────────────────────────────
+  { model: 'GroceryProduct', column: 'imageUrl', holds: 'external-link', reason: 'ONE PHOTOGRAPH OF A PACK, HOTLINKED FROM THE SOURCE under its licence — Open Food Facts and the rest of CATALOGUE_SOURCES. It is not in either of our buckets and never was: we did not take it, we do not host it, and there is nothing of ours to carry away. It is also the one column here that is not about a citizen at all — the catalogue is a shelf of products, and a row survives every account deletion in the city because it belongs to none of them.' },
   { model: 'CvEntry', column: 'url', holds: 'external-link', reason: 'A link the citizen typed, or one a CV parser read out of their document.' },
   { model: 'ExternalJob', column: 'url', holds: 'external-link', reason: 'The job board we scraped it from.' },
 
@@ -115,6 +116,7 @@ export const STORAGE_COLUMNS: StorageColumn[] = [
   { model: 'Conversation', column: 'directKey', holds: 'not-storage', reason: 'The ordered pair of two citizens, so a direct chat is found once.' },
   { model: 'FeatureFlag', column: 'key', holds: 'not-storage', reason: 'The name of a feature flag — a switch, not a file.' },
   { model: 'GroceryListItem', column: 'key', holds: 'not-storage', reason: 'The canonical item name items are merged on.' },
+  { model: 'GroceryProduct', column: 'sourceKey', holds: 'not-storage', reason: 'WHICH CATALOGUE THE ROW CAME FROM — a key in CATALOGUE_SOURCES, paired with sourceRef to make the row unique. The word "key" is what brought it to this file; it names a data source, not an object in a bucket, and a catalogue row that could not say where it came from would be this table inventing a product.' },
   { model: 'MailProject', column: 'key', holds: 'not-storage', reason: 'A slug, used as a URL path and a sub-address.' },
   { model: 'MealPlan', column: 'key', holds: 'not-storage', reason: 'The plan’s identity.' },
   { model: 'MedicalBiomarker', column: 'key', holds: 'not-storage', reason: 'A biomarker slug, the same vocabulary BloodMarker uses.' },

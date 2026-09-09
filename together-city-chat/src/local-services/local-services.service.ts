@@ -1830,6 +1830,14 @@ export class LocalServicesService {
 
     if (linked.length) {
       const ids = [...new Set(linked.map((i) => i.productId as string))];
+      /* A COMPUTATION, AND ITS OWN `IN` LIST BOUNDS IT. Every id here came off
+         `items`, which the shelf read already capped — so this read is at most
+         as long as that one and cannot grow on its own. A `take` would be the
+         wrong tool anyway: it would silently drop products the tiles above are
+         built from, and a shelf missing a row it thinks it has is worse than a
+         slow query. (Annotated 9 Sep to bring the unbounded-read ceiling back
+         to green; the read is unchanged.) */
+      // unbounded: bounded by the id list, which the capped shelf read produced
       const rows = await this.catalogue.findMany({ where: { id: { in: ids } } });
       const byProduct = new Map<string, typeof linked>();
       for (const i of linked) {

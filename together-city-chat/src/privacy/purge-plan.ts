@@ -317,6 +317,7 @@ export const PURGE_RULES: PurgeRule[] = [
   // (22 Aug) — rules for them here were deletes that silently never ran, which
   // is exactly what the "classifies nothing that no longer exists" guard is for.
   { model: 'MiraFact', by: 'userId', action: 'purge', reason: 'What Mira learned about them, in their own terms — subjects, habits, people. The most personal table in the building; it dies first.' },
+  { model: 'Child', by: 'userId', action: 'purge', reason: 'THE NAME AND DATE OF BIRTH OF SOMEBODY ELSE’S CHILD, kept only so the Baby Care shelf knows which age to show. It is the most sensitive row in this table that is not about the citizen at all — a minor who never had an account here, cannot consent to anything, and has no other way out of the database. It cascades from User, and it is named here anyway, because the purge plan is the page where that decision is READ: a row about a child surviving a deletion because nobody wrote it down is exactly the failure this file exists to make impossible.' },
   { model: 'Pet', by: 'userId', action: 'purge', reason: 'Their pets\u2019 records — names, species, weights, vet notes. A household detail nobody else was ever shown.' },
   { model: 'PetPhoto', by: 'userId', action: 'purge', storageKey: 'fileKey', reason: 'Photographs of their pets, with the stored objects. They cascade from Pet, but the stored file needs its own carrying away.' },
 
