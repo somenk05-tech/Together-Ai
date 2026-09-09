@@ -343,7 +343,12 @@ describe('the kill switches', () => {
    */
   it('routes a flip by the kind asked for, not by the shape of the key', () => {
     const svc = stripComments(read('dev/dev.service.ts'));
-    expect(svc).toMatch(/kind: 'kill' \| 'visibility' \| 'page' = 'kill'/);
+    expect(svc).toMatch(/kind: 'kill' \| 'visibility' \| 'page' \| 'page-kill' = 'kill'/);
+    /* The fourth kind (owner, 9 Sep). A room has two switches under ONE key,
+       so the shape of the key can say even less here than it could for a
+       sector: sending a close to the hider would leave a room somebody meant
+       to shut still answering, with a page that says it is shut. */
+    expect(svc).toMatch(/if \(kind === 'page-kill'\)/);
     expect(svc).toMatch(/if \(kind === 'visibility'\)/);
     /* And the third kind the same way (owner, 9 Sep). A room's key is a PATH,
        so routing on the key's shape would have been even more tempting here
@@ -353,7 +358,7 @@ describe('the kill switches', () => {
     // The default is the safer one to land on by accident: a sector left
     // answering is recoverable, a sector closed by a typo is an outage.
     const ctl = stripComments(read('dev/dev.controller.ts'));
-    expect(ctl).toMatch(/kind: z\.enum\(\['kill', 'visibility', 'page'\]\)\.default\('kill'\)/);
+    expect(ctl).toMatch(/kind: z\.enum\(\['kill', 'visibility', 'page', 'page-kill'\]\)\.default\('kill'\)/);
     expect(ctl).toMatch(/dto\.kind\)/);
   });
 
@@ -445,8 +450,15 @@ describe('the kill switches', () => {
     const guard = stripComments(read('dev/feature-flag.guard.ts'));
     // No row means on.
     expect(guard).toMatch(/this\.cache\.get\(flag\.key\) \?\? true/);
-    // A path that matches no flag means on.
-    expect(guard).toMatch(/if \(!flag\) return true/);
+    /* A path that matches no flag, on a handler that names no room, means on.
+       Both halves in one condition (owner, 9 Sep — rooms gate by decorator),
+       and it is still the FIRST thing the method does after the context
+       check, so the common request never reaches the cache at all. */
+    expect(guard).toMatch(/if \(!flag && !room\) return true/);
+    // A room with no row means open, exactly as a flag with no row means on.
+    expect(guard).toMatch(/this\.cache\.get\(def\.killKey\) \?\? true/);
+    // A decorator naming a room that does not exist gates nothing.
+    expect(guard).toMatch(/const open = def \? this\.cache\.get\(def\.killKey\) \?\? true : true/);
     // A non-HTTP context means on.
     expect(guard).toMatch(/if \(ctx\.getType\(\) !== 'http'\) return true/);
     // A failed read keeps the last known state rather than clearing to empty —

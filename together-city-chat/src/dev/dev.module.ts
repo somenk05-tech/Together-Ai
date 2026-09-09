@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, DiscoveryModule } from '@nestjs/core';
 import { PrismaModule } from '../shared/prisma/prisma.module';
 import { AdminConsoleModule } from '../admin/admin.module';
 import { DevController } from './dev.controller';
@@ -7,6 +7,7 @@ import { VisibilityController } from './visibility.controller';
 import { DevService } from './dev.service';
 import { DevPasswordGuard } from './dev-password.guard';
 import { FeatureFlagGuard } from './feature-flag.guard';
+import { RoomRoutesRegistry } from './room-routes.registry';
 
 /**
  * The developer page, and the kill switches it operates.
@@ -22,7 +23,10 @@ import { FeatureFlagGuard } from './feature-flag.guard';
  * cache and no way for the page to disagree with the gate about what is on.
  */
 @Module({
-  imports: [PrismaModule, AdminConsoleModule],
+  // DiscoveryModule is for RoomRoutesRegistry, which walks the live
+  // controllers so /dev can say what a room's kill switch refuses rather than
+  // keeping a list that drifts.
+  imports: [PrismaModule, AdminConsoleModule, DiscoveryModule],
   // VisibilityController is PUBLIC and lives here anyway: it reads the same
   // FeatureFlagGuard instance, and a door-state reader three modules away
   // from the list it reports is one somebody edits without seeing the other.
@@ -31,6 +35,7 @@ import { FeatureFlagGuard } from './feature-flag.guard';
     DevService,
     DevPasswordGuard,
     FeatureFlagGuard,
+    RoomRoutesRegistry,
     { provide: APP_GUARD, useExisting: FeatureFlagGuard },
   ],
 })

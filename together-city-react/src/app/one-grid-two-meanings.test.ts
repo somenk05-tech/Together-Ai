@@ -151,13 +151,16 @@ describe('one grid, two meanings', () => {
   it('folds the operator’s switch into the same question the citizen’s answers', () => {
     const hook = code('hooks/useCityDesign.ts');
     expect(hook).toMatch(/hubOn: \(key: string\): boolean => !hidden\.has\(key\) && switches\.shown\(key\)/);
-    expect(hook).toMatch(/queryFn: \(\) => api\.get<\{ off: string\[\]; offPages\?: string\[\] \}>\('\/visibility'\)/);
+    expect(hook).toMatch(/queryFn: \(\) => api\.get<\{ off: string\[\]; offPages\?: string\[\]; closedPages\?: string\[\] \}>\('\/visibility'\)/);
     // Fails open: the default with no data is an EMPTY off-list, so a failed
     // request draws the whole city rather than none of it. Both lists — the
     // rooms arrived on 9 Sep and default the same way, including against a
     // server too old to have heard of them.
     expect(hook).toMatch(/q\.data\?\.off \?\? \[\]/);
     expect(hook).toMatch(/q\.data\?\.offPages \?\? \[\]/);
+    // The third list arrived with the room kill switches, 9 Sep, and defaults
+    // the same way: an absent list means every room is open.
+    expect(hook).toMatch(/q\.data\?\.closedPages \?\? \[\]/);
   });
 
   /**

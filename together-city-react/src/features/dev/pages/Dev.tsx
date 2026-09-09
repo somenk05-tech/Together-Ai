@@ -170,6 +170,10 @@ const roomName: CSSProperties = { flex: 1, minWidth: 0, fontSize: 13, lineHeight
 /* 11px, not the 10.5 this wanted to be: the type floor is a ratchet, and a
    new line of small print is exactly what it exists to refuse. */
 const roomPath: CSSProperties = { display: 'block', fontSize: 11, color: 'var(--muted)', marginTop: 1 };
+/* A closed room is not a dimmer version of an open one — it is a different
+   state, and the word says so beside the name rather than only in the switch. */
+const closedTag: CSSProperties = { marginLeft: 8, fontSize: 11, letterSpacing: '.08em',
+  color: 'var(--danger-ink)', fontWeight: 700 };
 
 /**
  * THE SAME CARD AS THE CITIZEN'S, SAYING THE OPPOSITE THING.
@@ -298,16 +302,30 @@ function FlagCard({ flag, password }: { flag: FlagRow; password: string }) {
  */
 function RoomSwitch({ room, password }: { room: RoomRow; password: string }) {
   const setFlag = useSetFlag(password);
-  const [arming, setArming] = useState(false);
+  /**
+   * TWO SWITCHES, ONE ARMING SLOT. A room can be hidden, closed, or both, and
+   * the two questions are asked one at a time on purpose: arming the second
+   * while the first is armed would put two reason boxes and two confirm
+   * buttons on one row, and the operator's eye would answer the wrong one.
+   */
+  const [arming, setArming] = useState<null | 'hide' | 'kill'>(null);
   const [reason, setReason] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const ready = reason.trim().length >= 8;
-  const cancel = () => { setArming(false); setReason(''); setErr(null); };
+  const cancel = () => { setArming(null); setReason(''); setErr(null); };
+  const open = room.open !== false;
+  const routes = room.routes ?? [];
 
   const flip = () => {
     setErr(null);
-    setFlag.mutate({ key: room.key, enabled: !room.visible, reason: reason.trim(), kind: 'page' }, {
-      onSuccess: () => { setArming(false); setReason(''); },
+    const kill = arming === 'kill';
+    setFlag.mutate({
+      key: room.key,
+      enabled: kill ? !open : !room.visible,
+      reason: reason.trim(),
+      kind: kill ? 'page-kill' : 'page',
+    }, {
+      onSuccess: () => { setArming(null); setReason(''); },
       onError: (e: unknown) => {
         const m = e as { response?: { data?: { message?: string | string[] } } };
         const raw = m?.response?.data?.message;
@@ -317,31 +335,62 @@ function RoomSwitch({ room, password }: { room: RoomRow; password: string }) {
   };
 
   return (
-    <div data-room={room.key} style={{ ...roomRow, flexWrap: arming ? 'wrap' : 'nowrap', opacity: room.visible ? 1 : 0.72 }}>
+    <div data-room={room.key}
+      style={{ ...roomRow, flexWrap: arming ? 'wrap' : 'nowrap', opacity: room.visible && open ? 1 : 0.72 }}>
       <span style={roomNum} aria-hidden>{room.index}</span>
       <span style={roomName}>
         {room.label}
+        {!open && <span style={closedTag}>CLOSED</span>}
         <span style={roomPath}>{room.key}</span>
         {!room.visible && room.note && !arming && (
           <span style={{ ...roomPath, color: 'var(--ink-soft)' }}>
             Hidden{room.updatedAt ? ` since ${new Date(room.updatedAt).toLocaleDateString()}` : ''}: {room.note}
           </span>
         )}
+        {!open && room.killNote && !arming && (
+          <span style={{ ...roomPath, color: 'var(--danger-ink)', fontWeight: 600 }}>
+            Closed{room.killedAt ? ` since ${new Date(room.killedAt).toLocaleDateString()}` : ''}: {room.killNote}
+          </span>
+        )}
       </span>
-      <Switch checked={arming ? !room.visible : room.visible}
-        onChange={() => (arming ? cancel() : setArming(true))}
+      {/* HIDE, THEN CLOSE, in that order left to right — the same order the two
+          sections of this page are in, and the same order of severity. */}
+      <Switch checked={arming === 'hide' ? !room.visible : room.visible}
+        onChange={() => (arming === 'hide' ? cancel() : (setReason(''), setErr(null), setArming('hide')))}
         label={`${room.label} ${room.visible ? 'shown' : 'hidden'}`} hideLabel />
+      <Switch checked={arming === 'kill' ? !open : open}
+        onChange={() => (arming === 'kill' ? cancel() : (setReason(''), setErr(null), setArming('kill')))}
+        label={`${room.label} ${open ? 'open' : 'closed'}`} hideLabel />
 
       {arming && (
         <div style={{ ...armBox, width: '100%' }}>
-          <p className="muted" style={{ fontSize: 11.5, margin: 0, lineHeight: 1.5 }}>{room.hides}</p>
+          <p className="muted" style={{ fontSize: 11.5, margin: 0, lineHeight: 1.5 }}>
+            {arming === 'hide' ? room.hides : (
+              open
+                ? <>
+                    <strong>Closes the room for every citizen.</strong> The page stops rendering —
+                    a saved link lands on a card saying it is closed, not on the room
+                    {routes.length > 0
+                      ? <> — and the API refuses {routes.length} route{routes.length === 1 ? '' : 's'}: {routes.map((r) => `${r.method} ${r.path}`).join(', ')}.</>
+                      : <>. This room owns no route of its own — everything it reads is shared with
+                        other rooms — so nothing is refused, and closing the page is the whole of
+                        what a switch here can honestly do.</>}
+                  </>
+                : <>Opens the room again for everybody, and stops refusing anything it was refusing.</>
+            )}
+          </p>
           <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500}
-            aria-label={`Reason for ${room.visible ? 'hiding' : 'showing'} ${room.label}`}
-            placeholder={room.visible ? 'Why is this room coming off the rail?' : 'Why is it coming back?'}
+            aria-label={`Reason for ${arming === 'hide' ? (room.visible ? 'hiding' : 'showing') : (open ? 'closing' : 'opening')} ${room.label}`}
+            placeholder={arming === 'hide'
+              ? (room.visible ? 'Why is this room coming off the rail?' : 'Why is it coming back?')
+              : (open ? 'Why is this room being closed? Citizens will see this is deliberate, not broken.' : 'Why is it opening again?')}
             style={reasonBox} />
           <div style={armRow}>
             <Button variant="accent" size="sm" disabled={!ready || setFlag.isPending} onClick={flip}>
-              {setFlag.isPending ? 'Recording…' : room.visible ? `Hide ${room.label}` : `Show ${room.label} again`}
+              {setFlag.isPending ? 'Recording…'
+                : arming === 'hide'
+                  ? (room.visible ? `Hide ${room.label}` : `Show ${room.label} again`)
+                  : (open ? `Close ${room.label} everywhere` : `Open ${room.label} again`)}
             </Button>
             <Button variant="line" size="sm" onClick={cancel}>Cancel</Button>
             {!ready && <span className="muted" style={{ fontSize: 12 }}>A reason is required.</span>}
@@ -412,15 +461,26 @@ function VisibilityCard({ row, password }: { row: VisibilityRow; password: strin
       {rooms.length > 0 && !arming && (
         <Fold face="fold" panel="fold-open" open={roomsOpen} onOpenChange={setRoomsOpen}
           title={`Rooms on the ${row.label} rail`}
-          meta={roomsHidden.length === 0
-            ? `${rooms.length} shown`
-            : `${rooms.length - roomsHidden.length} of ${rooms.length} shown`}>
+          meta={(() => {
+            /* WHAT IS WRONG IN HERE, without opening it. "8 shown" answers the
+               question a closed section exists to answer; a count of what is
+               in it does not. Closed is named first because it is the louder
+               of the two states. */
+            const closed = rooms.filter((r) => r.open === false).length;
+            const parts: string[] = [];
+            if (closed) parts.push(`${closed} closed`);
+            if (roomsHidden.length) parts.push(`${roomsHidden.length} hidden`);
+            return parts.length ? parts.join(', ') : `${rooms.length} open`;
+          })()}>
           <div style={roomList}>
             {rooms.map((r) => <RoomSwitch key={r.key} room={r} password={password} />)}
           </div>
           <p className="muted" style={{ ...footLine, marginTop: 8 }}>
-            Each one hides that room from the rail, the hub&rsquo;s own door and Search the city,
-            for every citizen. The room keeps answering — a saved link still opens it.
+            <strong>Two switches per room.</strong> The first hides it — off the rail, off the
+            hub&rsquo;s own door, out of Search the city, while the room keeps answering and a
+            saved link still opens it. The second <strong>closes</strong> it: the page stops
+            rendering for everybody and the routes that room owns start refusing. Arm either one
+            to read exactly what it will do before you press it.
             {!row.visible && ' The whole sector is hidden right now, so none of these doors are drawn either way.'}
           </p>
         </Fold>
@@ -586,12 +646,15 @@ export function DevPage() {
               {/* ── VISIBILITY, FIRST, because it is the one that gets used ── */}
               <h3 style={sectionH}>Visibility — what the site shows</h3>
               <p style={lede}>
-                <strong>One switch per sector, and one per room inside it, for the whole
+                <strong>One switch per sector, and two per room inside it, for the whole
                 site.</strong> Off, that sector&rsquo;s doors leave the header, the drawer, the home
                 page, the city grid and Search the city for every citizen — the same places their
                 own switch on /profile controls, decided once for everybody. Open{' '}
                 <em>Rooms</em> on any card for the numbered rail behind it: This Month, Ask the
-                Astrologer, Tarot — each its own switch, on the same terms.
+                Astrologer, Tarot — each with a switch that hides it and a second that
+                <strong> closes</strong> it. A closed room stops rendering for everybody and
+                refuses the routes it owns; that one is a kill switch, and it is the only one on
+                this half of the page.
               </p>
               <p className="muted" style={asideLast}>
                 <strong>It hides; it does not close.</strong> The hub keeps answering every request
@@ -612,16 +675,22 @@ export function DevPage() {
                      one it reads as a bigger outage than it is — nineteen
                      sectors and a hundred and eight rooms are not the same
                      unit, and "3 hidden" would be true of either. */
+                  const roomsShut = rooms.filter((r) => r.open === false);
                   const roomLine = rooms.length === 0 ? ''
                     : roomsOff.length === 0 ? ` All ${rooms.length} rooms inside them are drawn.`
                     : ` ${roomsOff.length} room${roomsOff.length === 1 ? ' is' : 's are'} off the rail as well: `
                       + `${roomsOff.map((r) => r.label).join(', ')}.`;
+                  /* CLOSED IS ITS OWN SENTENCE, and it comes last because it
+                     is the one somebody scanning this line needs to see. */
+                  const shutLine = roomsShut.length === 0 ? ''
+                    : ` ${roomsShut.length} room${roomsShut.length === 1 ? ' is' : 's are'} CLOSED — `
+                      + `not answering at all: ${roomsShut.map((r) => r.label).join(', ')}.`;
                   const sectorLine = hidden.length === 0
                     ? `All ${all.length} sectors are on the site.`
                     : `${all.length - hidden.length} of ${all.length} sectors shown. `
                       + `${hidden.length === 1 ? 'One is' : `${hidden.length} are`} hidden from everybody: `
                       + `${hidden.map((v) => v.label).join(', ')} — still answering, just not on the menu.`;
-                  return sectorLine + roomLine;
+                  return sectorLine + roomLine + shutLine;
                 })()}
               </p>
 

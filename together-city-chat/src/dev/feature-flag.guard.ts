@@ -1,7 +1,9 @@
 import { CanActivate, ExecutionContext, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { swallow } from '../shared/swallow';
-import { FLAGS, VISIBILITY_FLAGS, ROOM_FLAGS, flagForPath } from './feature-flags';
+import { FLAGS, VISIBILITY_FLAGS, ROOM_FLAGS, flagForPath, roomFlag } from './feature-flags';
+import { ROOM_ROUTE } from './room.decorator';
 
 /**
  * THE PART THAT MAKES A KILL SWITCH A KILL SWITCH.
@@ -43,7 +45,7 @@ export class FeatureFlagGuard implements CanActivate {
   private loadedAt = 0;
   private inflight: Promise<void> | null = null;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly reflector: Reflector) {}
 
   private async refresh(): Promise<void> {
     // One refresh at a time. Without this, a burst after the TTL expires sends
@@ -82,17 +84,46 @@ export class FeatureFlagGuard implements CanActivate {
     const req = ctx.switchToHttp().getRequest<{ url?: string; path?: string }>();
     const path = req.path ?? req.url ?? '';
     const flag = flagForPath(path);
-    if (!flag) return true;
+    /**
+     * ── THE ROOM THIS HANDLER SAID IT BELONGS TO (owner, 9 Sep) ─────────────
+     *
+     * Read from the DECORATOR, never from the URL. A room is not a prefix —
+     * six Astrology rooms share /api/astrology — so a path match here would
+     * close rooms nobody pressed. A handler with no @Room() is not gated by
+     * any room, which is the honest default for every shared endpoint.
+     */
+    const room = ctx.getHandler ? this.reflector.get<string | undefined>(ROOM_ROUTE, ctx.getHandler()) : undefined;
+    if (!flag && !room) return true;
 
     if (Date.now() - this.loadedAt > TTL_MS) await this.refresh();
 
-    // ?? true is the whole fail-open rule, in one operator.
-    const enabled = this.cache.get(flag.key) ?? true;
-    if (enabled) return true;
-
     const res = ctx.switchToHttp().getResponse<{ setHeader?: (k: string, v: string) => void }>();
-    res.setHeader?.('Retry-After', '3600');
-    throw new ServiceUnavailableException(`${flag.label} is temporarily switched off.`);
+
+    /* THE HUB FIRST, because it is the bigger statement: a citizen whose whole
+       hub is off should be told that, not told about one room inside it. */
+    if (flag) {
+      // ?? true is the whole fail-open rule, in one operator.
+      const enabled = this.cache.get(flag.key) ?? true;
+      if (!enabled) {
+        res.setHeader?.('Retry-After', '3600');
+        throw new ServiceUnavailableException(`${flag.label} is temporarily switched off.`);
+      }
+    }
+
+    if (room) {
+      const def = roomFlag(room);
+      /* A decorator naming a room that does not exist gates NOTHING. The spec
+         beside this fails the build on it, so this is the runtime half of a
+         belt-and-braces: an unknown key must never become an accidental
+         outage, and it must never be silently ignored either. */
+      const open = def ? this.cache.get(def.killKey) ?? true : true;
+      if (!open && def) {
+        res.setHeader?.('Retry-After', '3600');
+        throw new ServiceUnavailableException(`${def.label} is temporarily closed.`);
+      }
+    }
+
+    return true;
   }
 
   /** Called by the service after a flip, so a deliberate change is immediate
@@ -128,8 +159,15 @@ export class FeatureFlagGuard implements CanActivate {
    * default — a room with no row, or a database that did not answer, is a room
    * the city draws.
    */
-  async roomSnapshot(): Promise<Array<{ key: string; visible: boolean }>> {
+  async roomSnapshot(): Promise<Array<{ key: string; visible: boolean; open: boolean }>> {
     await this.refresh();
-    return ROOM_FLAGS.map((r) => ({ key: r.key, visible: this.cache.get(r.storeKey) ?? true }));
+    return ROOM_FLAGS.map((r) => ({
+      key: r.key,
+      visible: this.cache.get(r.storeKey) ?? true,
+      /** Whether the room is CLOSED — a different question from hidden, and
+       *  the reason the web can put a card in front of the page rather than
+       *  letting the citizen walk into a wall of 503s. */
+      open: this.cache.get(r.killKey) ?? true,
+    }));
   }
 }

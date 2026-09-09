@@ -6,6 +6,7 @@ import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { FitnessService } from './fitness.service';
 import { SupplementsService } from './supplements/supplements.service';
 import { Mira } from '../mira/mira.decorator';
+import { Room } from '../dev/room.decorator';
 import {
   EditWorkoutSchema,
   LogWorkoutSchema,
@@ -34,11 +35,13 @@ export class FitnessController {
     private readonly supplements: SupplementsService,
   ) {}
 
+  @Room('/fitness/profile')
   @Get('profile')
   profile(@CurrentUser() user: JwtUser) {
     return this.fitness.getProfile(user.sub);
   }
 
+  @Room('/fitness/profile')
   @Put('profile')
   @UsePipes(new ZodValidationPipe(SaveFitnessProfileSchema))
   saveProfile(@CurrentUser() user: JwtUser, @Body() dto: SaveFitnessProfileDto) {
@@ -62,6 +65,7 @@ export class FitnessController {
    * stores nothing, and "45 minutes, at the gym, today" is a narrowing of a
    * question the profile already answers, not a change to it.
    */
+  @Room('/fitness/workout')
   @Get('session')
   @UsePipes(new ZodValidationPipe(TodaySessionQuerySchema))
   session(@CurrentUser() user: JwtUser, @Query() q: TodaySessionQueryDto) {
@@ -75,6 +79,7 @@ export class FitnessController {
    * Not a Mira capability yet: a capability is a decorator AND an executor
    * branch, and the ledger records the gap between them.
    */
+  @Room('/fitness/workout')
   @Get('programme')
   programme(@CurrentUser() user: JwtUser) {
     return this.fitness.programme(user.sub);
@@ -87,6 +92,7 @@ export class FitnessController {
    * METERED and a rest-day toggle must not cost ₹50. Returns the rebuilt
    * month, so the grid redraws from the answer rather than from a refetch.
    */
+  @Room('/fitness/workout')
   @Put('programme/week')
   @UsePipes(new ZodValidationPipe(SaveTrainingWeekSchema))
   saveTrainingWeek(@CurrentUser() user: JwtUser, @Body() dto: SaveTrainingWeekDto) {
@@ -101,17 +107,20 @@ export class FitnessController {
    * pressed is not one a citizen should be charged for pressing. Returns the
    * rebuilt month, so the whole grid redraws from the answer.
    */
+  @Room('/fitness/workout')
   @Put('programme/today')
   @UsePipes(new ZodValidationPipe(MoveWorkoutDaySchema))
   moveWorkoutDay(@CurrentUser() user: JwtUser, @Body() dto: MoveWorkoutDayDto) {
     return this.fitness.moveWorkoutDay(user.sub, dto);
   }
 
+  @Room('/fitness/workout')
   @Get('body-goal')
   bodyGoal(@CurrentUser() user: JwtUser) {
     return this.fitness.bodyProgram(user.sub);
   }
 
+  @Room('/fitness/workout')
   @Post('sync-nutrition')
   syncNutrition(@CurrentUser() user: JwtUser) {
     return this.fitness.syncNutrition(user.sub);
@@ -122,6 +131,7 @@ export class FitnessController {
     utterances: ['how much have I trained', 'my workout log', 'minutes this week', 'have I exercised'],
     risk: 'R0',
   })
+  @Room('/fitness/log')
   @Get('log')
   log(@CurrentUser() user: JwtUser) {
     return this.fitness.log(user.sub);
@@ -140,12 +150,14 @@ export class FitnessController {
    * Neither is a Mira intent: a voice assistant that can delete a training
    * history on a misheard word is not a feature anybody asked for.
    */
+  @Room('/fitness/log')
   @Patch('log/:id')
   @UsePipes(new ZodValidationPipe(EditWorkoutSchema))
   editLog(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: EditWorkoutDto) {
     return this.fitness.editLog(user.sub, id, dto);
   }
 
+  @Room('/fitness/log')
   @Delete('log/:id')
   removeLog(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.fitness.removeLog(user.sub, id);
@@ -167,6 +179,7 @@ export class FitnessController {
    * citizen reads, with its sources on it, until there is a specific reviewed
    * design for her saying any of it out loud.
    */
+  @Room('/fitness/supplements')
   @Get('supplements')
   supplementPlan(@CurrentUser() user: JwtUser) {
     return this.supplements.plan(user.sub);

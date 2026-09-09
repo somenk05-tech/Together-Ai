@@ -16,6 +16,7 @@ import {
   ConsentSchema, type ConsentDto,
 } from './dto/records.dto';
 import { MODEL_LIMIT } from '../shared/throttles';
+import { Room } from '../dev/room.decorator';
 
 @Controller('medical')
 @UseGuards(JwtAuthGuard)
@@ -113,29 +114,34 @@ export class MedicalController {
     return this.medical.records(user.sub);
   }
 
+  @Room('/medical/records')
   @Post('records')
   @UsePipes(new ZodValidationPipe(AddRecordSchema))
   addRecord(@CurrentUser() user: JwtUser, @Body() dto: AddRecordDto) {
     return this.medical.addRecord(user.sub, dto);
   }
 
+  @Room('/medical/records')
   @Delete('records/:id')
   deleteRecord(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.medical.deleteRecord(user.sub, id);
   }
 
   // Short-lived signed link to view a private health document (owner only).
+  @Room('/medical/records')
   @Get('records/:id/file')
   recordFile(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.medical.recordFileUrl(user.sub, id);
   }
 
   // ── unified 10 GB vault (mail + health documents) ──
+  @Room('/medical/records')
   @Get('storage')
   storage(@CurrentUser() user: JwtUser) {
     return this.medical.storageUsage(user.sub);
   }
 
+  @Room('/medical/records')
   @Post('documents')
   @UsePipes(new ZodValidationPipe(UploadDocSchema))
   uploadDoc(@CurrentUser() user: JwtUser, @Body() dto: UploadDocDto) {

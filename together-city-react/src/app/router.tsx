@@ -14,6 +14,7 @@ import { petsRoutes } from '@/features/pets/routes';
 import { babycareRoutes } from '@/features/babycare/routes';
 import { RequireAuth } from '@/features/auth/AuthGate';
 import { NotFound } from '@/pages/NotFound';
+import { RoomGate } from '@/components/RoomGate';
 
 /**
  * ── TWENTY-TWO PAGES THAT WERE NOT LAZY, IN A FILE OF A HUNDRED AND THIRTY
@@ -248,7 +249,12 @@ const GemMarketBag = lazy(() => import('@/features/ecommerce/pages/MarketAisles'
 
 // Every lazy page is wrapped so a stale code-split chunk (after a new deploy)
 // auto-recovers instead of leaving a blank page.
-const wrap = (el: JSX.Element) => <ChunkBoundary>{el}</ChunkBoundary>;
+/* EVERY PAGE GOES THROUGH HERE, which is why the closed-room gate lives here
+   (owner, 9 Sep). A gate a route opts into is a gate the next route forgets,
+   and the failure would be invisible: the page renders and its requests 503.
+   RoomGate draws the page untouched for every room that is open, which is all
+   of them until somebody presses a switch. */
+const wrap = (el: JSX.Element) => <ChunkBoundary><RoomGate>{el}</RoomGate></ChunkBoundary>;
 
 
 /**

@@ -11,6 +11,7 @@ import { Mira } from '../mira/mira.decorator';
 import { UNDER_AGE_CITY_MESSAGE, refuseDateOfBirth } from '../shared/age';
 import { Throttle } from '@nestjs/throttler';
 import { MODEL_LIMIT } from '../shared/throttles';
+import { Room } from '../dev/room.decorator';
 const SaveProfileSchema = z.object({
   // 18+ HERE TOO. This date is synced to the master profile and fans out to
   // every hub that reads a birthday, so a chart is a way to write one. In the
@@ -67,6 +68,7 @@ export class AstrologyController {
     return this.astrology.getProfile(user.sub);
   }
 
+  @Room('/profile/astrology')
   @Put('profile')
   @UsePipes(new ZodValidationPipe(SaveProfileSchema))
   saveProfile(@CurrentUser() user: JwtUser, @Body() dto: SaveAstroProfileDto) {
@@ -101,6 +103,7 @@ export class AstrologyController {
   }
 
   /** Tab 02 — Monthly Horoscope (premium long-form). */
+  @Room('/astrology/monthly')
   @Get('monthly')
   @Throttle(MODEL_LIMIT)
   monthly(@CurrentUser() user: JwtUser) {
@@ -108,6 +111,7 @@ export class AstrologyController {
   }
 
   /** Saved monthly letters (the last two years of them). */
+  @Room('/astrology/monthly')
   @Get('monthly/history')
   monthlyHistory(@CurrentUser() user: JwtUser) {
     return this.astrology.monthlyHistory(user.sub);
@@ -121,12 +125,14 @@ export class AstrologyController {
    * types — a price discovered after the button is pressed is an ambush, and
    * the whole reason the counter is readable is so that it never is one.
    */
+  @Room('/astrology/ask')
   @Get('ask')
   askQuota(@CurrentUser() user: JwtUser) {
     return this.astrology.askQuota(user.sub);
   }
 
   /** Tab 03 — Ask the Astrologer. Five free, then ₹100 for the next five. */
+  @Room('/astrology/ask')
   @Post('ask')
   @Throttle(MODEL_LIMIT)
   @UsePipes(new ZodValidationPipe(AskSchema))
@@ -135,12 +141,14 @@ export class AstrologyController {
   }
 
   /** Delete one saved consultation. Really delete it — see the service. */
+  @Room('/astrology/ask')
   @Delete('questions/:id')
   deleteQuestion(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.astrology.deleteQuestion(user.sub, id);
   }
 
   /** My Questions — saved consultations. */
+  @Room('/astrology/ask')
   @Get('questions')
   questions(@CurrentUser() user: JwtUser) {
     return this.astrology.questions(user.sub);
@@ -230,6 +238,7 @@ export class AstrologyController {
   }
 
   /** DELETE /api/astrology/gem-cart/:gemId — take one back out. */
+  @Room('/astrology/gem-checkout')
   @Delete('gem-cart/:gemId')
   unlockGem(@CurrentUser() user: JwtUser, @Param('gemId') gemId: string) {
     return this.astrology.unlockGem(user.sub, gemId);
@@ -237,6 +246,7 @@ export class AstrologyController {
 
   /** POST /api/astrology/gem-cart/quote — ask a person to price what is
    *  locked against the supplier's rates (owner, 5 Sep). Nothing is charged. */
+  @Room('/astrology/gem-checkout')
   @Post('gem-cart/quote')
   requestGemQuote(@CurrentUser() user: JwtUser) {
     return this.astrology.requestGemQuote(user.sub);
@@ -253,6 +263,7 @@ export class AstrologyController {
     return this.astrology.remedies(user.sub);
   }
 
+  @Room('/astrology/tarot')
   @Get('tarot/spreads')
   tarotSpreads() {
     return this.tarot.spreads();
@@ -266,6 +277,7 @@ export class AstrologyController {
    * of cards on the table is one fact and a route that disagrees with it would
    * accept a choice nobody was offered.
    */
+  @Room('/astrology/tarot')
   @Post('tarot/daily/choose')
   @UsePipes(new ZodValidationPipe(z.object({
     position: z.number().int().min(0).max(TarotService.DAILY_FAN - 1),
@@ -279,12 +291,14 @@ export class AstrologyController {
     utterances: ['my card today', 'draw me a card', 'tarot', 'pull a card'],
     risk: 'R0',
   })
+  @Room('/astrology/tarot')
   @Get('tarot/daily')
   tarotDaily(@CurrentUser() user: JwtUser) {
     return this.tarot.dailyCard(user.sub);
   }
 
   /** A paid spread drawn against a question. */
+  @Room('/astrology/tarot')
   @Post('tarot/draw')
   @UsePipes(new ZodValidationPipe(DrawSpreadSchema))
   tarotDraw(@CurrentUser() user: JwtUser, @Body() dto: DrawSpreadDto) {
@@ -295,12 +309,14 @@ export class AstrologyController {
    * Delete one saved reading. Really delete it — and see the service for the
    * one reading that cannot go, and why.
    */
+  @Room('/astrology/tarot')
   @Delete('tarot/:id')
   deleteReading(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.tarot.deleteReading(user.sub, id);
   }
 
   /** Past readings, newest first. */
+  @Room('/astrology/tarot')
   @Get('tarot/history')
   tarotHistory(@CurrentUser() user: JwtUser) {
     return this.tarot.history(user.sub);

@@ -19,12 +19,14 @@ import {
   VisibilitySchema, type VisibilityDto,
 } from './dto/jobs.dto';
 import { MODEL_LIMIT } from '../shared/throttles';
+import { Room } from '../dev/room.decorator';
 
 @Controller('jobs')
 @UseGuards(JwtAuthGuard)
 export class JobsController {
   constructor(private readonly jobs: JobsService) {}
 
+  @Room('/jobs/profile')
   @Get('profile')
   profile(@CurrentUser() user: JwtUser) {
     return this.jobs.getProfile(user.sub);
@@ -41,11 +43,13 @@ export class JobsController {
     return this.jobs.presignResume(user.sub, dto.mimeType, dto.sizeBytes);
   }
 
+  @Room('/jobs/profile')
   @Get('resume/link')
   resumeLink(@CurrentUser() user: JwtUser) {
     return this.jobs.resumeLink(user.sub);
   }
 
+  @Room('/jobs/profile')
   @Post('resume')
   @Throttle(MODEL_LIMIT)
   @UsePipes(new ZodValidationPipe(UploadResumeSchema))
@@ -55,11 +59,13 @@ export class JobsController {
 
   /** Their document, gone — file, extracted text and name. The rest of the
    *  profile survives; they may still want to be matched on what they typed. */
+  @Room('/jobs/profile')
   @Delete('resume')
   deleteResume(@CurrentUser() user: JwtUser) {
     return this.jobs.deleteResume(user.sub);
   }
 
+  @Room('/jobs/profile')
   @Put('profile')
   @UsePipes(new ZodValidationPipe(SaveJobProfileSchema))
   saveProfile(@CurrentUser() user: JwtUser, @Body() dto: SaveJobProfileDto) {
@@ -72,6 +78,7 @@ export class JobsController {
   // grouped by kind alongside the section order, and a second endpoint
   // returning the same rows flat is a second thing to keep consistent for a
   // screen that does not exist. It comes back the day one needs it.
+  @Room('/jobs/profile')
   @Post('entries')
   @UsePipes(new ZodValidationPipe(CvEntrySchema))
   addEntry(@CurrentUser() user: JwtUser, @Body() dto: CvEntryDto) {
@@ -80,12 +87,14 @@ export class JobsController {
 
   /** Declared before `entries/:id` so the literal segment wins the match — a
    *  reorder posted to the parameterised route would be read as an entry id. */
+  @Room('/jobs/profile')
   @Post('entries/reorder')
   @UsePipes(new ZodValidationPipe(ReorderEntriesSchema))
   reorderEntries(@CurrentUser() user: JwtUser, @Body() dto: ReorderEntriesDto) {
     return this.jobs.reorderEntries(user.sub, dto);
   }
 
+  @Room('/jobs/profile')
   @Put('entries/:id')
   @UsePipes(new ZodValidationPipe(CvEntrySchema))
   editEntry(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: CvEntryDto) {
@@ -93,29 +102,34 @@ export class JobsController {
   }
 
   /** Hidden, not deleted. Two different statements, one of them destructive. */
+  @Room('/jobs/profile')
   @Patch('entries/:id/hidden')
   @UsePipes(new ZodValidationPipe(SetEntryHiddenSchema))
   setEntryHidden(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: SetEntryHiddenDto) {
     return this.jobs.setEntryHidden(user.sub, id, dto.hidden);
   }
 
+  @Room('/jobs/profile')
   @Delete('entries/:id')
   deleteEntry(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.jobs.deleteEntry(user.sub, id);
   }
 
+  @Room('/jobs/profile')
   @Put('preferences')
   @UsePipes(new ZodValidationPipe(CareerPreferencesSchema))
   savePreferences(@CurrentUser() user: JwtUser, @Body() dto: CareerPreferencesDto) {
     return this.jobs.saveCareerPreferences(user.sub, dto);
   }
 
+  @Room('/jobs/profile')
   @Put('visibility')
   @UsePipes(new ZodValidationPipe(VisibilitySchema))
   saveVisibility(@CurrentUser() user: JwtUser, @Body() dto: VisibilityDto) {
     return this.jobs.saveVisibility(user.sub, dto);
   }
 
+  @Room('/jobs/profile')
   @Get('completion')
   completion(@CurrentUser() user: JwtUser) {
     return this.jobs.profileCompletion(user.sub);

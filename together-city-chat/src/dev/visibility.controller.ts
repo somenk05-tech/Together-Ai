@@ -46,7 +46,7 @@ export class VisibilityController {
    */
   @Public()
   @Get()
-  async doors(): Promise<{ off: string[]; offPages: string[] }> {
+  async doors(): Promise<{ off: string[]; offPages: string[]; closedPages: string[] }> {
     const [snap, rooms] = await Promise.all([
       this.flags.visibilitySnapshot(),
       this.flags.roomSnapshot(),
@@ -54,6 +54,20 @@ export class VisibilityController {
     return {
       off: snap.filter((s) => !s.visible).map((s) => s.key),
       offPages: rooms.filter((r) => !r.visible).map((r) => r.key),
+      /**
+       * ── AND THE ROOMS THAT ARE CLOSED (owner, 9 Sep) ────────────────────
+       *
+       * A THIRD list, not a flag on the second, because closed is not a
+       * stronger kind of hidden: a hidden room still opens from a saved link,
+       * and a closed one must not. The app needs to know BEFORE it renders,
+       * or a citizen walks into a room that draws its furniture and then fills
+       * with error cards as each request comes back 503.
+       *
+       * Public like the rest of this route, and for the same reason: the card
+       * saying a room is closed has to appear for a signed-out visitor too.
+       * It names only rooms the source code already declares.
+       */
+      closedPages: rooms.filter((r) => !r.open).map((r) => r.key),
     };
   }
 }

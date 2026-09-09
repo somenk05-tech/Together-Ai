@@ -9,6 +9,7 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe, parseOrThrow } from '../shared/zod/zod-validation.pipe';
 import { DatingService } from './dating.service';
+import { Room } from '../dev/room.decorator';
 import {
   MatchesQuerySchema,
   MatchKindSchema,
@@ -100,6 +101,7 @@ export class DatingController {
     return this.dating.getProfile(user.sub);
   }
 
+  @Room('/matchmaking/profile')
   @Post('profile')
   @Throttle(PROFILE_LIMIT)
   // A dating profile is created by somebody whose email is theirs. The guard
@@ -111,11 +113,13 @@ export class DatingController {
     return this.dating.upsertProfile(user.sub, dto);
   }
 
+  @Room('/matchmaking/profile')
   @Delete('profile')
   deleteProfile(@CurrentUser() user: JwtUser) {
     return this.dating.deleteProfile(user.sub);
   }
 
+  @Room('/matchmaking/browse')
   @Get('discover')
   @Throttle(LIST_LIMIT)
   discover(@CurrentUser() user: JwtUser, @Query() query: Record<string, unknown>) {
@@ -123,6 +127,7 @@ export class DatingController {
     return this.dating.discover(user.sub, kind, limit, kind === 'romantic' ? intent : undefined);
   }
 
+  @Room('/matchmaking/matches')
   @Get('stack')
   @Throttle(LIST_LIMIT)
   stack(@CurrentUser() user: JwtUser, @Query() query: Record<string, unknown>) {
@@ -197,6 +202,7 @@ export class DatingController {
   // Metered like every other decision on a match: revealing writes a row and,
   // the first time, sends a push. Untethered it was the global 120/min.
   @Throttle(DECISION_LIMIT)
+  @Room('/matchmaking/chats')
   @Post('matches/:targetUserId/reveal')
   async reveal(
     @CurrentUser() user: JwtUser,
@@ -261,6 +267,7 @@ export class DatingController {
   }
 
   @Throttle(LIST_LIMIT)
+  @Room('/matchmaking/chats')
   @Get('chats')
   chats(@CurrentUser() user: JwtUser) {
     return this.dating.datingChats(user.sub);
@@ -329,6 +336,7 @@ export class DatingController {
 
   // ─── Appeals: a decision on your profile or photo can be argued with. ───
 
+  @Room('/matchmaking/safety')
   @Post('appeals')
   @Throttle(REPORT_LIMIT)
   appeal(@CurrentUser() user: JwtUser, @Body() body: unknown) {
@@ -336,6 +344,7 @@ export class DatingController {
     return this.dating.appeal(user.sub, dto.kind, dto.targetId, dto.text);
   }
 
+  @Room('/matchmaking/safety')
   @Get('appeals/mine')
   @Throttle(LIST_LIMIT)
   myAppeals(@CurrentUser() user: JwtUser) {
@@ -395,6 +404,7 @@ export class DatingController {
     return this.dating.presignSelfie(user.sub, String(b.mimeType ?? ''), Number(b.sizeBytes));
   }
 
+  @Room('/matchmaking/profile')
   @Post('selfie')
   @Throttle(UPLOAD_LIMIT)
   saveSelfie(@CurrentUser() user: JwtUser, @Body() body: unknown) {
@@ -402,6 +412,7 @@ export class DatingController {
     return this.dating.saveSelfie(user.sub, String(b.key ?? ''));
   }
 
+  @Room('/matchmaking/profile')
   @Delete('selfie')
   @Throttle(UPLOAD_LIMIT)
   clearSelfie(@CurrentUser() user: JwtUser) {
@@ -411,11 +422,13 @@ export class DatingController {
   // ─── M2: a like you cannot spend twice, a super-like, and a way back. ───
 
   /** What is left of today, in the citizen's own timezone. */
+  @Room('/matchmaking/browse')
   @Get('allowance')
   allowance(@CurrentUser() user: JwtUser) {
     return this.dating.likeAllowance(user.sub);
   }
 
+  @Room('/matchmaking/browse')
   @Post('matches/:targetUserId/super-like')
   @Throttle(DECISION_LIMIT)
   async superLike(
@@ -428,6 +441,7 @@ export class DatingController {
   }
 
   /** Give back the most recent pass. Never an unmatch — see undoLastPass. */
+  @Room('/matchmaking/browse')
   @Post('undo-pass')
   @Throttle(DECISION_LIMIT)
   undoPass(@CurrentUser() user: JwtUser, @Body() body: unknown) {

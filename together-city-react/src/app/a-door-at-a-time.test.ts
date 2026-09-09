@@ -135,11 +135,73 @@ describe('the operator\'s page', () => {
     /* The same ops.flags grant, the same eight-character reason, the same
        audit row. A control cheaper to press than to explain is how a rail
        loses a door nobody can account for. */
-    expect(dev).toMatch(/kind: 'page'/);
+    /* Both kinds go through the one mutation, which is why they read as a
+       ternary rather than as two call sites: 'page' hides, 'page-kill' closes. */
+    expect(dev).toMatch(/kind: kill \? 'page-kill' : 'page'/);
     expect(dev).toMatch(/const ready = reason\.trim\(\)\.length >= 8/);
   });
 
   it('prints the path, because a label is not an identity', () => {
     expect(dev).toMatch(/<span style=\{roomPath\}>\{room\.key\}<\/span>/);
+  });
+});
+
+/**
+ * ── AND A KILL SWITCH FOR EACH TAB ──────────────────────────────────────────
+ *
+ * Owner, 9 Sep, after the hide switches shipped: "Create kill switches for each
+ * tab."
+ *
+ * A hub's kill switch is a prefix match. A room's cannot be — six Astrology
+ * rooms share /api/astrology — so the API side is a decorator on the handlers a
+ * room owns, and the web side is a card in front of the page. This half of the
+ * file holds the web side, and the one property that makes the pair honest:
+ * every room's page closes, whether or not that room owns a route.
+ */
+describe('a closed room', () => {
+  it('is gated in one place every page goes through', () => {
+    /* A gate a route opts into is a gate the next route forgets, and the
+       failure is invisible: the page renders and its requests 503. */
+    const router = code('app/router.tsx');
+    expect(router).toMatch(/const wrap = \(el: JSX\.Element\) => <ChunkBoundary><RoomGate>\{el\}<\/RoomGate><\/ChunkBoundary>/);
+  });
+
+  it('says it is closed rather than pretending it never existed', () => {
+    const gate = code('components/RoomGate.tsx');
+    expect(gate).toMatch(/This room is closed just now/);
+    /* Not "no access", which sends somebody to support asking what they did;
+       not "not found", which makes a returning citizen doubt their memory. */
+    expect(gate).not.toMatch(/do not have access|does not exist|not found/i);
+    expect(gate).toMatch(/Nothing you have saved here has been touched/);
+  });
+
+  it('fails open, so a slow switch list never closes a room', () => {
+    const gate = code('components/RoomGate.tsx');
+    expect(gate).toMatch(/if \(switches\.pageOpen\(pathname\)\) return <>\{children\}<\/>/);
+    const hook = code('hooks/useCityDesign.ts');
+    expect(hook).toMatch(/closedPages \?\? \[\]/);
+    expect(hook).toMatch(/pageOpen: \(path: string\): boolean => !closedPages\.has\(path\)/);
+  });
+});
+
+describe('the two switches a room has on /dev', () => {
+  const dev = code('features/dev/pages/Dev.tsx');
+
+  it('asks one question at a time', () => {
+    /* Arming the second while the first is armed would put two reason boxes
+       and two confirm buttons on one row. */
+    expect(dev).toMatch(/useState<null \| 'hide' \| 'kill'>\(null\)/);
+    expect(dev).toMatch(/kind: kill \? 'page-kill' : 'page'/);
+  });
+
+  it('names the routes the kill switch will refuse, before it is pressed', () => {
+    expect(dev).toMatch(/the API refuses \{routes\.length\}/);
+  });
+
+  it('says plainly when a room owns no route of its own', () => {
+    /* The E-Commerce precedent: a switch that describes itself accurately is
+       worth more than one that overstates. 65 of the 108 rooms are in this
+       case, and the card must not imply an API that will close. */
+    expect(dev).toMatch(/This room owns no route of its own/);
   });
 });

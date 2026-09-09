@@ -8,6 +8,7 @@ import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { parseOrThrow } from '../shared/zod/zod-validation.pipe';
 import { SocialService } from './social.service';
+import { Room } from '../dev/room.decorator';
 import {
   CreateCommentSchema, type CreateCommentDto,
   CreatePostSchema, type CreatePostDto,
@@ -144,12 +145,14 @@ export class SocialController {
   }
 
   /** The Saved page, newest first. Each post is re-read through the feed's gates. */
+  @Room('/social/saved')
   @Get('bookmarks')
   bookmarks(@CurrentUser() user: JwtUser, @Query() query: Record<string, unknown>) {
     return this.social.bookmarks(user.sub, parseOrThrow(ListQuerySchema, query));
   }
 
   /** One-time: the ids a device had saved in localStorage, onto the account. */
+  @Room('/social/saved')
   @Post('bookmarks/sync')
   syncBookmarks(@CurrentUser() user: JwtUser, @Body() body: unknown) {
     const { postIds } = parseOrThrow(BookmarkSyncSchema, body);

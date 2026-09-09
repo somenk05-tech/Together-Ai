@@ -6,6 +6,7 @@ import { swallow } from '../shared/swallow';
 import { reportEnv } from './env-manifest';
 import { usingDefaultPassword } from './dev-password.guard';
 import { FLAGS, isFlagKey, VISIBILITY_FLAGS, visibilityFlag, ROOM_FLAGS, roomFlag } from './feature-flags';
+import { RoomRoutesRegistry } from './room-routes.registry';
 import { FeatureFlagGuard } from './feature-flag.guard';
 
 /**
@@ -31,6 +32,7 @@ export class DevService {
     private readonly prisma: PrismaService,
     private readonly flagGuard: FeatureFlagGuard,
     private readonly access: AdminAccessService,
+    private readonly roomRoutes: RoomRoutesRegistry,
   ) {}
 
   private readonly bootedAt = Date.now();
@@ -115,7 +117,7 @@ export class DevService {
     }), 'dev flag detail');
     const meta = new Map((rows ?? []).map((r) => [r.key, r]));
     const vis = new Map((await this.flagGuard.visibilitySnapshot()).map((v) => [v.key, v.visible]));
-    const rooms = new Map((await this.flagGuard.roomSnapshot()).map((r) => [r.key, r.visible]));
+    const rooms = new Map((await this.flagGuard.roomSnapshot()).map((r) => [r.key, r]));
     return {
       // The OTHER kind of switch, sent alongside and never mixed in. These
       // hide a door and refuse nothing; the page draws them in their own
@@ -135,11 +137,22 @@ export class DevService {
              fold. */
           rooms: ROOM_FLAGS.filter((r) => r.hub === f.key).map((r) => {
             const m3 = meta.get(r.storeKey);
+            const m4 = meta.get(r.killKey);
+            const state = rooms.get(r.key);
+            /* WHAT THE KILL SWITCH REFUSES, from the live controllers rather
+               than from a sentence somebody typed once. An empty list is a
+               real answer — the room owns no route of its own — and the page
+               prints it as one instead of implying an API that will close. */
+            const routes = this.roomRoutes.routesOf(r.key);
             return {
               key: r.key, index: r.index, label: r.label, hides: r.hides,
-              visible: rooms.get(r.key) ?? true,
+              visible: state?.visible ?? true,
               note: m3?.note ?? '',
               updatedAt: m3?.updatedAt?.toISOString() ?? null,
+              open: state?.open ?? true,
+              routes,
+              killNote: m4?.note ?? '',
+              killedAt: m4?.updatedAt?.toISOString() ?? null,
             };
           }),
         };
@@ -176,7 +189,7 @@ export class DevService {
    * air" never read as the same event in the log.
    */
   async setFlag(userId: string, key: string, enabled: boolean, reason: string, ip?: string | null,
-                kind: 'kill' | 'visibility' | 'page' = 'kill') {
+                kind: 'kill' | 'visibility' | 'page' | 'page-kill' = 'kill') {
     // WHICH KIND IS ASKED FOR, NEVER INFERRED FROM THE KEY. A sector now has
     // both — 'astrology' names a kill switch AND a visibility switch — so
     // guessing from the name would have silently sent every sector's door
@@ -196,6 +209,23 @@ export class DevService {
       const room = roomFlag(key);
       if (!room) throw new BadRequestException('no such room switch');
       return this.setVisibility(userId, room.key, room.storeKey, room.label, enabled, reason, ip);
+    }
+    /**
+     * ── CLOSING A ROOM (owner, 9 Sep: "create kill switches for each tab") ──
+     *
+     * A fourth kind, and the reason it is a fourth kind rather than a flag on
+     * the third is the same reason there are three: the key does not say which
+     * switch is meant, and the two a room has do opposite things. Sending a
+     * close to the hider would leave a room somebody meant to shut still
+     * answering, and the operator would have no way to tell from the page.
+     *
+     * It writes a `kill:page:` row, which the request gate reads ONLY for a
+     * handler carrying that room's @Room() decorator — never by path.
+     */
+    if (kind === 'page-kill') {
+      const room = roomFlag(key);
+      if (!room) throw new BadRequestException('no such room switch');
+      return this.setRoomOpen(userId, room.key, room.killKey, room.label, enabled, reason, ip);
     }
     if (!isFlagKey(key)) throw new BadRequestException('no such flag');
     const before = await swallow(this.prisma.featureFlag.findUnique({
@@ -232,6 +262,38 @@ export class DevService {
    * FLAGS holds no key with this prefix — so the worst a mistake here can do is
    * hide a link, which is the whole contract of this kind of switch.
    */
+  /**
+   * THE ROOM CLOSER'S OWN WRITE. Same door in as every other switch — the
+   * `ops.flags` grant, a written reason, an audit row — and its own verb, so
+   * "who hid Ask the Astrologer" and "who closed it" are two different
+   * sentences in the log rather than one ambiguous one.
+   */
+  private async setRoomOpen(
+    userId: string, key: string, storeKey: string, label: string,
+    open: boolean, reason: string, ip?: string | null,
+  ) {
+    const before = await swallow(this.prisma.featureFlag.findUnique({
+      where: { key: storeKey }, select: { enabled: true },
+    }), 'dev room close before', { key: storeKey });
+
+    return this.access.act({
+      actorId: userId, need: 'ops.flags',
+      action: open ? 'room.opened' : 'room.closed',
+      entity: 'room', entityId: key,
+      before: { open: before?.enabled ?? true },
+      after: { open },
+      reason, ip,
+    }, async () => {
+      await this.prisma.featureFlag.upsert({
+        where: { key: storeKey },
+        create: { key: storeKey, enabled: open, note: reason.trim().slice(0, 500), updatedBy: userId },
+        update: { enabled: open, note: reason.trim().slice(0, 500), updatedBy: userId },
+      });
+      this.flagGuard.invalidate();
+      return { key, enabled: open, label };
+    });
+  }
+
   private async setVisibility(
     userId: string, key: string, storeKey: string, label: string,
     visible: boolean, reason: string, ip?: string | null,

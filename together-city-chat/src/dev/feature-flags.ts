@@ -300,12 +300,33 @@ export interface RoomFlag {
   label: string;
   hides: string;
   storeKey: string;
+  /**
+   * ── AND THE OTHER SWITCH (owner, 9 Sep: "create kill switches for each
+   * tab") ──────────────────────────────────────────────────────────────────
+   *
+   * A room now has both, exactly as a sector does, and they are as different
+   * from each other here as they are up there: `storeKey` hides a door and
+   * `killKey` closes the room. Two rows, two prefixes, two writers, two words
+   * in the audit log — because "who hid Ask the Astrologer" and "who closed
+   * it" must never read as the same event.
+   *
+   * The kill row gates through the @Room() DECORATOR, never through the path:
+   * see room.decorator.ts for why a room cannot be a prefix. So this key can
+   * still not be reached by `flagForPath`, and the guarantee the whole file is
+   * built on — that no key outside FLAGS can gate a path — is untouched.
+   */
+  killKey: string;
 }
 
 /** Rooms share the door-hider's namespace: same contract, same guarantee that
  *  nothing here can ever refuse a request. `page:` keeps them apart from the
  *  sector keys within it, so `isVisibilityKey` cannot match a room. */
 export const PAGE_VISIBILITY_PREFIX = `${VISIBILITY_PREFIX}page:`;
+
+/** Where a CLOSED room is stored. Its own namespace, matching neither
+ *  `isFlagKey` nor `isVisibilityKey`, and read only by the decorator branch of
+ *  the request gate. */
+export const PAGE_KILL_PREFIX = 'kill:page:';
 
 const rooms = (hub: string, hubLabel: string, list: Array<[string, string, string]>): RoomFlag[] =>
   list.map(([index, key, label]) => ({
@@ -317,6 +338,7 @@ const rooms = (hub: string, hubLabel: string, list: Array<[string, string, strin
       + `own door and Search the city. The room keeps answering: a direct link still opens it, `
       + `and nothing anybody stored there is touched.`,
     storeKey: `${PAGE_VISIBILITY_PREFIX}${key}`,
+    killKey: `${PAGE_KILL_PREFIX}${key}`,
   }));
 
 export const ROOM_FLAGS: RoomFlag[] = [
@@ -471,6 +493,9 @@ export const isRoomKey = (k: string): boolean => ROOM_KEYS.includes(k);
 export const roomFlag = (k: string): RoomFlag | undefined => ROOM_FLAGS.find((r) => r.key === k);
 /** The rooms of one sector, in rail order — how the operator's page draws them. */
 export const roomsOf = (hub: string): RoomFlag[] => ROOM_FLAGS.filter((r) => r.hub === hub);
+/** The store key a room's CLOSE is written to, or undefined if there is no
+ *  such room — the writer's only way in, so a typo cannot invent a row. */
+export const roomKillKey = (k: string): string | undefined => roomFlag(k)?.killKey;
 
 export const VISIBILITY_KEYS = VISIBILITY_FLAGS.map((f) => f.key);
 export const isVisibilityKey = (k: string): boolean => VISIBILITY_KEYS.includes(k);

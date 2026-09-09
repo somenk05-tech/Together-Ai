@@ -6,6 +6,7 @@ import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { FoodJournalService } from './food-journal.service';
 import { Throttle } from '@nestjs/throttler';
 import { MODEL_LIMIT } from '../shared/throttles';
+import { Room } from '../dev/room.decorator';
 import {
   AnalyzeMealSchema, type AnalyzeMealDto,
   LogMealSchema, type LogMealDto,
@@ -19,6 +20,7 @@ export class FoodJournalController {
   constructor(private readonly journal: FoodJournalService) {}
 
   /** Identify + estimate. Writes nothing — the citizen reviews first. */
+  @Room('/nutrition/journal')
   @Post('analyze')
   @Throttle(MODEL_LIMIT)
   @UsePipes(new ZodValidationPipe(AnalyzeMealSchema))
@@ -27,6 +29,7 @@ export class FoodJournalController {
   }
 
   /** Log the reviewed meal. Totals recomputed server-side. */
+  @Room('/nutrition/journal')
   @Post()
   @UsePipes(new ZodValidationPipe(LogMealSchema))
   log(@CurrentUser() user: JwtUser, @Body() dto: LogMealDto) {
@@ -34,12 +37,14 @@ export class FoodJournalController {
   }
 
   /** One day: timeline, totals, targets, coach. Defaults to today (their tz). */
+  @Room('/nutrition/journal')
   @Get()
   day(@CurrentUser() user: JwtUser, @Query('date') date?: string) {
     return this.journal.day(user.sub, date);
   }
 
   /** The last seven days for the trend strip. */
+  @Room('/nutrition/journal')
   @Get('week')
   week(@CurrentUser() user: JwtUser) {
     return this.journal.week(user.sub);
@@ -51,6 +56,7 @@ export class FoodJournalController {
     return this.journal.update(user.sub, id, dto.items);
   }
 
+  @Room('/nutrition/journal')
   @Delete(':id')
   remove(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.journal.remove(user.sub, id);

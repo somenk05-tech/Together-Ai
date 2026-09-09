@@ -54,7 +54,7 @@ export function useMiraShown(): boolean {
 export function useCitySwitches() {
   const q = useQuery({
     queryKey: SWITCHES,
-    queryFn: () => api.get<{ off: string[]; offPages?: string[] }>('/visibility').then((r) => r.data),
+    queryFn: () => api.get<{ off: string[]; offPages?: string[]; closedPages?: string[] }>('/visibility').then((r) => r.data),
     staleTime: 60_000,
   });
   const off = new Set<string>(q.data?.off ?? []);
@@ -74,13 +74,26 @@ export function useCitySwitches() {
    * room", which is the same thing every other default in this file means.
    */
   const offPages = new Set<string>(q.data?.offPages ?? []);
+  /**
+   * ── AND THE ROOMS THAT ARE CLOSED (owner, 9 Sep) ──────────────────────────
+   *
+   * A different question from hidden, and kept a different list for exactly
+   * that reason: a hidden room still opens from a saved link, and a closed one
+   * must not. The API refuses a closed room's own routes as well; this is what
+   * lets the app put a sentence in front of the page rather than letting a
+   * citizen watch it fill with 503s one card at a time.
+   */
+  const closedPages = new Set<string>(q.data?.closedPages ?? []);
   return {
     /** Is this sector drawn at all, for anybody? */
     shown: (key: string): boolean => !off.has(key),
     /** Is this ROOM drawn — the rail entry, and the hub door that opens on it? */
     pageShown: (path: string): boolean => !offPages.has(path),
+    /** Is this room OPEN — may the page render at all? */
+    pageOpen: (path: string): boolean => !closedPages.has(path),
     off,
     offPages,
+    closedPages,
   };
 }
 

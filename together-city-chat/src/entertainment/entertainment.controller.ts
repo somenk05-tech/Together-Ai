@@ -10,6 +10,7 @@ import { SaveWatchSchema, type SaveWatchDto } from './dto/entertainment.dto';
 import { Delete } from '@nestjs/common';
 
 import { Mira } from '../mira/mira.decorator';
+import { Room } from '../dev/room.decorator';
 @Controller('entertainment')
 @UseGuards(JwtAuthGuard)
 export class EntertainmentController {
@@ -25,6 +26,7 @@ export class EntertainmentController {
   }
 
   // ── live movie & OTT data (TMDB proxy — key stays server-side) ──
+  @Room('/entertainment/movies')
   @Get('movies')
   movies() {
     return this.tmdb.movies();
@@ -40,6 +42,7 @@ export class EntertainmentController {
     return this.tmdb.tvDetail(id);
   }
 
+  @Room('/entertainment/ott')
   @Get('ott')
   ott() {
     return this.tmdb.ott();
@@ -55,6 +58,7 @@ export class EntertainmentController {
     return this.tmdb.discover(genre, lang, sort, type === 'tv' ? 'tv' : 'movie');
   }
 
+  @Room('/entertainment/curated')
   @Get('curated-movies')
   curatedMovies() {
     return this.tmdb.curated();
@@ -95,6 +99,7 @@ export class EntertainmentController {
   }
 
   // AI picks learned from the Watchlist (genres, languages, saved titles).
+  @Room('/entertainment/watchlist')
   @Get('recommended')
   async recommended(@CurrentUser() user: JwtUser) {
     const { items } = await this.entertainment.watchlist(user.sub);

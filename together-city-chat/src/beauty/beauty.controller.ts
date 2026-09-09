@@ -12,6 +12,7 @@ import { BeautyProfileSchema } from './profile-save';
 import { Mira } from '../mira/mira.decorator';
 import { Throttle } from '@nestjs/throttler';
 import { MODEL_LIMIT } from '../shared/throttles';
+import { Room } from '../dev/room.decorator';
 @Controller('beauty')
 @UseGuards(JwtAuthGuard)
 export class BeautyController {
@@ -25,6 +26,7 @@ export class BeautyController {
   }
 
   // Full skin & hair profile (rich payload); saving generates the one-time assessment.
+  @Room('/beauty/profile')
   @Put('profile')
   @UsePipes(new ZodValidationPipe(BeautyProfileSchema))
   saveProfile(@CurrentUser() user: JwtUser, @Body() dto: Record<string, unknown>) {
@@ -54,6 +56,7 @@ export class BeautyController {
 
   /** THE BREAKDOWN (6 Sep): the app draws the findings over the citizen's own
    *  photo after an analysis and sends the picture back to sit beside it. */
+  @Room('/beauty/profile')
   @Post('photos/breakdown')
   @UsePipes(new ZodValidationPipe(z.object({
     entryId: z.string().min(1).max(64),
@@ -85,6 +88,7 @@ export class BeautyController {
     return this.beauty.saveBag(user.sub, schema.parse(body).lines);
   }
 
+  @Room('/beauty/profile')
   @Get('budget')
   budget(@CurrentUser() user: JwtUser) {
     return this.beauty.getBudget(user.sub);
@@ -121,16 +125,19 @@ export class BeautyController {
 
   // Permanent skin & hair timeline: every dated assessment + latest-vs-previous comparison.
   // Delete the latest photo check-in so a fresh set can be uploaded.
+  @Room('/beauty/profile')
   @Delete('assessments/latest')
   deleteLatest(@CurrentUser() user: JwtUser) {
     return this.beauty.deleteLatestAssessment(user.sub);
   }
 
+  @Room('/beauty/profile')
   @Get('history')
   history(@CurrentUser() user: JwtUser) {
     return this.beauty.beautyHistory(user.sub);
   }
 
+  @Room('/beauty/profile')
   @Get('insights')
   insights(@CurrentUser() user: JwtUser) {
     return this.beauty.insights(user.sub);
@@ -189,6 +196,7 @@ export class BeautyController {
     utterances: ['beauty products', 'what beauty products are suggested for me', 'products suggested for me', 'recommend beauty products', 'skincare products', 'what products should I use'],
     risk: 'R0',
   })
+  @Room('/beauty/market')
   @Get('products')
   products(@CurrentUser() user: JwtUser) {
     return this.beauty.products(user.sub);
@@ -199,6 +207,7 @@ export class BeautyController {
     return this.beauty.orders(user.sub);
   }
 
+  @Room('/beauty/orders')
   @Post('orders')
   @UsePipes(new ZodValidationPipe(PlaceBeautyOrderSchema))
   placeOrder(@CurrentUser() user: JwtUser, @Body() dto: PlaceBeautyOrderDto) {

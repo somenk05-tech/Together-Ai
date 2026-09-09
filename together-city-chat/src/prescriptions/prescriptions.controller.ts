@@ -5,6 +5,7 @@ import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { PrescriptionsService } from './prescriptions.service';
 import { Mira } from '../mira/mira.decorator';
+import { Room } from '../dev/room.decorator';
 import {
   AddItemSchema, ConfirmPrescriptionSchema, DoseActionSchema, LogsQuerySchema, ReviewItemSchema, UploadPrescriptionSchema,
   type AddItemDto, type ConfirmPrescriptionDto, type DoseActionDto, type LogsQueryDto, type ReviewItemDto, type UploadPrescriptionDto,
@@ -16,12 +17,14 @@ export class PrescriptionsController {
   constructor(private readonly prescriptions: PrescriptionsService) {}
 
   /** POST /api/prescriptions — a photographed prescription, already uploaded. */
+  @Room('/medical/medicines')
   @Post()
   @UsePipes(new ZodValidationPipe(UploadPrescriptionSchema))
   upload(@CurrentUser() user: JwtUser, @Body() dto: UploadPrescriptionDto) {
     return this.prescriptions.upload(user.sub, dto);
   }
 
+  @Room('/medical/medicines')
   @Get()
   list(@CurrentUser() user: JwtUser) {
     return this.prescriptions.list(user.sub);
@@ -33,12 +36,14 @@ export class PrescriptionsController {
   }
 
   /** Add a line by hand — the main path while no OCR provider is configured. */
+  @Room('/medical/medicines')
   @Post(':id/items')
   @UsePipes(new ZodValidationPipe(AddItemSchema))
   addItem(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: AddItemDto) {
     return this.prescriptions.addItem(user.sub, id, dto);
   }
 
+  @Room('/medical/medicines')
   @Delete(':id/items/:itemId')
   removeItem(@CurrentUser() user: JwtUser, @Param('id') id: string, @Param('itemId') itemId: string) {
     return this.prescriptions.removeItem(user.sub, id, itemId);
@@ -57,6 +62,7 @@ export class PrescriptionsController {
   }
 
   /** Turn a reviewed prescription into medicines, schedules and alarms. */
+  @Room('/medical/medicines')
   @Post(':id/confirm')
   @UsePipes(new ZodValidationPipe(ConfirmPrescriptionSchema))
   confirm(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: ConfirmPrescriptionDto) {
@@ -69,6 +75,7 @@ export class PrescriptionsController {
 export class MedicinesController {
   constructor(private readonly prescriptions: PrescriptionsService) {}
 
+  @Room('/medical/medicines')
   @Get()
   list(@CurrentUser() user: JwtUser) {
     return this.prescriptions.medicines(user.sub);
@@ -80,12 +87,14 @@ export class MedicinesController {
     utterances: ['what medicines do I take today', 'my medicines', 'what is due', 'have I taken my pills', 'my doses', 'medicine reminder', 'do I have anything to take'],
     risk: 'R0',
   })
+  @Room('/medical/medicines')
   @Get('today')
   today(@CurrentUser() user: JwtUser) {
     return this.prescriptions.today(user.sub);
   }
 
   /** Every dose: medicine, dosage, when it was due, when it was acted on. */
+  @Room('/medical/medicines')
   @Get('logs')
   @UsePipes(new ZodValidationPipe(LogsQuerySchema))
   logs(@CurrentUser() user: JwtUser, @Query() dto: LogsQueryDto) {
@@ -93,6 +102,7 @@ export class MedicinesController {
   }
 
   /** Mark a dose taken or skipped. Idempotent — one row per dose, ever. */
+  @Room('/medical/medicines')
   @Post('doses')
   @UsePipes(new ZodValidationPipe(DoseActionSchema))
   recordDose(@CurrentUser() user: JwtUser, @Body() dto: DoseActionDto) {

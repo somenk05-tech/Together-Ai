@@ -5,6 +5,7 @@ import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { TravelService } from './travel.service';
 import { Mira } from '../mira/mira.decorator';
+import { Room } from '../dev/room.decorator';
 import {
   PackageQuerySchema, type PackageQueryDto,
   BookPackageSchema, type BookPackageDto,
@@ -17,6 +18,7 @@ import {
 export class TravelController {
   constructor(private readonly travel: TravelService) {}
 
+  @Room('/travel/explore')
   @Get('categories')
   categories() { return this.travel.categories(); }
 
@@ -34,13 +36,16 @@ export class TravelController {
   }
 
   // ── flights ──
+  @Room('/travel/flights')
   @Get('airports')
   airports() { return this.travel.airports(); }
 
+  @Room('/travel/flights')
   @Get('flights/search')
   @UsePipes(new ZodValidationPipe(FlightSearchSchema))
   flightSearch(@Query() query: FlightSearchDto) { return this.travel.flightSearch(query); }
 
+  @Room('/travel/flights')
   @Post('flights/book')
   @UsePipes(new ZodValidationPipe(BookFlightSchema))
   bookFlight(@CurrentUser() user: JwtUser, @Body() dto: BookFlightDto) {

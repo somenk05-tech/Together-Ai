@@ -20,7 +20,9 @@ const FlagSchema = z.object({
   // 'page' is a room inside a sector (owner, 9 Sep) — Ask the Astrologer
   // rather than Astrology. It hides like 'visibility' and refuses like
   // neither: see ROOM_FLAGS.
-  kind: z.enum(['kill', 'visibility', 'page']).default('kill'),
+  // 'page-kill' closes a room: its page and the routes it owns (owner,
+  // 9 Sep). Deliberately not a flag on 'page' — the two do opposite things.
+  kind: z.enum(['kill', 'visibility', 'page', 'page-kill']).default('kill'),
 });
 type FlagDto = z.infer<typeof FlagSchema>;
 

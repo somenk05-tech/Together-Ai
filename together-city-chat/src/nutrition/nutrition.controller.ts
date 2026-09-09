@@ -20,6 +20,7 @@ import { OwnRecipeSchema, type OwnRecipeDto } from './dto/own-recipe.dto';
 import { Mira } from '../mira/mira.decorator';
 import { Throttle } from '@nestjs/throttler';
 import { MODEL_LIMIT } from '../shared/throttles';
+import { Room } from '../dev/room.decorator';
 /**
  * Household PHI-sharing switches — exactly the four the service stores
  * (HouseholdSharing in nutrition.service.ts). This endpoint decides which of a
@@ -169,6 +170,7 @@ export class NutritionController {
     return this.nutrition.planToday(user.sub);
   }
 
+  @Room('/family/weekly')
   @Get('meal-settings')
   mealSettings(@CurrentUser() user: JwtUser) {
     return this.nutrition.mealSettings(user.sub);
@@ -272,6 +274,7 @@ export class NutritionController {
     return this.nutrition.unlockOwnDay(user.sub, dto.day);
   }
 
+  @Room('/family/weekly')
   @Post('plan/composed/lock')
   @UsePipes(new ZodValidationPipe(z.object({
     day: z.number().int().min(0).max(60),
@@ -284,6 +287,7 @@ export class NutritionController {
     return this.nutrition.lockComposedDay(user.sub, dto.day, dto.mode ?? 'individual', dto.planMode ?? 'preferred');
   }
 
+  @Room('/family/weekly')
   @Post('plan/composed/unlock')
   @UsePipes(new ZodValidationPipe(z.object({ day: z.number().int().min(0).max(60) })))
   unlockComposedDay(@CurrentUser() user: JwtUser, @Body() dto: { day: number }) {
@@ -310,6 +314,7 @@ export class NutritionController {
   }
 
   // Recipe Library — searchable/paginated recipe database (Netflix-style).
+  @Room('/nutrition/recipes')
   @Get('recipes/library')
   recipeLibrary(@CurrentUser() user: JwtUser, @Query() q: Record<string, string>) {
     return this.nutrition.recipeLibrary({
@@ -323,6 +328,7 @@ export class NutritionController {
     });
   }
 
+  @Room('/family/weekly')
   @Patch('meal-settings')
   @UsePipes(new ZodValidationPipe(z.object({
     cuisineBySlot: z.record(z.string(), z.record(z.string(), z.number())).optional(),
@@ -594,23 +600,27 @@ export class NutritionController {
   // ── a citizen's own recipes ──────────────────────────────────────────
   // Declared before `recipes/:id` so "own" is never read as an id.
 
+  @Room('/nutrition/saved')
   @Get('recipes/own')
   myRecipes(@CurrentUser() user: JwtUser) {
     return this.nutrition.myRecipes(user.sub);
   }
 
+  @Room('/nutrition/saved')
   @Post('recipes/own')
   @UsePipes(new ZodValidationPipe(OwnRecipeSchema))
   createOwnRecipe(@CurrentUser() user: JwtUser, @Body() dto: OwnRecipeDto) {
     return this.nutrition.createOwnRecipe(user.sub, dto);
   }
 
+  @Room('/nutrition/saved')
   @Patch('recipes/own/:id')
   @UsePipes(new ZodValidationPipe(OwnRecipeSchema))
   updateOwnRecipe(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: OwnRecipeDto) {
     return this.nutrition.updateOwnRecipe(user.sub, id, dto);
   }
 
+  @Room('/nutrition/saved')
   @Delete('recipes/own/:id')
   deleteOwnRecipe(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.nutrition.deleteOwnRecipe(user.sub, id);

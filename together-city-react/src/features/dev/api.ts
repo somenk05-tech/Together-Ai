@@ -47,12 +47,21 @@ export interface VisibilityRow {
 export interface RoomRow {
   key: string; index: string; label: string; hides: string;
   visible: boolean; note: string; updatedAt: string | null;
+  /** ── AND THE OTHER SWITCH (owner, 9 Sep) ──────────────────────────────
+   *  `visible` is the door; `open` is the room. Optional on the wire for the
+   *  same reason `rooms` is: an older server draws the card it always did. */
+  open?: boolean;
+  /** What the kill switch refuses, read off the live controllers. An empty
+   *  list is a real answer — this room owns no route of its own. */
+  routes?: Array<{ method: string; path: string }>;
+  killNote?: string;
+  killedAt?: string | null;
 }
 export interface FlagsPayload { items: FlagRow[]; visibility: VisibilityRow[] }
 
-/** Which switch is meant. 'page' is a room inside a sector; it hides like
- *  'visibility' and, like it, can never refuse a request. */
-export type FlagKind = 'kill' | 'visibility' | 'page';
+/** Which switch is meant. 'page' hides a room's door and can never refuse a
+ *  request; 'page-kill' closes the room — its page and the routes it owns. */
+export type FlagKind = 'kill' | 'visibility' | 'page' | 'page-kill';
 
 export const devApi = {
   diagnostics: (password: string) =>

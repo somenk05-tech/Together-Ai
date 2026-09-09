@@ -5,6 +5,7 @@ import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { FinancialService } from './financial.service';
 import { Mira } from '../mira/mira.decorator';
+import { Room } from '../dev/room.decorator';
 import {
   TopUpSchema, type TopUpDto, SetBudgetSchema, type SetBudgetDto, PaySchema, type PayDto,
   LinkCardSchema, type LinkCardDto, AddSpendLogSchema, type AddSpendLogDto,
@@ -25,6 +26,7 @@ export class FinancialController {
     return this.financial.wallet(user.sub);
   }
 
+  @Room('/financial/wallet')
   @Post('wallet/top-up')
   @UsePipes(new ZodValidationPipe(TopUpSchema))
   topUp(
@@ -54,6 +56,7 @@ export class FinancialController {
     return this.financial.linkCard(user.sub, dto);
   }
 
+  @Room('/financial/wallet')
   @Delete('card')
   removeCard(@CurrentUser() user: JwtUser) {
     return this.financial.removeCard(user.sub);
@@ -64,6 +67,7 @@ export class FinancialController {
     utterances: ['what did I spend', 'recent transactions', 'what have I paid for'],
     risk: 'R0',
   })
+  @Room('/financial/transactions')
   @Get('transactions')
   transactions(@CurrentUser() user: JwtUser) {
     return this.financial.transactions(user.sub);
@@ -74,11 +78,13 @@ export class FinancialController {
     utterances: ['what did I spend this month', 'my spending', 'where is my money going', 'how much have I spent'],
     risk: 'R0',
   })
+  @Room('/financial/spending')
   @Get('spending')
   spending(@CurrentUser() user: JwtUser) {
     return this.financial.spending(user.sub);
   }
 
+  @Room('/financial/wallet')
   @Get('services')
   services() {
     return this.financial.services();
@@ -89,11 +95,13 @@ export class FinancialController {
     utterances: ['my budgets', 'how much is left in my budget', 'am I over budget', 'budget left'],
     risk: 'R0',
   })
+  @Room('/financial/budgets')
   @Get('budgets')
   budgets(@CurrentUser() user: JwtUser) {
     return this.financial.budgets(user.sub);
   }
 
+  @Room('/financial/budgets')
   @Put('budgets')
   @UsePipes(new ZodValidationPipe(SetBudgetSchema))
   setBudget(@CurrentUser() user: JwtUser, @Body() dto: SetBudgetDto) {
