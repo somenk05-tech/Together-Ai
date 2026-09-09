@@ -218,6 +218,85 @@ export interface ProgrammeDay {
   cardioMinutes: number;
   /** One line from the trainer for the day. */
   note: string;
+  /**
+   * WHERE THIS DAY SITS IN THE SPLIT'S ROTATION, 0 … splitDays-1 — the index
+   * into SPLITS[days] that produced it. Strength days only; absent on rest
+   * and cardio. Carried so that moving a day (below) is arithmetic on two
+   * numbers rather than a match on the printed title.
+   */
+  slot?: number;
+}
+
+/**
+ * ── THE CITIZEN MOVES A DAY (owner, 9 Sep) ──────────────────────────────────
+ *
+ * "Have an 'update to today's workout plan' button, and that goes to today's
+ * workout plan, and then today's plan shifts to the next day."
+ *
+ * Read that sentence twice, because it rules out the obvious implementation.
+ * A SWAP would put legs on today and today's push on Thursday — but the owner
+ * said today's plan shifts to the NEXT day, and everything behind it walks
+ * forward one place. That is an INSERT, not a swap, and the difference is the
+ * whole point of a split: the order is the training. Swapping puts the same
+ * body part twice in three days and leaves a hole where it came from; moving
+ * the day and closing the gap keeps every muscle in its turn, one session
+ * later than it was.
+ *
+ * So a move is two day numbers — the day being brought forward, and the day
+ * it lands on — and the sequence of sessions is rebuilt by lifting one out and
+ * putting it back in. Both are indices into the CURRENT cycle's 28 days.
+ */
+export interface ProgrammeMove { from: number; to: number }
+
+/**
+ * THE SESSIONS, IN ORDER, AFTER THE CITIZEN'S MOVES. `seq[n]` is the split day
+ * the nth training day of the month runs. Total by construction: a move whose
+ * days are not training days any more — the citizen changed which days are
+ * theirs after making it — is skipped rather than throwing, because a stale
+ * move must not cost somebody their month.
+ */
+export function applyMoves(strengthDays: readonly number[], splitLength: number, moves: readonly ProgrammeMove[] | undefined): number[] {
+  const seq = strengthDays.map((_, n) => n % splitLength);
+  if (!moves || moves.length === 0) return seq;
+  for (const m of moves) {
+    const from = strengthDays.indexOf(m.from);
+    const to = strengthDays.indexOf(m.to);
+    if (from < 0 || to < 0 || from === to) continue;
+    const [lifted] = seq.splice(from, 1);
+    seq.splice(to, 0, lifted);
+  }
+  return seq;
+}
+
+/**
+ * THE COLUMN IS A STRING, and this is both ends of it:
+ * "<cycle>|<from>-<to>,<from>-<to>". The cycle travels with the moves because
+ * day indices are cycle-relative — a month that has rolled since is a
+ * different set of days, and applying last month's moves to it would be a
+ * plan nobody asked for. A row from another cycle therefore reads as none.
+ *
+ * Both directions are total: a malformed column reads as an empty list rather
+ * than throwing, because a bad string in one row must not take the whole
+ * month down with it.
+ */
+export const MAX_MOVES = 28;
+
+export function readMoves(value: string | null | undefined, cycle: number): ProgrammeMove[] {
+  if (!value) return [];
+  const [head, tail] = value.split('|');
+  if (Number(head) !== cycle || !tail) return [];
+  return tail.split(',').flatMap((pair) => {
+    const [from, to] = pair.split('-').map(Number);
+    if (!Number.isInteger(from) || !Number.isInteger(to)) return [];
+    if (from < 0 || from > 27 || to < 0 || to > 27 || from === to) return [];
+    return [{ from, to }];
+  }).slice(-MAX_MOVES);
+}
+
+export function writeMoves(cycle: number, moves: readonly ProgrammeMove[]): string {
+  const kept = moves.filter((m) => m.from !== m.to).slice(-MAX_MOVES);
+  if (kept.length === 0) return `${cycle}|`;
+  return `${cycle}|${kept.map((m) => `${m.from}-${m.to}`).join(',')}`;
 }
 
 /**
@@ -245,6 +324,8 @@ export interface Programme {
   todayIndex: number;
   daysPerWeek: number;
   splitName: string;
+  /** How many days the split rotates through — the modulus `slot` counts in. */
+  splitDays: number;
   phases: typeof PHASES;
   days: ProgrammeDay[];
   /** Why the month is shaped this way — every clause names an input. */
@@ -290,6 +371,12 @@ export interface ProgrammeInput {
   restDays?: number[];
   /** What an off day IS: 'rest', or the easy thing they would rather do. */
   restActivity?: string;
+  /**
+   * THE DAYS THE CITIZEN MOVED (owner, 9 Sep) — see ProgrammeMove. Empty or
+   * absent is the month as the calendar laid it out, which is every month
+   * built before today.
+   */
+  moves?: readonly ProgrammeMove[];
 }
 
 // ── the pool ────────────────────────────────────────────────────────────────
@@ -462,6 +549,20 @@ export function buildProgramme(input: ProgrammeInput): Programme {
   };
   const variants = { a: choose('a'), b: choose('b') };
 
+  /**
+   * WHICH DAYS ARE TRAINING DAYS, decided before any of them is built. The
+   * calendar answers this on its own — it depends on the citizen's week, not
+   * on the split — and having the list up front is what lets a MOVE be an
+   * ordinary lift-and-insert on the sequence of sessions rather than
+   * arithmetic on a counter that only exists inside the loop.
+   */
+  const strengthIndices: number[] = [];
+  for (let i = 0; i < 28; i++) {
+    const slotInWeek = placement.indexOf(i % 7);
+    if (slotInWeek >= 0 && slotInWeek < strengthDays) strengthIndices.push(i);
+  }
+  const sequence = applyMoves(strengthIndices, split.length, input.moves);
+
   const out: ProgrammeDay[] = [];
   let rotation = 0;
   for (let i = 0; i < 28; i++) {
@@ -492,7 +593,12 @@ export function buildProgramme(input: ProgrammeInput): Programme {
       });
       continue;
     }
-    const day = split[rotation % split.length];
+    /* THE SESSION THIS TRAINING DAY RUNS. Untouched, `sequence[n]` is
+       `n % split.length` — the rotation exactly as it was. Once a day has been
+       moved it is that rotation with one session lifted out and put back
+       earlier, everything between it walking forward one place. */
+    const slot = sequence[rotation] ?? rotation % split.length;
+    const day = split[slot];
     rotation += 1;
     const variant = week % 2 === 1 ? 'a' : 'b';
     const sets = Math.max(2, goal.sets + lvl.sets + phase.sets);
@@ -502,7 +608,7 @@ export function buildProgramme(input: ProgrammeInput): Programme {
     const restSec = Math.max(30, goal.restSec + lvl.restSec + phase.restSec);
     const chosen = variants[variant].get(day.key) ?? [];
     out.push({
-      ...base, kind: 'strength', title: day.title, parts: day.parts,
+      ...base, kind: 'strength', slot, title: day.title, parts: day.parts,
       muscles: [...new Set(day.slots.map((s) => s.muscle))].filter((m) => chosen.some((e) => e.target === m)),
       exercises: chosen.map((e) => ({
         id: e.id, name: e.name, muscle: e.target as Muscle, works: MUSCLE_WORDS[e.target as Muscle],
@@ -568,6 +674,7 @@ export function buildProgramme(input: ProgrammeInput): Programme {
     todayIndex: daysBetween(input.startDate, input.today),
     daysPerWeek: days,
     splitName: SPLIT_NAMES[days] ?? SPLIT_NAMES[3],
+    splitDays: split.length,
     phases: PHASES,
     days: out,
     why,

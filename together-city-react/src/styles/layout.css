@@ -2420,6 +2420,10 @@ details[open] > summary .fold-state::after { content: 'Close −'; }
 .wk-day-list .mu { font-size: var(--fs-2); color: var(--muted); }
 .wk-day-list .tg { font-size: var(--fs-2); font-weight: 700; white-space: nowrap; color: var(--accent-ink); }
 .wk-day-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+/* WHAT MOVING A DAY WILL DO, under the buttons that would do it (owner,
+   9 Sep). Sized like the day's own note rather than like a warning: it is the
+   trainer saying what happens next, not an error. */
+.wk-day-move { font-size: 12.5px; line-height: 1.5; margin: 8px 0 0; max-width: 62ch; }
 
 /* ── THE WEEK IS THE CITIZEN'S (owner, 9 Sep) ──────────────────────────────
    Seven keys under the grid, because the consequence of the choice is the

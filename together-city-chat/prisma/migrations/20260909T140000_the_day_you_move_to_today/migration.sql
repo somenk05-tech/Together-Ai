@@ -1,0 +1,11 @@
+-- ── THE DAY YOU MOVE TO TODAY (owner, 9 Sep) ───────────────────────────────
+-- "Have an 'update to today's workout plan' button, and that goes to today's
+--  workout plan, and then today's plan shifts to the next day."
+--
+-- One nullable column, no default and no backfill. It holds the cycle the
+-- moves belong to and the moves themselves — "3|4:2,11:1" reads as "in cycle
+-- 3, from day 4 the split rotation runs two places on, and from day 11 one
+-- more". NULL is every citizen who has never moved a day, and the programme
+-- engine's fallback for NULL is the month the calendar laid out, so this
+-- migration changes nobody's plan until they press the button.
+ALTER TABLE "FitnessProfile" ADD COLUMN "programmeShifts" TEXT;

@@ -1870,6 +1870,20 @@ model FitnessProfile {
   /// rest day. It is never parsed for meaning — a trainer asked "what would
   /// you rather do" and this is the answer, not an instruction to a machine.
   restActivity String?
+  /// ── THE DAY YOU MOVE TO TODAY (owner, 9 Sep) ──────────────────────────────
+  /// The moves the citizen has made to their own rotation, as
+  /// "<cycle>|<fromDay>:<places>,<fromDay>:<places>" — "3|4:2" reads as "in
+  /// cycle 3, from day 4 the split rotation runs two places on", which is what
+  /// pressing "make this today's plan" on a later day does: that day's session
+  /// becomes today's, today's becomes the next training day's, and the rest of
+  /// the month walks forward behind it.
+  ///
+  /// The cycle is stored with them because day indices are cycle-relative: a
+  /// month that has rolled since starts clean rather than dragging last
+  /// month's moves onto days that no longer mean the same thing. NULL is a
+  /// citizen who has never moved a day — the calendar's own rotation, which is
+  /// every month built before 9 Sep.
+  programmeShifts String?
   /// WHAT THEY WILL SPEND ON SUPPLEMENTS, ₹ a month, total — the citizen's own
   /// number (owner, 5 Sep). Null = never set; the kit is then one best-quality
   /// pack per recommended supplement with no cap. Read by

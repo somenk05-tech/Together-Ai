@@ -52,6 +52,9 @@ export const REMOVED_ROUTES: Readonly<Record<string, string>> = {
   // surviving page — a guided session with a timer, which is what somebody
   // following an old Trainer link was after.
   '/fitness/trainer': '/fitness/workout',
+  // The Multivitamins page came off the rail on 9 Sep (owner). A saved link
+  // lands on the supplements read it always sat under.
+  '/fitness/multivitamins': '/fitness/supplements',
   // Body Goal (8 Sep, owner: "merge body goals and workout and just create
   // one page"). Its content is now the first section of Workout.
   '/fitness/body-goal': '/fitness/workout',

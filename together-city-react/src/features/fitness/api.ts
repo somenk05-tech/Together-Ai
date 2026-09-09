@@ -253,6 +253,10 @@ export interface ProgrammeDay {
   index: number; date: string; week: 1 | 2 | 3 | 4; phase: 'base' | 'build' | 'peak' | 'deload';
   kind: 'strength' | 'cardio' | 'rest'; title: string; parts: string; muscles: string[];
   exercises: ProgrammeExercise[]; cardioMinutes: number; note: string; done: boolean;
+  /** Where the day sits in the split's rotation. Strength days only — it is
+   *  what tells the page that two days are the same session, so the button
+   *  that moves a day does not offer to move legs onto legs. */
+  slot?: number;
 }
 /** What the citizen chose about their own week, and what the trainer made of
  *  it. Written on the server beside the code that acted on it, so the words a
@@ -262,6 +266,8 @@ export interface ProgrammeRest {
 }
 export interface Programme {
   startDate: string; today: string; todayIndex: number; cycle: number; daysPerWeek: number; splitName: string;
+  /** How many days the split rotates through — the modulus `slot` counts in. */
+  splitDays: number;
   phases: { key: string; label: string; note: string }[];
   days: ProgrammeDay[];
   why: string[];
@@ -295,6 +301,31 @@ export function useSaveTrainingWeek() {
     onSuccess: (p) => {
       qc.setQueryData(['fitness', 'programme'], p);
       void qc.invalidateQueries({ queryKey: ['fitness', 'profile'] });
+      void qc.invalidateQueries({ queryKey: ['fitness', 'session'] });
+    },
+  });
+}
+
+/**
+ * ── THE DAY YOU MOVE TO TODAY (owner, 9 Sep) ────────────────────────────────
+ *
+ * "Have an 'update to today's workout plan' button, and that goes to today's
+ * workout plan, and then today's plan shifts to the next day."
+ *
+ * Unmetered, and on its own route, for the same reason the week beside it is:
+ * a control the owner wants pressed must not be one a citizen is charged for
+ * pressing. The server answers with the whole rebuilt month — the move changes
+ * every training day after it, so a patch of one day would be a lie — and
+ * today's session is invalidated because the thing it is a session FOR has
+ * just changed underneath it.
+ */
+export function useMoveWorkoutDay() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (dayIndex: number) =>
+      api.put<Programme>('/fitness/programme/today', { dayIndex }).then((r) => r.data),
+    onSuccess: (p) => {
+      qc.setQueryData(['fitness', 'programme'], p);
       void qc.invalidateQueries({ queryKey: ['fitness', 'session'] });
     },
   });

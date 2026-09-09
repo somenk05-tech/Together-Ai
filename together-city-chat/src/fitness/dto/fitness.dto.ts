@@ -67,6 +67,21 @@ export const SaveTrainingWeekSchema = z.object({
 });
 export type SaveTrainingWeekDto = z.infer<typeof SaveTrainingWeekSchema>;
 
+/**
+ * ── MOVE A DAY TO TODAY (owner, 9 Sep) ──────────────────────────────────────
+ *
+ * "Have an 'update to today's workout plan' button, and that goes to today's
+ * workout plan, and then today's plan shifts to the next day."
+ *
+ * One number: which of the 28 days the citizen wants to do now. Unmetered for
+ * the same reason the week is — a citizen looking at their month and saying
+ * *legs today* is using the plan, not rewriting who they are.
+ */
+export const MoveWorkoutDaySchema = z.object({
+  dayIndex: z.number().int().min(0).max(27),
+});
+export type MoveWorkoutDayDto = z.infer<typeof MoveWorkoutDaySchema>;
+
 /** Where the work happened. The log's own list, longer than the profile's
  *  `place`: that one instructs the session engine, which can only program the
  *  two rooms it has movements for, and this one records what a citizen did. */

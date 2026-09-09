@@ -11,12 +11,14 @@ import {
   LogWorkoutSchema,
   SaveFitnessProfileSchema,
   SaveTrainingWeekSchema,
+  MoveWorkoutDaySchema,
   TodaySessionQueryDto,
   TodaySessionQuerySchema,
   type EditWorkoutDto,
   type LogWorkoutDto,
   type SaveFitnessProfileDto,
   type SaveTrainingWeekDto,
+  type MoveWorkoutDayDto,
 } from './dto/fitness.dto';
 import {
   SupplementBagSchema, type SupplementBagDto,
@@ -89,6 +91,20 @@ export class FitnessController {
   @UsePipes(new ZodValidationPipe(SaveTrainingWeekSchema))
   saveTrainingWeek(@CurrentUser() user: JwtUser, @Body() dto: SaveTrainingWeekDto) {
     return this.fitness.saveTrainingWeek(user.sub, dto);
+  }
+
+  /**
+   * PUT /api/fitness/programme/today — the citizen brings a later day forward
+   * (owner, 9 Sep: "have an 'update to today's workout plan' button, and that
+   * goes to today's workout plan, and then today's plan shifts to the next
+   * day"). Unmetered, like the week beside it: a control the owner wants
+   * pressed is not one a citizen should be charged for pressing. Returns the
+   * rebuilt month, so the whole grid redraws from the answer.
+   */
+  @Put('programme/today')
+  @UsePipes(new ZodValidationPipe(MoveWorkoutDaySchema))
+  moveWorkoutDay(@CurrentUser() user: JwtUser, @Body() dto: MoveWorkoutDayDto) {
+    return this.fitness.moveWorkoutDay(user.sub, dto);
   }
 
   @Get('body-goal')

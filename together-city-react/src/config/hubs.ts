@@ -582,15 +582,16 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/fitness/workout', index: '02', label: 'Workout', sub: 'Body goal, targets & today\'s session' },
       { path: '/fitness/log', index: '03', label: 'Activity Log', sub: 'What you actually did' },
       { path: '/fitness/supplements', index: '04', label: 'Supplements', sub: 'Read from your blood work' },
-      // DIRECTLY UNDER THE PLAN, and not down beside the store, because it is
-      // an advising screen rather than a selling one — it carries no bag, no
-      // price that leads anywhere and no Add. Numbered into the rail rather
-      // than hidden behind the plan page, because the most useful thing on it
-      // is a refusal and a refusal nobody can find is a refusal nobody reads.
-      { path: '/fitness/multivitamins', index: '05', label: 'Multivitamins', sub: 'Thirty-two labels, assessed' },
-      { path: '/fitness/sleep', index: '06', label: 'Sleep Cycle', sub: 'Duration, quality & schedule' },
-      { path: '/fitness/store', index: '07', label: 'The Store', sub: 'Verified in India · we take no cut' },
-      { path: '/fitness/orders', index: '08', label: 'My Orders', sub: 'Your bag & what you bought' },
+      // MULTIVITAMINS CAME OFF THE RAIL (owner, 9 Sep). It stood here from 5
+      // Sep as an advising screen whose most useful sentence was a refusal;
+      // the owner removed the page, so the door goes with it and the
+      // numbering closes up again — a menu that counts 04-06 advertises the
+      // thing it is trying not to advertise. The server's assessment engine
+      // and its specs are untouched, and /fitness/multivitamins redirects to
+      // the supplements read in config/labels.ts.
+      { path: '/fitness/sleep', index: '05', label: 'Sleep Cycle', sub: 'Duration, quality & schedule' },
+      { path: '/fitness/store', index: '06', label: 'The Store', sub: 'Verified in India · we take no cut' },
+      { path: '/fitness/orders', index: '07', label: 'My Orders', sub: 'Your bag & what you bought' },
     ],
   },
   mail: {

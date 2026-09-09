@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui';
 import {
   EXERCISE_MEDIA_ATTRIBUTION, OFF_DAY_ACTIVITIES, WEEKDAY_NAMES, WEEKDAY_SHORT,
-  useAddWorkout, useProgramme, useSaveTrainingWeek, useTodaySession,
+  useAddWorkout, useMoveWorkoutDay, useProgramme, useSaveTrainingWeek, useTodaySession,
   type ProgrammeDay, type TodaySession,
 } from '../api';
 import { BodyGoalPanel } from '../components/BodyGoalPanel';
@@ -240,6 +240,17 @@ export function Workout() {
   const [openDay, setOpenDay] = useState<number | null>(null);
   const shown = month && openDay != null ? month.days[openDay] ?? null : null;
   const saveWeek = useSaveTrainingWeek();
+  /**
+   * ── THE DAY YOU MOVE TO TODAY (owner, 9 Sep) ──────────────────────────────
+   *
+   * The anchor is today when today is a training day and the next training day
+   * when it is not: a rest day is the citizen's, and pressing a workout button
+   * is not a reason to take it away from them. Everything the button offers is
+   * read off it — whether there is anything to move, and what to call it.
+   */
+  const moveDay = useMoveWorkoutDay();
+  const anchor = month ? month.days.find((d) => d.index >= month.todayIndex && d.kind === 'strength') : undefined;
+  const canMove = !!(shown && anchor && shown.kind === 'strength' && shown.index !== anchor.index && shown.slot !== anchor.slot);
   /* THE KEYS ARE PRESSED LOCALLY AND SAVED ON RELEASE. A save per tap would
      rebuild the month three times while somebody chose two days, and the grid
      would jump under their finger between the taps. */
@@ -572,8 +583,39 @@ export function Workout() {
                       ▶ {shown.index === monthDay.index ? 'Start this day' : shown.index < monthDay.index ? 'Do it again' : 'Do it early'}
                     </Button>
                   )}
+                  {/* ── UPDATE TODAY'S WORKOUT PLAN (owner, 9 Sep) ──────────
+                      "Have an 'update to today's workout plan' button, and
+                      that goes to today's workout plan, and then today's plan
+                      shifts to the next day." Beside 'Do it early' and not
+                      instead of it, because they are different questions: that
+                      one runs a session now and leaves the month alone, this
+                      one moves the month. The word is what it does to the
+                      PLAN, so a citizen can tell them apart before pressing. */}
+                  {canMove && anchor && (
+                    <Button variant="ghost" disabled={moveDay.isPending}
+                      onClick={() => moveDay.mutate(shown.index, { onSuccess: () => setOpenDay(anchor.index) })}>
+                      {moveDay.isPending ? 'Moving…' : anchor.index === monthDay.index ? 'Update today\u2019s workout plan' : 'Make this your next session'}
+                    </Button>
+                  )}
                   <Button variant="ghost" onClick={() => setOpenDay(null)}>Close</Button>
                 </div>
+                {canMove && anchor && (
+                  /* WHAT THE PRESS WILL DO, before it is pressed. The month
+                     redraws underneath the citizen and a grid that changes
+                     without warning reads as a bug, so the consequence is
+                     written out first — in the trainer's terms, which are body
+                     parts and days rather than indices. */
+                  <p className="muted wk-day-move">
+                    {anchor.index === monthDay.index
+                      ? `${shown.title.toLowerCase()} moves to today, ${anchor.title.toLowerCase()} shifts to your next training day, and the rest of the month follows one session behind.`
+                      : `${shown.title.toLowerCase()} becomes your next session on day ${anchor.index + 1}; the days you kept for yourself stay yours.`}
+                  </p>
+                )}
+                {moveDay.isError && (
+                  <p role="alert" style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600, margin: '8px 0 0' }}>
+                    That didn&rsquo;t reach us — your month is unchanged. Try again in a moment.
+                  </p>
+                )}
               </div>
             )}
 

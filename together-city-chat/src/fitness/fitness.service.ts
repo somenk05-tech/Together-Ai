@@ -15,9 +15,9 @@ import {
   type ConditionAdjustment,
 } from './fitness-engine';
 import { buildSession, type LevelKey, type BodyGoalKey, type SessionInput, type Intensity } from './session-engine';
-import { buildProgramme, daysBetween, type Muscle } from './programme-engine';
+import { buildProgramme, daysBetween, readMoves, writeMoves, type Muscle } from './programme-engine';
 import { EQUIPMENT_KEYS, type Condition, type Equipment , type Pattern } from './exercise-library';
-import type { SaveFitnessProfileDto, SaveTrainingWeekDto, LogWorkoutDto, EditWorkoutDto, TodaySessionQueryDto } from './dto/fitness.dto';
+import type { SaveFitnessProfileDto, SaveTrainingWeekDto, MoveWorkoutDayDto, LogWorkoutDto, EditWorkoutDto, TodaySessionQueryDto } from './dto/fitness.dto';
 
 const DEFAULT_PROFILE = {
   age: 35, sex: 'other', level: 'beginner', mode: 'mixed', goal: 'general', conditions: [] as string[],
@@ -364,11 +364,58 @@ export class FitnessService {
     return this.programme(userId);
   }
 
+  /**
+   * ── MOVE A DAY TO TODAY (owner, 9 Sep) ────────────────────────────────────
+   *
+   * "Have an 'update to today's workout plan' button, and that goes to today's
+   * workout plan, and then today's plan shifts to the next day."
+   *
+   * What a trainer does when you say *I want to do legs today*: they do not
+   * tear up the month and they do not swap two days — they lift that session
+   * out of the queue and put it at the front. Legs now, what was on for now
+   * becomes the next training day's, and the rest of the month walks forward
+   * one place behind it, every muscle still in its turn.
+   *
+   * It is therefore TWO day numbers, and the second one is the interesting
+   * one: the anchor is today when today is a training day and the next
+   * training day when it is not, because a rest day is the citizen's and a
+   * button press is not a reason to take it away from them.
+   */
+  async moveWorkoutDay(userId: string, dto: MoveWorkoutDayDto) {
+    const month = await this.programme(userId);
+    const anchor = month.days.find((d) => d.index >= month.todayIndex && d.kind === 'strength');
+    const wanted = month.days[dto.dayIndex];
+    /* NOTHING TO MOVE is not an error the citizen made — a rest day has no
+       session to bring forward, and a month whose training days are all behind
+       today is a month that has run out. Both answer with the month as it
+       stands rather than a red box. */
+    if (!anchor || !wanted || wanted.kind !== 'strength' || wanted.index === anchor.index) return month;
+
+    const row = await this.prisma.fitnessProfile.findUnique({ where: { userId }, select: { programmeShifts: true } })
+      .catch(swallowed('fitness.moveWorkoutDay: read', null));
+    const kept = readMoves(row?.programmeShifts ?? null, month.cycle);
+    const value = writeMoves(month.cycle, [...kept, { from: wanted.index, to: anchor.index }]);
+    await this.prisma.fitnessProfile.upsert({
+      where: { userId },
+      update: { programmeShifts: value },
+      create: { userId, programmeShifts: value },
+    }).catch(swallowed('fitness.moveWorkoutDay: write', undefined));
+    return this.programme(userId);
+  }
+
   async programme(userId: string) {
     const profile = await this.getProfile(userId);
     const today = cityDay(new Date());
     const row = await this.prisma.fitnessProfile.findUnique({ where: { userId }, select: { programmeStart: true } })
       .catch(swallowed('fitness.programme: read start', null));
+    /* ITS OWN READ, AND THAT IS THE POINT. The column arrived on 9 Sep, and the
+       API deploys before its migration is applied often enough that this has
+       to be safe: asked for together, a missing column would fail the read
+       that carries programmeStart too, and a null start makes this method
+       WRITE today as day one — every citizen's month restarted by a deploy
+       order. Alone, the worst it can cost is a citizen's moves. */
+    const shiftRow = await this.prisma.fitnessProfile.findUnique({ where: { userId }, select: { programmeShifts: true } })
+      .catch(swallowed('fitness.programme: read moves', null));
     let start = row?.programmeStart ? cityDay(new Date(row.programmeStart)) : null;
     if (!start) {
       start = today;
@@ -398,6 +445,11 @@ export class FitnessService {
          citizen had before they were asked. */
       restDays: profile.restDays ?? undefined,
       restActivity: profile.restActivity ?? undefined,
+      /* THE DAYS THE CITIZEN MOVED (owner, 9 Sep). Read for THIS cycle only:
+         day indices mean nothing once the month has rolled, so last month's
+         moves are dropped rather than applied to days that are not the days
+         they were made about. */
+      moves: readMoves(shiftRow?.programmeShifts ?? null, cycle),
     });
     /* A computation, and one the WHERE already bounds: the 28 days of the cycle
        on screen, reduced below to a Set of the days that were done. A `take`
