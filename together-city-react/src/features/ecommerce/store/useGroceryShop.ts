@@ -3,6 +3,7 @@ import { useMasterProfile } from '@/features/profile/hooks';
 import { useGroceryShelf } from '@/features/services/api';
 import type { Shop } from './types';
 import { shopTileOf } from './shopTile';
+import { productTileOf, tileOf } from './goodsTile';
 import { useNearby } from './useNearby';
 
 /**
@@ -59,8 +60,32 @@ import { useNearby } from './useNearby';
    rows still arrive on the shelf, and the shop's page is where they belong
    next. */
 
+/**
+ * ── WHICH QUESTION THIS DOOR ASKS (owner, 10 Sep) ───────────────────────────
+ *
+ * "The Digital Store Open Market should show all the products from all digital
+ * stores with the store mentioned below each product, just like the Pet shop."
+ *
+ * The fourth turn on this shelf, and the first with a RULE rather than a
+ * preference — because the two doors were never asking the same thing:
+ *
+ *   · 'shops' — the LOCAL MARKET room, on a rail beside Find a service, All
+ *     listed services and My business. A directory, and a directory's answer
+ *     is a shop.
+ *   · 'goods' — the OPEN MARKET tab, beside Pets, Skin & hair and Supplements,
+ *     every one of which is a wall of products with its source named under
+ *     each. A street of shops in that row was the one tab answering a
+ *     different question from its neighbours, which is exactly why it felt
+ *     wrong in both directions.
+ *
+ * ONE HOOK, TWO SHAPES. Two hooks would be the copy that disagrees the first
+ * time either is corrected; two shapes off one read cannot.
+ */
+export type ShelfShape = 'shops' | 'goods';
+
 export function useGroceryShop(
   back: { path: string; label: string } = { path: '/ecommerce/store', label: 'Digital Store' },
+  shape: ShelfShape = 'goods',
 ): Shop {
   const profile = useMasterProfile();
   const city = profile.data?.city ?? undefined;
@@ -75,6 +100,18 @@ export function useGroceryShop(
      put two different answers about the same shop on one screen. */
   const items = useMemo(() => {
     const now = new Date();
+    if (shape === 'goods') {
+      const byId = new Map((shelf.data?.shops ?? []).map((sh) => [sh.id, sh]));
+      /* PRODUCT TILES FIRST, then every row with no product behind it. A row
+         that IS in a product tile is skipped — showing it twice would put one
+         shop's atta beside the tile that already contains that shop's atta,
+         and a citizen would reasonably read them as two different things. */
+      const products = (shelf.data?.products ?? []).map(productTileOf);
+      const loose = (shelf.data?.items ?? [])
+        .filter((row) => !row.productId)
+        .map((row) => tileOf(row, byId.get(row.shopId), now));
+      return [...products, ...loose];
+    }
     /* WHAT EACH SHOP STOCKS AND WHAT IT LOOKS LIKE, read off the rows the
        server already sent rather than asked for again: the aisles the shop has
        lines in, and the first photograph on its shelf. One pass, so a hundred
@@ -90,14 +127,21 @@ export function useGroceryShop(
     }
     return (shelf.data?.shops ?? [])
       .map((sh) => shopTileOf(sh, now, photo.get(sh.id), [...(stocks.get(sh.id) ?? [])]));
-  }, [shelf.data]);
+  }, [shelf.data, shape]);
 
-  /* NO AISLE CHIPS. Aisles sort products, and this room's tiles are shops —
-     a chip row that filtered "Staples" would be filtering shops by something
-     one line on their shelf happens to be, which is not a claim about the shop
-     at all. The aisles a shop stocks are printed ON its tile instead, where
-     they describe rather than filter. */
-  const groups: Shop['groups'] = [];
+  /* AISLE CHIPS SORT PRODUCTS, so they belong to the goods shape and not to
+     the street. A chip filtering "Staples" on a wall of shops would be
+     filtering shops by something one line on their shelf happens to be, which
+     is not a claim about the shop at all. Counted off the tiles ACTUALLY
+     DRAWN, never the server's row counts — the rule every other shelf keeps. */
+  const groups = useMemo<Shop['groups']>(() => {
+    if (shape !== 'goods') return [];
+    const counts = new Map<string, number>();
+    for (const it of items) counts.set(it.group as string, (counts.get(it.group as string) ?? 0) + 1);
+    return (shelf.data?.aisles ?? [])
+      .filter((a) => counts.has(a.key))
+      .map((a) => ({ key: a.key, label: a.label, count: counts.get(a.key) as number }));
+  }, [shelf.data, items, shape]);
 
   const shopCount = shelf.data?.shopCount ?? 0;
 

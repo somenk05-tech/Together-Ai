@@ -13,6 +13,9 @@ import { useGroceryShop } from '../store/useGroceryShop';
  * The only difference is the way back, which is the door you came in by.
  */
 export function GroceryStore() {
-  const shop = useGroceryShop({ path: '/services', label: 'Local Market' });
+  /* 'shops' — this is the Local Market's ROOM, on a rail beside Find a
+     service and My business. A directory's answer is a shop; the Open Market
+     tab asks the other question and gets the other shape. */
+  const shop = useGroceryShop({ path: '/services', label: 'Local Market' }, 'shops');
   return <StoreFront shop={shop} />;
 }

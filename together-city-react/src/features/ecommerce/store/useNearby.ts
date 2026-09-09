@@ -28,7 +28,19 @@ import type { Shop } from './types';
  * one that says "whole city" rather than a bigger circle pretending to be a
  * smaller one.
  */
-export const NEAR_STEPS = [1, 3, 5, 10, 25] as const;
+/**
+ * ── AND THE LAST TWO STEPS WERE DEAD (owner, 10 Sep) ────────────────────────
+ *
+ * "…in the 3 km radius, with the user able to expand this to 7 km."
+ *
+ * It was 1 / 3 / 5 / 10 / 25. Since 9 Sep a shop that sells over a counter is
+ * capped at seven kilometres — that is how far it says it will GO — and both
+ * radii have to agree before a shop appears. So 10 and 25 could never return a
+ * single shop that 7 did not already return. They were two keys a citizen
+ * could press to be told the same thing, which reads as the shelf being empty
+ * rather than the search being over.
+ */
+export const NEAR_STEPS = [1, 2, 3, 5, 7] as const;
 
 /** The owner's own default, used the moment a location arrives. */
 export const NEAR_DEFAULT_KM = 3;

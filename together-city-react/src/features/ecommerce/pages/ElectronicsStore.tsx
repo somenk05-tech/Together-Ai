@@ -13,6 +13,7 @@ import { useElectronicsShop } from '../store/useElectronicsShop';
  * The only difference is the way back, which is the door you came in by.
  */
 export function ElectronicsStore() {
-  const shop = useElectronicsShop({ path: '/services', label: 'Local Market' });
+  /* 'shops' — the Local Market's ROOM. See GroceryStore for the rule. */
+  const shop = useElectronicsShop({ path: '/services', label: 'Local Market' }, 'shops');
   return <StoreFront shop={shop} />;
 }

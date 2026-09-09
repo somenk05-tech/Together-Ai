@@ -333,7 +333,15 @@ describe('Three shelves have shops, and one deliberately does not', () => {
        which is what the strip says instead of inventing a number. */
     const near = code('features/ecommerce/store/useNearby.ts');
     expect(near).toMatch(/NEAR_DEFAULT_KM = 3/);
-    expect(near).toMatch(/NEAR_STEPS = \[1, 3, 5, 10, 25\]/);
+    /* THE LAST TWO STEPS WERE DEAD (owner, 10 Sep: "3 km radius, with the
+       user able to expand this to 7 km"). It was 1/3/5/10/25. Since 9 Sep a
+       counter trade is capped at seven kilometres — how far it says it will
+       GO — and both radii must agree before a shop appears, so 10 and 25 could
+       never return a shop that 7 did not. Two keys a citizen could press to be
+       told the same thing, which reads as an empty shelf rather than a
+       finished search. */
+    expect(near).toMatch(/NEAR_STEPS = \[1, 2, 3, 5, 7\]/);
+    expect(near).not.toMatch(/25\]/);
     expect(near).toMatch(/centre \? \{ near: `\$\{centre\.lat\},\$\{centre\.lng\}`, withinKm: km \} : \{\}/);
     for (const f of ['useGroceryShop', 'useElectronicsShop', 'useMarketSearchShop']) {
       expect({ f, wired: code(`features/ecommerce/store/${f}.ts`).includes('useNearby(city)') })

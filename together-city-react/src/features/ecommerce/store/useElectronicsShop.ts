@@ -4,6 +4,8 @@ import { useElectronicsShelf } from '@/features/services/api';
 import { useNearby } from './useNearby';
 import type { Shop } from './types';
 import { shopTileOf } from './shopTile';
+import { tileOf } from './goodsTile';
+import type { ShelfShape } from './useGroceryShop';
 
 /**
  * ── THE ELECTRONICS STORE ───────────────────────────────────────────────────
@@ -47,6 +49,7 @@ import { shopTileOf } from './shopTile';
 
 export function useElectronicsShop(
   back: { path: string; label: string } = { path: '/ecommerce/market', label: 'Open Market' },
+  shape: ShelfShape = 'goods',
 ): Shop {
   const profile = useMasterProfile();
   const city = profile.data?.city ?? undefined;
@@ -64,6 +67,16 @@ export function useElectronicsShop(
      put two different answers about one shop on one screen. */
   const items = useMemo(() => {
     const now = new Date();
+    if (shape === 'goods') {
+      const byId = new Map((shelf.data?.shops ?? []).map((sh) => [sh.id, sh]));
+      /* NO PRODUCT TILES HERE. Grouping two shops' rows into one product
+         needs a catalogue behind them, and the city's catalogue is groceries —
+         "55-inch smart TV" from two shops cannot be PROVED to be one
+         television, and guessing is the district inventing a fact. */
+      const loose = (shelf.data?.items ?? [])
+        .map((row) => tileOf(row, byId.get(row.shopId), now));
+      return loose;
+    }
     /* WHAT EACH SHOP STOCKS AND WHAT IT LOOKS LIKE, read off the rows the
        server already sent rather than asked for again: the aisles the shop has
        lines in, and the first photograph on its shelf. One pass, so a hundred
@@ -79,14 +92,21 @@ export function useElectronicsShop(
     }
     return (shelf.data?.shops ?? [])
       .map((sh) => shopTileOf(sh, now, photo.get(sh.id), [...(stocks.get(sh.id) ?? [])]));
-  }, [shelf.data]);
+  }, [shelf.data, shape]);
 
-  /* NO AISLE CHIPS. Aisles sort products, and this room's tiles are shops —
-     a chip row that filtered "Staples" would be filtering shops by something
-     one line on their shelf happens to be, which is not a claim about the shop
-     at all. The aisles a shop stocks are printed ON its tile instead, where
-     they describe rather than filter. */
-  const groups: Shop['groups'] = [];
+  /* AISLE CHIPS SORT PRODUCTS, so they belong to the goods shape and not to
+     the street. A chip filtering "Staples" on a wall of shops would be
+     filtering shops by something one line on their shelf happens to be, which
+     is not a claim about the shop at all. Counted off the tiles ACTUALLY
+     DRAWN, never the server's row counts — the rule every other shelf keeps. */
+  const groups = useMemo<Shop['groups']>(() => {
+    if (shape !== 'goods') return [];
+    const counts = new Map<string, number>();
+    for (const it of items) counts.set(it.group as string, (counts.get(it.group as string) ?? 0) + 1);
+    return (shelf.data?.aisles ?? [])
+      .filter((a) => counts.has(a.key))
+      .map((a) => ({ key: a.key, label: a.label, count: counts.get(a.key) as number }));
+  }, [shelf.data, items, shape]);
 
   const shopCount = shelf.data?.shopCount ?? 0;
 
