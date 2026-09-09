@@ -34,6 +34,7 @@ import { AISLES as GROCERY_AISLES } from './grocery';
 import { AISLES as ELECTRONICS_AISLES, isElectronicsCategory } from './electronics';
 
 import { GROCERY_CATEGORIES } from './grocery';
+import { categoryGroup } from './categories';
 
 export type FieldKind =
   | 'text'      // one line
@@ -85,6 +86,15 @@ export type SectionKind =
  * reads it from here rather than guessing from a category label.
  */
 export type CatalogueKind = 'menu' | 'stock' | 'rateCard' | 'packages' | 'fares' | 'none';
+/**
+ * WHICH CATALOGUE, not which kind. They were the same thing until 9 Sep, when
+ * a second `stock` flavour was needed for the trades that sell devices rather
+ * than groceries — and the fact that they HAD been the same is exactly how an
+ * electronics shop was promised the Grocery Store shelf: the listing form
+ * indexes CATALOGUES by a business type's `catalogue` field, so a type saying
+ * 'stock' printed the grocery blurb whatever trade it was filed under.
+ */
+export type CatalogueKey = CatalogueKind | 'stockDevices';
 /**
  * How lines get in: picked off the city's grocery catalogue, a photograph read
  * by the model, a spreadsheet (CSV / XLSX), or typed.
@@ -138,7 +148,7 @@ export interface Catalogue {
  * second `stock`. The KIND still says what a listing publishes and everything
  * that reads `.kind` is unchanged; the key is now just which flavour of it.
  */
-export const CATALOGUES: Record<string, Catalogue> & Record<CatalogueKind, Catalogue> = {
+export const CATALOGUES: Record<CatalogueKey, Catalogue> = {
   menu: {
     kind: 'menu', title: 'Menu', noun: 'item', plural: 'items', orderable: true,
     blurb: 'Photograph your menu card and it is typed out for you. Citizens order from it and pay from their wallet.',
@@ -201,7 +211,6 @@ export const CATALOGUES: Record<string, Catalogue> & Record<CatalogueKind, Catal
     ways: ['typed', 'photo', 'sheet'],
   },
 };
-
 export interface BusinessType {
   key: string;
   label: string;
@@ -211,8 +220,15 @@ export interface BusinessType {
   blurb: string;
   fields: readonly FieldDef[];
   sections: readonly SectionKind[];
-  /** Which catalogue this kind of business publishes — see CATALOGUES. */
-  catalogue: CatalogueKind;
+  /**
+   * Which catalogue this kind of business publishes — a KEY into CATALOGUES,
+   * not a kind. It was typed `CatalogueKind` while the two were the same
+   * thing, and that is precisely how the electronics shop got the grocery
+   * tick-list: the LISTING FORM indexes `CATALOGUES[type.catalogue]` to print
+   * "you'll publish a …" before the page exists, so a type saying `'stock'`
+   * promised the Grocery Store shelf whatever trade it was filed under.
+   */
+  catalogue: CatalogueKey;
 }
 
 /** Every page has these, whatever the trade. Types add to them, never replace. */
@@ -396,7 +412,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
    */
   {
     key: 'electronics', label: 'Electronics or mobile shop', group: 'Electronics',
-    catalogue: 'stock',
+    catalogue: 'stockDevices',
     blurb: 'A shopfront selling phones, computers, televisions or appliances.',
     sections: ['about', 'priceList', 'offers', 'gallery', 'reviews', 'availability', 'location'],
     fields: [
@@ -540,6 +556,17 @@ export function sectionsFor(typeKey: string | null): readonly SectionKind[] {
  * filed under Food is a menu because it is a restaurant, not because of the
  * filing.
  */
+/**
+ * THE SAME ANSWER, AS A KEY. `catalogueFor` returns the catalogue itself; the
+ * listing form needs the KEY, because it holds the whole `CATALOGUES` map and
+ * indexes it to say "you'll publish a …" before any page exists. Derived from
+ * the one function rather than a second pass over the same conditions.
+ */
+export function catalogueKeyFor(categoryKey: string | null): CatalogueKey {
+  const want = catalogueFor(null, categoryKey, categoryKey ? categoryGroup(categoryKey) : null);
+  return (Object.keys(CATALOGUES) as CatalogueKey[]).find((k) => CATALOGUES[k] === want) ?? want.kind;
+}
+
 export function catalogueFor(typeKey: string | null, categoryKey: string | null, categoryGroup: string | null): Catalogue {
   const typed = typeKey ? BY_KEY.get(typeKey) : null;
   /* WHICH FLAVOUR OF STOCK (9 Sep). A stock list is a stock list, but its

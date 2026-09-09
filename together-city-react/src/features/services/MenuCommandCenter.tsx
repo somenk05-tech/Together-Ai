@@ -4,8 +4,9 @@ import { Button, useDisclosure } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import {
   rupees, useBusinessOrders, useMenu, usePatchMenuItem,
-  type MenuItem, type MenuOption, type PatchMenuItemInput,
+  type Catalogue, type MenuItem, type MenuOption, type PatchMenuItemInput,
 } from './api';
+import { MENU_WORDS } from './MenuEditor';
 
 /**
  * THE COMMAND CENTRE — the owner's counter, in two halves.
@@ -90,7 +91,13 @@ function OptionsEditor({ label, hint, value, onSave, saving }: {
   );
 }
 
-function ItemRow({ listingId, item }: { listingId: string; item: MenuItem }) {
+function ItemRow({ listingId, item, words }: { listingId: string; item: MenuItem; words: Catalogue }) {
+  /* ── THE ROW SPEAKS THE TRADE IT BELONGS TO (owner, 9 Sep) ──────────────
+     Every word and every control here was written for a restaurant, and this
+     component is rendered for all ~140 trades. A plumber was offered Diet,
+     Spice and Prep minutes; an electronics shop was told its television was
+     "sold out" off a menu it does not have. */
+  const food = words.kind === 'menu';
   const patch = usePatchMenuItem(listingId);
   const [price, setPrice] = useState(item.priceInr == null ? '' : String(item.priceInr));
   const [prep, setPrep] = useState(item.prepMinutes == null ? '' : String(item.prepMinutes));
@@ -131,14 +138,35 @@ function ItemRow({ listingId, item }: { listingId: string; item: MenuItem }) {
         <button type="button" className={`mcc-onoff${item.available ? '' : ' is-out'}`} disabled={patch.isPending}
           onClick={() => save({ available: !item.available })}
           aria-label={item.available ? `Mark ${item.name} sold out` : `Put ${item.name} back on`}>
-          {item.available ? '● Available' : '● Sold out'}
+          {item.available ? '● Available' : food ? '● Sold out' : '● Out of stock'}
         </button>
-        <button type="button" className="svo-linkbtn" {...m.faceProps}>
-          {more ? 'Less' : 'More'}
-        </button>
+        {/* ── THE PICTURE IS NOT AN ADVANCED SETTING (owner, 9 Sep: "food
+            items, restaurants and electronic stores should have an option to
+            upload images by the business lister") ──────────────────────────
+            It was already here — buried inside "More", between Spice and Prep
+            minutes, where a shopkeeper who is not a restaurant would never
+            look. That is why it was asked for: not missing, unreachable.
+
+            It is on the row now, for every trade, because a photograph of the
+            thing is the single field that most decides whether a citizen taps
+            a tile — and the shelf draws a generic silhouette until one exists. */}
+        <label className="svo-minlabel mcc-cap">
+          {item.photoUrl ? 'New photo' : 'Photo'}
+          <input type="file" accept="image/*" disabled={busyPhoto} aria-label={`Photograph of ${item.name}`}
+            onChange={(e) => { void photo(e.target.files?.[0]); e.target.value = ''; }}
+            className="mcc-file" />
+        </label>
+        {item.photoUrl && <img className="mcc-thumb" src={item.photoUrl} alt={item.name} />}
+        {/* NO "MORE" WHERE THERE IS NOTHING BEHIND IT. Everything left in that
+            panel is a restaurant's. */}
+        {food && (
+          <button type="button" className="svo-linkbtn" {...m.faceProps}>
+            {more ? 'Less' : 'More'}
+          </button>
+        )}
       </div>
 
-      {more && (
+      {food && more && (
         <div {...m.panelProps} className="mcc-more">
           <div className="svo-row mcc-wide">
             <label className="svo-minlabel">
@@ -169,13 +197,6 @@ function ItemRow({ listingId, item }: { listingId: string; item: MenuItem }) {
                 onBlur={() => save({ prepMinutes: prep === '' ? null : Number(prep) })} />
               min
             </label>
-            <label className="svo-minlabel mcc-cap">
-              {item.photoUrl ? 'New photo' : 'Photo'}
-              <input type="file" accept="image/*" disabled={busyPhoto} aria-label={`Photograph of ${item.name}`}
-                onChange={(e) => { void photo(e.target.files?.[0]); e.target.value = ''; }}
-                className="mcc-file" />
-            </label>
-            {item.photoUrl && <img className="mcc-thumb" src={item.photoUrl} alt={item.name} />}
           </div>
 
           <OptionsEditor label="Sizes" hint="— Half / Full, each with its price. The cheapest shows on the card."
@@ -191,7 +212,12 @@ function ItemRow({ listingId, item }: { listingId: string; item: MenuItem }) {
   );
 }
 
-export function MenuCommandCenter({ listingId }: { listingId: string }) {
+export function MenuCommandCenter({ listingId, catalogue }: { listingId: string; catalogue?: Catalogue | null }) {
+  /* THE WORDS ARE THE TRADE'S, not the restaurant's (owner, 9 Sep). This
+     screen said "Today's menu · 72 items" above an ELECTRONICS shop's stock
+     list, and "sold out" about a television. MyBusiness had the catalogue one
+     line away and was handing it only to MenuEditor. */
+  const words = catalogue ?? MENU_WORDS;
   const live = useMenu(listingId);
   const d = useDisclosure();
   const open = d.open;
@@ -204,22 +230,22 @@ export function MenuCommandCenter({ listingId }: { listingId: string }) {
   return (
     <div className="mcc-block">
       <div className="svo-row">
-        <strong className="mcc-title">Today’s menu</strong>
+        <strong className="mcc-title">Today’s {words.title.toLowerCase()}</strong>
         <span className="muted mcc-sub">
-          {count} {count === 1 ? 'item' : 'items'}{off > 0 ? ` · ${off} sold out` : ''}
+          {count} {count === 1 ? words.noun : words.plural}{off > 0 ? ` · ${off} sold out` : ''}
           {priced.length > 0 ? ` · from ${rupees(Math.min(...priced.map((i) => i.priceInr as number)))}` : ''}
         </span>
         <Button variant="line" size="sm" {...d.faceProps}>
-          {open ? 'Close' : 'Prices, sold-out & photos'}
+          {open ? 'Close' : `Prices, ${words.kind === 'menu' ? 'sold-out' : 'stock'} & photos`}
         </Button>
       </div>
       {open && (
         <div {...d.panelProps} className="mcc-open">
           <p className="muted mcc-note">
-            Every change lands on your public page the same minute. Sold out keeps the dish on
-            the menu and says so — it does not hide it.
+            Every change lands on your public page the same minute. Marking something
+            unavailable keeps it on your {words.title.toLowerCase()} and says so — it does not hide it.
           </p>
-          {items.map((it) => <ItemRow key={it.id} listingId={listingId} item={it} />)}
+          {items.map((it) => <ItemRow key={it.id} listingId={listingId} item={it} words={words} />)}
         </div>
       )}
     </div>

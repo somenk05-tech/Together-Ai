@@ -38,8 +38,10 @@ const cell: React.CSSProperties = {
 
 const BLANK: MenuDraftItem = { name: '', priceInr: null };
 
-/** The words when a card arrived without a catalogue — the menu, as it always was. */
-const MENU_WORDS: Catalogue = {
+/** The words when a card arrived without a catalogue — the menu, as it always
+ *  was. Exported since 9 Sep because the command centre needs the same
+ *  fallback, and two copies of it would drift the first time either moved. */
+export const MENU_WORDS: Catalogue = {
   kind: 'menu', title: 'Menu', noun: 'item', plural: 'items', orderable: true,
   blurb: 'Photograph your menu and it is typed out for you. Nothing publishes until you approve every line.',
   ways: ['photo', 'typed', 'sheet'],

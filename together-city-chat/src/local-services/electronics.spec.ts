@@ -43,7 +43,14 @@ describe('the trades that sell electronics', () => {
        the field. */
     const types = typesForGroup('Electronics');
     expect(types.map((t) => t.key)).toContain('electronics');
-    expect(types.find((t) => t.key === 'electronics')?.catalogue).toBe('stock');
+    /* THE FLAVOUR, NOT THE KIND (9 Sep). `catalogue` is a KEY into CATALOGUES
+       and the listing form indexes it directly to promise an owner which shelf
+       they will publish to — so a type saying 'stock' printed the GROCERY
+       blurb at an electronics shop before its page existed. It names its own
+       flavour now; the KIND is still stock, which is what every reader of
+       `.kind` cares about. */
+    expect(types.find((t) => t.key === 'electronics')?.catalogue).toBe('stockDevices');
+    expect(catalogueFor('electronics', 'electronics_stores', 'Electronics').kind).toBe('stock');
   });
 
   it('leaves repair trades out — a call-out charge is not a product', () => {

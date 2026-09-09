@@ -388,13 +388,22 @@ export function MyBusiness() {
                   most urgent thing this page can hold — the strip carries the
                   count, and the board is its own room next door. */}
               {!removed && <SiteLink l={l} />}
-              {!removed && <OrdersStrip listingId={l.id} />}
+              {/* ── A TILL ONLY WHERE ONE CAN RING (9 Sep audit) ──────────
+                  `catalogue.orderable` is honoured on the CITIZEN's side —
+                  BusinessPage reads it before drawing a cart — and was read
+                  nowhere on the owner's. So a salon, a taxi stand and a tutor
+                  were each handed an orders strip, an Orders board and an
+                  Invoices book for a counter that cannot take money. Dead
+                  furniture teaches an owner this page was not built for them,
+                  which is the one thing this hub's schema engine exists to
+                  prevent. */}
+              {!removed && l.catalogue?.orderable !== false && <OrdersStrip listingId={l.id} />}
               {!removed && <VerificationTab listingId={l.id} />}
               {!removed && <HoursEditor listing={l} />}
               {/* The command centre edits today (sold out, a price, a photo);
                   the editor below it rewrites the document (photograph a new
                   menu, retype the lines). Different errands, both one tap. */}
-              {!removed && <MenuCommandCenter listingId={l.id} />}
+              {!removed && <MenuCommandCenter listingId={l.id} catalogue={l.catalogue} />}
               {!removed && <MenuEditor listingId={l.id} catalogue={l.catalogue} />}
               {!removed && <Offers listingId={l.id} />}
               <ReviewsReceived listingId={l.id} />
@@ -411,10 +420,10 @@ export function MyBusiness() {
                 {/* THE TILL. Two doors rather than one, because writing a bill
                     and getting paid are different errands on different days —
                     and the second one is the screen an owner opens most. */}
-                {!removed && (
+                {!removed && l.catalogue?.orderable !== false && (
                   <Link to={`/services/${l.id}/orders`}><Button variant="line" size="sm">Orders</Button></Link>
                 )}
-                {!removed && (
+                {!removed && l.catalogue?.orderable !== false && (
                   <Link to={`/services/${l.id}/invoices`}><Button variant="line" size="sm">Invoices</Button></Link>
                 )}
                 {!removed && (

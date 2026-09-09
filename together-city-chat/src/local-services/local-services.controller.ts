@@ -6,6 +6,7 @@ import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { LocalServicesService } from './local-services.service';
 import { categoriesByGroup } from './categories';
 import { REACH_DEFAULT_KM, reachCeilingKm } from './reach';
+import { catalogueKeyFor } from './business-types';
 import { BUSINESS_TYPES, CATALOGUES } from './business-types';
 import { PLACES } from './places';
 import { Throttle } from '@nestjs/throttler';
@@ -45,7 +46,17 @@ export class LocalServicesController {
     return {
       groups: categoriesByGroup().map((g) => ({
         group: g.group,
-        items: g.items.map((c) => ({ ...c, maxReachKm: reachCeilingKm(c.key) === Infinity ? null : reachCeilingKm(c.key) })),
+        items: g.items.map((c) => ({
+          ...c,
+          maxReachKm: reachCeilingKm(c.key) === Infinity ? null : reachCeilingKm(c.key),
+          /* WHICH CATALOGUE THIS TRADE PUBLISHES, answered here rather than
+             re-derived on the web from a copy of the rules. The listing form
+             promises an owner which shelf they will land on before the page
+             exists, and it was indexing CATALOGUES by the business TYPE's
+             key — so a "Shop" filed under electronics read the grocery blurb.
+             The trade is what they sell; the type is only its shape. */
+          catalogueKey: catalogueKeyFor(c.key),
+        })),
       })),
       defaultReachKm: REACH_DEFAULT_KM,
     };

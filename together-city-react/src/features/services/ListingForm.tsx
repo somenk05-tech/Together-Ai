@@ -252,7 +252,30 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
    */
   const offeredTypes = (types.data?.types ?? []).filter((t) => t.group === group || t.key === 'general');
   const chosenType = (types.data?.types ?? []).find((t) => t.key === businessType) ?? null;
-  const chosenCatalogue = chosenType ? types.data?.catalogues?.[chosenType.catalogue] ?? null : null;
+  /**
+   * ── WHICH SHELF THIS OWNER IS BEING PROMISED (9 Sep) ─────────────────────
+   *
+   * This line read `catalogues[chosenType.catalogue]`, and `catalogue` was a
+   * KIND — so every counter trade resolved to the one `stock` entry, and an
+   * electronics shop was told, before its page existed: "you'll publish a
+   * stock list. Tick what you stock off the city's catalogue… your products go
+   * on the city's GROCERY STORE shelf." That promise is what the shop then
+   * kept, seventy-two grocery products deep.
+   *
+   * THE TRADE WINS OVER THE TYPE, and only for stock. A restaurant filed under
+   * Food publishes a menu because it is a restaurant — the type is right about
+   * that. But the type is a SHAPE ("Shop"), and which stock list a shop
+   * publishes is a fact about what it SELLS. `catalogueKey` is the server's own
+   * answer for the trade, carried on the categories payload rather than
+   * re-derived here from a copy of the rules.
+   */
+  const tradeCatalogueKey = categoryKey
+    ? (cats.data?.groups.flatMap((g) => g.items).find((i) => i.key === categoryKey)?.catalogueKey ?? null)
+    : null;
+  const catalogueKey = chosenType
+    ? (chosenType.catalogue.startsWith('stock') ? (tradeCatalogueKey ?? chosenType.catalogue) : chosenType.catalogue)
+    : tradeCatalogueKey;
+  const chosenCatalogue = catalogueKey ? types.data?.catalogues?.[catalogueKey] ?? null : null;
 
   /** A live preview of what the address will be if they leave it blank. */
   const normalisedName = businessName.trim().toLowerCase()

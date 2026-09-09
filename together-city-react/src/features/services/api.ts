@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import type { DayHours } from './hours';
 export type { DayHours } from './hours';
 
-export interface ServiceCategory { key: string; label: string; group: string; maxReachKm?: number | null }
+export interface ServiceCategory { key: string; label: string; group: string; maxReachKm?: number | null; catalogueKey?: string }
 export interface CategoryGroup { group: string; items: ServiceCategory[] }
 /** How far a trade may say it reaches — null is uncapped (owner, 9 Sep: the
  *  7 km ceiling is for a counter, not for a plumber). Answered by the server
@@ -613,7 +613,7 @@ export const servicesApi = {
   browse: (q: { category?: string; group?: string; city?: string; area?: string; q?: string; page?: number; near?: string; withinKm?: number }) =>
     api.get<{ items: ServiceCard[]; total: number; page: number; pages: number; saved: string[] }>('/services', { params: q }).then((r) => r.data),
   businessTypes: () =>
-    api.get<{ types: BusinessTypeDef[]; catalogues: Record<CatalogueKind, Catalogue> }>('/services/business-types').then((r) => r.data),
+    api.get<{ types: BusinessTypeDef[]; catalogues: Record<string, Catalogue> }>('/services/business-types').then((r) => r.data),
   detail: (idOrSlug: string) => api.get<ServiceCard>(`/services/${idOrSlug}`).then((r) => r.data),
   slugAvailable: (slug: string) =>
     api.get<{ slug: string; available: boolean; reason: string | null }>(
