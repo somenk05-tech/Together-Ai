@@ -56,17 +56,43 @@ describe('the film on the home page', () => {
     const cinema = home.slice(home.indexOf('<div className="cinema">'), home.indexOf('{/* ============ WELCOME'));
     expect(cinema).not.toMatch(/Sound off<\/span>|>\{sound \? 'Sound on'/);
     expect(cinema).toMatch(/aria-label=\{sound \? 'Mute the film'/);
+    /* THE GEOMETRY MOVED UP A CLASS (9 Sep) and that is the assertion, not a
+       loosening of it. A second control arrived on the picture and the owner
+       asked for it "the same size, at the same level" — an instruction to
+       SHARE the box rather than copy it. `.cinema-key` is the glass; the two
+       named classes are only where each sits. Both discs are checked here, so
+       one of them drifting is still a failure. */
     const css = read('index.css');
-    const rule = css.slice(css.indexOf('.cinema-sound {'), css.indexOf('}', css.indexOf('.cinema-sound {')));
-    expect(rule).toMatch(/width: 32px; height: 32px/);
-    expect(rule).not.toMatch(/text-transform/);
+    const rule = (sel: string) => css.slice(css.indexOf(sel), css.indexOf('}', css.indexOf(sel)));
+    expect(rule('.cinema-key {')).toMatch(/width: 32px; height: 32px/);
+    expect(rule('.cinema-key {')).not.toMatch(/text-transform/);
+    for (const cls of ['cinema-sound', 'cinema-num']) {
+      expect({ cls, wearsTheGlass: cinema.includes(`cinema-key ${cls}`) }).toEqual({ cls, wearsTheGlass: true });
+    }
+    // …and they sit on the same line, at opposite edges.
+    expect(rule('.cinema-sound {')).toMatch(/right: 12px; bottom: 12px/);
+    expect(rule('.cinema-reel {')).toMatch(/left: 12px; bottom: 12px/);
   });
 
-  it('has one control on the picture, and it is the sound', () => {
-    // No scrub bar, no play button, no fullscreen: the film loops by itself and
-    // the only thing a citizen can want from it is to hear it or not.
+  it('has two controls on the picture: the sound, and which film', () => {
+    /* IT WAS ONE UNTIL 9 SEP — "no scrub bar, no play button, no fullscreen:
+       the film loops by itself and the only thing a citizen can want from it
+       is to hear it or not." The reel is what changed that. With two films
+       running one after the other there IS a second thing to want, and it is
+       the one thing a set that only moves forwards cannot give you: the film
+       you have already gone past.
+
+       The rule underneath is unchanged and still worth holding — no transport
+       controls. A scrub bar, a play button or a fullscreen key would turn a
+       hero into a player, which is a different thing on a home page. */
     const cinema = home.slice(home.indexOf('<div className="cinema">'), home.indexOf('{/* ============ WELCOME'));
-    expect((cinema.match(/<button/g) ?? []).length).toBe(1);
+    // One sound disc, and one number per film.
+    expect((cinema.match(/<button/g) ?? []).length).toBe(2);
+    expect(cinema).toMatch(/\{FILMS\.length > 1 && \(/);
+    expect(cinema).toMatch(/onClick=\{\(\) => setClip\(i\)\}/);
+    for (const no of ['scrub', 'seek', 'currentTime =', 'requestFullscreen']) {
+      expect({ no, drawn: cinema.includes(no) }).toEqual({ no, drawn: false });
+    }
   });
 
   it('ships BOTH films, their phone cuts and their posters', () => {

@@ -175,21 +175,43 @@ section.blk { margin: 0 0 40px; }
    crossed-out speaker needs no word, so the word is gone and the control is a
    32px disc tucked into the corner — the label survives in aria-label, where a
    screen reader still gets a whole sentence. */
-.cinema-sound {
-  position: absolute; right: 12px; bottom: 12px; z-index: 20;
+/* THE DISC IS NOW A SHAPE RATHER THAN A BUTTON (owner, 9 Sep). There are two
+   controls on the picture, and the second had to be "the same size" and "at
+   the same level" as the first — which is a instruction to share the geometry,
+   not to copy it. `.cinema-key` is the glass; `.cinema-sound` and `.cinema-num`
+   are only where it sits and what is written in it. */
+.cinema-key {
   display: inline-flex; align-items: center; justify-content: center;
   width: 32px; height: 32px; padding: 0; border-radius: var(--r-full); cursor: pointer;
   color: var(--on-film); background: var(--glass-fill); border: 1px solid var(--glass-line);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   transition: background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
 }
-.cinema-sound:hover { background: var(--glass-fill-lit); border-color: var(--glass-line-lit); }
+.cinema-key:hover { background: var(--glass-fill-lit); border-color: var(--glass-line-lit); }
+.cinema-sound { position: absolute; right: 12px; bottom: 12px; z-index: 20; }
+/* ── THE REEL HAS NUMBERS (owner, 9 Sep) ─────────────────────────────────
+   "Add a sequence number for users to also switch — the autoplay always
+   happens, but give users a sleek 1,2,3,4 based on the number of videos."
+
+   ALSO, not instead: the reel still runs itself and still wraps. These are a
+   way IN to a film you have already seen, which a set that only moves forwards
+   does not have. One per film, so a third film in the array is a third number
+   with nothing else to change.
+
+   Bottom LEFT, at the sound's own level and in the sound's own glass, which is
+   what "same level, same size, transparent" asks for. The current number is
+   lit rather than outlined: on a moving picture a border reads as noise and a
+   fill reads as a state. */
+.cinema-reel { position: absolute; left: 12px; bottom: 12px; z-index: 20; display: flex; gap: 6px; }
+.cinema-num { font-family: var(--sans); font-size: var(--fs-3); font-weight: 600; font-variant-numeric: tabular-nums; }
+.cinema-num[aria-pressed="true"] { background: var(--glass-fill-lit); border-color: var(--glass-line-lit); }
 /* A phone gets the film too (owner, 8 Sep) — at a smaller cut, chosen by
    <source media> before a byte is downloaded. The disc keeps a finger's worth
    of glass and moves in with the edge it sits on. */
 @media (max-width: 899px) {
   .cinema-strip { top: 12px; left: 12px; }
   .cinema-sound { right: 10px; bottom: 10px; }
+  .cinema-reel { left: 10px; bottom: 10px; }
 }
 
 .cityfallback { display: none; }

@@ -321,7 +321,11 @@ export function Home() {
             a fault. Stacked, the one that has ended fades out of the way of
             the one already buffered behind it, and the cut is instant. */}
         {FILMS.map((f, i) => (
-          (i === 0 || warm) ? (
+          /* `i === clip` is what makes a NUMBER work before the first film has
+             finished: the second element is normally mounted when the first
+             starts playing (so it buffers, and a visitor who scrolls away pays
+             for nothing), but a citizen who presses 2 has asked for it now. */
+          (i === 0 || warm || i === clip) ? (
             <video
               key={f.wide}
               ref={(el) => { films.current[i] = el; }}
@@ -344,7 +348,7 @@ export function Home() {
         ))}
         <button
           type="button"
-          className="cinema-sound"
+          className="cinema-key cinema-sound"
           aria-pressed={!sound}
           aria-label={sound ? 'Mute the film' : 'Play the film with sound'}
           onClick={() => {
@@ -364,6 +368,19 @@ export function Home() {
               aria-label, so a screen reader still hears a sentence. */}
           <Icon name={sound ? 'speak' : 'mute'} size={17} />
         </button>
+        {/* ONE NUMBER PER FILM, and none at all when there is only one — a
+            lone "1" on a picture is a control that cannot do anything. */}
+        {FILMS.length > 1 && (
+          <div className="cinema-reel" role="group" aria-label="Choose a film">
+            {FILMS.map((f, i) => (
+              <button key={f.wide} type="button" className="cinema-key cinema-num"
+                aria-pressed={i === clip} aria-label={`Play film ${i + 1} of ${FILMS.length}`}
+                onClick={() => setClip(i)}>
+                {i + 1}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="wrap" style={{ maxWidth: 1240, margin: '0 auto', padding: '88px 32px 24px' }}>
