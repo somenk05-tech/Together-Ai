@@ -5,7 +5,7 @@ import { AdminAccessService } from '../admin/admin-access.service';
 import { swallow } from '../shared/swallow';
 import { reportEnv } from './env-manifest';
 import { usingDefaultPassword } from './dev-password.guard';
-import { FLAGS, isFlagKey, VISIBILITY_FLAGS, visibilityFlag } from './feature-flags';
+import { FLAGS, isFlagKey, VISIBILITY_FLAGS, visibilityFlag, ROOM_FLAGS, roomFlag } from './feature-flags';
 import { FeatureFlagGuard } from './feature-flag.guard';
 
 /**
@@ -115,6 +115,7 @@ export class DevService {
     }), 'dev flag detail');
     const meta = new Map((rows ?? []).map((r) => [r.key, r]));
     const vis = new Map((await this.flagGuard.visibilitySnapshot()).map((v) => [v.key, v.visible]));
+    const rooms = new Map((await this.flagGuard.roomSnapshot()).map((r) => [r.key, r.visible]));
     return {
       // The OTHER kind of switch, sent alongside and never mixed in. These
       // hide a door and refuse nothing; the page draws them in their own
@@ -126,6 +127,21 @@ export class DevService {
           visible: vis.get(f.key) ?? true,
           note: m2?.note ?? '',
           updatedAt: m2?.updatedAt?.toISOString() ?? null,
+          /* THE ROOMS BEHIND THIS DOOR (owner, 9 Sep). Carried INSIDE the
+             sector rather than as a list beside it, because that is the only
+             shape in which the page can be read: a hundred and eight switches
+             in one grid is a wall, and eight under Astrology is a menu. A
+             sector with no rooms of its own sends an empty array and draws no
+             fold. */
+          rooms: ROOM_FLAGS.filter((r) => r.hub === f.key).map((r) => {
+            const m3 = meta.get(r.storeKey);
+            return {
+              key: r.key, index: r.index, label: r.label, hides: r.hides,
+              visible: rooms.get(r.key) ?? true,
+              note: m3?.note ?? '',
+              updatedAt: m3?.updatedAt?.toISOString() ?? null,
+            };
+          }),
         };
       }),
       items: FLAGS.map((f) => {
@@ -160,7 +176,7 @@ export class DevService {
    * air" never read as the same event in the log.
    */
   async setFlag(userId: string, key: string, enabled: boolean, reason: string, ip?: string | null,
-                kind: 'kill' | 'visibility' = 'kill') {
+                kind: 'kill' | 'visibility' | 'page' = 'kill') {
     // WHICH KIND IS ASKED FOR, NEVER INFERRED FROM THE KEY. A sector now has
     // both — 'astrology' names a kill switch AND a visibility switch — so
     // guessing from the name would have silently sent every sector's door
@@ -169,6 +185,17 @@ export class DevService {
       const vis = visibilityFlag(key);
       if (!vis) throw new BadRequestException('no such visibility switch');
       return this.setVisibility(userId, vis.key, vis.storeKey, vis.label, enabled, reason, ip);
+    }
+    /* A ROOM (owner, 9 Sep) takes the same road as its sector: the same
+       ceremony, the same row shape, the same guarantee that nothing written
+       here can refuse a request. It is a third `kind` rather than a guess at
+       the key's shape for the reason written above — a key is asked for, never
+       inferred — and because '/astrology/ask' arriving at the gate writer must
+       be impossible rather than merely unlikely. */
+    if (kind === 'page') {
+      const room = roomFlag(key);
+      if (!room) throw new BadRequestException('no such room switch');
+      return this.setVisibility(userId, room.key, room.storeKey, room.label, enabled, reason, ip);
     }
     if (!isFlagKey(key)) throw new BadRequestException('no such flag');
     const before = await swallow(this.prisma.featureFlag.findUnique({

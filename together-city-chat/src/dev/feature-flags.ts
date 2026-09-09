@@ -168,7 +168,12 @@ export const VISIBILITY_PREFIX = 'show:';
  * something about them is genuinely different, and the repetition is what
  * makes those three stand out instead of blending in.
  */
-const DOORS = 'the header tab, the drawer, the home page and the city grid';
+/* THE FIFTH PLACE (owner, 9 Sep). Search the city used to answer with rooms
+   inside sectors that had been switched off — a door hidden from four menus
+   and left standing in the fifth, which is not what anybody reading this
+   sentence believed they were pressing. The palette now reads these switches
+   too, and the sentence says so. */
+const DOORS = 'the header tab, the drawer, the home page, the city grid and Search the city';
 const STILL_OPEN = 'The hub keeps answering — a direct link still works, saved pages still open, '
   + 'and nothing anybody has stored there is touched.';
 const sector = (key: string, label: string, extra?: string): VisibilityFlag => ({
@@ -180,6 +185,13 @@ const sector = (key: string, label: string, extra?: string): VisibilityFlag => (
 
 export const VISIBILITY_FLAGS: VisibilityFlag[] = [
   sector('astrology', 'Astrology'),
+  /* THREE DISTRICTS THAT HAD NO DOOR SWITCH (owner, 9 Sep, asking for one per
+     hub AND one per room). Baby Care arrived on 8 Sep after this list was
+     written; Travel had a kill switch and never a door-hider; Family Nutrition
+     is a mode of Nutrition with a rail of its own, and a rail of its own is
+     what this list is about. Without them their ROOMS would hang under a card
+     that does not exist. */
+  sector('babycare', 'Baby Care'),
   sector('beauty', 'Beauty'),
   sector('dating', 'Dating'),
   sector('ecommerce', 'E-Commerce',
@@ -187,6 +199,10 @@ export const VISIBILITY_FLAGS: VisibilityFlag[] = [
     + 'works. E-Commerce has no API of its own to close, so hiding the front door is the whole '
     + 'of what a switch here can honestly do.'),
   sector('entertainment', 'Entertainment'),
+  sector('family', 'Family Nutrition',
+    'The family half of Nutrition keeps answering — a direct link still opens it, plans and '
+    + 'members are untouched — and Individual Nutrition has its own switch, so hiding this one '
+    + 'does not hide the hub.'),
   sector('financial', 'Financial'),
   sector('fitness', 'Fitness'),
   sector('jobs', 'Jobs'),
@@ -205,6 +221,7 @@ export const VISIBILITY_FLAGS: VisibilityFlag[] = [
   sector('realestate', 'Real Estate'),
   sector('services', 'Local Market'),
   sector('social', 'Together TV'),
+  sector('travel', 'Travel'),
   /**
    * ── THE THREE THAT ARE NOT DISTRICTS (owner, 27 Aug: "add email chat and
    * personal services too") ────────────────────────────────────────────────
@@ -240,6 +257,220 @@ export const VISIBILITY_FLAGS: VisibilityFlag[] = [
     storeKey: `${VISIBILITY_PREFIX}mira`,
   },
 ];
+
+/**
+ * ── ONE DOOR AT A TIME (owner, 9 Sep) ───────────────────────────────────────
+ *
+ * "Give me a hide-from-city button for each hub and each side hub tab — for
+ * example Ask the Astrologer — all 01-06 in Astrology, the same for the entire
+ * site and all hubs. I should be able to turn on and off for the entire
+ * website."
+ *
+ * The sector switches above are the whole of Astrology. These are the ROOMS
+ * inside it: This Month, Ask the Astrologer, Tarot, Gemstones, Checkout, the
+ * profile — the numbered rail a citizen reads down the left of every hub.
+ *
+ * THE SAME ANIMAL AS A VISIBILITY FLAG, DELIBERATELY. It hides a door and
+ * refuses nothing: the page keeps answering, a saved link still opens it, and
+ * nothing anybody stored there is touched. That is why these live beside the
+ * sector switches rather than beside the kill switches, and why the store key
+ * carries the `show:` prefix too — a row written here can never gate a
+ * request, because `flagForPath` is built from FLAGS and FLAGS holds no key
+ * with this prefix.
+ *
+ * THE KEY IS THE PATH. A room has no name of its own that is stable — labels
+ * are rewritten, the numbers on the rail are a reading order and get
+ * renumbered when a room comes off (Fitness did it twice this week) — but
+ * `/astrology/ask` is the room. So the path is the identity, and a room that
+ * moves house is a new switch rather than an old switch pointing somewhere
+ * unexpected, which is the safer of the two failures.
+ *
+ * THE LIST IS FIXED, like every other list in this file. It is not built from
+ * a request, and a typo cannot invent a room. It mirrors the web app's rails
+ * in config/hubs.ts, and a-door-at-a-time.test.ts on the web reads BOTH files
+ * and fails when they drift — a hub that grows a room and never gets a switch
+ * for it is exactly the drift nobody would notice by looking.
+ */
+export interface RoomFlag {
+  key: string;
+  /** The sector this room hangs under — the visibility flag one level up. */
+  hub: string;
+  /** The number the citizen reads on the rail. A reading order, not an id. */
+  index: string;
+  label: string;
+  hides: string;
+  storeKey: string;
+}
+
+/** Rooms share the door-hider's namespace: same contract, same guarantee that
+ *  nothing here can ever refuse a request. `page:` keeps them apart from the
+ *  sector keys within it, so `isVisibilityKey` cannot match a room. */
+export const PAGE_VISIBILITY_PREFIX = `${VISIBILITY_PREFIX}page:`;
+
+const rooms = (hub: string, hubLabel: string, list: Array<[string, string, string]>): RoomFlag[] =>
+  list.map(([index, key, label]) => ({
+    hub,
+    index,
+    key,
+    label,
+    hides: `${label} — number ${index} on the ${hubLabel} rail. It leaves the rail, the hub's `
+      + `own door and Search the city. The room keeps answering: a direct link still opens it, `
+      + `and nothing anybody stored there is touched.`,
+    storeKey: `${PAGE_VISIBILITY_PREFIX}${key}`,
+  }));
+
+export const ROOM_FLAGS: RoomFlag[] = [
+  ...rooms('services', 'Local Market', [
+    ['01', '/services/find', 'Find a service'],
+    ['02', '/services/browse', 'All listed services'],
+    ['03', '/services/grocery', 'Grocery Store'],
+    ['04', '/services/electronics', 'Electronics Store'],
+    ['05', '/services/list', 'List your business'],
+    ['06', '/services/mine', 'My business'],
+    ['07', '/services/regulars', 'Regulars'],
+    ['08', '/services/offers', 'Daily offers'],
+    ['09', '/services/messages', 'Messages'],
+    ['10', '/services/orders', 'My orders'],
+  ]),
+  ...rooms('babycare', 'Baby Care', [
+    ['01', '/babycare/shop', 'The baby store'],
+    ['02', '/babycare/children', 'Your children'],
+    ['03', '/babycare/essentials', 'For this age'],
+    ['04', '/babycare/safety', 'Safety & the law'],
+  ]),
+  ...rooms('travel', 'Travel', [
+    ['01', '/travel/explore', 'Explore Trips'],
+    ['02', '/travel/flights', 'Flights'],
+    ['03', '/travel/packages', 'Packages'],
+    ['04', '/travel/bookings', 'My Bookings'],
+    ['05', '/travel/trips', 'My Trips'],
+  ]),
+  ...rooms('astrology', 'Astrology', [
+    ['01', '/astrology/monthly', 'This Month'],
+    ['02', '/astrology/ask', 'Ask the Astrologer'],
+    ['03', '/astrology/tarot', 'Tarot'],
+    ['04', '/astrology/gemstones', 'Gemstones'],
+    ['05', '/astrology/gem-checkout', 'Checkout'],
+    ['06', '/profile/astrology', 'Astrology Profile'],
+  ]),
+  ...rooms('nutrition', 'Nutrition', [
+    ['01', '/nutrition/blood', 'Connect Blood Test'],
+    ['02', '/nutrition/preferences', 'Food Preference Profile'],
+    ['03', '/nutrition/weekly', 'Weekly Meal Planner'],
+    ['04', '/nutrition/grocery', 'Grocery Lists'],
+    ['05', '/nutrition/recipes', 'Create Your Own Meal Plan'],
+    ['06', '/nutrition/journal', 'AI Food Journal'],
+    ['07', '/nutrition/saved', 'Saved Recipes'],
+  ]),
+  ...rooms('family', 'Family Nutrition', [
+    ['01', '/family/connect', 'Connect Members'],
+    ['02', '/family/weekly', 'Weekly Planner'],
+    ['03', '/family/grocery', 'Grocery Lists'],
+    ['04', '/family/search', 'Search by Ingredients'],
+  ]),
+  ...rooms('social', 'Together TV', [
+    ['01', '/social/feed', 'City TV'],
+    ['02', '/social/images', 'City Photos'],
+    ['03', '/social/channels', 'Together City Channels'],
+    ['04', '/social/profile', 'My Profile'],
+    ['05', '/social/saved', 'Saved'],
+    ['06', '/entertainment', 'Entertainment'],
+  ]),
+  ...rooms('dating', 'Matchmaking', [
+    ['01', '/matchmaking/profile', 'My Matchmaking Profile'],
+    ['02', '/matchmaking/browse', 'Potential Matches'],
+    ['03', '/matchmaking/matches', 'Curated Matches'],
+    ['04', '/matchmaking/chats', 'Matchmaking Chats'],
+    ['05', '/matchmaking/safety', 'Safety Centre'],
+  ]),
+  ...rooms('entertainment', 'Entertainment', [
+    ['01', '/entertainment/movies', 'Movies Now'],
+    ['02', '/entertainment/ott', 'OTT Watch'],
+    ['03', '/entertainment/curated', 'Curated Movies'],
+    ['04', '/entertainment/watchlist', 'Watchlist'],
+  ]),
+  ...rooms('ecommerce', 'Digital Store', [
+    ['01', '/ecommerce/store', 'Personalized Store'],
+    ['02', '/ecommerce/market', 'Open Market'],
+    ['03', '/ecommerce/cart', 'Your Cart'],
+    ['04', '/ecommerce/orders', 'Your Orders'],
+  ]),
+  ...rooms('beauty', 'Beauty', [
+    ['01', '/beauty/profile', 'Skin & Hair Profile'],
+    ['02', '/beauty/routine', 'Your Beauty Routine'],
+    ['03', '/beauty/market', 'Beauty Market'],
+    ['04', '/beauty/orders', 'My Orders'],
+  ]),
+  ...rooms('medical', 'Medical', [
+    ['01', '/medical/blood', 'Blood Test Analysis'],
+    ['02', '/medical/tests', 'Order Blood Tests'],
+    ['03', '/medical/records', 'Health Records'],
+    ['04', '/medical/consults', 'Talk to a Doctor'],
+    ['05', '/medical/timeline', 'Health Timeline'],
+    ['06', '/medical/family', 'Family Profiles'],
+    ['07', '/medical/consent', 'Privacy & Consent'],
+    ['08', '/medical/medicines', 'Medicines & Reminders'],
+  ]),
+  ...rooms('realestate', 'Real Estate', [
+    ['01', '/realestate/explore', 'Explore'],
+    ['02', '/realestate/under-construction', 'Under Construction'],
+    ['03', '/realestate/sell', 'List a Property'],
+    ['04', '/realestate/mine', 'My Listings'],
+  ]),
+  ...rooms('jobs', 'Jobs', [
+    ['01', '/jobs/profile', 'Resume & Profile'],
+    ['02', '/jobs/matches', 'Jobs for you'],
+    ['03', '/jobs/applications', 'My Applications'],
+    ['04', '/jobs/post', 'Post a Job'],
+    ['05', '/jobs/postings', 'My Postings'],
+  ]),
+  ...rooms('fitness', 'Fitness', [
+    ['01', '/fitness/profile', 'Training Profile'],
+    ['02', '/fitness/workout', 'Workout'],
+    ['03', '/fitness/log', 'Activity Log'],
+    ['04', '/fitness/supplements', 'Supplements'],
+    ['05', '/fitness/sleep', 'Sleep Cycle'],
+    ['06', '/fitness/store', 'The Store'],
+    ['07', '/fitness/orders', 'My Orders'],
+  ]),
+  ...rooms('mail', 'Together City Mail', [
+    ['01', '/mail/inbox', 'All Email'],
+    ['02', '/mail/compose', 'Compose'],
+    ['03', '/mail/sent', 'Sent'],
+    ['04', '/mail/unsent', 'Drafts & Failed'],
+    ['05', '/mail/starred', 'Starred'],
+    ['06', '/mail/trash', 'Trash'],
+    ['07', '/mail/drive', 'Drive'],
+  ]),
+  ...rooms('financial', 'Financial', [
+    ['01', '/financial/wallet', 'City Wallet'],
+    ['02', '/financial/spending', 'Spending'],
+    ['03', '/financial/budgets', 'Budgets'],
+    ['04', '/financial/transactions', 'Transactions'],
+    ['05', '/financial/invoices', 'Invoices'],
+  ]),
+  ...rooms('pets', 'Pets', [
+    ['01', '/pets/world', 'Pet world'],
+    ['02', '/pets/profiles', 'Pet profiles'],
+    ['03', '/pets/plan', 'Diet plan'],
+    ['04', '/pets/today', 'Today'],
+    ['05', '/pets/monthly', 'Monthly plan'],
+    ['06', '/pets/eat', 'Can my pet eat this?'],
+    ['07', '/pets/cook', 'Cook for my pet'],
+    ['08', '/pets/shop', 'Pet shop'],
+    ['09', '/pets/specialist', 'Pet specialist'],
+    ['10', '/pets/bundles', 'Bundles'],
+    ['11', '/pets/wellness', 'Health & wellness'],
+    ['12', '/pets/activity', 'Activity'],
+    ['13', '/pets/quiz', 'Pet scorecard'],
+  ]),
+];
+
+export const ROOM_KEYS = ROOM_FLAGS.map((r) => r.key);
+export const isRoomKey = (k: string): boolean => ROOM_KEYS.includes(k);
+export const roomFlag = (k: string): RoomFlag | undefined => ROOM_FLAGS.find((r) => r.key === k);
+/** The rooms of one sector, in rail order — how the operator's page draws them. */
+export const roomsOf = (hub: string): RoomFlag[] => ROOM_FLAGS.filter((r) => r.hub === hub);
 
 export const VISIBILITY_KEYS = VISIBILITY_FLAGS.map((f) => f.key);
 export const isVisibilityKey = (k: string): boolean => VISIBILITY_KEYS.includes(k);

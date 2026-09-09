@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { swallow } from '../shared/swallow';
-import { FLAGS, VISIBILITY_FLAGS, flagForPath } from './feature-flags';
+import { FLAGS, VISIBILITY_FLAGS, ROOM_FLAGS, flagForPath } from './feature-flags';
 
 /**
  * THE PART THAT MAKES A KILL SWITCH A KILL SWITCH.
@@ -51,8 +51,11 @@ export class FeatureFlagGuard implements CanActivate {
     // was added to prevent, at the worst possible moment.
     if (this.inflight) return this.inflight;
     this.inflight = (async () => {
-      // unbounded: FLAGS is a fixed list of a dozen keys, so this table can
-      // never hold more rows than the code declares.
+      /* Every key this table can hold is declared in feature-flags.ts — the
+         kill switches, the sector doors and the rooms behind them — so the row
+         count is a property of the source code, not of traffic or of anything
+         a request can write. */
+      // unbounded: the code's own declared keys are the only rows
       const rows = await swallow(this.prisma.featureFlag.findMany({
         select: { key: true, enabled: true },
       }), 'feature flag refresh');
@@ -117,5 +120,16 @@ export class FeatureFlagGuard implements CanActivate {
   async visibilitySnapshot(): Promise<Array<{ key: string; visible: boolean }>> {
     await this.refresh();
     return VISIBILITY_FLAGS.map((f) => ({ key: f.key, visible: this.cache.get(f.storeKey) ?? true }));
+  }
+
+  /**
+   * And the same again one level down: the ROOMS inside a sector (owner,
+   * 9 Sep). Same cache, same read-only relationship to it, same fail-open
+   * default — a room with no row, or a database that did not answer, is a room
+   * the city draws.
+   */
+  async roomSnapshot(): Promise<Array<{ key: string; visible: boolean }>> {
+    await this.refresh();
+    return ROOM_FLAGS.map((r) => ({ key: r.key, visible: this.cache.get(r.storeKey) ?? true }));
   }
 }

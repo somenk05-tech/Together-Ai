@@ -37,8 +37,22 @@ export interface FlagRow {
 export interface VisibilityRow {
   key: string; label: string; hides: string;
   visible: boolean; note: string; updatedAt: string | null;
+  /** The ROOMS inside this sector, in rail order (owner, 9 Sep). Optional on
+   *  the wire: web and API deploy independently, and a server that has never
+   *  heard of rooms should draw a sector card exactly as it did before. */
+  rooms?: RoomRow[];
+}
+/** One numbered entry on a hub's rail — 02, 'Ask the Astrologer'. `key` is the
+ *  room's PATH, which is the only stable thing about it. */
+export interface RoomRow {
+  key: string; index: string; label: string; hides: string;
+  visible: boolean; note: string; updatedAt: string | null;
 }
 export interface FlagsPayload { items: FlagRow[]; visibility: VisibilityRow[] }
+
+/** Which switch is meant. 'page' is a room inside a sector; it hides like
+ *  'visibility' and, like it, can never refuse a request. */
+export type FlagKind = 'kill' | 'visibility' | 'page';
 
 export const devApi = {
   diagnostics: (password: string) =>
@@ -48,7 +62,7 @@ export const devApi = {
   // `kind` is sent ALWAYS, never left to the server's default. A sector has
   // both kinds under one key, and the failure mode of getting it wrong is
   // closing a hub somebody only meant to hide.
-  setFlag: (password: string, key: string, enabled: boolean, reason: string, kind: 'kill' | 'visibility') =>
+  setFlag: (password: string, key: string, enabled: boolean, reason: string, kind: FlagKind) =>
     api.post<{ key: string; enabled: boolean }>('/dev/flags', { key, enabled, reason, kind }, withPassword(password))
       .then((r) => r.data),
 };
@@ -72,7 +86,7 @@ export function useFlags(password: string | null) {
 export function useSetFlag(password: string | null) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { key: string; enabled: boolean; reason: string; kind: 'kill' | 'visibility' }) =>
+    mutationFn: (v: { key: string; enabled: boolean; reason: string; kind: FlagKind }) =>
       devApi.setFlag(password as string, v.key, v.enabled, v.reason, v.kind),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['dev'] }); },
   });

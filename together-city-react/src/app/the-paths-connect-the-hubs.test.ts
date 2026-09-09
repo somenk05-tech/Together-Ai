@@ -55,8 +55,13 @@ describe('a path is made of real switches', () => {
 
 describe('a path is derived, never stored', () => {
   it('no column, no endpoint, no second source of truth', () => {
-    // The hook that owns the wire never heard of paths…
-    expect(read('hooks/useCityDesign.ts')).not.toMatch(/path/i);
+    /* The hook that owns the wire never heard of PATHS — the named walks
+       through the city. It does now know about a room's URL path (owner,
+       9 Sep: a switch per rail entry, keyed by the room's path), and the two
+       senses of the word collide, so this asks the question it always meant:
+       nothing here reads, writes or names a path of the walking kind. */
+    const hook = read('hooks/useCityDesign.ts');
+    expect(hook).not.toMatch(/\bPATHS\b|config\/paths|pathOn|\/paths\b/);
     // …and the config never reaches for the network or storage.
     const cfg = read('config/paths.ts');
     expect(cfg).not.toMatch(/api|fetch|localStorage/);

@@ -5,6 +5,7 @@ import { useUiStore } from '@/store/ui.store';
 import { MailProjectsRail, MailProjectSideRail } from '@/features/mail/ProjectRail';
 import { useMailMessage, useMailProjects } from '@/features/mail/api';
 import { DrawerScrim, useSwipeClose } from './drawerDismiss';
+import { useCitySwitches } from '@/hooks/useCityDesign';
 
 const PersonIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -59,6 +60,19 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
     ? (pathname.split('/')[3] ?? '')
     : pathname === '/mail/compose' ? (new URLSearchParams(search).get('project') ?? '')
     : messageProjectKey;
+  /**
+   * ── A ROOM THE OPERATOR TOOK OFF THE RAIL (owner, 9 Sep) ─────────────────
+   *
+   * The sector switch hides a whole hub; this hides one room inside it — Ask
+   * the Astrologer while the rest of Astrology stands. It fails OPEN like
+   * every other switch this app reads: loading, signed out, offline, server on
+   * fire, the rail is whole. The numbers are NOT recomputed — 01, 02, 04 is
+   * the honest picture of a rail with a room off it, and renumbering here
+   * would put a different number on the same door than the operator's page,
+   * the audit row and anybody's memory of it.
+   */
+  const switches = useCitySwitches();
+  const items = hub.items.filter((it) => switches.pageShown(it.path));
   const open = useUiStore((s) => s.sidebarOpen);
   const toggle = useUiStore((s) => s.toggleSidebar);
   const close = () => toggle(false);
@@ -114,7 +128,7 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
       ) : (
         <>
           <nav className="side-menu">
-            {hub.items.map((it) => (
+            {items.map((it) => (
               <NavLink key={it.path} to={it.path} onClick={() => toggle(false)}
                 className={({ isActive }) => (isActive ? 'active' : undefined)}>
                 <span className="n">{it.index}</span>

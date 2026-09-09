@@ -2,9 +2,10 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Card, EmptyState, Spinner, Switch } from '@/components/ui';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { Fold } from '@/components/ui/Fold';
 import { tabIcon } from '@/nav/registry';
 import type { TabKey } from '@/config/hubs';
-import { useDiagnostics, useFlags, useSetFlag, type EnvRow, type FlagRow, type VisibilityRow } from '../api';
+import { useDiagnostics, useFlags, useSetFlag, type EnvRow, type FlagRow, type VisibilityRow, type RoomRow } from '../api';
 import { routeIndex } from '../routeIndex';
 import { DevCitizens } from '../Citizens';
 
@@ -152,11 +153,23 @@ const clamp2 = (open: boolean): CSSProperties => ({ ...subLine,
 const noteLine: CSSProperties = { fontSize: 11.5, margin: 0, lineHeight: 1.5, color: 'var(--ink-soft)' };
 const footLine: CSSProperties = { fontSize: 11.5, margin: '10px 0 0', lineHeight: 1.55 };
 const iconWrap = (color: string): CSSProperties => ({ color, display: 'grid', placeItems: 'center' });
-const cardShell = (on: boolean, wide: boolean): CSSProperties => ({
+/* `danger` defaults to `wide` so every call written before rooms existed reads
+   exactly as it did. They part company for one case: a card widened because
+   its rooms are open is not a card being armed, and painting the warning
+   border for a fold would spend the one signal that means "you are about to
+   change the city for everybody". */
+const cardShell = (on: boolean, wide: boolean, danger: boolean = wide): CSSProperties => ({
   display: 'grid', gap: 10, opacity: on ? 1 : 0.72,
   gridColumn: wide ? '1 / -1' : undefined,
-  borderColor: wide ? 'var(--danger-line)' : undefined,
+  borderColor: danger ? 'var(--danger-line)' : undefined,
 });
+const roomList: CSSProperties = { display: 'grid', gap: 2, margin: '4px 0 0' };
+const roomRow: CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderTop: '1px solid var(--line)' };
+const roomNum: CSSProperties = { fontSize: 11, letterSpacing: '.06em', color: 'var(--muted)', fontVariantNumeric: 'tabular-nums', minWidth: 20 };
+const roomName: CSSProperties = { flex: 1, minWidth: 0, fontSize: 13, lineHeight: 1.3 };
+/* 11px, not the 10.5 this wanted to be: the type floor is a ratchet, and a
+   new line of small print is exactly what it exists to refuse. */
+const roomPath: CSSProperties = { display: 'block', fontSize: 11, color: 'var(--muted)', marginTop: 1 };
 
 /**
  * THE SAME CARD AS THE CITIZEN'S, SAYING THE OPPOSITE THING.
@@ -267,6 +280,79 @@ function FlagCard({ flag, password }: { flag: FlagRow; password: string }) {
  * dangerous outcome here is an operator hiding a sector during an incident
  * while believing they closed it.
  */
+/**
+ * ── ONE ROOM ON A HUB'S RAIL (owner, 9 Sep) ─────────────────────────────────
+ *
+ * "A hide-from-city button for each hub AND each side hub tab — Ask the
+ * Astrologer, all 01-06 in Astrology, the same for the entire site."
+ *
+ * A smaller thing than its sector and drawn smaller: a number, a name, the
+ * path underneath it, a switch. The CEREMONY is not smaller — the same
+ * `ops.flags` grant, the same eight-character reason, the same audit row —
+ * because a room switched off is still the city changing for everybody, and a
+ * control that is cheaper to press than to explain is how a rail loses a door
+ * nobody can account for.
+ *
+ * The path is printed because a label is not an identity. Two rooms have been
+ * called Checkout this month; only one of them is /astrology/gem-checkout.
+ */
+function RoomSwitch({ room, password }: { room: RoomRow; password: string }) {
+  const setFlag = useSetFlag(password);
+  const [arming, setArming] = useState(false);
+  const [reason, setReason] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+  const ready = reason.trim().length >= 8;
+  const cancel = () => { setArming(false); setReason(''); setErr(null); };
+
+  const flip = () => {
+    setErr(null);
+    setFlag.mutate({ key: room.key, enabled: !room.visible, reason: reason.trim(), kind: 'page' }, {
+      onSuccess: () => { setArming(false); setReason(''); },
+      onError: (e: unknown) => {
+        const m = e as { response?: { data?: { message?: string | string[] } } };
+        const raw = m?.response?.data?.message;
+        setErr(Array.isArray(raw) ? raw.join(', ') : raw ?? 'That could not be recorded.');
+      },
+    });
+  };
+
+  return (
+    <div data-room={room.key} style={{ ...roomRow, flexWrap: arming ? 'wrap' : 'nowrap', opacity: room.visible ? 1 : 0.72 }}>
+      <span style={roomNum} aria-hidden>{room.index}</span>
+      <span style={roomName}>
+        {room.label}
+        <span style={roomPath}>{room.key}</span>
+        {!room.visible && room.note && !arming && (
+          <span style={{ ...roomPath, color: 'var(--ink-soft)' }}>
+            Hidden{room.updatedAt ? ` since ${new Date(room.updatedAt).toLocaleDateString()}` : ''}: {room.note}
+          </span>
+        )}
+      </span>
+      <Switch checked={arming ? !room.visible : room.visible}
+        onChange={() => (arming ? cancel() : setArming(true))}
+        label={`${room.label} ${room.visible ? 'shown' : 'hidden'}`} hideLabel />
+
+      {arming && (
+        <div style={{ ...armBox, width: '100%' }}>
+          <p className="muted" style={{ fontSize: 11.5, margin: 0, lineHeight: 1.5 }}>{room.hides}</p>
+          <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500}
+            aria-label={`Reason for ${room.visible ? 'hiding' : 'showing'} ${room.label}`}
+            placeholder={room.visible ? 'Why is this room coming off the rail?' : 'Why is it coming back?'}
+            style={reasonBox} />
+          <div style={armRow}>
+            <Button variant="accent" size="sm" disabled={!ready || setFlag.isPending} onClick={flip}>
+              {setFlag.isPending ? 'Recording…' : room.visible ? `Hide ${room.label}` : `Show ${room.label} again`}
+            </Button>
+            <Button variant="line" size="sm" onClick={cancel}>Cancel</Button>
+            {!ready && <span className="muted" style={{ fontSize: 12 }}>A reason is required.</span>}
+          </div>
+          {err && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: 0 }} role="alert">{err}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function VisibilityCard({ row, password }: { row: VisibilityRow; password: string }) {
   const setFlag = useSetFlag(password);
   const [arming, setArming] = useState(false);
@@ -274,6 +360,12 @@ function VisibilityCard({ row, password }: { row: VisibilityRow; password: strin
   const [err, setErr] = useState<string | null>(null);
   const ready = reason.trim().length >= 8;
   const cancel = () => { setArming(false); setReason(''); setErr(null); };
+  /* The rooms take the whole row when they are open: thirteen of them in a
+     230px column is a list nobody can read, and the grid already knows how to
+     let a card span. */
+  const [roomsOpen, setRoomsOpen] = useState(false);
+  const rooms = row.rooms ?? [];
+  const roomsHidden = rooms.filter((r) => !r.visible);
 
   const flip = () => {
     setErr(null);
@@ -288,7 +380,7 @@ function VisibilityCard({ row, password }: { row: VisibilityRow; password: strin
   };
 
   return (
-    <div data-visibility={row.key} className="card" style={cardShell(row.visible, arming)}>
+    <div data-visibility={row.key} className="card" style={cardShell(row.visible, arming || roomsOpen, arming)}>
       <div style={cardTop}>
         <span aria-hidden style={iconWrap(row.visible ? 'var(--accent-ink)' : 'var(--muted)')}>
           <Icon name={flagIcon(row.key)} size={18} />
@@ -309,6 +401,29 @@ function VisibilityCard({ row, password }: { row: VisibilityRow; password: strin
         <p style={noteLine}>
           Hidden{row.updatedAt ? ` since ${new Date(row.updatedAt).toLocaleString()}` : ''}: {row.note}
         </p>
+      )}
+
+      {/* ── THE ROOMS BEHIND THE DOOR (owner, 9 Sep) ────────────────────────
+          Folded, and closed by default, because the sector switch is the
+          question this card exists to ask and a hundred and eight switches
+          unfolded would bury nineteen. The meta line answers "is anything off
+          in here" without opening anything, which is the whole job of a closed
+          section. */}
+      {rooms.length > 0 && !arming && (
+        <Fold face="fold" panel="fold-open" open={roomsOpen} onOpenChange={setRoomsOpen}
+          title={`Rooms on the ${row.label} rail`}
+          meta={roomsHidden.length === 0
+            ? `${rooms.length} shown`
+            : `${rooms.length - roomsHidden.length} of ${rooms.length} shown`}>
+          <div style={roomList}>
+            {rooms.map((r) => <RoomSwitch key={r.key} room={r} password={password} />)}
+          </div>
+          <p className="muted" style={{ ...footLine, marginTop: 8 }}>
+            Each one hides that room from the rail, the hub&rsquo;s own door and Search the city,
+            for every citizen. The room keeps answering — a saved link still opens it.
+            {!row.visible && ' The whole sector is hidden right now, so none of these doors are drawn either way.'}
+          </p>
+        </Fold>
       )}
 
       {arming && (
@@ -471,10 +586,12 @@ export function DevPage() {
               {/* ── VISIBILITY, FIRST, because it is the one that gets used ── */}
               <h3 style={sectionH}>Visibility — what the site shows</h3>
               <p style={lede}>
-                <strong>One switch per sector, for the whole site.</strong> Off, that sector&rsquo;s
-                doors leave the header, the drawer, the home page and the city grid for every
-                citizen — the same four places their own switch on /profile controls, decided once
-                for everybody.
+                <strong>One switch per sector, and one per room inside it, for the whole
+                site.</strong> Off, that sector&rsquo;s doors leave the header, the drawer, the home
+                page, the city grid and Search the city for every citizen — the same places their
+                own switch on /profile controls, decided once for everybody. Open{' '}
+                <em>Rooms</em> on any card for the numbered rail behind it: This Month, Ask the
+                Astrologer, Tarot — each its own switch, on the same terms.
               </p>
               <p className="muted" style={asideLast}>
                 <strong>It hides; it does not close.</strong> The hub keeps answering every request
@@ -487,11 +604,24 @@ export function DevPage() {
               </div>
               <p className="muted" style={footLine}>
                 {(() => {
-                  const hidden = flags.data.visibility.filter((v) => !v.visible);
-                  if (hidden.length === 0) return `All ${flags.data.visibility.length} sectors are on the site.`;
-                  return `${flags.data.visibility.length - hidden.length} of ${flags.data.visibility.length} sectors shown. `
-                    + `${hidden.length === 1 ? 'One is' : `${hidden.length} are`} hidden from everybody: `
-                    + `${hidden.map((v) => v.label).join(', ')} — still answering, just not on the menu.`;
+                  const all = flags.data.visibility;
+                  const hidden = all.filter((v) => !v.visible);
+                  const rooms = all.flatMap((v) => v.rooms ?? []);
+                  const roomsOff = rooms.filter((r) => !r.visible);
+                  /* THE ROOM COUNT IS ITS OWN SENTENCE. Folded into the sector
+                     one it reads as a bigger outage than it is — nineteen
+                     sectors and a hundred and eight rooms are not the same
+                     unit, and "3 hidden" would be true of either. */
+                  const roomLine = rooms.length === 0 ? ''
+                    : roomsOff.length === 0 ? ` All ${rooms.length} rooms inside them are drawn.`
+                    : ` ${roomsOff.length} room${roomsOff.length === 1 ? ' is' : 's are'} off the rail as well: `
+                      + `${roomsOff.map((r) => r.label).join(', ')}.`;
+                  const sectorLine = hidden.length === 0
+                    ? `All ${all.length} sectors are on the site.`
+                    : `${all.length - hidden.length} of ${all.length} sectors shown. `
+                      + `${hidden.length === 1 ? 'One is' : `${hidden.length} are`} hidden from everybody: `
+                      + `${hidden.map((v) => v.label).join(', ')} — still answering, just not on the menu.`;
+                  return sectorLine + roomLine;
                 })()}
               </p>
 

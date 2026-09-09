@@ -34,10 +34,26 @@ export class VisibilityController {
    * the list is empty: draw it. See useCitySwitches — a convenience must never
    * be the reason the header renders empty.
    */
+  /**
+   * `off` is the sectors; `offPages` is the ROOMS inside them (owner, 9 Sep) —
+   * the numbered rail down the left of every hub, each entry its own switch.
+   *
+   * TWO LISTS, NOT ONE, because they name two different kinds of thing and a
+   * client that flattened them would have to guess which: 'astrology' is a
+   * sector and '/astrology/ask' is a path. Both are lists of what is OFF, for
+   * the same reason as before — the client's default when the request fails is
+   * then identical to its default when the list is empty: draw it.
+   */
   @Public()
   @Get()
-  async doors(): Promise<{ off: string[] }> {
-    const snap = await this.flags.visibilitySnapshot();
-    return { off: snap.filter((s) => !s.visible).map((s) => s.key) };
+  async doors(): Promise<{ off: string[]; offPages: string[] }> {
+    const [snap, rooms] = await Promise.all([
+      this.flags.visibilitySnapshot(),
+      this.flags.roomSnapshot(),
+    ]);
+    return {
+      off: snap.filter((s) => !s.visible).map((s) => s.key),
+      offPages: rooms.filter((r) => !r.visible).map((r) => r.key),
+    };
   }
 }

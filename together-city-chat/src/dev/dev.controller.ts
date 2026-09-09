@@ -8,7 +8,8 @@ import { DevPasswordGuard } from './dev-password.guard';
 import { DevService } from './dev.service';
 
 const FlagSchema = z.object({
-  key: z.string().min(1).max(64),
+  // A room's key is its path, so this is longer than a flag name and says so.
+  key: z.string().min(1).max(120),
   enabled: z.boolean(),
   // Same rule as every other console action: long enough to be a sentence.
   // "Dating has been off since Tuesday" needs an answer, and the answer is here.
@@ -16,7 +17,10 @@ const FlagSchema = z.object({
   // Which switch is meant. Required in spirit, defaulted for the older client:
   // a sector has a kill switch and a visibility switch under the same key, and
   // the safer of the two to land on by accident is NOT the one that closes it.
-  kind: z.enum(['kill', 'visibility']).default('kill'),
+  // 'page' is a room inside a sector (owner, 9 Sep) — Ask the Astrologer
+  // rather than Astrology. It hides like 'visibility' and refuses like
+  // neither: see ROOM_FLAGS.
+  kind: z.enum(['kill', 'visibility', 'page']).default('kill'),
 });
 type FlagDto = z.infer<typeof FlagSchema>;
 

@@ -54,14 +54,33 @@ export function useMiraShown(): boolean {
 export function useCitySwitches() {
   const q = useQuery({
     queryKey: SWITCHES,
-    queryFn: () => api.get<{ off: string[] }>('/visibility').then((r) => r.data),
+    queryFn: () => api.get<{ off: string[]; offPages?: string[] }>('/visibility').then((r) => r.data),
     staleTime: 60_000,
   });
   const off = new Set<string>(q.data?.off ?? []);
+  /**
+   * ── AND ONE LEVEL DOWN (owner, 9 Sep) ─────────────────────────────────────
+   *
+   * "A hide-from-city button for each hub AND each side hub tab — Ask the
+   * Astrologer, all 01-06 in Astrology, the same for the entire site."
+   *
+   * The rooms, by their path, because a path is what a room reliably is: its
+   * label gets rewritten and its number on the rail is a reading order that
+   * shifts every time a neighbour comes off.
+   *
+   * OPTIONAL ON THE WIRE, and that is not laziness. Web and API deploy
+   * independently, so a browser on this build will meet a server that has
+   * never heard of rooms; `?? []` makes that server's answer mean "draw every
+   * room", which is the same thing every other default in this file means.
+   */
+  const offPages = new Set<string>(q.data?.offPages ?? []);
   return {
     /** Is this sector drawn at all, for anybody? */
     shown: (key: string): boolean => !off.has(key),
+    /** Is this ROOM drawn — the rail entry, and the hub door that opens on it? */
+    pageShown: (path: string): boolean => !offPages.has(path),
     off,
+    offPages,
   };
 }
 

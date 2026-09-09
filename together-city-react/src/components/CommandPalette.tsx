@@ -5,6 +5,7 @@ import { useRecentStore } from '@/store/recent.store';
 import { useAuthStore } from '@/store/auth.store';
 import { http } from '@/api/client';
 import { Icon } from '@/components/ui/Icon';
+import { useCitySwitches } from '@/hooks/useCityDesign';
 
 /** Lightweight subsequence + token score — good enough for a nav palette. */
 function score(d: Dest, q: string): number {
@@ -121,23 +122,48 @@ export function CommandPalette() {
     if (open) { setQ(''); setActive(0); setTimeout(() => inputRef.current?.focus(), 20); }
   }, [open]);
 
+  /**
+   * ── WHAT THE OPERATOR HID IS NOT IN THE SEARCH EITHER (owner, 9 Sep) ──────
+   *
+   * The button is a "hide from city" button, and a room a citizen can still
+   * reach by typing its name into Search the city has not been hidden from the
+   * city — it has been hidden from one menu. So the palette reads the
+   * OPERATOR's switches: a sector that is off, and a room that is off, are out
+   * of these results.
+   *
+   * IT DOES NOT READ THE CITIZEN'S OWN DESIGN, and that asymmetry is
+   * deliberate. Design Your Services is somebody tidying their own menus; if
+   * tidying a menu also deleted the room from search they would have no way
+   * back to a hub they hid last month except by remembering its URL. The
+   * operator's switch is a decision about the city, the citizen's is a
+   * decision about a menu, and search is the city.
+   *
+   * FAILS OPEN, like every other reader of these switches: while the request
+   * is in flight, or if it never comes back, everything is searchable.
+   */
+  const switches = useCitySwitches();
+  const visible = useMemo(
+    () => DESTINATIONS.filter((d) => switches.pageShown(d.path) && (!d.hub || switches.shown(d.hub))),
+    [switches.off, switches.offPages],
+  );
+
   const results = useMemo<Dest[]>(() => {
     if (!q.trim()) {
       const recentDests = recents
-        .map((r) => DESTINATIONS.find((d) => d.path === r.path))
+        .map((r) => visible.find((d) => d.path === r.path))
         .filter((d): d is Dest => Boolean(d))
         .slice(0, 6);
-      const suggested = DESTINATIONS.filter((d) => d.kind === 'action').slice(0, 6);
+      const suggested = visible.filter((d) => d.kind === 'action').slice(0, 6);
       const seen = new Set(recentDests.map((d) => d.id));
       return [...recentDests, ...suggested.filter((d) => !seen.has(d.id))].slice(0, 12);
     }
-    return DESTINATIONS
+    return visible
       .map((d) => ({ d, s: score(d, q) }))
       .filter((x) => x.s >= 0)
       .sort((a, b) => b.s - a.s)
       .slice(0, 12)
       .map((x) => x.d);
-  }, [q, recents]);
+  }, [q, recents, visible]);
 
   useEffect(() => { setActive(0); }, [q]);
 

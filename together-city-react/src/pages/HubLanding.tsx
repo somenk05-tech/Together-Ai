@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import type { HubKey } from '@/types';
 import { HUBS, hubDoor } from '@/config/hubs';
 import { useHubTheme } from '@/hooks/useHubTheme';
+import { useCitySwitches } from '@/hooks/useCityDesign';
 import { HubConsentGate } from '@/features/privacy/HubConsentGate';
 
 /**
@@ -144,7 +145,14 @@ export function setLine(line: string): { before: string[]; hero: string; after: 
 export function HubLanding({ hub }: { hub: HubKey }) {
   useHubTheme(hub);
   const cfg = HUBS[hub];
-  const firstInner = hubDoor(cfg);
+  /* THE DOOR OPENS ON A ROOM THAT IS STILL THERE (owner, 9 Sep). `hubDoor`
+     answers with the first room, and the first room is exactly the one an
+     operator is most likely to switch off — a hub whose Explore lands on a
+     room nobody can see from the rail is a door that reads as broken. The
+     hub's own landing is the last resort, which is where a hub with every
+     room off correctly ends up. */
+  const switches = useCitySwitches();
+  const firstInner = hubDoor({ ...cfg, items: cfg.items.filter((i) => switches.pageShown(i.path)) });
   const heroSrc = `/assets/img/${HUB_HERO[hub] ?? `${hub}.webp`}`;
   /* ── THE POSTER SHOWS EVERY TIME (owner, 9 Sep) ──────────────────────────
      "When the user clicks on the button these images should come everytime."

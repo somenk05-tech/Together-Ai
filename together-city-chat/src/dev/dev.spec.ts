@@ -343,12 +343,17 @@ describe('the kill switches', () => {
    */
   it('routes a flip by the kind asked for, not by the shape of the key', () => {
     const svc = stripComments(read('dev/dev.service.ts'));
-    expect(svc).toMatch(/kind: 'kill' \| 'visibility' = 'kill'/);
+    expect(svc).toMatch(/kind: 'kill' \| 'visibility' \| 'page' = 'kill'/);
     expect(svc).toMatch(/if \(kind === 'visibility'\)/);
+    /* And the third kind the same way (owner, 9 Sep). A room's key is a PATH,
+       so routing on the key's shape would have been even more tempting here
+       and even worse: '/astrology/ask' reaching the gate writer must be
+       impossible, not unlikely. */
+    expect(svc).toMatch(/if \(kind === 'page'\)/);
     // The default is the safer one to land on by accident: a sector left
     // answering is recoverable, a sector closed by a typo is an outage.
     const ctl = stripComments(read('dev/dev.controller.ts'));
-    expect(ctl).toMatch(/kind: z\.enum\(\['kill', 'visibility'\]\)\.default\('kill'\)/);
+    expect(ctl).toMatch(/kind: z\.enum\(\['kill', 'visibility', 'page'\]\)\.default\('kill'\)/);
     expect(ctl).toMatch(/dto\.kind\)/);
   });
 
