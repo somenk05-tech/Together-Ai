@@ -4,8 +4,12 @@ import { useEffect, useState } from 'react';
 import type { DayHours } from './hours';
 export type { DayHours } from './hours';
 
-export interface ServiceCategory { key: string; label: string; group: string }
+export interface ServiceCategory { key: string; label: string; group: string; maxReachKm?: number | null }
 export interface CategoryGroup { group: string; items: ServiceCategory[] }
+/** How far a trade may say it reaches — null is uncapped (owner, 9 Sep: the
+ *  7 km ceiling is for a counter, not for a plumber). Answered by the server
+ *  from reach.ts rather than re-derived here from a copy of the lists. */
+export const REACH_STEPS = [1, 2, 3, 5, 7] as const;
 
 /**
  * What a browser sees. There is deliberately no `phone` and no owner on this
@@ -589,7 +593,7 @@ export interface MarketSearchQuery { q: string; near?: string; withinKm?: number
 export interface MarketSearchResult { items: GroceryItem[]; total: number; shopCount: number }
 
 export const servicesApi = {
-  categories: () => api.get<{ groups: CategoryGroup[] }>('/services/categories').then((r) => r.data),
+  categories: () => api.get<{ groups: CategoryGroup[]; defaultReachKm?: number }>('/services/categories').then((r) => r.data),
   places: () => api.get<{ countries: PlaceCountry[] }>('/services/places').then((r) => r.data),
   facets: (city?: string) => api.get<Record<string, number>>('/services/facets', { params: { city } }).then((r) => r.data),
   searchItems: (q: MarketSearchQuery) =>

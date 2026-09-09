@@ -277,6 +277,26 @@
    mark on the page masthead, and the "Your website" row on My Business.
    Everything here speaks in tokens — no literal colour, radius or size. */
 .lf-soft { font-weight: 400; font-size: var(--fs-3); }
+/* ── HOW FAR YOU REACH (owner, 9 Sep) ───────────────────────────────────────
+   It was a free number box beside the map pin with a placeholder of 5 and
+   nothing on the server reading it. It is the answer to "where do you cover"
+   now, so it gets a control rather than a text field: the steps a shop is
+   allowed, and — only for a trade that drives to the job — a box for anything
+   beyond them. Written here rather than inline because five keys and a note is
+   five inline style objects the size ratchet counts one by one. */
+.lf-reach { margin-top: 10px; }
+.lf-reach-keys { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+.lf-reach-k {
+  min-height: 44px; padding: 0 16px; cursor: pointer;
+  border: 1.5px solid var(--line); border-radius: var(--r-full); background: var(--card); color: var(--ink);
+  font: inherit; font-size: var(--fs-3); font-weight: 600;
+}
+.lf-reach-k[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--card); }
+.lf-reach-own {
+  min-height: 44px; width: 130px; padding: 0 14px; font: inherit; font-size: var(--fs-3);
+  border: 1.5px solid var(--line); border-radius: var(--r-full); background: var(--card); color: var(--ink);
+}
+.lf-reach-say { font-size: var(--fs-2); line-height: 1.55; margin: 8px 0 0; max-width: 52ch; }
 .lf-logo { width: 56px; height: 56px; border-radius: var(--r-1); object-fit: cover; border: 1px solid var(--line); display: block; background: var(--card); }
 .lf-file { font-size: var(--fs-4); font-family: inherit; }
 .lf-note { font-size: var(--fs-3); margin: 6px 0 0; }

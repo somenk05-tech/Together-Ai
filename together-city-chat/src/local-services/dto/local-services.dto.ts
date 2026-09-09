@@ -40,7 +40,12 @@ export const CreateListingSchema = z.object({
   // half of those where the longitude exceeds 90.
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),
-  radiusKm: z.number().int().min(0).max(500).optional(),
+  /* HOW FAR THEY REACH. Still generous here on purpose — the real ceiling is
+     the TRADE's, applied in the service by clampReachKm, because a schema
+     cannot see which category a listing is being filed under at the moment it
+     validates one field. `min(1)` rather than 0: a radius of zero is a shop
+     that serves nobody, which is never what somebody means to type. */
+  radiusKm: z.number().int().min(1).max(500).optional(),
   /**
    * WHEN THEY ARE OPEN — up to seven rows, Monday first, set once.
    *

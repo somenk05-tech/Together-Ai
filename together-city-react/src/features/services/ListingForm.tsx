@@ -3,7 +3,7 @@ import { Card, Button, Spinner, EmptyState , Switch} from '@/components/ui';
 import { LocationPicker, type LocationValue } from '@/components/LocationPicker';
 import { splitPlace } from '@/features/profile/placeParts';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
-import { findCityIn, servicesApi, useServiceCategories, useBusinessTypes, usePlaces } from './api';
+import { REACH_STEPS, findCityIn, servicesApi, useServiceCategories, useBusinessTypes, usePlaces } from './api';
 import { DynamicFields } from './DynamicFields';
 
 /**
@@ -187,6 +187,25 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
     const g = cats.data.groups.find((x) => x.items.some((i) => i.key === categoryKey));
     if (g) setGroup(g.group);
   }, [group, categoryKey, cats.data]);
+
+  /* HOW FAR THIS TRADE MAY SAY IT REACHES — the server's answer, not a copy of
+     the category lists kept in step by hand here. `null` is a trade that
+     travels to the job and has no ceiling; undefined while the categories are
+     still loading, which reads as uncapped and is corrected the moment they
+     arrive. */
+  const reachMax = categoryKey
+    ? (cats.data?.groups.flatMap((g) => g.items).find((i) => i.key === categoryKey)?.maxReachKm ?? null)
+    : null;
+
+  /* AUTOMATIC, NOT BLANK (owner, 9 Sep). A new listing opens on the city's own
+     3 km rather than on an empty box — the same number the store shelves open
+     on, so the two sides of the city agree about "near you". An owner editing
+     a listing that already has a radius keeps theirs; one written before this
+     existed is given the default rather than left saying nothing. */
+  useEffect(() => {
+    if (radiusKm.trim()) return;
+    setRadius(String(cats.data?.defaultReachKm ?? 3));
+  }, [cats.data, radiusKm]);
 
   /**
    * FIVE AT MOST, AND THE STRIP HAPPENS BEFORE THE UPLOAD.
@@ -474,7 +493,13 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
             becomes a removable chip, and the typed box stays for the locality
             no list ever has. */}
         <div className="svo-gap6">
-          <label htmlFor="svc-area-add" style={label}>Areas you cover</label>
+          {/* AREAS ARE NO LONGER HOW REACH IS DECIDED (owner, 9 Sep) — the
+              radius below is. They stay because a listing with no map pin has
+              nothing else, and because the directory's area filter reads them;
+              a shop that has dropped a pin can leave them empty. */}
+          <label htmlFor="svc-area-add" style={label}>
+            Areas you cover <span className="muted lf-soft">(optional — your reach is set by the radius below)</span>
+          </label>
           {knownCity && (
             <select id="svc-area-add" style={field} value=""
               onChange={(e) => { if (e.target.value) toggleArea(e.target.value); }}>
@@ -553,10 +578,34 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
               }}
             />
           </div>
-          <div style={{ marginTop: 10, maxWidth: 220 }}>
-            <label htmlFor="svc-radius" style={{ ...label, fontWeight: 500, fontSize: 12 }}>How far you travel (km)</label>
-            <input id="svc-radius" style={field} value={radiusKm} onChange={(e) => setRadius(e.target.value)}
-              inputMode="numeric" placeholder="5" maxLength={3} />
+          {/* ── HOW FAR YOU REACH (owner, 9 Sep) ────────────────────────
+              "Make this automatic at a radius of 3–5 km per store, and let the
+              store owner decide how much they want to cover up to 7 km."
+
+              It was a free number box with a placeholder of 5, no default, and
+              nothing on the server reading it — a shopkeeper could type 2 and
+              be shown to somebody forty kilometres away. It is the answer to
+              "where do you cover" now, so it starts at 3 rather than blank,
+              and the ceiling is the trade's own: seven for a counter, none for
+              somebody who drives to you. The cap is SHOWN rather than applied
+              silently at save time. */}
+          <div className="lf-reach">
+            <label htmlFor="svc-radius" style={{ ...label, fontWeight: 500, fontSize: 12 }}>How far you reach</label>
+            <div className="lf-reach-keys" role="group" aria-label="How far you reach">
+              {REACH_STEPS.filter((k) => reachMax == null || k <= reachMax).map((k) => (
+                <button key={k} type="button" className="lf-reach-k" aria-pressed={Number(radiusKm) === k}
+                  onClick={() => setRadius(String(k))}>{k} km</button>
+              ))}
+              {reachMax == null && (
+                <input id="svc-radius" className="lf-reach-own" value={radiusKm} onChange={(e) => setRadius(e.target.value)}
+                  inputMode="numeric" maxLength={3} aria-label="Or how many kilometres you travel" placeholder="or type km" />
+              )}
+            </div>
+            <p className="muted lf-reach-say">
+              {reachMax == null
+                ? 'You travel to the job, so there is no ceiling — say how far you will go.'
+                : `People within this many kilometres of your pin will find you. ${reachMax} km is the most a shop can cover.`}
+            </p>
           </div>
         </div>
 

@@ -17,6 +17,7 @@ import { SHOPS_PER_PRODUCT, citation, searchTerms } from './catalogue';
 import { boundingBox, haversineKm, parsePoint } from './geo';
 import { looksLikeId, normaliseSlug, slugProblem, SLUG_MESSAGES, suggestSlug } from './slug';
 import { catalogueFor, cleanDetails, isBusinessType, readDetails, sectionsFor } from './business-types';
+import { clampReachKm, servesAt } from './reach';
 import { normaliseHours, parseHours } from './hours';
 import { VerificationService } from './verification.service';
 import { PostMediaGuard } from '../social/post-media-guard';
@@ -438,7 +439,12 @@ export class LocalServicesService {
       }) as unknown as ListingRow[];
       const withDist = boxRows
         .map((r) => ({ r, km: haversineKm(near.centre.lat, near.centre.lng, r.lat as number, r.lng as number) }))
-        .filter((x) => x.km <= near.km)
+        /* BOTH RADII HAVE TO AGREE (owner, 9 Sep). The citizen's is how far
+           they are willing to LOOK; the shop's is how far it is willing to GO,
+           and until today nothing read the second one. A null radius is a
+           listing written before this existed and still reaches everybody the
+           citizen's own search reaches — silence must not mean invisible. */
+        .filter((x) => x.km <= near.km && servesAt(x.r.radiusKm as number | null, x.km))
         .sort((a, b2) => a.km - b2.km);
       const total = withDist.length;
       const slice = withDist.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -595,7 +601,12 @@ export class LocalServicesService {
         photosJson: JSON.stringify((dto.photoUrls ?? []).map((url) => ({ url }))),
         lat: dto.lat ?? null,
         lng: dto.lng ?? null,
-        radiusKm: dto.radiusKm ?? null,
+        /* AUTOMATIC, AND CAPPED BY THE TRADE (owner, 9 Sep). `?? null` left
+           every new listing saying "they did not say", which was a fair value
+           while nothing read the field and is not one now that it decides who
+           can see them. A counter gets 3 km unless it asks otherwise and is
+           held to 7; somebody who travels is defaulted and left uncapped. */
+        radiusKm: clampReachKm(dto.categoryKey, dto.radiusKm),
         hoursJson: dto.hours ? JSON.stringify(normaliseHours(dto.hours)) : null,
       },
     }) as unknown as ListingRow;
@@ -664,7 +675,19 @@ export class LocalServicesService {
     if (dto.photoUrls !== undefined) data.photosJson = JSON.stringify(dto.photoUrls.map((url) => ({ url })));
     if (dto.lat !== undefined) data.lat = dto.lat;
     if (dto.lng !== undefined) data.lng = dto.lng;
-    if (dto.radiusKm !== undefined) data.radiusKm = dto.radiusKm;
+    /* THE CAP FOLLOWS THE TRADE, AND THE TRADE CAN CHANGE. Clamping only when
+       `radiusKm` arrives would let a listing keep a 40 km reach by editing its
+       category to a shop and never touching the number — so the radius is
+       re-read whenever either half moves, against whichever category the row
+       will have AFTER this edit rather than the one it had before. */
+    if (dto.radiusKm !== undefined || dto.categoryKey !== undefined) {
+      const stored = (dto.radiusKm === undefined || dto.categoryKey === undefined)
+        ? await this.prisma.serviceListing.findUnique({ where: { id }, select: { categoryKey: true, radiusKm: true } })
+        : null;
+      const cat = dto.categoryKey ?? stored?.categoryKey ?? null;
+      const asked = dto.radiusKm ?? stored?.radiusKm ?? null;
+      data.radiusKm = clampReachKm(cat, asked);
+    }
     /* SEVEN ROWS OR NOTHING. An empty array means "take my hours off the page"
        and stores null, which is the same state as never having set them —
        there is no third state where a listing has hours that say nothing. */
@@ -1688,7 +1711,12 @@ export class LocalServicesService {
     const listings = near
       ? found
         .map((r) => ({ r, km: haversineKm(near.centre.lat, near.centre.lng, r.lat as number, r.lng as number) }))
-        .filter((x) => x.km <= near.km)
+        /* BOTH RADII HAVE TO AGREE (owner, 9 Sep). The citizen's is how far
+           they are willing to LOOK; the shop's is how far it is willing to GO,
+           and until today nothing read the second one. A null radius is a
+           listing written before this existed and still reaches everybody the
+           citizen's own search reaches — silence must not mean invisible. */
+        .filter((x) => x.km <= near.km && servesAt(x.r.radiusKm as number | null, x.km))
         .sort((a, b) => a.km - b.km)
         .slice(0, SHOP_CAP)
         .map((x) => ({ ...x.r, distanceKm: Math.round(x.km * 100) / 100 }))
@@ -1942,7 +1970,12 @@ export class LocalServicesService {
     const listings = near
       ? found
         .map((r) => ({ r, km: haversineKm(near.centre.lat, near.centre.lng, r.lat as number, r.lng as number) }))
-        .filter((x) => x.km <= near.km)
+        /* BOTH RADII HAVE TO AGREE (owner, 9 Sep). The citizen's is how far
+           they are willing to LOOK; the shop's is how far it is willing to GO,
+           and until today nothing read the second one. A null radius is a
+           listing written before this existed and still reaches everybody the
+           citizen's own search reaches — silence must not mean invisible. */
+        .filter((x) => x.km <= near.km && servesAt(x.r.radiusKm as number | null, x.km))
         .sort((a, b) => a.km - b.km)
         .map((x) => ({ ...x.r, distanceKm: Math.round(x.km * 100) / 100 }))
       : found.map((r) => ({ ...r, distanceKm: undefined as number | undefined }));
@@ -2031,7 +2064,12 @@ export class LocalServicesService {
     const listings = near
       ? found
         .map((r) => ({ r, km: haversineKm(near.centre.lat, near.centre.lng, r.lat as number, r.lng as number) }))
-        .filter((x) => x.km <= near.km)
+        /* BOTH RADII HAVE TO AGREE (owner, 9 Sep). The citizen's is how far
+           they are willing to LOOK; the shop's is how far it is willing to GO,
+           and until today nothing read the second one. A null radius is a
+           listing written before this existed and still reaches everybody the
+           citizen's own search reaches — silence must not mean invisible. */
+        .filter((x) => x.km <= near.km && servesAt(x.r.radiusKm as number | null, x.km))
         .sort((a, b) => a.km - b.km)
         .slice(0, SHOP_CAP)
         .map((x) => ({ ...x.r, distanceKm: Math.round(x.km * 100) / 100 }))

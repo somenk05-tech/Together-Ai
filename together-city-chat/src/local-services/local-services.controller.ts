@@ -5,6 +5,7 @@ import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { LocalServicesService } from './local-services.service';
 import { categoriesByGroup } from './categories';
+import { REACH_DEFAULT_KM, reachCeilingKm } from './reach';
 import { BUSINESS_TYPES, CATALOGUES } from './business-types';
 import { PLACES } from './places';
 import { Throttle } from '@nestjs/throttler';
@@ -35,7 +36,20 @@ export class LocalServicesController {
 
   /** The vocabulary. Static, so the picker never waits on a query. */
   @Get('categories')
-  categories() { return { groups: categoriesByGroup() }; }
+  categories() {
+    /* THE REACH CEILING TRAVELS WITH THE TRADE (owner, 9 Sep). The form has to
+       show a shopkeeper the cap they are held to BEFORE they type a number —
+       a control that silently clamps 40 to 7 is the app deciding something and
+       not saying so. The rule lives in reach.ts and is answered here rather
+       than re-derived on the web from a copy of the category lists. */
+    return {
+      groups: categoriesByGroup().map((g) => ({
+        group: g.group,
+        items: g.items.map((c) => ({ ...c, maxReachKm: reachCeilingKm(c.key) === Infinity ? null : reachCeilingKm(c.key) })),
+      })),
+      defaultReachKm: REACH_DEFAULT_KM,
+    };
+  }
 
   /**
    * The schema the whole hub is generated from.
