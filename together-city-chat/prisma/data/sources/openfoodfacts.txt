@@ -1,0 +1,1365 @@
+14018808|7|en|staples|TATA|Tata Salt|100 g
+16121816|4|en|staples|Saffola|honey|1 kg
+17139168|4|en|staples|Diamond|Roasted Peanut|200 g
+19010588|15|en|packaged|Maggi|Chicken noodles|71 G
+19017198|4|en|packaged|Parle|Parle tostea 1kg|22 g
+30010383|7|en|staples|BigBasket|BB Popular Raw Peanuts|1 kg
+65242025|8|en|staples|MADURAI FAMOUS|Fried Fenugreek Flour|400 g
+80135890|22|fr|packaged|Ferrero|Kinder joy boy|20 g
+80768258|60|zh|packaged|Ferrero|健達奇趣蛋(女孩版)|20 g
+89002940|7|en|staples|Parachute|Coconut oil|100 ml
+89006610|20|en|packaged|Wrigley's|Orbit Chewing Gum|22 g
+89006627|3|en|packaged|Orbit|Orbit mixed fruit chewing gum|22 g
+89006733|77|en|beverages|Nestlé|Nescafe Classic Pure Coffee|25 g
+89006740|12|fr|beverages|nescafé|NESCAFE|50 g
+89007426|3|en|staples|Parachute|100% Pure coconut oil|25 ml (22.8 g)
+89008492|3|en|packaged|Nestlé|Milkybar|10 g
+89008669|3|en|beverages|Nescafé|Nescafe Gold|95 g
+89009758|3|en|beverages|Nescafe|NESCAFE classic|24 gm
+89009949|4|en|beverages|Nescafe|Nescafe Classic Instant coffee|45 g
+89080047|5|en|beverages|Nescafe|Sunrise|2.1 g
+89080153|8|en|staples|Maggi|Maggi masala magic|6 g
+89080306|3|en|beverages|Nescafe|Nescafe Sunrise|1.9 g
+89080672|16|en|staples|Maggi|Masala ae magic|6 g
+90162602|151|en|beverages|Red Bull|Red Bull Energy Drink|250 ml
+96831434|10|en|beverages|Continental Coffee Limited|Continental This is Caramel coffee|22 g
+8906080349652|7|en|staples|Vijay|Murmura, Kurmura|500 g
+8901537074354|20|en|staples|Daawat|brown rice|1 kg
+8904043902326|3|en|staples|Tata Sampann|Poha Flaked Rice|1 kg
+0690225101103|9|en|staples|KRBL limited|India gate super Basmati rice 1.5 kg|1.5 kg
+8906002348169|3|en|staples|Rajdhani|Poha Mota|500 g
+8901537007123|11|en|staples|Daawat|Dwt rozana supr basmati rice 1 kg|1 kg
+0690225106542|7|en|staples|India Gate|Brown Rice India gate 1 kg|1 kg
+8901537074231|3|en|staples|Daawat|Daawat pulav basmati rice 1kg|1 kg
+0690225101134|25|en|staples|India Gate|India Gate Basmati Rice Dubar|1 kg
+8906008812817|7|en|staples|fortune|poha (thick)|500 g
+8901537007116|3|en|staples|Daawat|Daawat Rozana Basmati Rice|5 kg
+8901537074415|3|en|staples|Daawat|Sona Masoori Rice|5 kg
+0690225106801|12|en|staples|India Gate|Unity biryani rice|1 kg
+8901537080607|3|en|staples|Devaaya|Devayya Sona Masoori Brown Rice|5 kgs
+8904293727236|3|en|staples|Flipkart Grocery|Flipkart Grocery Sona Masoori Rice (Steam)|10 kgs
+8905532000400|3|en|staples|Bharat|Bharat Rice|10 kg
+8906008811766|3|en|staples|Fortune|Punjabi Khichdi|60 g
+8939997880796|3|en|staples|A.P.D.|Sona Raw Rice|5 kg
+8904293725041|5|en|staples|Flipkart Grocery|Queen's Choice MOGRA BASMATI RICE|10 kg
+8901537078314|3|en|staples|Daawat|Biryani Kit Lucknowi|334 g
+8906012230119|3|en|staples|Vijay Gold|Vijay Gold Poha Medium|1 kg
+8904043902319|9|en|staples|Tata Sampann|Red Rice Aval / Poha|500 g
+0690225303903|5|en|staples|India Gate|India Gate Basmati Rice Classic|500 g
+8908002979442|3|en|staples|Srilalitha|Brown rice|5 kg
+8906084410617|3|en|staples|alimento agro|mom chinese fried rice|87 g
+4901135025127|3|en|staples|Daawat|Dawat super basmati rice 1 kg|1 kg
+8902901226959|3|en|staples|Good Life|Sona masoori rice PRM|1 kg
+8902901231014|6|en|staples|Good Life|GL surti kolam rice 1 kg|1 kg
+0690225106948|5|en|staples|Unity|Mini Mogra Rice|10 kg
+8904064622517|4|fr|staples|Kalyani|Sona Masuri Rice|5 Kg
+8905507001210|3|en|staples|First Crop|Poha|500 g
+8903363000279|3|en|staples|DMart Premia|Poha Jada|1 kg
+8904132924390|3|en|staples|Desi Kitchen|Poha Khatta Meetha Mix|60 g
+8902901031249|3|en|staples|Good Life|Tibar Basmati Rice|1 kg
+0690225101127|3|en|staples|India Gate|Basmati rice (raw)|1 kg
+8906117001775|14|de|staples|Zeeba|classic basmati rice|Pack 1 kg
+0690225305129|9|en|staples|India gate|daily premium basmati rice|5 kg
+8901537004788|5|en|staples|Heritage|Heritage Basmati Rice Premium|1 kg
+8901537032019|3|en|staples|daawat|dubar basmati rice|1 kg
+8908011819005|3|en|staples|Malabari|Malabari Special Biryani Rice|1 kg
+0690425303284|3|en|staples|India Gate|Basmati Rice|500 g
+8906007289238|3|en|staples|Fortune|Sona Masuri Supreme  Rice|5 kg
+8904132969995|3|en|staples|Good Life|Good Life HMT Kolam Rice 26 Kg Bag|26 kg
+8908005088660|3|en|staples|Koppal Green Power Limited|Shree Akshara Premium Ponni Rice|5 kg
+8904132942660|3|en|staples|Good Life|Good life rice Sona Masuri|10 kg
+2064659000055|3|en|staples|Koshava Foods|Zero Koshava Rice|1 kg
+8906167244542|3|en|staples|Whole Farm|Raw Sonamasuri Rice|1 kg
+0690225106467|3|en|staples|India Gate|Sona Masoori Rice|5 kg
+7611131150002|3|en|staples|Bhavana|Rice|5 kg
+8906032018919|5|en|staples|Nutrela|Nutrela Soya mini chunks|50 g
+8904004401066|6|en|staples|Haldiram's|Khatta Meetha|23 g
+8901725016838|7|en|staples|Aashirvaad|Aashirvaad Superior MP Atta|1 kg
+8901063019171|3|en|staples|Britannia|Little Hearts|13 g
+8906007285018|30|en|staples|Fortune|Fortune Besan|500 g
+8901725121747|4|en|staples|Aashirvaad|Superior MP Atta|1 kg
+8904043926728|3|en|staples|Tata Sampann|Tata Sampann Besan 500g|500 g
+8906078720913|3|en|staples|Gopal|Gopal Flour|70 g
+8906016350141|4|en|staples|Samrat|Samrat MP Chakki Atta 5 KG|5 kg
+8906008811117|3|en|staples|fortune|maida refined wheat flour|500 g
+8909081001567|15|en|staples|Aashirvaad|Aashirvaad Superior MP Atta|500 g
+8901030976179|6|en|staples|Horlicks|Horlicks Classic Malt|750 g
+8906011831713|6|en|staples|Naga|Maida|500 g
+8901571000043|19|en|staples|Boost|Boost Plain|500 g
+8901725121143|11|en|staples|Aashirvaad|Aashirvaad whole wheat atta|1 kg
+8901725121228|17|en|staples|Aashirvaad|Aashirvaad  select aata|5 kg
+8906007289139|3|en|staples|Fortune|Fortune Atta|1 kg
+8902901001730|22|en|staples|Good Life|Maida|1 kg
+8901725121136|3|en|staples|Aashirvaad|Aashirvaad Chakki Atta|2 kg
+8901725019730|3|en|staples|Aashirvaad|Aashirvaad Organic Whole Wheat Atta|1 kg
+8901030824227|14|en|staples|Unilever|Boost|17 g
+8902901001594|17|en|staples|Good Life|Besan|500 g
+8902901029871|3|en|staples|Good Life|Good Life Whole Wheat Atta with Multigrains|1 kg
+8904132949003|8|en|staples|Independence|Independence Atta 10kg|10 kg
+8908002979671|4|en|staples|SRILALITHA|Refined Wheat Flour Maida SRILALITHA|500 g
+8908011916018|3|en|staples|Vidyashree|Vidyashree Chakki Atta|1 Kg
+8906071370245|3|en|staples|Khandeshi|Khandeshi rajgira peeth|200 gm
+8908000581470|9|en|staples|SVS Foods|SVS Double Roasted Rava|500 g
+8890084192508|7|en|staples|Madurai Famous|Roasted Idiyappam & Puttu Flour|500 g
+8904356000757|3|en|staples|KAYAL AGRO FOODS|Rice Flour|500 g
+8906191600000|3|en|staples|Thirupthi|Chakki Atta|1 kg
+8906010070267|16|en|staples|Ganesh|Maida|1 kg
+8902901225914|11|en|staples|Good Life|Ragi Flour|1 kg
+8902901029857|9|en|staples|Good Life|Good Life MP Sharbati Atta|1 kg
+8901725121129|30|en|staples|Aashirvaad|Shudh Chakki Atta|5 kg
+8906081810083|4|en|staples|lite-n-fit|manchurian rings|80 g
+8902901001600|18|en|staples|Good Life|besan|1 kg
+8902901225907|4|en|staples|Good Life|Good Life ragi flour|500 g
+8906000210291|3|en|staples|Pillsbury|Chakki Fresh Atta|1 kg
+8904132926813|9|en|staples|Goodlife|Besan|500 g
+8901725000899|9|en|staples|Aashirvaad|Multi -Millet Mix|80 g
+8906012230102|5|en|staples|Vijay Gold|Rice Flour|1 kg
+8903023003497|5|en|staples|More|Besan|500 g
+8906008350388|3|en|staples|Manna|Ragi Malt|200 g
+8906049492634|4|en|staples|Namdharis|Thoughtful Organic Whole Wheat|1 KG
+8908015422553|3|en|staples|Bharat|Bharat Atta|5 kg
+8902901001709|38|en|staples|good life|Good Life Chakki Atta 5 Kg Bag|5 kg
+8902901225891|3|en|staples|Good Life|Good Life Rice Flour|500 g
+8906030960043|3|en|staples|Pattabhi|Pattabhi Ragi Flour|500 g
+8906010070144|6|en|staples|Ganesh Mummy's Own|01 Apr 2025 to 30 Apr 2026|5 kg
+8480010092622|5|en|staples|eroski|eroski pipas/piptak pipes gigantes|200 gm
+8903059406293|3|en|staples|More Choice|More Choice Ragi Flour|500 g
+8903000364073|5|en|staples|Lal Gulab|Besan|500 g
+8906000212240|3|en|staples|Pillsbury|Multigrain Atta|5 kg
+8903363003980|5|en|staples|Premia|Idli Rava|500 g
+8903363004222|4|en|staples|Premia|Idli Rava|1 kg
+8904041500500|3|en|staples|K-Pra Foods|Thalipeeth Mix Flour|200 g
+8901725006679|3|en|staples|Aashirvaad|Atta with Multigrains kg|5.5 kg
+8904422700710|4|en|staples|Patanjali|Patanjali Atta 10kg|10 kg
+8901725121112|3|en|staples|Aashirvaad|Aashirvaad Atta|10 kg
+8902901027921|3|en|staples|good life|Good life atta|10 kg
+8904011505726|3|en|staples|Double Horse|Ragi Puttupodi|500 g
+8906139071756|3|en|staples|AgroPure|AgroPure Besan|500 g
+8906010070113|3|en|staples|Ganesh|Ganesh Atta|500 g
+9651601027012|3|en|staples|Good life|Good life atta|10 kg
+8904082760086|8|en|staples|Gaay|Gaay Besan|500 g
+8906010079215|3|en|staples|Ganesh|Rajgira Atta|200 g
+8906010079062|3|en|staples|Ganesh|Buckwheat Kuttu Atta|200 g
+8906007280242|18|en|staples|fortune|refined sunflower oil|1 l
+8901088047142|9|en|staples|parachute|parachute oil|250 ml
+8901088000345|15|en|staples|Parachute|Coconut oil|200 ml(182 g)
+8906035030055|3|en|staples|Freedom|Refined Sunflower Oil|1 l (982 g)
+8906010261078|3|en|staples|Gold winner kaleesuwari|Refined Sunflower Oil|1 l (910 g)
+8901088034593|25|en|staples|Saffola|SAFOLA ACTIVE - MULTI-SOURCE EDIBLE OIL|1 l
+8906007280969|17|en|staples|AWL Agri Business Limited|Fortune Premium Kachi Ghani Pure Mustard Oil|1 L
+8906007280693|5|en|staples|Fortune|Rice Bran Oil|1 L
+8901088102872|5|en|staples|Parachute|Parachute Coconut Oil|600 ml
+8904422710894|8|en|staples|Sunrich|Refined Sunflower Oil|800 g
+8906032016571|15|en|staples|Nutrela|Nutrela Soya Chunks|220 g
+8906014762465|5|en|staples|Bajaj|Coconut Oil|600 ml
+8906007280310|3|en|staples|fortune|fortune sun lite sunflower oil 15 litre|15 L
+8906007280037|3|en|staples|Fortune|Fortune Soya Health Refined Oil|1 l
+8904422700963|3|en|staples|Patanjali|Patanjali Kacchi Ghani Mustard Oil|1 litre
+8906007280280|3|en|staples|Fortune|Fortune Refined Sunflower Oil|5 L (4.550 Kg)
+8906007286978|5|en|staples|Aadhar|Refined Sunflower Oil|1 L
+8901709011552|3|en|staples|Priya|Priya Refined Sunflower Oil|1 L
+8410125211700|3|en|staples|Figaro|Fígaro Extra Virgin Olive Oil (Imported)|250 ml (228 g)
+8906008811902|9|en|staples|Fortune|Pro Immunity Multi-source Edible Oil|1 l
+8906007280952|4|en|staples|adani Wilmar|Fortune premium kachi ghani pure mustard oil|1 L
+8906035030567|3|en|staples|Freedom|Freedom Refined Sunflower Oil|1 L
+8901088002530|8|en|staples|Saffola|Tasty+|820 g
+8906007280945|12|en|staples|Fortune|Mustard Oil|500 ml
+8906035030239|7|en|staples|freedom|Refined Sunflower oil|5000 ml
+8901207038334|3|en|staples|Dabur|Anmol Gold Coconut Oil|550 ml (503.25 g)
+8906035030017|5|en|staples|First Klass|Refined Palmolein Oil|1 l
+8901088155458|3|en|staples|Saffola|Saffola Gold|3 l
+0799872395306|4|en|staples|GANGA JAGGERY|Chekku Gingelly Oil (with Jaggery)|4550 g
+8908000502017|3|en|staples|Sunpure|Sunpure Sunflower oil|1 l
+8901088080293|3|en|staples|Parachute|Coconut oil|250 ml
+8902901218947|5|en|staples|Good life|Good life sunflower oil|1 L
+8908001679121|5|en|staples|Sarvottam|Sarvottam Rice Bran Oil|1 L
+8410125245170|3|en|staples|DEOLEO|Figaro Olive Oil|100 ml
+8410179101118|15|en|staples|BORGES|Extra virgin olive oil|1 l
+8908002396010|16|en|staples|Mr. GOLD|Refined Sunflower Oil|1 l (910 g)
+8906002660704|3|en|staples|KLF (https://coconutboard.nic.in/)|Coconad Edible Coconut Oil|1 litre (912 g)
+8908000258211|3|en|staples|Jivo|Jivo Olive Oil|1 L
+8901248270212|9|en|staples|Emami|Emami Healthy & Tasty Refined Sunflower Oil|900 g
+8906035030918|12|en|staples|Freedom|Groundnut Oil|1 l (910 g)
+8906007280259|3|en|staples|Fortune|Fortune Physically Refined Rice Bran Oil|1 L
+0785018139125|5|en|staples|Priya|Refined Sunflower Oil|1 l
+8906126830007|3|en|staples|Hello Life|Refined Sunflower Oil|1 L
+8902901219579|4|en|staples|Siega|Olive Pomace Oil|1 L
+8904132948631|3|en|staples|Independence|Independence Sunflower oil 5l|5 l
+8906007284097|5|en|staples|King's|King's soyabean oil|15 kg
+8908000258365|3|en|staples|Jivo|Cold pressed sunflower oil|4.550 kg
+8901207034459|3|en|staples|Dabur|Anmol Gold|900 ml
+8906035030741|4|en|staples|Freedom|Freedom Kacchi Ghani Mustard Oil|1 L
+8906040980604|3|en|staples|Hareena|Cold pressed coconut oil|500 Ml
+8906047522364|8|en|staples|DiSano|DiSano Olive Pomace Oil|500 ml (458 g)
+8906023797120|3|en|staples|Gold Drop|Sunflower oil|1 l
+8906007280235|3|en|staples|Fortune|Fortune sun lite refined sunflower oil|435 g
+8906032010012|12|en|staples|Ruchi Gold|Ruchi gold Oil|893 g
+8904132918351|3|en|staples|Get Real|Get real Coconut Oil|250 ml
+8904037219904|4|en|staples|Soul flavours|kachi ghani Cold pressed mustard oil|1 Litre
+8901088000468|3|en|staples|Parachute|Coconut oil|500 ml (455.0 g)
+8906007280105|3|en|staples|Fortune|Fortune Refined Soyabean Oil|15 kg
+8904037212356|4|en|staples|Fruit of the Earth|Coconut Oil|500 gm
+8906004620751|5|en|staples|Dhara Life|Refined Ricebran Oil|1 l
+0716270001660|41|en|staples|Chocolove|Ginger Crystallized In Dark Chocolate|3.2 g
+8901725123123|13|en|staples|Aashirvaad|iodized salt|1 kg
+0846203004885|8|en|staples|Chitale|BAKARWADI|500 g
+8901786060504|15|en|staples|Everest|Chaat Masala|50 g
+8904004400014|3|en|staples|Haldirams|Bhujia Sev|17 g
+8901786080502|13|en|staples|Everest|Everest Sambhar Masala|50 g
+8901786160501|3|en|staples|Everest|EVEREST Chicken Masala|50 gm
+0840222000149|7|fr|staples|L.G.|LG Hing Powder (asafoetida)|50 g
+8901786120505|12|en|staples|everest|Kitchen King Masala|50 g
+8901786411009|15|en|staples|Everest|Everest Kashmiri Lal / Red Mirch Powder|100 gm
+8901786240500|5|en|staples|Everest|EVEREST Cumin jeera|50 gm
+8903363002181|12|en|staples|DMart Premia|Methi|100 g
+8906044461048|3|en|staples|Vandevi|Hing|50 g
+8901662025061|3|en|staples|Suhana|Chat Masala|50 g
+8903363002693|3|en|staples|Dmart|Funnel seeds roasted|100 g
+8904004400069|14|en|staples|Haldiram's|Halirams Bhujiya sev 1kg|1 kg
+8901192114006|3|en|staples|Catch|Sprinkler Black Pepper|50 g
+8901786410507|3|en|staples|Everest|Kashmirilal|50 g
+8901725125141|5|en|staples|Aashirvaad|Chilli powder|100 g
+8902901222517|5|en|staples|Good Life|Ajwain|200 g
+8906021121156|3|en|staples|Aachi|Garam Masala|15 g
+8901725125349|3|en|staples|Aashirvaad|Turmeric Powder|100 g
+8906066206115|4|en|staples|Keya|Piri Piri Spice Mix|9 g
+8903363001382|3|en|staples|dmart|elaichi green eco|10 g
+8904109465826|3|en|staples|Patanjali|Chyawanprash with Saffron|500 g
+8906021123105|16|en|staples|Aachi|Turmeric Powder/ Haldi|16 g
+8902901231373|5|en|staples|Good Life|Good Life hing|50 g
+8903023005903|3|en|staples|Vedaka|Vedaka Red Chilli|200 g
+8906033531394|6|en|staples|Snapin|Snapin Chilli Flakes|7 g
+8901192202116|4|en|staples|Catch|SAMBHAR MASALA|100 gm
+3948537078321|3|en|staples|Daawat|Daawat Biryani Kit Hyderabadi|334 g
+0000101403187|3|en|staples|More|Ginger|100 g
+8902901222777|3|en|staples|Good Life|Good Life Jeera|200 g
+8908001105446|3|en|staples|Jayanti|The Only Cinnamon Powder you need|45 g
+8906021121859|3|en|staples|Aachi|Kulambu Chilli Masala|50 g
+8904238400187|6|en|staples|Tasty|Chicken 65 Masala|20 g
+8906001052005|3|en|staples|Mother's Recipe|Spice Mix for Paneer Butter Masala|75 g
+8901786260508|5|en|staples|Everest|Black pepper powder|50 g
+8901014004843|3|en|staples|Nissin|cup noodles veggi manchow|50 g
+8908001105231|13|en|staples|On1y|On1y Chilli Flakes|34 g
+8906021122436|3|en|staples|Aachi|Black Pepper Powder|8 g
+8902901222227|15|en|staples|Good life|Good life chilli powder|200 g
+8901662037828|15|en|staples|Suhana|CHICKEN BIRYANI MIX|50 g
+8901440013099|12|en|staples|Eastern|Eastern Chicken Masala|100 g
+8903023006047|3|en|staples|Vedaka|Premium Whole Methi (Fenugreek)|200 g
+8901440023166|9|en|staples|Eastern|Turmeric Powder|500 g
+8901662033509|3|en|staples|Suhana|Suhana Super garam masala|50 g
+8904209322067|3|en|staples|Aachi|Aachi Mixed Masala Powder|7 g
+8903023281727|3|en|staples|Choice|More Choice Chilli Red Long|500 g
+8906002080113|3|en|staples|Sakthi Masala|Chilli Powder|50 g
+8902901222654|3|en|staples|Good Life|coriander whole|100 g
+8901725125370|5|en|staples|Aashirvaad|Turmeric powder|500 g
+8901192214119|4|en|staples|Catch|CHICKEN MASALA|100 gm
+8906044920231|3|en|staples|Hallmark|Hallmark Byadgi Chilli Stemless|100 g
+8903023003466|3|en|staples|Vedaka|Vedaka Whole Cumin|500 g
+8906108302478|3|en|staples|Popular|Popular Coriander (Dhaniya Seeds)|200 g
+8904012501017|3|en|staples|Laxmi|Laxmi Compounded Asafoetida Yellow powder|50 g
+8904004403732|8|en|staples|Haldiram|Haldiram moong dal|200 g
+8904004404630|4|en|staples|haldiram's|salted peanuts|25 g
+8904004403800|17|en|staples|Haldiram|Moong dal|400 g
+8906010500702|5|en|staples|Balaji Wafers|Chana dal|24 g
+8901719130243|3|en|staples|Parle|Moong Dal|16 g
+8903363008275|6|en|staples|Dmart Premia|Roasted Yellow Chana|200 grams
+8904063240149|5|en|staples|Haldiram's|Haldiram's Salted Peanuts|38 g
+8906005670441|4|en|staples|Charliee|Yellow Chana|185 g
+8904043926315|23|en|staples|TATA sampann|Unpolished Moong Dal|1 kg
+8903363010988|19|en|staples|DMart Premia|Udid Dal|500 g
+8906055440094|3|en|staples|Organic tattva|Kabuli chana|500 g
+8906008815184|3|en|staples|Fortune|Fortune Kabuli Chana Whole|500 g
+8906009010601|3|en|staples|Parry's|Parry's Split Moong Dal|1 kg
+8904043926216|5|en|staples|Tata Sampann|Unpolished Toor Dal|1 kg
+8904063251480|3|en|staples|Haldiram's|Gup Shup Peanuts|18 g
+8904063210678|3|fr|staples|Haldiram's|Roasted Crushed Peanuts|200 g
+8902901027280|5|en|staples|Good Life|Urad Dal|2 kgs
+8903023012147|3|en|staples|More Select|More Select Masoor Dal Red|1 kg
+8903023010815|3|en|staples|Vedaka|Vedaka Roasted Chana Whole|500 g
+8903363010544|3|en|staples|DMart|DMart Premia Matki|1 kg
+8906069725705|4|en|staples|CHAK NOW|Moong Dal|15 g
+8903023006023|3|en|staples|Vedaka|Yellow Moong Dal|500 g
+8903363010650|3|en|staples|Dmart|Moong Whole|1 kg
+8906055440568|5|en|staples|Organic Tattva|Organic Peanuts|500 g
+8906032010982|12|en|staples|Nutrela|Nutrela Soya Chunks|1 kg
+8902901225761|4|en|staples|Good Life|white peas dry|500 g
+8903794504490|3|en|staples|Safe Harvest|Groundnut|500 g
+8902901027310|3|en|staples|Reliance|Pulses moong dal 2kg|2 kg
+8906007286039|3|en|staples|Fortune|Fortune Chana Dal|500 g
+8902901224825|3|en|staples|Good life|Good life urad dal chillka|500 g
+8902901224665|10|en|staples|Good Life|GL moong dal 1kg|1 kg
+8904132932876|9|en|staples|Good Life|unpolished moong dal|500 g
+8902901224795|8|en|staples|Good Life|rajma red|500 g
+8902901224696|5|en|staples|Good Life|Good Life rajma chitra 500g|500 g
+8906055440001|3|en|staples|Organic|Organic Tur dal|500 g
+8906001054306|3|en|staples|Mother's Recipe|Mother's Recipe Chana Masala papad|200 gm
+8902901011685|8|en|staples|Good Life|Good life toor dal|2 kg
+8902901230963|3|en|staples|good life|raw peanut|500 g
+0000101481707|3|en|staples|More|Green Peas|500 g
+8903023006009|3|en|staples|Vedaka|Vedaka Roasted Chana|500 g
+8903023005736|3|en|staples|Vedaka|Vedaka Toor dal|1 kg
+8909177016109|3|en|staples|Daily Good|Daily Good Red Masoor Whole|1 kg
+8906108304748|5|en|staples|Popular|Organic Brown Chana|500 g
+8906066852206|3|en|staples|Nature Land Organics|Rajma Jammu|500 g
+8903363010506|5|en|staples|DMart|Masoor Whole|1 kg
+8903023015186|3|en|staples|Vedaka|Unpolished White Urad Whole|2 kg
+8908004431016|3|en|staples|Tenali Vijayalakshmi Deer|Urad Gota|1 kg
+8906065166007|18|en|staples|Farmland|Farmland frozen green peas|1 kg
+8904043926643|3|en|staples|Tata Sampann|Unpolished Chana Dal|1 kg
+8904043926629|5|en|staples|Tata Sampann|Tata Sampann Unpolished chana dal|500 g
+8904293723504|3|en|staples|Flipkart|White Peas/Matar|1 kg
+8904063214454|4|en|staples|Haldiram's|classic nut cracker|500 gm
+8905532000332|7|en|staples|Bharat Dal|Chana Dal|1 kg
+8904067700137|4|en|staples|Jabsons|Chana Jor|160 g
+8904192211553|4|en|staples|Namdharis|Thoughtful Kabuki Channa|500 gms
+8906065166045|3|en|staples|Farmland ITC|Frozen Green Peas|500 g
+8904043926704|3|en|staples|Tata sampann|Tata sampann unpolished kabuli chana|500 gm
+8902901224962|4|en|staples|Good Life|Masoor dal|1 kg
+8906008810844|5|en|staples|Fortune|Gujarati Khichdi|200 g
+8904083505396|3|en|staples|24Mantra|Kabuli Chana|500 g
+8903363008435|3|en|staples|DMart Premia|Yellow Chana|200 g
+8903059606563|3|en|staples|3 S|3 S Moong Dal Dhuli|500 g
+8902901224658|7|en|staples|Good Life|Good Life masoor dal 500g|500 g
+8908012586074|3|en|staples|My Kitchen|My Kitchen Urad Dal Whole|1 kg
+8904067700304|3|en|staples|Jabsons|Classic Hand Roasted Peanuts|150 g
+8903363010995|3|en|staples|Dmart Premia|Udid|1 kg
+8902901224634|3|en|staples|Good Life|Good Life Kabuli Chana|500 g
+8904293723443|3|en|staples|Flipkart Grocery|Flipkart Grocery White Peas|500 g
+8904293723368|3|en|staples|Flipkart Grocery|Flipkart Grocery Raw Peanuts|1 kg
+8906026900022|4|en|staples|madhur|sugar|1 kg
+8901468119780|6|en|staples|Pitambari|Pitambari Ruchiyana Jaggery Powder|500 g
+8908013889143|3|en|staples|AGVS Bandhu|AGVS Bandhu Jaggery Bytes|500 g
+8906009010106|22|en|staples|Parry's|JAGGERY POWDER|500 g
+8906026900053|4|en|staples|Madhur|Sugar|5 kg
+8906009011301|17|en|staples|Parry's|White Label Sugar|1 kg
+8906009013008|5|en|staples|parrys|8906009013008|500 g
+8902901031195|7|en|staples|Good Life|Crystal Sugar|1 kg
+8906125670246|11|en|staples|Sunraja Oil Industries Private Limited|Gulas Jaggery Powder|500 g
+9780201379020|3|en|staples|Aadisha|Aadisha Jaggery|900 g
+8909177014730|3|en|staples|Daily Good|Daily Good Sugar|1 kg
+8906026900046|3|en|staples|Madhur|Pure & Hygienic Sugar|1 kg
+0787099822569|15|en|staples|Wellversed|Ketofy Zero Sugar|400 g
+8908010881003|3|en|staples|Parth|Jaggery|950 g
+8904004406313|3|fr|staples|Haldiram's|Agra Taj petha|350 g
+8908006734153|3|en|staples|Kunjall|Kunjall Jaggery|900 g
+8902929003716|3|en|staples|Miltop|Kolhapuri Jaggery|900 g
+8921823461500|3|en|staples|Naaval|Jaggery Powder|500 g
+8909177008210|3|en|staples|smart one|smart one sugar|1 kg
+8908006734214|3|en|staples|DK's|Desi Gud Jaggery|450 g
+8906009011318|7|en|staples|parry's|sugar|500 g
+8908008252242|4|en|staples|Rasmalai Gold|Premium Jaggery pieces|800 g
+8901719119040|4|en|staples|Parle|Parle Mazelo Candy|198 g
+8908000502987|3|en|staples|Sunpure|Sunpure Sugar|500 g
+8903023269602|3|en|staples|Papas|Jaggery|500 g
+8903023003633|3|en|staples|More|More Daily Sugar|1 kg
+5521765330553|3|en|staples|Lotus Foods|Jaggery powder|500 g
+0639277143303|18|en|staples|Coastal Bay confections|Hard Candy|85 g
+0811307030344|8|en|staples|Taali|Taali Roasted Makhna|58 g
+0940010861003|3|en|staples|Parth|Parth jaggery|1 kg
+8906125670420|3|en|staples|Gula's|Jaggery Powder|500 g
+8904067709369|3|en|staples|Jabsons|Peanut Gud|210 g
+8908022173202|3|en|staples|just gud|jaggery|900 g
+8906009011370|3|en|staples|Parry's|white label sugar|5 kg
+8908012731054|3|en|staples|Dr Brand|Jaggery Powder|500 g
+8906009011448|3|en|staples|Parrys|Sugar Brown|750 grams
+8906011676055|3|en|staples|Oswal|desi khand|1 kg
+8906157630171|6|en|staples|Sunpure|Jaggery Powder|500 g
+8904083506911|3|en|staples|24 mantra organic|Organic Jaggery Powder|500 g
+8904256702492|3|en|staples|Bb Royal|Kolhapuri Jaggery|450 grams
+8904256710572|3|en|staples|Bb Royal|Sugar (Sulpherless)|1 Kg
+8904422700376|3|en|staples|Patanjali|Desi Khand|1 kg
+8906008812190|3|en|staples|Fortune|Sugar|1 kg
+8906014888868|3|en|staples|True Story|Organic Jaggery Powder|500 g
+8904043901015|34|en|staples|Tata|Tata Salt|1 kg
+8904043926612|24|en|staples|TATA Salt|Himalayan Rock Salt|1 kg
+8901192002105|3|en|staples|Catch|Catch Pink Rock Salt(Sendha Namak)|100 Grams
+8901192000101|5|en|staples|catch|catch sprinklers Table Salt|100 g
+8904043901077|9|en|staples|TATA|Salt LITE|1 kg
+8908012731535|3|en|staples|Mount 84|Rock Salt|1 kg
+8902901027945|3|en|staples|Good Life|Good Life Iodised Salt|1 kg
+8906055442166|3|en|staples|Natural Tattva|Natural Tattva Himalayan Rock Salt|500 g
+8901725110611|3|en|staples|Aashirvaad|Aashirvaad Iodized Crystal Salt|1 kg
+8904422701083|3|en|staples|Patanjali|Iodised Salt|1 kg
+8908013338795|17|en|staples|Aadar|SENDHA NAMAK|100 g
+1111104081983|3|en|staples|HEAVENLY GROUPS|CRYSTAL STAR|500 gm
+8904293729384|3|en|staples|Flipkart Grocery|Flipkart Grocery Black Salt Powder|100 g
+8908018568081|3|en|staples|SilverStar|SilverStar Black Salt|100 g
+8904083519997|3|en|staples|24 Mantra Organic|rock salt|1 kg
+8907860005362|3|en|staples|ORIXINDIA|ORIXINDIA HIMALAYAN PINK SALT|1 KG
+8906108303871|3|en|staples|Popular|Pink salt|500 g
+8901262010016|53|en|dairy|Amul|Amul Pasteurized Butter|100.0 g
+8901262200196|54|en|dairy|Amul|Amul Masti Spiced Buttermilk 200ml|200 mL
+8901262260121|52|en|dairy|Amul|Amul Taaza Milky Milk|500 ml
+8901262010320|3|en|dairy|AMUL|Amul Butter|200 gm
+8906001023043|6|en|dairy|Paragon Partners|Govardhan pure cow ghee 500ml|500 ml
+8904083303077|10|en|dairy|Milky Mist|Farm Fresh Sahi Plain Yoghurt|1 kg
+8901262180115|6|en|dairy|Amul|malai paneer fresh|200 g
+8902579002299|14|en|dairy|Parle Agro|Smoodh chocolate|80 ml
+8901262200189|26|en|dairy|Amul|Amul Lassi 200ml|200 mL
+8906009501031|5|en|dairy|Chitale|Pasteurised Cow Milk|500 ml
+8901262020039|40|en|dairy|Amul|Amul cheese|200 g
+8906001023050|9|en|dairy|Gowardhan|Gowardhan pure cow ghee|200 ml
+8901262200004|3|en|dairy|Amul|Butter milk amul|500 ml
+8901262151863|6|en|dairy|Amul|Amul Fresh Cream|250 ml
+8901262020015|17|en|dairy|Amul|Cheese slices|200 g
+8901262150088|51|en|dairy|Amul|Milk|200 ml
+8901262151696|43|en|dairy|Amul|Amul Lassi 250 ml|250 ml
+8906001023036|12|en|dairy|Gowardhan|Pure Cow Ghee|1 L
+8901262020046|4|fr|dairy|Amul|Pure Milk Cheese Slices|100 g
+8901262150064|37|en|dairy|Amul|Amul Taaza 1ltr|1 L
+8904083302292|31|en|dairy|Milky Mist|Greek Yogurt|100 g
+8902579002497|3|en|dairy|Parle|SMOODH CHOCLATE FLAVORED MILK|150 ML
+8901262200622|16|en|dairy|Amul|Amul Masti|390 g
+8901262202244|3|en|dairy|Amul|Tadka Chhach Probiotic Buttermilk|300 ml
+8902579003456|3|en|dairy|Parle Agro|Smoodh Chaas|180 ml
+8901262020244|3|en|dairy|Amul|Amul Cheese|200 g
+8901262152211|43|en|dairy|Amul|Amul Kool Kesar Flavour 180ml|180 ml
+8901262200028|3|en|dairy|Amul|Dahi|200 g
+8902579003302|3|en|dairy|Smoodh|Smoodh Lassi|180 ml
+8906016413792|3|en|dairy|Godrej Jersey|Badam Flavoured Milk|185 ml
+8901071732413|17|en|dairy|Hershey's|Milk shake chocolate flavour 180ml|180 ml
+8902979001724|13|en|dairy|Cavin's|Cavins Masala Chaasa 180 ml|180 ml
+8908010900056|3|en|dairy|Pintola|Peanut butter|350 g
+8901262060011|8|en|dairy|Amul|Cheese Spread|200 g
+8904083300021|11|en|dairy|Milky Mist|Paneer|200 g
+8904083302100|15|en|dairy|Milky Mist|Fruit Yogurt Blueberry|100 g
+8901262030243|17|en|dairy|Amul|Amul gee|1 L
+8906009501017|11|en|dairy|Chitale|Full cream milk|500 ml
+8901262153348|18|en|dairy|Amul|Protein Lassi - Rose Flavour|200 mL
+8901058903959|5|en|dairy|Nestlé|milkmaid 100+ recipes|380 g
+8901262260947|10|en|dairy|Amul|Buffalo Milk A2|500 ml
+8904083305071|3|en|dairy|Milky Mist|Pro Biotic Curd|1 kg
+8906117360353|11|en|dairy|Country Delight|Country Delight Buffalo Milk|450 ml
+8906041150501|3|en|dairy|Katraj Dairy|Pasteurised Buttermilk|500 ml
+8901262151931|4|en|dairy|Amul|Amul Kadhai Doodh|200 ml
+8901262010344|15|en|dairy|Amul|Garlic & Herbs Buttery Spread|100 g
+8902579002329|24|en|dairy|parley Agro|Smoodh toffee caramel|80 ml
+8901262180016|5|en|dairy|Amul|Malai Paneer|200 g
+8904083300106|22|en|dairy|Milky Mist|Paneer|200 g
+8902979050913|26|en|dairy|Cavins|Covins chocolate milkshake 180ml|180 ml
+8901262152952|27|en|dairy|Amul|Protein Buttermilk|200 ml
+8901262040013|3|en|dairy|Amul|Shrikhand|500 g
+8901030975530|3|en|dairy|Boost energy|Boost milk shake|180 ml
+8901262010207|5|en|dairy|Amul|Butter School Pack|100 g
+8906036670212|3|en|dairy|Nandini|Curd|500 g
+8906059635007|7|en|dairy|epigamia|GREEK YOGURT natural|85 g
+8901262152228|15|en|dairy|Amul|Amul kool elaichi 180ml|180 ml
+8901262200011|3|en|dairy|Amul|Masti Dahi|85 g
+8901063146457|36|en|dairy|Britannia|Britannia winking cow chocolate 180ml|180 ml
+8901262260091|9|en|dairy|Amul|Amul Taaza|1 L
+8901262153607|7|en|dairy|Amul|Protein Lassi - Plain|200 ml
+8901262202381|17|en|dairy|Amul|Amul Curd|700 g
+8908023008022|5|en|dairy|Nucgnex|Celnutra 2.0|400 g
+8901262020381|3|en|dairy|Amul|Amul cheese|500 g
+5000354908248|33|en|dairy|Bird's|Original Custard powder|350 g
+8901262200233|3|en|dairy|Amul|Amul Masti Spiced Buttermilk|1 l
+8906036673602|3|en|dairy|Nandini|Nandini GoodLife Toned Milk|1 litre
+8904083302070|5|en|dairy|Milky Mist|MilkyMist Fruit Yogurt|100 g
+8906059635090|20|en|dairy|epigama|Greek yogurt|85 g
+8906059636936|3|en|dairy|Epigamia|Epigamia Everyday Yogurt Mango|75 g
+8901262201124|4|en|dairy|Amul|Amul Masti Dahi|85 g
+8901262202299|4|en|dairy|Amul|PROTEIN DAHL|400 g
+8904089921008|3|en|dairy|Heritage|Total curd|120 g
+8901262200271|7|en|dairy|Amul|Amul dahi|200 g
+8901648022169|15|en|dairy|Mother Dairy|Mother dairy classic dahi|1 kg
+8902979051071|4|en|dairy|Cavin's|Rose Lassi|180 ml
+8901648026167|7|en|dairy|Mother Dairy|Classic Dahi|80 g
+8902133055662|3|en|dairy|Sangam|Sangam Curd|450 g
+8904089920629|5|en|dairy|Heritage|Curd|500 g
+8906001022626|10|en|dairy|Gowardhan|Gowardhan Star Dahi|500 g
+8904057396289|5|en|dairy|Hatsun|Hatsun Curd|200 g
+8901648097983|12|en|dairy|Mother Dairy|Mother Dairy Ultimate Dahi|400 g
+8904083302094|6|en|dairy|Milky Mist|milky mist yogurt peach|100 gm
+8901725117948|3|en|dairy|Aashirvaad|Mishti Doi|75 g
+8904083302438|5|en|dairy|Milky Mist|Greek Yoghurt|700 g
+8901262201896|5|en|dairy|Amul|Amul Stirred Fruit Yogurt Strawberry|100 g
+8006041050495|3|en|dairy|Katraj|Katraj Lassi|200 ml
+8904284201035|3|en|dairy|Dilicia|Dilicia Classic Curd|500 g
+8906019731596|3|en|dairy|Prabhat|Dahi|80 g
+0746935596262|5|en|dairy|Sids Farm|Buffalo Curd|400 g
+8904089995351|3|en|dairy|Heritage|Blueberry Yogurt|90 gms
+8904089923682|3|en|dairy|Heritage|Curd|400 g
+8908014665289|3|en|dairy|Mamie Yova|French Yogurt|400 g
+8901648014843|3|en|dairy|Mother Diary|Fruit Yoghurt Mango|100 g
+8906059635021|13|en|dairy|epigamia|Epigamia Greek Yogurt Strawberry|90 g
+8906117360018|3|en|dairy|Country Delight|Country Delight Curd|400 g
+8908015845086|3|en|dairy|Gokul|Gokul Dahi|1 kg
+8901262201902|3|en|dairy|Amul|Amul Stirred Fruit Yoghurt Pineapple|100 g
+8904057395602|3|en|dairy|HATSUN|Curd|85 g
+8906016413778|3|en|dairy|Godrej|Mango Fruit Yoghurt|100 g
+8906137053242|3|en|dairy|Milma|PROBIOTIC CURD|1 kg
+8906059638329|7|en|dairy|Epigamia|Mishti Doi|80 g
+8901207002496|4|en|dairy|dabar|Kundan.kumar|120 g
+8901262152945|3|en|dairy|Amul|Protein Lassi - Mango flavour|250 ml
+8908003249414|7|en|dairy|Akshayakalpa Organic|Greek yogurt|100 g
+8908002753004|3|en|dairy|Red Cow Dairy|Mishti Doi|400 g
+8901262030151|9|fr|dairy|Amul|Amul Ghee 1ltr|1 ltr
+8901542002090|5|en|dairy|Nutralite|DoodhShakti Ghee|1 L
+8901262030366|6|en|dairy|AMUL|AMUL PURE GHEE|1 L
+8901262010436|19|en|dairy|Amul|Amul White Unsalted Butter|100 g
+8901262030458|5|en|dairy|Amul|Ghee|200 ml
+8901262030663|13|en|dairy|amul|amul cow ghee|200 ml
+8906024482032|3|en|dairy|Dodla|Dodla Ghee|1 L
+8901648094746|4|en|dairy|Mother Dairy|Mother Dairy pure ghee 1 ltr|1 ltr
+8906078260563|3|en|dairy|cremica|butter bke|37 g
+8901725100339|9|en|dairy|Aashirvaad|Svasti pure cow ghee|200 ml
+8904083300656|3|en|dairy|Milky Mist|Cooking Butter Unsalted Pasteurised|100 g
+8904037212721|4|en|dairy|Soul Flavor (Modicare)|Cow Ghee|1 Kg
+8904083300625|4|en|dairy|Milky Mist|Milky Mist Cooking Butter - Unsalted|500 g
+8906024482056|10|en|dairy|Dodla|Dodla Ghee|200 ml
+8901207039348|3|en|dairy|Dabur|Dabur Cow Ghee|1 l
+4901960000016|3|en|dairy|Amul|Amul Pasteurised Butter|100 g
+8901548310403|5|en|dairy|Nutralite|DoodhShakti|500 gms
+4901488010320|3|en|dairy|Amul|Butter|200 g
+8904422702233|8|en|dairy|Patanjali|cow ghee|1 ltr
+8904124100115|3|en|dairy|Ananda|Ananda Pure Ghee|900 ml
+8906036672292|12|en|dairy|Nandini|Pasteurised Table Butter Unsalted|200 g
+8906023641010|6|en|dairy|Thirumala|Ghee|1 L
+8904109490545|4|en|dairy|Patanjali|Patanjali COW'S GHEE|500 ml
+8901262030601|3|en|dairy|Amul|Amul cow ghee|1 kg
+8904342400134|5|en|dairy|Aabad|Cow Ghee|1 l
+8908000655140|15|en|dairy|Udhaya Krishna|Agmark Ghee|200 ml
+8906001727149|8|en|dairy|Paras|Desi ghee|1 l
+8901725111625|3|en|dairy|Aashirvaad|Aashirvaad svasti|750 ml
+8904256728256|3|en|dairy|Fresho|Pure Cow Ghee|200 ml (182 g)
+8906036670885|10|en|dairy|Nandini|Pure Ghee|1 l (905 g)
+8906017815076|3|en|dairy|Madhusudan|Madhusudan Desi Ghee jar|200 ml
+8906029780218|3|en|dairy|milma|milma ghee|200 ml
+8901018028531|3|en|dairy|Nilgiris|Pasteurised Unsalted Cooking Butter|500 g
+8901648031147|4|en|dairy|Mother Dairy|Mother Dairy cow ghee 1 ltr|1 ltr
+8906023649566|3|en|dairy|Thirumala|Thirumala cow ghee|1000 ml, 910 g
+8908022080098|5|en|dairy|Ashtavinayak|Ghee|450 g
+8904106400455|5|en|dairy|Modern Dairy|Ghee|500 ml
+8900220231000575|3|en|dairy|DAIRY KRISHNA|DAIRY KRISHNA PURE DESI GHEE|1 kg
+8901826301512|3|en|dairy|Verka|Verka Cow Milk Fat Ghee|1 l
+8906016410753|3|en|dairy|Godrej Jersey|Godrej Jersey Ghee|100 ml
+8901262031059|12|en|dairy|Amul|Amul ghee|500 gm
+8904057395534|4|en|dairy|Hatsun|Hatsun butter|200 g
+8908003249049|3|en|dairy|Akshayakalpa|Ghee|195 ml
+8908018023337|3|en|dairy|Patanwala|Patanwala Cow ghee|5 ltr
+8908018023320|3|en|dairy|Patanwala|Patanwala Pure ghee|5 ltr
+8908018023139|3|en|dairy|Patanwala|Patanwala Cow ghee|1 ltr
+8908018023146|3|en|dairy|Patanwala|Patanwala Cow ghee|500 ml
+8908018023115|3|en|dairy|Patanwala|Patanwala Pure ghee|500 ml
+8908018023108|3|en|dairy|Patanwala|Patanwala Pure ghee|1 ltr
+0400008023153|3|en|dairy|Patanwala|Patanwala Cow ghee|250 ml
+8908018023122|3|en|dairy|Patanwala|Patanwala Pure ghee|250 ml
+8906137051910|3|en|dairy|Milma|Milma pasteurized unsalted butter|100 g
+8901648093329|3|en|dairy|Mother Dairy|Butter|500 g
+6909046672292|3|en|dairy|Nandini|Nandini Pasteurised Table Butter Unsalted|300 g
+8901063410282|9|en|dairy|Britannia|The Laughing Cow Cheese Slices|400 g
+8906010090739|3|en|dairy|D'lecta|D'lecta Mozzarella Cheese|140 g
+8904083307037|3|en|dairy|Milky Mist|Processed Cheese Cubes|200 g
+8901063401082|3|en|dairy|Britannia|Britannia cheese cube|200 g
+8904089929110|4|en|dairy|Heritage|Fresh Paneer|200 g
+8906010090777|5|en|dairy|D'lecta|Cheese slices|200 g
+8906010090005|9|en|dairy|D'lecta|D'lecta Cheese Cubes|100 g
+8904083300045|3|en|dairy|Milky Mist|Paneer|500 g
+8901262020541|7|en|dairy|Amul|Amul diced cheese blend (mozzarella and cheddar cheese blend)|1000 g
+8906016411453|14|en|dairy|Godrej|Super Soft Paneer|200 g
+8906084522129|3|en|dairy|Desi Farms|Desi Farms Buffalo Malai Paneer|200 g
+8904083310112|15|en|dairy|Milky Mist|Cheese Slice|100 g
+8906036670977|3|en|dairy|Nandini|Nandini Paneer|200 g
+8904057396395|7|en|dairy|Hatsun Agro Product Limited|Paneer|200 g
+8904124108098|15|en|dairy|Ananda|Paneer|200 g
+8906010090593|4|en|dairy|D'lecta|Natural Cheddar slices|200 g
+8901262180146|3|en|dairy|Amul|Amul Malai Paneer|1 kg
+8908001631211|23|en|dairy|Aroma|Fresh paneer|200 gm
+8901262180429|8|en|dairy|Amul|High Protein Paneer|400 g
+8906084521597|16|en|dairy|Desi Farms|Low Fat Paneer|200 g
+8906001020202|3|en|dairy|Gowardhan|Go Cheese Slices|100 g
+8906117360346|3|en|dairy|Country Delight|Country Delight Paneer|180 g
+8906027714154|3|en|dairy|Govind|Paneer|180 g
+8904093300028|10|en|dairy|Milky Mist|Paneer|200 g
+8904083311010|3|it|dairy|Milky Mist|Shredded Mozzarella Cheese|500 g
+8904124108074|3|en|dairy|Ananda|Paneer|200 g
+8906064651474|15|en|dairy|Wingreens Farms|Cheesy Sauce|180 g
+7622210624918|23|en|dairy|Philadelphia Original|Cheese Spread|280 g
+8901725013318|11|en|dairy|Aashirvaad|Aashirvaad svasti Paneer Slices|200 g
+8901063410312|8|en|dairy|BRITANNIA|The Laughing Cow|120 g
+0944607300005|3|en|dairy|Milky Mist|Paneer|500 g
+0707959790173|3|en|dairy|Sid's Farm|Sid's Farm Malai Paneer|180 g
+8908003249070|8|en|dairy|Akshayakalpa Organic|Akshayakalpa Malai Paneer|200 g
+8908021743000|4|en|dairy|Healthy India|Fresh paneer|200 gram
+5410942104158|78|en|dairy|Passendale|Passendale classic|190 g (5*38 g)
+8908014047023|8|en|dairy|Soft spot|Smoked Cheese|200 g
+2000000136641|4|en|dairy|Amul|Amul Cheese Slices|100 g
+8908011832004|3|en|dairy|Indiska Farms|Malai Paneer|200 g
+8906023642048|5|en|dairy|Thirumala|Paneer|400 g
+8908010643625|5|en|dairy|Vallhabha|Paneer|400 g
+8904083310037|16|en|dairy|Milky mist|Garlic Cheese Spread|200 g
+9825306676367|11|en|dairy|Milken|Mozzarella Cheese|200 g
+8908000231016|3|en|dairy|Choudhary cheese bazar|Mozzarella|200 g
+0020412090475|3|en|dairy|Kraft|Cheddar cheese|190 gm
+8906023920382|3|en|dairy|Dairy craft|Mozzarella|200 g
+8901262180023|4|en|dairy|Amul|Paneer indian cottage cheese|1 kg
+8901648000716|3|en|dairy|Mother dairy|Malai paneer|200 g
+8906177760971|16|en|dairy|Akshayakalpa Organic|High Protein Paneer|200 g
+8904043551548|15|en|bakery|Modern|Modern 100% Whole Wheat Bread|400 g
+8908009059185|37|en|bakery|The Health Factory|Zero Maida Whole Wheat Bread|350 g
+8901063325753|3|en|bakery|Britannia|Britannia Toastea Premium Bake Rusk with Real Elaichi|183 gm
+8901063325920|3|en|bakery|Britannia|Britannia Toastea Premium Bake Rusk with Real Elaichi|1 kg
+8901063325036|10|en|bakery|Britannia|Britannia toastea 250gm|250 g
+8904043551579|7|en|bakery|modern|multgrain bread|400 g
+8906001387114|25|en|bakery|English Oven|Multi Grain High Fibre Bread|400 g
+8906001388609|3|fr|bakery|English Oven|Brown Sliced Brown Bread|400 g
+8906007610124|3|en|bakery|Kwality|Brown Bread|400 g
+8908009059178|11|en|bakery|The Health Factory|Super Multi Grain Bread - Zero Maida Bread|250 g
+8908009059154|25|en|bakery|The Health Factory|Whole Wheat Bread|250 g
+8904043551555|22|en|bakery|Modern|Atta Shakti|400 g
+8904043551586|26|en|bakery|Modern|Brown Bread|300 g
+8904004411003|3|fr|bakery|Haldiram's|Rusky|250 g
+8901719122910|9|en|bakery|Parle|Parle real elaichi rusk 182gm|182 g
+8903553002458|3|en|bakery|Ram Bandhu|udad papad|200 g
+8906023811147|3|en|bakery|English recipe|8906023811147|400 g
+8908001032049|3|en|bakery|Everyday|Everyday Milk Bread|400 g
+8904043551494|19|en|bakery|Modern|Modern Fruity Bread|200 g
+8901063342354|3|en|bakery|Britannia|sandwich white bread|450 g
+8903363006837|6|en|bakery|Royal Toast|Real Elaichi Toasted Bread|400 g
+8908009059307|4|en|bakery|The Health Factory|Milk Bread|250 g
+8902027006169|3|en|bakery|Kitty|Kitty Brown Bread|400 g
+8901063338623|8|en|bakery|Britannia|Multi Grain Bread|400 g
+8901063342934|3|en|bakery|Britannia|100% Whole Wheat Sandwich Bread|450 g
+8908009059246|8|en|bakery|The Health Factory|Zero Maida Protein Bread|250 g
+8901719125638|5|en|bakery|Parle|Parle Rusk Real Elaichi|200 g
+8903553535208|3|en|bakery|Ram Bandhu|Udad papad|56 g
+8901063325784|20|en|bakery|Britannia|Toastea Rusk|275 g
+8906020460010|5|en|bakery|Harvest Gold|Harvest Gold White Bread|700 g
+8901063342910|9|en|bakery|Britannia|Brown bread|400 g
+8904474000530|7|en|bakery|bonn|BONN Prime Time Brown Bread|400 g
+8901063343276|4|en|bakery|Britannia|Multi Grain Bread|450 g
+8904474000189|6|en|bakery|La Americana|La Americana Wholewheat Brown Bread|350 g
+8906020461116|12|en|bakery|Harvest Gold|Rolez Danish Bun|60 g
+8906117360032|5|en|bakery|Country Delight|Country Delight Brown Bread|200 g
+8908002507409|3|en|bakery|Palekar|Ghee brown rusk|200 g
+8908002735055|6|en|bakery|Golden bite|Mik bread|450 g
+8904474000332|3|en|bakery|Bonn|Multigrain high fibre bread|200 gm
+8901063338838|20|en|bakery|Britannia|Britannia Brown Bread 200 g|200 gm
+8906018380443|8|en|bakery|Nasta|Brown Bread|400 g
+8906029605344|3|en|bakery|ammamma's|Whole Wheat Chapati|400 g
+8904043553054|7|en|bakery|Modern|Milk Plus Bread|450 g
+8908001588560|3|en|bakery|Asal|Wheat Chapati|200 g
+8901063338494|3|en|bakery|Britannia|Britannia Pav|200 g
+8908001032117|3|en|bakery|Everyday|Everyday 100% whole wheat bread|450 g
+8908001032124|3|en|bakery|EveryDay|Multi Grain Bread|350 g
+8908002105117|3|en|bakery|BakesFresh|Brown Bread|400 g
+8904043551609|5|en|bakery|modern|modern milk plus bread|350 g
+8901063325609|4|en|bakery|Britannia|Toastea premium rusk|200 g
+8906007702263|4|en|bakery|Salsalito|Wrap tortilla|348 g
+8904089915137|3|en|dairy|Heritage|Daily Health Toned Milk|500 ml
+8908000716018|5|en|dairy|Rajhans|Rajhans Milk|200 ml
+8901262150989|8|en|dairy|Amul|Amul Gold 1ltr|1 litre
+8901648920120|3|en|dairy|Mother Dairy|Cow Milk|500 ml
+8906024484142|11|en|dairy|DODLA|badam flavored milk|200 ml
+8901071732451|5|en|dairy|Hershey's|Hershey's milk shake almond flavor|180 ml
+8904089915168|13|en|dairy|heritage|Special Long Life Milk|500 ml
+8906117360360|5|en|dairy|Country Delight|Country Delight Cow Milk|450 ml
+8904057396166|21|en|dairy|Arokya|Arokya Toned Milk|500 ml
+8904089974844|3|en|dairy|Heritage|Heritage Milk Shake|180 ml
+8901262260152|3|en|dairy|Amul|Slim 'n' Trim|500 ml
+8901262150118|19|en|dairy|Amul|Amul Fresh Cream 1ltr|1 L
+8906059639890|3|fr|dairy|Epigamia|Chocolate Milk Shake|180 ml
+8906024480380|5|en|dairy|Dodla|Toned Milk|500 ml
+8904089918138|4|en|dairy|Heritage|Happy Full Cream Milk|500 ml
+8901262201001|3|en|dairy|Amul|Amul Spiced Buttermilk|200 ml
+8906048501511|8|en|dairy|Nutricia|Dexolac 1|200 g
+8904011302837|3|en|dairy|Aavin|Delite|500 ml
+4906409501031|3|en|dairy|Chitale|Pasteurised Cow Milk|500 ml
+0726684792160|17|en|dairy|Sid’s Farm|High Protein Milk|250 ml
+8906028690518|5|en|dairy|Koyna|Pasteurised Full Cream Milk|500 ml
+8901071732444|3|en|dairy|Hershey's|Hershey's cookies 'n' creme flavor milk shake|180 ml
+8904089923705|3|en|dairy|Heritage|Family Toned Milk|500 ml
+8906137050036|10|en|dairy|Milma|Milma Pride|500 ml
+8904083301455|17|en|dairy|Milky Mist|Toned Milk|1 l
+8901262080118|3|en|dairy|Amul|Amulspray Infant Milk Food|200 g
+8906036673947|3|en|dairy|Nandini|Nandini Good Life|180 ml
+8906016100814|4|en|dairy|warana|warana long life milk|1 l
+8901826601209|9|en|dairy|Verka|Verka Shakti Milk|500 ml
+8908001631020|3|en|dairy|Aroma|Standardised Milk|230 ml
+8904057397651|7|en|dairy|Arokya|Standardized Milk|140 ml
+8901648921325|3|en|dairy|Mother Dairy|Mother Dairy Toned Milk|500 ml
+8904083301547|3|en|dairy|Milky Mist|Sweetend Condensed Milk|200 GM
+8906036673596|18|en|dairy|Nandini|Nandini GoodLife Toned Milk|500 ml
+8904011301601|3|en|dairy|Aavin|Pasteurised Full Cream Milk|500 ml
+7622201758042|3|en|dairy|Cadbury|Dairy Milk Silk Minis|153 g
+8906036670441|5|en|dairy|nandini|goodlife slim|1 l
+8901262080033|18|en|dairy|Amul|Amulspray Infant Milk Food|500 g
+8901262150217|35|en|dairy|Amul|Amul Taaza milk 500ml|500 ml
+8901262151269|3|en|dairy|Amul|Amul Moti125ml|140 ml
+8901058869262|10|en|dairy|Nestlé|Toned Milk a+|1000 ml
+8906016410029|3|en|dairy|Godrej|Godrej Jersey Full Cream Milk|500 ml
+8906117360995|8|en|dairy|Country Delight|Country Delight Low Malai Milk|450 ml
+8901262261425|5|en|dairy|Amul|Amul A2 Gir Cow Fresh Milk|1 L
+8904089919135|5|en|dairy|Heritage|cow milk|500 ml
+8908003249728|15|en|dairy|Akshayakalpa Organic|Organic Cow Milk|1 L
+8908003249032|3|en|dairy|Akshayakalpa Organic|Organic Cow Milk|500 ml
+0787099803988|3|en|dairy|Sid's Farm|Sid's Farm Skim Milk|500 ml
+8908024361393|10|en|dairy|Provilac|High Protein Milk|250 ml
+8949965715135|3|en|dairy|Heritage|Heritage Cow Milk|200 ml
+5060204123672|3|en|dairy|Eggon Eggs|Eggon White Grade A White Eggs|6 units, 300 gm
+8908011154007|4|en|dairy|Eggee|Eggs|5 pcs
+8906115810454|3|en|dairy|Total Ten|Total Ten eggs|550 g
+8915907675010|3|en|dairy|VILLAGE FARMER|VILLAGE FARMER - EGGS - 12 PIECES|12 PIECES
+8915907675027|3|en|dairy|VILLAGE FARMER|VILLAGE FARMER - EGGS - 30 PIECES|30 PIECES
+8901719134845|11|en|packaged|Parle|Parle-G Biscuit|45 gm
+8901063139329|14|en|packaged|britannia|bourbon|50 g
+8901063093522|28|en|packaged|Britannia|Good Day - Cashew Cookies|52.5 g
+8901063162914|3|en|packaged|Britannia|Marie Gold Biscuit|64 g
+8906010500245|20|en|packaged|Balaji Wafers|Balaji Wafers Masala Sev Murmura|40 g
+8901063092853|4|en|packaged|Britannia|Good Day cashew cookie|30.2 g
+8901719129988|14|en|packaged|Parle|Happy happy - Parl|31.5 g
+8901063029255|9|en|packaged|Britannia|Jimjam 57g (57)|57 g
+8901719135248|25|en|packaged|Parle|Krackjack|56.7 g
+8996001312506|3|en|packaged|Mayora|Malkist Cheese Flavoured Crunchy Layered Cracker Biscuits|144 g
+8901058005233|26|en|packaged|KitKat|Kitkat mini chocolate coated wafer|11.9 g
+8901063162532|5|en|packaged|Britannia|Marie gold|33 g
+8906032018513|3|en|packaged|Patanjali|Doodh Biscuits|35 g
+8901719105913|22|en|packaged|PARLE|parle hide & seek 120g|120 g
+8901719117183|26|en|packaged|Parle|Hide & Seek|100 g
+8901719135217|4|en|packaged|Parle|Krackjack|28.35 gm
+8901063093287|18|en|packaged|Britannia|Good Day Cashew Cookies|200 g
+8901725015275|51|en|packaged|Sunfeast|Dark Fantasy Choco fills|69 g (6 packs x 11.5 g)
+8906010500870|18|en|packaged|balaji|BALAJI CREAM ONION|32 gm
+8901123001214|22|en|packaged|Lotte|Lotte Choco Pie|23 g
+8901063014299|35|en|packaged|Britannia Industries Ltd.|Britannia Vita Marie Gold Biscuits|248 g
+8901063029279|20|en|packaged|Britannia|Jimjam|138 g
+8901063016873|10|en|packaged|Britannia|50-50|62.8 g
+8901719131219|31|en|packaged|Parle|Parle g 800 g|800 g
+8901491100533|35|en|packaged|Kurkure|Chilli Chatka 20rs|75 g
+8906010500030|26|en|packaged|Balaji Wafers|Malasa Masti|30 g
+8901725016296|20|en|packaged|Sunfeast|Dark Fantasy Bourbon Biscuit|108 g
+8901719130144|29|en|packaged|Parle Biscuits PVT Ltd|Parle Hide & Seek Cookies|412.5 g
+8901063162464|10|en|packaged|Britannia|BRITANNIA marie GOLD|68 g
+8901719100369|18|en|packaged|Parle|Parle Bis Hide &seek|33 g
+8901058005080|7|en|packaged|Nestlé|Munch Max|38.5 g
+8904422711365|6|en|packaged|Patanjali|Nariyal Biscuit|68 g 10 Biscuit per Packet
+8901063092822|4|en|packaged|Britannia|BRITANNIA Good day  BUTTER COOKIES|52.5 g
+8901058022179|27|en|packaged|Nestlé|Munch|17.4 g
+8901063142015|30|en|packaged|Britannia Digestive|Nutri Choice|100 g
+8906009803777|43|en|packaged|Dukes|Waffy - choco flavoured wafer roll|250 g
+8906010500269|6|en|packaged|Balaji|Poprings Masala flavour|22 g
+8906009070834|16|en|packaged|Unibic|Unibic cashew badam cookies 500g|450 g
+8901063093089|10|en|packaged|Britannia|Good day Cashew|120 g
+8901063155534|4|en|packaged|Britannia|Krunch ChocoChips|60 g
+8901719135477|19|en|packaged|Parle|Parle G gold|1 kg
+8906032018810|3|en|packaged|Patanjali|Patanjali Doodh biscuits|800 g
+8901725015886|11|en|packaged|Sunfeast|Dark Fantasy Choco Fills|20 g
+8901063142244|3|fr|packaged|Britannia|Nutri choice zero|100 g
+8901058016116|30|en|packaged|KitKat|KitKat 50|19 gm
+8906009079165|3|en|packaged|Unibic|Unibic Choco Chip Cookies|100 g
+8901725015015|3|en|packaged|Sunfeast|8901725015015|242 g
+8901719135767|20|en|packaged|Parle|Parle-G ROYALE|4 Biscuits and 48 g
+8909081005053|4|en|packaged|dark fantasy|8909081005053|471.5 g
+8901063139336|3|en|packaged|Britannia|Britannia bourbon 100g|100 g
+8901063142466|50|en|packaged|Britannia|Nutri Choice Digestive|50 g
+8908008674808|16|en|packaged|Nabati|Wafer|28 g
+8901719134937|6|en|packaged|Parle|Parle g dark biscuits|50 g
+7622202334009|9|en|packaged|Cadbury|dairy milk|11 g
+8901262070546|24|en|packaged|Amul|Chocominis|250 g
+7622202325960|11|en|packaged|Cadbury|Bournville Intense 70% Dark|75 g
+7622202318078|14|en|packaged|Cadbury|5 Star Chocolate Bar|18 g
+8901262070676|44|en|packaged|Amul|Dark Chocolate|150 g
+7622202272639|3|en|packaged|Cadbury|Cadbury Dairy Milk|21 g
+8901262071864|17|en|packaged|Amul|99% Cacao Ultimate Dark Chocolate|125 g
+8901058861921|3|en|packaged|Nestlé|Milky bar|42 g
+8901123005403|24|en|packaged|Lotte|Lotto Choco Pie With Rich Marshmallow|336 g
+8901058903966|6|en|packaged|Nestlé|Milkybar Moosha|38 g
+7622201762063|14|en|packaged|Cadbury|Dairy milk chocolate|123 g
+8901262070454|4|en|packaged|Amul|Amul Dark Chocolate|40 g
+8901262071048|22|en|packaged|Amul|Amul Sugar free chocolate|150 g
+8901058018639|3|en|packaged|Nestlé|Milkybar|24.5 gms
+7622202346385|10|en|packaged|Cadbury|Cadbury Dairy Milk|100 g
+8901262070539|21|en|packaged|Amul|FRUIT N' NUT Dark Chocolate|150 g
+7622202030819|4|en|packaged|Cadbury Bournville|Cranberry|80 g
+7622202025426|3|en|packaged|Cadbury|Dairy milk|134 g
+7622202237942|16|en|packaged|Cadbury|Cadbury dairy milk|12.5 g
+7622202031618|3|en|packaged|cadbury|nutties|30 g
+8906002484003|10|en|packaged|Mars|Snickers|12 g
+8902433003134|36|en|packaged|SNICKERS|SNICKERS BUTTERSCOTCH FLAVOUR|40 g
+7622202324604|15|en|packaged|Cadbury|Dairy Milk Family Pack|112 g
+7622202329494|12|en|packaged|Cadbury|Dairy Milk (Classic milk chocolate variant)|40 g
+7622202326202|28|en|packaged|Cadbury Dairy Milk|Dairy Milk Silk Fruit and Nut Chocolate Bar|129 g
+7622202818332|16|en|packaged|Cadbury|Dairy Milk|12 g
+8901262070836|7|en|packaged|Amul|Amul Bitter Chocolate|150 g
+8901262071130|13|en|packaged|Amul|Amul 90% Bitter Intense Dark Chocolate|150 g
+8909081000249|3|en|packaged|Sunfeast|Dark Fantasy|79 g
+8901262070324|3|en|packaged|Amul|Sugar free dark chocolate|35 g
+7622201710606|9|en|packaged|5star|5 star chocolate|22 g
+8901058005905|18|en|packaged|Nestlé|KitKat Dark Chocolate Coated Wafer|150 g
+7622202320330|10|en|packaged|Cadbury|Cadbury 5 Star Oreo|40 g
+7622202398698|14|en|packaged|Cadbury|Cadbury Dairy Milk|23 g g
+7622201415662|3|en|packaged|Cadbury|Dairymilk crispello|13 g
+8901262072670|16|en|packaged|Amul|55 % dark chocolate|125 g
+8901262072267|3|en|packaged|Amul|Amul White Chocolate|Net Weight: 150 g
+6942836717957|3|en|packaged|HERSHEY'S|Cream Milk Chocolate|40 g
+8901233030548|16|en|packaged|Mondelez|Cadbury Dairy Milk|13.2 g
+8906010500214|8|en|packaged|Balaji Wafers|Balaji Wafers Sev Murmura|25 g
+8901491103794|41|en|packaged|Pepsico|Oats|400 g
+8901499010513|12|en|packaged|Kellogg's|Muesli Fruit, Nut & Seeds|750 g
+8901088068734|19|en|packaged|Saffola|Saffola Masala Oats - Classic Masala|38 g
+8904335604150|17|en|packaged|Yoga Bar|Yoga Bar Millet Muesli|500 g
+8901491103800|4|en|packaged|Quaker|Oats|1 kg
+8906136651968|13|en|packaged|Pintola|High Protein Oats Chocolate|1 kg
+8901499023339|3|en|packaged|Kellogg's|Muesli Fruit, Nut & Seeds|75 g
+8901088213608|3|en|packaged|Saffola|Saffola Oats|1 kg
+8906113490887|14|en|packaged|Tata Soulfull|Tata Soulfull Millet Muesli|1 KG
+8908005144618|4|en|packaged|Yoga Bar|Yoga Bar Super Muesli 0% Added Sugar|400 g
+8901499010483|24|en|packaged|Kellogg's|Kelloggs Muesli|240 g
+8906127550850|27|en|packaged|Alpino|High protein super oats chocolate|1 kg
+8901499010742|3|fr|packaged|Kellogg's|Chocos Crunchy Bites|375 g
+8908005144649|26|en|packaged|Yoga Bar|Muesli+ (Fruits + Nuts & Seeds)|400 g
+8901499008800|9|en|packaged|Kellogg's|Kellogg's chochos|24 g
+8901088155496|17|en|packaged|Saffola|Saffola oats|500 g
+8901088055772|39|en|packaged|Saffola|Oats|1 kg
+8901499008244|15|en|packaged|Kellogg's|Chocos Moons & Stars|28.6 g
+8904335601890|22|en|packaged|Yoga bar|Yoga bar High Protein Muesli+|850 g
+8901499009661|3|en|packaged|Kellogg's|Kellogg's corn flakes original|65 g
+8901499009043|12|en|packaged|Kellogg's|kelloggs chocos multigrain|1.20 kg
+8906136651951|10|en|packaged|Pintola|Pintola High Protein Oats Dark Chocolate|400 g
+8901499008183|14|en|packaged|Kellogg's|Corn Flakes Original|250 g
+8901499009623|24|en|packaged|Kellogg's|Chocos Fills|250 g
+0641837433199|18|en|packaged|Doctor's Choice|Protein Oats|750 g
+8906136651982|3|en|packaged|Pintola|High Protein Muesli|1 kg
+8908002984958|9|en|packaged|Tata|Tata soulfull millet muesli|700 g
+8903363007643|3|en|packaged|Nutri Delite|Nutri Delite Crunchies|25 gms
+8904335600336|7|en|packaged|Yoga Bar|Muesli+|700 g
+8901499010711|3|fr|packaged|Kellogg's|Kellogg'sCHOCOS|250 g
+8901499011398|6|en|packaged|Kellogg's|Kellogg's Museli Nuts delight|1 kg
+8906112662803|23|en|packaged|True Elements|Muesli|1 Kg
+8906113490719|4|en|packaged|tata|Tata Soulful choco|24 g
+8906112662414|16|en|packaged|True Elements|Rolled oats|500 g
+8904335600343|4|en|packaged|yoga bar|chocolate cranberry museli|700 g
+8901499008190|23|en|packaged|Kellogg's|Corn flakes|475 g
+8901491702409|3|hi|packaged|Quaker|Quaker Oats|600 g
+8901088772433|12|en|packaged|Saffola|Saffola Masala Millets|35 g
+8904335600800|32|en|packaged|Yoga bar|Rolled Oats|400 g
+8901499010452|15|en|packaged|Kellogg's|Kellogg's muesli crunchy fruit|500 g
+8901499010216|35|en|packaged|Kellogg's|Corn Flakes1.20 kg|260 g
+8901499010773|4|en|packaged|Kellogg's|Chocos Moons and Stars|350 g
+8903363007636|3|en|packaged|Nutri Delite|Nutri Delite 2 in 1s|25 g
+8901499008893|3|fr|packaged|Kellogg's|Kellogg's Corn flakes original|900 g
+8906058610982|3|en|packaged|Gaia|Gaia Muesli Mixed Fruit|1 kg
+8904320002565|16|en|packaged|Disano|OATS|1 KG
+8906127551086|23|en|packaged|Alpino|Alpino Super Oats Chocolate|400 g
+8906113490894|3|en|packaged|Tata|Soulfull Millet muesli|1 kg
+8904335600329|8|en|packaged|Yoga Bar|Dark Chocolate And Cranberry Muesli|40 g
+8901499008299|17|en|packaged|Kellogg's|Corn Flakes Original|30 g
+8908002984965|3|en|packaged|Tata Soulfoul|Millet muesli|500 g
+8906113490801|3|en|packaged|Tata Soulfull|Masala Oats and Millets|35 g
+8901499011466|3|en|packaged|Kellogg's|Corn Flakes Real Almond Honey|180 g
+8904132928657|5|en|packaged|Aarambh|Oats|1 kg
+8908003833002|5|en|packaged|Kanaiya|Mamra / Murmura / Roasted Rice|500 g
+8906127551437|9|en|packaged|Alpino|high protein super oats|2.5 kg
+8901499008176|11|en|packaged|Kellogg's|Kelloggs Corn Flakes|100 g
+8901499009289|9|en|packaged|Kellogg's|Cornflakes Almond Honey (Kellogg's)|1 kg
+8902710100150|8|en|packaged|Bagrry’s|White Oats|1 kg
+8901499009715|6|en|packaged|Kellogg's|Kelloggs Crunchy Granola Almonds & Cranberries|460 g
+8901499010506|17|en|packaged|Kellogg's|Muesli With 20% Nuts Delight|400 g
+8902710205206|5|en|packaged|Bagrry's|Corn Flakes+|800 g
+8901058000306|10|en|packaged|Nestlé|Maggi noodles masala|560 gm
+8901058023787|6|en|packaged|Maggi|2-minute noodles masala taste|140 g
+8901058023800|3|en|packaged|Maggi|Maggi 2-minute noodles Masala|8 x 70 g (560 g)
+8909081005251|16|en|packaged|Sunfeast|Yippee Noodles|72.6 g
+8901058009729|19|en|packaged|Maggi|Masala Veg Atta Noodles|72.5 g
+8901725005986|3|en|packaged|Sunfeast|Sunfeast Yippee! masala magic|560 g
+8901058851298|31|en|packaged|Maggi|Maggi 2-minutes Noodles|70 g
+8901595851218|31|en|packaged|Ching's Secret|Veg Hakka Noodles|140 g
+8901058022193|9|en|packaged|Maggi|Maggi Noodles|70 g
+8901030976735|22|en|packaged|Knorr|Korean Ramen|96 g
+8906019633029|3|en|packaged|1 to 3 noodles|1 to 3 noodles chatpat masala|50 g
+8901725005887|3|en|packaged|Sunfeast|Yippee Noodles|70 g
+8901014000371|3|en|packaged|Nissin|Geki Hot & Spicy Korean Cheese|80 g
+8901014000166|3|en|packaged|Nissin|Geki - Hot & Spicy|80 g
+8901030865855|3|fr|packaged|Knorr|Knorr soupy noodles mast masala|79 g
+8901058009705|16|en|packaged|Maggi|Veg atta noodles|290 gm
+8906090572149|3|en|packaged|Too Yum|Karare Noodle Masala|70 g
+8901058000191|4|en|packaged|Maggi|Family Fun Pack|560 g
+8901014004836|33|en|packaged|Nissin|cup noodles|70 g
+8906090575546|4|en|packaged|Too Yum|K-Bomv Ramen|80 g
+8901058006025|4|en|packaged|Maggi|Maggi Masala CUPPA Noodles|70.5 g
+8901014004935|3|en|packaged|Cup Noodles|spiced chunky chicken|1 70 g
+8901014003181|35|en|packaged|Nissin|top ramn|280 g
+8901725006006|12|en|packaged|Sunfeast|Sunfeast  yeppi  noodles|280 g
+8901058003734|23|en|packaged|Maggi|Maggie korean noodles|90 g
+8901014004744|11|en|packaged|Nissin|Cup Noodles Mazedaar Masala|1 Qty & Weight 45 g
+8901030865862|5|en|packaged|Hindustan Unilever limited|Knorr mast masal|280 g
+8901014012114|11|en|packaged|Cup Noodles|Cup noodles Rogan  josh|70 g
+8901058006148|11|en|packaged|Nestlé|maggie chicken noodles|71 g
+8906131682417|3|en|packaged|Slurp Farm|Slurp Farm Millet Noodles|57 g
+8901014004942|3|en|packaged|Nissin|Cup Noodles Spiced Chicken|55 g
+8901058002683|16|en|packaged|Maggi|Spicy Garlic 2 Minute Noodles|248 g
+8901014002054|22|en|packaged|Nissin|Top Ramen Masala Noodles|360 g
+8901725005214|11|en|packaged|Yippee|Atta Noodles|280 g
+8901058901542|3|en|packaged|Maggi|Maggie|140 g
+8901058006292|3|en|packaged|Maggi|2 - Minute Noodles|70 g
+8901741000910|12|en|packaged|Wai Wai|wai wai noodles|75 g
+8906069406178|3|en|packaged|wok tok|wok tok instant noodles masala|92.5 g
+8994963003128|4|en|packaged|indomie|Indomie Instant Noodles|80 g
+8901725005900|4|en|packaged|yippee|noodles|140 g
+8901058006032|14|en|packaged|Maggi|maggi cup|70 g
+8909081006388|5|en|packaged|Sunfeast|Yippee noodles|48 g
+8908017693265|4|en|packaged|Miliet Bank|Miliet noodles|130 GMS
+8901030897542|22|en|packaged|Kissan|kissan fresh tomato|90 g
+8901030902932|5|en|packaged|Kissan|Fresh Tomato Ketchup|850 g
+8901595862818|20|en|packaged|Ching secret|Dark Soy sauce|90 g
+8901595863013|3|en|packaged|ching's|Schezwan Chutney|30 g
+8901030877131|8|en|packaged|Hellmann's|Real Mayonnaise|85 g
+8901030872693|3|en|packaged|Hellmann's|Real mayonnaise|800 g
+8901058016222|3|en|packaged|Maggi|Pichkoo RICH TOMATO KETCHUP|75 g
+8901030898105|3|en|packaged|Hellman's|Hellman's Real Mayonnaise|250 g
+8901030987007|29|en|packaged|Knorr|Knorr Schezwan Sauce 200 g|200 g
+8906069403412|15|en|packaged|VEEBA|Chef's Special Tomato Ketchup|900 g
+8901030953217|3|en|packaged|Kissan|Kissan Sweet & Spicy Sauce|850 g
+8901030919305|3|en|packaged|Knorr|pizza & pasta sauce|200 g
+8901246005373|20|en|packaged|Del Monte|TOMATO KETCHUP CLASSIC BLEND|900 g
+8906006783058|3|en|packaged|Surabhi|D-lite Tomato Ketchup|1 kg
+8906002004430|32|en|packaged|Dr. Oetker|Veg mayonnaise|100 g
+8901030532719|27|en|packaged|Kissan|kissan fresh Tamato|500 g
+8906069401746|3|en|packaged|Veeba Favourites|Eggless Mayonnaise Chef's Special|100 g
+8901030953200|27|en|packaged|Kissan|Kissan No onion no garlic Tomato Ketchup|850 g
+8901595862740|6|en|packaged|Ching's|Red Chilli Sauce|200 g
+8908012605010|30|en|packaged|Heinz|Tomato Ketchup|450 g
+8901058895780|3|en|packaged|Maggi|Hot & sweet tomato chili sauce|500 g
+8901595862726|3|en|packaged|Ching's Secret|Dark Soy Sauce|210 g
+8906069400060|21|en|packaged|Veeba|Southwest Chipotle Dressing|300 g
+8901058013658|8|en|packaged|Maggi|Hot and Sweet Tomato Chilli Sauce|500 g
+8908012605003|3|fr|packaged|Heinz|tomato ketchup|1 kg
+8903363008763|3|en|packaged|Home chef|Homechef tomato ketchup|1.2 kg
+8906029450081|10|en|packaged|Mrs. Food rite|Eggless Mayonnaise|100 g
+8906002007332|3|en|packaged|Dr. Oetker|Funfoods Veg Mayonnaise|750 g
+8901595972142|5|en|packaged|Ching's Secret|Veg Manchurian masala|20 g
+8906064656783|41|en|packaged|Wingreens Farms|Tandoori Mayo|180 g
+8901030699085|22|en|packaged|Kissan|Tomato Ketchup Kissan|1 kg
+8906000212202|5|en|packaged|Pillsbury|Custard Powder|100 g
+8906069401869|3|en|packaged|Veeba|Chef's Special Pasta & Pizza Sauce Herby Tomato|100 g
+3948246005373|3|en|packaged|Del Monte|Tomato Ketchup|950 g
+8909106000124|3|en|packaged|Hellmann's|Real Mayonnaise|8 g
+8905507044620|3|en|packaged|Full Bloom|Full Bloom Tomato Ketchup|450 g
+8901192205261|25|en|packaged|Catch|Ginger Garlic - Culinary Paste|200 g
+8906002004379|8|en|packaged|Dr. Oetker|Dr. Oetker Funfoods Veg Mayonnaise|500 g
+8906069402910|3|en|packaged|Veeba|Tomato Ketchup|1 kg
+8901058001198|3|en|packaged|Maggi|Rich tomato ketchup|485 g
+8904288601275|3|en|packaged|Tops|Vinegar white|610 ml
+8906069400077|3|en|packaged|VEEBA|veeba barbeque sauce|330 g
+8906006783515|3|en|packaged|Surabhi|Classic tomato ketchup|90 g
+8901058001433|3|en|packaged|Maggi|Rich Tomato Ketchup|280 g
+8904288603613|3|en|packaged|Tops|Tops Tomato Ketchup|850 g
+8906002003242|4|en|packaged|Dr. Oetker|Veg Mayonnaise|250 g
+8901030831690|32|en|packaged|kissan|kissan mixed fruit jam|200 g
+8901030922787|3|en|packaged|Kissan|Mixed Fruit Jam|90 g
+8901030831706|14|en|packaged|Hindustan Unilever Limited|Mixed Fruit Jam|500 g
+8906029450548|3|en|packaged|Meal Time|Mixed Fruit Jam|1 kg
+8901044200284|14|en|packaged|mapro|mapro mixed fruit jam|1 kg
+8901030686726|5|en|packaged|kissan|Mixed fruit jam|90 g
+8901044210856|9|en|packaged|Mapro|Mix Fruit Jam|90 g
+8901030851070|3|en|packaged|Kissan|Kissan Jam|1 kg
+8906022070347|3|en|packaged|Nature's Nectar|Organic honey|400 g
+8901030535048|37|en|packaged|Kisaan|Kissan Mix Fruit Jam|500 g
+8904025401113|3|en|packaged|Chitale|Mix Fruit Jam|200 g
+8906021123266|3|en|packaged|Aachi|Mixed Fruit Jam|100 g
+8901689702099|4|en|packaged|Mala's|Mala's Strawberry Jam|350 g
+8906672744810|3|en|packaged|VIStevia|Kala Jamun Jam|220 g
+4901034831706|3|en|packaged|Kissan|Mixed Fruit Jam|500 g
+8904132913264|4|en|packaged|Snac tac|Snac tac Mango Jam|100 g
+8904109445309|6|en|packaged|Patanjali|Patanjali Pineapple Jam|500 g
+8901764239809|7|en|packaged|Minute Maid|PROTEIN TOTAL FAT pany|250 ml
+8906021924344|18|en|packaged|Apis|Fruitilicious Fruit Blast Mixed Fruit Jam|450 g
+8901044250197|6|en|packaged|Mapro|Mapro Mix Fruit Jam|500 g
+8906006721555|5|en|packaged|Lion|Mixed Fruit Jam|120 g
+4901034851070|3|en|packaged|Kissan|fruit jam|1 kg
+8906006784079|3|en|packaged|SURABHI|Mixed Fruit Jam|500 g
+8906134790126|3|en|packaged|Eatopia|Honey jam Mulberry|240 g
+8901058903164|29|en|packaged|Nestlé|KitKat win gold|38.5 gm
+8901764175091|3|en|packaged|Maaza|Fruit drink|135 ml
+7622202216695|3|en|packaged|Cadbury|Gems|7.11 g
+7622202216916|22|en|packaged|Cadbury|Cadbury Chocobakes 17gm|17 g
+8901058010749|11|en|packaged|Fassi|Maggie|280 gram
+8901071701372|4|en|packaged|hershey's|Hershey's spreads|350 g
+7622202271861|9|en|packaged|Cadbury|Dairy Milk Silk Bubbly Chocolate|46 g
+8000500411018|3|en|packaged|Tic Tac|Tic Tac Orange|13 g
+8908010900216|3|en|packaged|Pintola|PEANUT BUTTER|350 g
+8000500410998|3|en|packaged|Tic Tac|Tic Tac Mint|13 g
+8901399088124|3|en|packaged|Glucovita|Glucovita Bolts|18 g
+8901063032927|3|en|packaged|Britannia|treat burst|14 g
+8906010503253|3|en|packaged|Balaji Wafers|Balaji Wafers Dum Bar|19 g
+7622202326172|3|en|packaged|Cadbury|Cadbury Dairy Milk Silk Roast Almond|52 g
+8906002482481|40|en|packaged|Mars|Snickers|22 g
+8906002482450|7|en|packaged|Mars|Snickers Chocolate Bar|1 and 45 g
+8908010900209|5|en|packaged|Pintola|Dark chocolate peanut butter creamy|350 g
+7622202318047|3|en|packaged|Cadbury|Cadbury 5Star|33 g
+8000500418512|28|de|packaged|Ferrero|Schokobons crispy|4 x 5,6 g = 22.4 g
+8901719128202|3|en|packaged|Parle|Poppins|100 g
+8908024977013|22|en|packaged|Superyou|Superyou Protein Wafer|40 g
+8901030779640|17|en|beverages|Lipton|Lipton GREEN TEA LEMON ZEST|25 × 1.3 g
+8901030779312|22|en|beverages|Pepsico|Lipton Green Tea|25 N
+8901095000031|7|en|beverages|Society|Tea Powder|20 g
+8901030456381|6|en|beverages|brooke bond|Taaza tea|250 g
+8901030985812|15|en|beverages|Brooke Bond|3 Roses Tea|100 g
+8901747001553|7|en|beverages|Wagh bakri|Wagh bakri tea|250 gm
+8906014611589|3|en|beverages|GS TEA|Assam Golden|23 g
+8901030882548|14|en|beverages|Brooke Bond|Brooke Bond Red Label NaturalCare|100 g
+8906007780018|3|en|beverages|Vikram|Vikram Kadak Dust Tea|1 kg
+8908002584103|3|en|beverages|Lamsa|Export Quality flavoured tea|50 gm
+8901030781063|3|en|beverages|Lipton|Green tea Honey Lemon|100 g
+8901747001546|13|en|beverages|Wagh Bakri|Wagh Bakri tea|500 gm
+8903363006608|3|en|beverages|Teacountry|Honey lemon green tea|37.5 g
+8903363007278|3|en|beverages|Teacountry|Tulsi green tea|37.5 g
+8908000173033|3|en|beverages|HOTEL KING|HOTEL KING CTC TEA|250 g
+8901052008193|3|en|beverages|Tata|Tata Tea Agni|1.5 kg
+8901030807602|5|en|beverages|Brooke Bond|Taj Mahal|500 gm
+8901030987403|17|en|beverages|Lipton|Lipton GREEN TEA CLEAR & LIGHT 250 g|250 g
+8901747002529|3|en|beverages|Wagh Bakri|Loose green tea|100 g
+8901052010615|18|en|beverages|Tata Tea|Premium|1 Kg
+8901030918810|3|en|beverages|Brooke Bond|Brooke Bond Taaza tea|1 kg
+8908015703492|11|en|beverages|The Pahadi Story|Masala Chai|175 g
+8904384814005|3|en|beverages|Blue Tokai|Coffee|250 g
+8901052020706|4|en|beverages|TATA Tea|Chakra Gold|6 g
+8909106024434|12|en|beverages|Brooke Bond|Taaza|33 g
+0801541070435|19|fr|beverages|Organic India|TULSI GREEN TEA CLASSIC|43.75 g
+8901052005161|5|en|beverages|Tata Tea|Tata Tea Gold Care|500 g
+8901030987342|3|en|beverages|3 Roses|3 Roses Natural Care Tea|250 g
+8901095001465|11|en|beverages|Daily|Masala Flavour Instant Tea Premix|14 g
+8904293731189|3|en|beverages|Daily Pour|Daily Pour Gold Tea|500 g
+8901052006052|3|en|beverages|Tata tea|Tata Tea Agni Elaichi Chai|1 kg
+8904132917064|18|en|beverages|Aarambh|Aarambh Danedar Assam Tea|250 g
+8906033261444|9|en|beverages|Ripple Tea|Green Tea|250 g
+8901052000913|5|en|beverages|Tata Tea|Gold Tata tea 1kg|1 kg
+8908000275225|3|en|beverages|City  gold|City  gold premium|1 kg
+8901052006243|3|en|beverages|TATA|TATA TEA Gold care|250 g
+4901034779312|3|en|beverages|Lipton|Green tea Tulsi natura|25 N
+8901747001164|5|en|beverages|Wagh bakri|Strong dust tea|1 kg
+8901747000341|4|en|beverages|Wagh Bakri|Mili strong leaf tea|1 kg
+8901747000426|3|en|beverages|Wagh Bakri|Navchetan|250 g
+8901030877179|3|en|beverages|Red Label|Red Label tea|100 g
+8901030439537|5|en|beverages|Brooke Bond|taaza dust|250 g
+8903023281024|3|en|beverages|More|More Choice CTC Leaf Tea|250 g
+8906033261215|3|en|beverages|Ripple|Ripple Tea|100 g
+8901205039357|3|en|beverages|Vahdam|Vahdam Matcha Green Tea|50 g
+8908009247001|3|en|beverages|Sanjivani|Sanjivani Tea|250 g
+8901052034598|3|en|beverages|Tata Tea|Tata Tea Agni|100 g
+8901030987359|3|en|beverages|Brooke Bond|3 Roses Natural Care|500 g
+8909900155112|4|en|beverages|The Green Ritual|Heaven's Velvet|10 pieces
+8901207021718|21|en|beverages|Dabur|Hot Sip Ayurvedic Kaadha15120g|120 g
+8901030658761|10|en|beverages|Brooke Bond|Taj Mahal tea leaves 500 g|500 g
+8901207043802|5|en|beverages|Dabur|Vedic Tea|500 g
+8901030987328|3|en|beverages|Brooke Bond|Brooke Bond 3 Roses Natural Care|14 g
+8901052005604|3|en|beverages|Tata Tea|Tata Tea Chakra Gold|250 g
+8901052003839|5|en|beverages|Tata Tea|Tata Tea Agni|40 g
+8901036162514|7|en|beverages|Continental|Super Strong Blend Coffee|50 g
+8901058898330|5|es|beverages|Nestlé|Nescafe choco mocha|180 ml
+4061445096726|3|pl|beverages|Davidoff|Davidoff Rich aroma|100 g
+8901058867015|3|en|beverages|Nescafe|Gold Blend Instant Coffee|50 g
+8901058898354|3|en|beverages|Nestlé|Nescaffe Chilled latte Shake|180 ml
+8901058865660|3|en|beverages|Nescafe|Gold Cappuccino|125 g
+8903363001948|3|en|beverages|House|Coffee|50 g
+8904132946972|3|en|beverages|KafeHills|Instant Coffee|50 g
+8901090328802|4|en|beverages|Tata|Grand Classic Coffee|90 g
+8906144490498|7|en|beverages|sleepy owl|instant coffee|100 g
+8906088701667|3|en|beverages|COLOMBIAN BREW COFFEE|NUTTY HAZLENUT INSTANT COFFEE|50 g
+8901090326051|3|en|beverages|TATA|Coffee Grand Premium|3 g
+8901058004748|3|en|beverages|Nescafé|Classic|45 g
+8901090328109|3|en|beverages|TATA|Tata Coffee Grand Classic|2 g
+8901262090421|5|en|beverages|Amul|Amulya Dairy Whitener|10 g
+8906031933602|6|en|beverages|Levista|Instant Coffee Strong|200 g
+8901036173435|5|en|beverages|continental|Xtra instant coffee|25 g
+8801037006391|16|en|beverages|Dongsuh Foods Corp|Maxim Mocha gold|240 g
+5050001665833|5|en|beverages|Rage|Instant Coffee|60 g
+8901036391730|7|en|beverages|PERCOL|PERCOL EXPRESSO NOIR COFFEE POWDER|100 gm
+8901090223749|3|en|beverages|Tata Coffee|Tata Coffee Gold|90 g
+8901058004700|3|en|beverages|Nescafé|Nescafe classic Coffee|90 g
+8901030733994|12|en|beverages|Hindustan|Bru Instant|2 g
+8906031934968|5|en|beverages|levista|instant coffee|20 g
+8906161170397|3|en|beverages|Bevzilla|Bevzilla 100% Arabica Classic Strong Coffee|200 g
+8904293723153|5|en|beverages|Rejuve|Instant Coffee Chicory Mixture|100 g
+8901030974618|3|en|beverages|Hindustan Unilever Limited|BRU Gold|55 g
+8908002359107|3|en|beverages|Minerva Coffee|Minerva Coffee Kaapi Premiere|500 g
+8906002770175|4|en|beverages|Cothas|Classic Cold Coffee|250 ml
+8906020580916|20|en|beverages|iD Fresh Food|ID Instant Filter Coffee Liquid (Bold)|150 ml
+8901725006402|3|en|beverages|Sunbean|Beaten Caffee Powder|12 g
+8908011648414|5|en|beverages|Jawai|instant premix coffee|100 g
+8906144490474|5|en|beverages|Sleepy Owl|Instant Coffee|100 g
+4988563400498|3|en|beverages|sleepy owl|instant coffee|100 g
+8998666003027|3|en|beverages|Kopiko|Cafe Blend|125 g
+8904293731158|3|en|beverages|Daily Pour|Daily Pour Instant Coffee|200 g
+8901058016055|3|en|beverages|Nescafe|Nescafe Classic Instant Coffee|3.5 g
+8906150346598|3|en|beverages|Bevzilla|Bevzilla Green Coffee|200 g
+3228470052177|5|fr|beverages|L'Or|Intense Arabica|250 g
+4260302890082|4|en|beverages|K-fee System|Fellows Blend Espresso|78 g
+8901058895322|5|en|beverages|Nescafe|Nescafe Sunrise|5.5 g
+2000000133525|3|en|beverages|continental|Continental Strong|50 g
+8991002105423|16|en|beverages|PT Santos Jaya Abadi|Kopi Kapal Api Special|160 g
+8901036393185|3|en|beverages|Continental|Malgudi fresh filter coffee|500 g
+8906031932674|3|en|beverages|Levista|Extra Strong Instant Coffee|200 g
+8901764362804|40|en|beverages|Minute Maid|Pulpy Orange|250 ml
+8901764092800|4|en|beverages|Coca-Cola Company|Maaza|250 ml
+8901764362309|3|en|beverages|Minute Maid|Pulpy orange|1 L
+8901012350010|16|en|beverages|johnson and Johnson|Apple drink|200 ml
+8901764175015|3|en|beverages|Coca-Cola|Maaza|125 ml
+8902080002771|3|en|beverages|Tropicana|Tropicana Fruitz|500 ml
+8850389100684|123|en|beverages|Sappe Public Company Limited|Mogu lychee|320 ml
+8901207004421|7|en|beverages|Dabur|Real fruits juss anar|1 l
+8906080601934|23|en|beverages|Paper boat|Swing Juicier Drink Yummy Guava|125 ml
+3948764362309|3|en|beverages|Drink|Minute maid pulpy orenge|1 l
+8904258700540|12|en|beverages|Raw Pressery|alphonso mango juice|1 liter
+8904132973084|3|en|beverages|CAMPA COLA|RAS KIK MANGO|150 ml
+8902080334179|5|en|beverages|7up|Nimbooz|350 ml
+8901207004391|9|en|beverages|Dabur|Real Fruit Power Mango|1 L
+8904258700465|5|en|beverages|Raw Pressery|Raw Pressery Valencia Orange|1000 ml
+8850389100769|69|en|beverages|MOGU MOGU|MANGO FLAVORED DRINK WITH NATA DE COCO|320 mL
+8901207021220|41|en|beverages|real|real apple juice|1 l
+8901888005410|23|en|beverages|Dabur|Real activ 100% mixed fruit juice|1 l
+8902080002085|3|en|beverages|Tropicana|Tropicana Orange Delight 180ml|180 ml
+8904258702100|27|en|beverages|Raw Pressery|RAW-P MIXED FRUIT 200ML|200 mL
+8906080602092|13|en|beverages|Paper Boat|Swing Mixed Fruit Medley|150 ml
+8901888006370|34|en|beverages|Real|Real Orange Fruit juice|180 ml
+8901888005397|31|en|beverages|Dabur|Real active 100% orange juice|1 l
+8902080002733|3|en|beverages|Tropicana|Tropicana Fruitz Mixed Fruit Magic|180 ml
+8901207024559|14|en|beverages|Dabur|Real Fruit Power Alphonso Mango Nectar|1 l
+8906080600616|3|en|beverages|paper boat|Alphonso Mango|150 ml
+4796008920056|3|en|beverages|Dabur Real|Real Fruit Power Orange|1 L
+8906080600180|5|en|beverages|Paper Boat|Paper Boat Apple Drink 150ml|150 ml
+8901888006578|4|en|beverages|Real|Cranberry|180 ml
+8904272600543|3|en|beverages|Storia|Storia pomegranate 180ml pet|180 ml
+8902080002047|3|en|beverages|Tropicana|Tropicana guava|180 ml
+8906066202292|9|en|beverages|Keya|Keya Lemon Juice|500 ml
+8906080604676|3|en|beverages|Paper boat|Paper boat Indigo exclusive mango basil|170 ml
+8906066202308|3|en|beverages|Keya|Lemon Juice|250 ml
+8905529000871|3|en|beverages|Forest Secrets|Forest Secrets Cold Pressed Amla Juice|1 l
+8902080002689|4|en|beverages|Tropicana|APPLETINI|180 ml
+8904258700748|40|en|beverages|Raw Pressery|Mixed Fruit|1000 ml
+8901207034145|3|en|beverages|Dabur|Amla Juice|1 l
+8906017291429|7|en|beverages|Bisleri|Limonata|160 ml
+8906080600647|7|en|beverages|paper boat|Santra|1 L(1000 ml)
+8904379600002|4|en|beverages|Baidyanath|Amla Juice|1 L
+8904258700557|3|en|beverages|Raw Pressery|Raw Pressery 250ml pet Sugarcane Juice|250 ml
+8902269501200|3|en|beverages|Alkem|ORS Orange Flavour|200 ml
+8901207038648|11|en|beverages|Real|Pomegranate Mini Goodness|125 ml
+8906014140164|3|en|beverages|Amrutanjan|Fruit Nik ELECTRO REHYDRATE ORANGE DRINK|200 ml
+8938555026263|22|en|beverages|Richyum|Tender Coconut Water|200 ml
+8902080002023|3|en|beverages|Tropicana|Mixed Fruit Delight|180 ml
+8902080013845|16|en|beverages|Tropicana|Tropicana CRANBERRY|1 L
+8902080013272|14|en|beverages|Tropicana|Tropicana Litchi Delight Juice 1Ltr (Pckt)|200 ml
+8902080002054|3|en|beverages|PepsiCo|Tropicana Litchi Delight|180 ml
+8564324165644|7|en|beverages|Fruitaco|Lemon Juice|250 ml
+8906080604720|3|en|beverages|Paper Boat|Basil Sabja Seeds Mixed Fruit|250 ml
+8902080011513|15|en|beverages|Tropicana|Mixed Fruit Delight|200 ml
+8901764032912|26|en|beverages|Coca-Cola|Sprite|250 ml
+3948764032912|12|en|beverages|Coca-Cola|Sprite|250 ml
+3948764042911|20|en|beverages|thumsup|thums up|250 ml
+8901764032707|20|en|beverages|Coca Cola|Sprite|600 ml
+8902080104581|3|en|beverages|Pepsi Cola|Pepsi|400 ml
+3948764061257|4|en|beverages|Coca-Cola|Diet coke|300 ml
+8901764032905|28|en|beverages|Coca cola|Sprite|2.25 l
+8901764042706|26|en|beverages|Cola|Thumsup|740 ml
+3948764032707|11|en|beverages|Coca-Cola Company|Sprite|740 ml
+8901764012914|29|en|beverages|The Coca-Cola Company|Coca-Cola|250 ml
+3948764012914|21|en|beverages|Cocacola|Cocacola zero|250 ml
+8902080003075|11|en|beverages|7up|nimbooz|345 ml
+8902080002283|3|en|beverages|PepsiCo Inc.|7up|400 ml
+8901764072277|33|en|beverages|kinley|kinley. ORIGINAL STRONG SODA|750 ml
+3948764012273|7|en|beverages|Coca cola|Coca cola Soft Drink 750ml|750 ml
+3948764042270|21|en|beverages|Thumps up|Thumbs Up 750ml pet|750 ml
+8901764052910|24|en|beverages|Pepsi|Limca|100 ml
+8901764022913|3|fr|beverages|Coca-Cola|Fanta|250 ml
+8902080001828|6|en|beverages|PepsiCo Inc.|Pepsi Zero Sugar|400 ml
+3948764032271|11|en|beverages|Coca Cola|Sprite|750 ml
+8902080364022|6|en|beverages|PepsiCo|Mountain Dew|250 ml
+8906017290774|5|en|beverages|Bisleri|Soda|750 ml
+8901764112270|3|en|beverages|Coca cola zero|Coca Cola Zero Sugar|750 ml
+8902080364589|25|en|beverages|PepsiCo|Mountain Dew|400 ml
+8901764011252|5|en|beverages|Coca-Cola|Coca cola Original Taste 300ml can|300 ml
+5449000000996|1129|en|beverages|COCA-COLA SERVICES SA/NV|Coca-Cola|330 ml
+8901764042805|26|en|beverages|Coca-Cola|Thums Up|1.25 l
+8904132975408|14|en|beverages|Campa|campa cola|500 ml
+8901764012303|30|en|beverages|Coke|Coca-Cola|1 L
+8902579002046|12|en|beverages|Parle Agro|Appy fizz|600 ml
+8902080704057|28|en|beverages|Pepsico|Lehar Soda 750ml pet|750 ml
+8904132948198|14|en|beverages|Campa Cola|Campa Lemon|500 ml
+8901764052309|5|en|beverages|Coca Cola|Limca|1 L
+8904132975392|3|en|beverages|Campa|campa cola|200 ml
+8901764031250|3|en|beverages|Sprite|Sprite Lemon drink 300ml can|300 ml
+8901764012471|3|en|beverages|Coca-Cola|Coke|475 ml
+8901764061189|3|en|beverages|Coca-Cola|Coca Cola|180 ml
+8902080364565|20|en|beverages|MEWATI 🔔|Mountain Dew|1.25 l
+8904132975507|17|en|beverages|Campa|Campa Orange Flavour|500 ml
+8904132976351|3|en|beverages|Campa|Energy Drink Berry Kick|185 ml
+8904132953413|3|en|beverages|Campa|Campa Cola|185 ml
+8901207005527|12|en|staples|Dabur|Honey Squeezy|400 g
+8901207025372|21|en|staples|Dabur|Dabur Honey|500 g
+8901207026553|9|en|staples|Dabur|Honey|225 g
+8906006720329|6|en|staples|Lion|Kashmir Honey|250 g
+8901088069120|7|en|staples|Saffola|Saffola Honey Active|1 kg
+8904422700826|6|en|staples|Patanjali|Honey|250 g
+8901088069083|3|en|staples|Saffola|Saffola Honey 1 Kg|1 kg
+8901207045370|6|en|staples|Dabur|Honey|50 g
+8904422700819|3|en|staples|Patanjali|Honey|100 g
+8901220600686|3|en|staples|Baidyanath|honey|500 ml
+8904109449239|3|en|staples|Patanjali|Patanjali Honey|1 kg
+8904320007034|8|en|staples|DiSano|honey|500 g
+0801541512775|3|en|staples|Organic India|Honey|250 g
+8901207047879|3|en|staples|Dabur|Dabur Honey Squeezy|225 g
+8901207035364|40|en|staples|Dabur|Honey|250 g
+8906135091079|3|en|staples|apis|Himalaya Honey|100 g
+8901207047169|3|en|staples|Dabur|Dabur Honey|500 g
+8901207045660|3|en|staples|Dabur|Dabur Honey|650 g
+8906018100157|4|en|staples|Phondaghat Pharmacy|Honey|50 gm
+4901049749928|3|en|staples|Zandu|Zandu pure honey|650 g
+3004136380620|3|en|staples|Anveshan|Wild forest honey|500 g
+8906135090713|5|en|staples|apis|Honey|500 g
+8908884700202|3|en|staples|food circle|Honey gulkand|300 g
+8908005469261|3|en|staples|Honey Twigs|Lemon Infused Honey|240 g
+8908001137102|4|en|staples|DevBhumi|DevBhumi Honey|500 g
+8904320007027|6|en|staples|DiSano|DiSano Honey|250 g
+2000000064216|3|en|staples|Coorg|Coorg Bee Honey|250 g
+8904132907829|5|en|staples|RELIANCE|HEALTHY LIFE PURE GRADE HONEY|500 g
+8904256700320|3|hi|staples|Bb royal|Bb royal Honey|400 g
+3088545004445|9|fr|staples|Lune decMiel|Lune De Miel Honey100|500 g
+8908018014007|3|en|staples|Indigenous Honey|Certified Organic Wild Honey|530 g
+8901207047473|5|en|staples|Dabur|Dabur Honey|1 kg
+8904422707252|5|en|staples|Patanjali|honey|400 g
+8908005469162|3|en|staples|Honey Twigs|Honey Twigs Vanilla Infused Honey|240 g
+8906153882734|5|en|staples|Two Brothers|Multifloral Forest Honey|360 g
+8906135093141|7|en|staples|qpis|Honey From The Honey Specialist Squeezy|400 g
+8901088894128|5|en|staples|Saffola|Forest Honey|350 g
+8908018014885|10|en|staples|Indigenous Honey|Honey|530 g
+0006925644011|5|en|staples|Wayanad Premium|Honey|140 g
+8901207042935|3|en|staples|Dabur|Dabur Honey|1.3 kg
+8904256714174|3|en|staples|bigbasket|Organic Kashmir Honey|500 g
+8906125310210|3|en|staples|Rajdhani|Honey|500 g
+8901058003000|13|en|staples|Maggi|Pazzta Cheese Macaroni|75 g
+8901058003017|24|en|staples|Maggi|Pazzta Masala Penne|69.5 g
+8901058018219|5|en|staples|Maggi|8901058018219|32 g
+8410179007496|13|en|staples|Borges|Spaghetti|500 g
+8901725111663|8|en|staples|Sunfeast|Yippee Creamy Corn Pasta|65 g
+8901808006640|3|en|staples|Weikfield|Chef’s basket Macaroni Pasta|850 g
+8906005666826|14|en|staples|Narasu's|Whole Wheat Vermicelli|180 g
+8904063240248|9|en|staples|Haldiram's|Haldiram Bhujia 1kg|1 kg
+8906042150074|18|en|staples|Anil|Finger Millet Vermicelli|180 g
+8903754000062|3|en|beverages|Tata|Tata water 1ltr|1000 ml
+8902579203016|18|en|beverages|Bailey|Packaged Drinking Water|1 l
+8906017290064|3|en|beverages|Bisleri|Packaged Drinking Water|2 L
+8906017290026|23|en|beverages|Bisleri|Bisleri Water 250ml|250 ml
+8902080364060|3|en|beverages|Pepsi|Mountain dew|1 l
+8906017290125|7|en|beverages|Bisleri|Vedica|1 L
+8901117250352|5|en|beverages|cipla|oral rehydration salts|21 g
+8908004099025|3|en|beverages|Sunrich Aqua|Sunrich Aqua Packaged Drinking water|1 Litre
+8902579107048|3|en|beverages|Parle|Bottled water|500 ml
+8901207037795|3|en|beverages|Real|activ 100% Coconut water|1 l
+8906080604751|16|en|beverages|Paper Boat|Swing Coconut Water Drink|1.2 l
+8908000589292|3|en|beverages|Bindu|Fizz Jeera Masala|300 ml
+8904132917347|17|en|beverages|Independence|Water with minerals|750 ml
+8908018251211|4|en|beverages|Artos|Artos Carbonated Water|200 ml
+8906080603280|5|en|beverages|Paper Boat|Green Apple Sparkling Water|600 ml
+8906017290088|9|en|beverages|Bisleri|Bisleri Water|10 l
+8904132949027|3|en|beverages|Independence|Independence Water with Minerals|500 ml
+8908000738287|21|en|beverages|Meriba|Packaged Drinking Water|1 l
+8939111115278|4|en|beverages|gravity|gravity drops|500 ml
+8904132976962|4|en|beverages|Campa|Campa Jeera Up|150 ml
+8906013420786|4|en|beverages|clear|Clear drinking water|1 l
+8906013423336|13|en|beverages|CLEAR|Packaged Drinking Water|200 ml
+8908000716889|4|en|beverages|Rajhans|Rajhans Aqua|1 l
+8901453000024|14|en|beverages|hamdard|Rooh Afza|750 ml
+8902080002290|12|en|beverages|PepsiCo|7up|500 ml
+8908025026000|7|en|beverages|Aqa Mine|Aqa Mine Drinking Water|500 ml
+8906017290095|4|en|beverages|Bisleri|Bisleri Water|20 L
+8908007153007|3|en|beverages|Aqua sip|Packged drinking water|1 ltr
+8904109402012|4|en|beverages|Patanjali|Patanjali Divya Jal|1 l
+8906010720018|3|en|beverages|Aava|Aava Mineral Water|1 L
+8908012697015|3|en|beverages|Natural Aqua|Natural Aqua Plus|500 ml
+8904002504608|3|en|beverages|MASQATI WATER BOTTLE|MINERAL WATER|500 ml
+8908013140459|3|en|beverages|Jimmy's|Sparkling Water|600 ml
+3948764082764|3|en|beverages|Schweppes|Packaged Drinking Water|1 L
+8906006721821|4|en|staples|LION|lion kimjo Dates|500 g
+8904071700024|17|en|staples|Chheda's|Salt-n-Pepper Banana Chips|150 g
+6291100213160|6|en|staples|Date Crown|Khenaizi Dates|500 g
+8906019776092|14|en|staples|Nutraj|Arabian Premium Dates|500 g
+8906006720107|110|en|staples|Lion|Qyno Dates|250 g
+8904132929142|3|en|staples|Good Life|Arabian Dates|500 g
+8901786270507|6|en|staples|Everest|Dry Mango Powder|50 g
+8903363011435|3|en|staples|Dmart|Premia nuts and seeds mix|100 g
+8906120109918|3|en|staples|Farmley|Farmley Date Bites|18 g
+8906124460787|7|en|staples|Green Leaf|Black Raisins|250 g
+8906095126927|4|en|staples|WONDERLAND Foods|Zahidi Dates|500 g
+8906095126651|3|en|staples|Wonderland Foods|Arabian Dates|250 g
+8906120106320|3|en|staples|Farmley|Trail Mix|200 g
+8906120106344|3|en|staples|Farmley|Farmley Berry Mix|200 g
+8903363011350|3|en|staples|Dmart|Dryfruit Mix|500 g
+8906081126900|11|en|staples|Happilo|Happilo Arabian Dates|500 g
+8906019779451|3|en|staples|Nutraj|DryFruit Mix|500 g
+8908025353090|5|en|staples|Greenfinity|Nuts Fusion|500 g
+8906006720497|5|en|staples|Lion|Layina Dates|500 g
+8906019770236|10|en|staples|Nutraj|Nutraj Round Raisins 500g|500 g
+8903363002778|3|en|staples|Dmart Premia|Dmart Premia Raisins Indian (Golden)|500 g
+8906140202217|3|en|staples|Nature's Choice|Arabian  DATES|500 g
+8906095120079|23|en|staples|Wonderlands Food|Wonderland California In-Shell Walnuts 1kg|1 Kg
+8906021924436|8|en|staples|Apis|Royal Zahidi Premium Dates|500 g
+8903023013281|6|en|staples|More Choice|More Choice Zahidi Dates|500 g
+8908017674080|3|en|staples|Nick Mics|Dates|500 gm
+8906081123619|3|en|staples|Happilo|Californian Almonds|450 g
+8908019758306|3|en|staples|proV select|proV select Indian Whole Natural Raisin|500 g
+8906167241350|3|en|staples|Whole Farm|Anjeer|200 g
+8906142774934|3|en|staples|Bolas|Bolas Panchmewa Dry fruit mix|250 g
+8902901227161|12|en|staples|Good life|Good life raisin yellow 500g|500 g
+8906006720015|3|en|staples|Lion|Qyno Deseeded Dates|100 g
+8906120101721|11|en|staples|Farmley|Farmley Premium Raisins|1 kg
+8908017778887|3|en|staples|Ashapura Agrocomm|Indian Raisins|500 gm
+8906081120434|8|en|staples|Happilo|Premium Afghani Seedless Black Raisins|250 g
+00084984|5|en|staples|Nutri Organics|Green Raisins|1 kg
+8903023002353|3|en|staples|Vedaka|Vedaka Raisins|500 g
+00015741|3|en|staples|Supreme Harvest|Supreme Harvest Indian Raisins|500 g
+8906108304021|5|en|staples|POPULAR ESSENTIALS|Black Raisins [Seedless]|250 g
+8903023002254|3|en|staples|Vedaka|Raisins|1 kg
+8906120100427|3|en|staples|Farmley|Premium Figs (Anjeer)|200 g
+8906108306254|3|en|staples|Popular|Zahidi Dates|500 gms
+8904226500523|4|en|staples|Healthfull|Dried Cranberries|200 g
+8904063200525|3|en|staples|Haldiram's|Salted Banana Chips|200 g
+8908011491546|7|en|staples|ProV|Raisins|500 g
+8902901224252|5|en|staples|good life|yellow raisins|200 g
+8906019775118|3|en|staples|Nutraj|Dried Cranberries|180 g
+8908014531065|7|en|staples|sheer coco|desiccated coconut powder|100 g
+8902901224238|25|en|staples|Good life|Good life raisins green 500gm|500 g
+8906142772848|5|en|staples|Molsi's|Black Dates Arabian|500 g
+8906158700842|3|en|staples|the nut house|The nuthouse raisins|500 g
+8906021925716|3|en|staples|api's|Select Dates|500 g
+8906006722972|3|en|staples|Lion|Lion Muscat Dates 500 gm|500 g
+0000932743634|3|en|staples|chirag wafers|banana chips|180 g
+8696740100029|8|en|staples|Türkel|Dried Apricots|400 g
+8904063206336|12|en|staples|Haldiram's|Banana Chips|180 g
+8908008615849|3|en|staples|Frubites|Freeze dried pomegranate|20 g
+8908011478684|3|en|staples|boyo|Heart Healthy Trail Mix|200 g
+8904293724563|5|en|staples|flipkart grocery|raisins|50 g
+8902901224108|18|en|staples|Good Life|Good Life Fig Anjeer 100g|100 g
+8902901224221|17|en|staples|Good Life|Good Life Raisins green|200 gm
+8902901069976|12|en|staples|Good Life|Good Life Munakka 200gm|200 gm
+8908016958440|3|en|staples|Madhuban|Raisins|50 g
+8908011380093|5|en|staples|Mahafruit|Long Seedless Raisins|500 g
+8902901224078|3|en|staples|Good life|Good Life Mixed Dry Fruits|200 gm
+8908019758344|7|en|staples|Prov|Prov select Fard Dates|500 g
+8906010500559|15|es|packaged|Balaji|Mung Dal|25 g
+8906010502232|6|en|packaged|Balaji|Balaji wafers panjabi tadka|22 g
+8906010500900|20|en|packaged|Balaji Wafers|Wheelos Masala Flavour|22 g
+8906010500337|4|en|packaged|Balaji|Aloo Sev|22 g
+8906010500078|5|en|packaged|Balaji Namkeen|Balaji Farali Chivda|22 g
+8901491366052|32|en|packaged|Kurkure|Puffcorn|58 g
+8906010501570|13|en|packaged|Balaji|Balaji Wafers Crunchex|32 g
+8906010500863|3|en|packaged|Balaji Wafers|Shing Bhujiya - Nimbu Chatka|24 g
+8901491361026|51|en|packaged|Kurkure|Kurkure Masala Munch|41.5 g
+8901725118938|29|en|packaged|Bingo|Bingo Tedhe Medhe|19.2 g
+8906010500016|24|en|packaged|Balaji Wafers|Simply Salted|30 g
+8904004400731|4|en|packaged|Haldiram's|Aloo bhujia|200 gm
+8904004400236|14|en|packaged|Haldirams|Haldiram's Soya sticks|22 g
+8906010500818|3|en|packaged|Balaji|Potato chips|100 gram
+8901491101844|32|en|packaged|Lay's|Lay's Potato Chips|50 g
+8901491503051|27|en|packaged|Lay's|West Indies' Hot 'n' Sweet Chilli flavor|25 g
+8906010500047|3|en|packaged|Balaji|masala masti|15 g
+8901491101813|40|en|packaged|Lay's|Lays american cream onion|55 g
+8901491503020|35|en|packaged|Lay's|Lays India's Magic Masala|26.5 g
+8904004403725|20|en|packaged|Haldiram's|Moong Dal|35 g
+8901491101837|26|en|packaged|Lay's|Lays Classics Salted 20rs|50 g
+8901491503037|24|en|packaged|Lay's|American Style Cream & Onion 10rs|24 g
+8904004400694|4|en|packaged|Haldiram's|Aloo Bhujia|42 g
+8906010500276|3|en|packaged|Balaji Wafers|Balaji Wafers Shing Bhujia|25 g
+8906010500894|4|en|packaged|Balaji Wafers|Chataka pataka|25 g
+8901491103084|3|es|packaged|Kurkure|Green chutney style|75 g
+8904004403671|5|en|packaged|Haldiram's|TASTY NUTS Shing Bhujia|40 g
+8904004400250|7|en|packaged|Haldiram's|Haldiram's Soya Sticks|200 g

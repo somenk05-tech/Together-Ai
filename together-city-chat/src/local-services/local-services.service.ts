@@ -7,13 +7,20 @@ import { AiService } from '../ai/ai.service';
 import { categoryGroup, categoryKeysInGroup, categoryKeysMatching, categoryLabel, isCategory, isCategoryGroup } from './categories';
 import { customerLabel, mintAlias } from './alias';
 import { AISLES, GROCERY_CATEGORIES, aisleOf, aisleRank } from './grocery';
+import {
+  AISLES as ELECTRONICS_AISLES,
+  ELECTRONICS_CATEGORIES,
+  aisleOf as electronicsAisleOf,
+  aisleRank as electronicsAisleRank,
+} from './electronics';
+import { SHOPS_PER_PRODUCT, citation, searchTerms } from './catalogue';
 import { boundingBox, haversineKm, parsePoint } from './geo';
 import { looksLikeId, normaliseSlug, slugProblem, SLUG_MESSAGES, suggestSlug } from './slug';
 import { catalogueFor, cleanDetails, isBusinessType, readDetails, sectionsFor } from './business-types';
 import { normaliseHours, parseHours } from './hours';
 import { VerificationService } from './verification.service';
 import { PostMediaGuard } from '../social/post-media-guard';
-import type { BrowseDto, CreateListingDto, GroceryShelfDto, UpdateListingDto, PostOfferDto, SaveMenuDto } from './dto/local-services.dto';
+import type { BrowseDto, CatalogueSearchDto, CreateListingDto, GroceryShelfDto, UpdateListingDto, PostOfferDto, SaveMenuDto } from './dto/local-services.dto';
 import type { PatchMenuItemDto } from './dto/orders.dto';
 
 type ListingRow = {
@@ -28,6 +35,35 @@ type ListingRow = {
   phonePublic: boolean;
   moderation: string; createdAt: Date; updatedAt: Date;
 };
+
+/** A row of the city's grocery catalogue, as the database stores it. */
+type CatalogueRow = {
+  id: string; aisle: string; brand: string | null; name: string; pack: string | null;
+  gtin: string | null; imageUrl: string | null; loose: boolean;
+  sourceKey: string; sourceRef: string;
+};
+
+/**
+ * A catalogue row as anything outside this file reads it.
+ *
+ * THE SOURCE TRAVELS WITH THE ROW, always, as a printable name, its licence and
+ * a link that shows the row. A product whose provenance is left behind in the
+ * database is a product the city is quietly claiming to know about, and the
+ * whole reason this catalogue is allowed to exist is that it never does that.
+ */
+function catalogueTile(r: CatalogueRow) {
+  return {
+    id: r.id,
+    aisle: r.aisle,
+    brand: r.brand,
+    name: r.name,
+    pack: r.pack,
+    gtin: r.gtin,
+    imageUrl: r.imageUrl,
+    loose: r.loose,
+    source: citation(r.sourceKey, r.sourceRef),
+  };
+}
 type ReviewRow = {
   id: string; listingId: string; reviewerId: string; alias: string;
   rating: number; body: string | null; ownerReply: string | null;
@@ -92,6 +128,9 @@ export const MENU_CAP = 500;
  */
 const SHOP_CAP = 60;
 const ITEM_CAP = 1200;
+/** One screen of the catalogue picker. Small on purpose: a shopkeeper picks
+ *  from a page they can read, not from four hundred rows they scroll past. */
+const CATALOGUE_PAGE = 40;
 const MAX_LISTINGS_PER_OWNER = 5;
 /**
  * TWO WAYS OUT OF THE DIRECTORY, AND THEY ARE NOT THE SAME WORD (8 Sep).
@@ -1470,6 +1509,11 @@ export class LocalServicesService {
           description: it.description ?? null,
           priceInr: it.priceInr ?? null,
           sortOrder: i,
+          /* The catalogue link the picker put on this line, or null. Sent whole
+             like everything else on the row: a line the shop unpicked from the
+             catalogue and retyped is theirs alone again, and must lose the link
+             rather than keep pointing at a pack it no longer claims to be. */
+          productId: it.productId ?? null,
         };
         if (it.id && keep.has(it.id)) {
           await tx.serviceMenuItem.update({ where: { id: it.id }, data });
@@ -1539,6 +1583,84 @@ export class LocalServicesService {
    * response is a page nobody can render. Both are ordered so the cut is the
    * same one twice — newest shops, then each shop's own order.
    */
+  /**
+   * ── THE TABLE THIS CHECKOUT'S GENERATED CLIENT HAS NOT SEEN ────────────────
+   *
+   * `GroceryProduct` is in schema.prisma and in
+   * 20260908T150000_the_catalogue_says_what_a_product_is; the client in this
+   * working tree predates both, because `prisma generate` has to reach
+   * binaries.prisma.sh and this machine could not. Every deployment
+   * regenerates before it builds, so the types are right where it matters and
+   * wrong only here — the same escape hatch, kept to one accessor, that
+   * hash-match.service.ts uses for `csamHit`.
+   *
+   * DELETE IT after any `npx prisma generate`: put `this.prisma.groceryProduct`
+   * back at its call sites and this comment with it.
+   */
+  private get catalogue() {
+    return (this.prisma as unknown as {
+      groceryProduct: {
+        findMany(a: unknown): Promise<CatalogueRow[]>;
+        count(a: unknown): Promise<number>;
+      };
+    }).groceryProduct;
+  }
+
+  /**
+   * ── THE PICKER'S ONE READ (owner, 8 Sep) ───────────────────────────────────
+   *
+   * "Create an online grocery store using the internet, show all the products
+   * that's available in an area."
+   *
+   * This is the "using the internet" half, and it is the half with no prices in
+   * it. The catalogue holds what a product IS — read out of Open Food Facts,
+   * Open Beauty Facts and the Government of India's own commodity master — and
+   * every row travels with the database it came from and a link that shows it.
+   * See `catalogue.ts` for why the price is not here and never will be.
+   *
+   * WHO CALLS IT. A shopkeeper filling a shelf, mainly: a kirana with four
+   * hundred lines picks them off this list with photographs instead of typing
+   * them, and each picked row lands on their menu at THEIR price. A citizen
+   * searching the store calls it too, to be told the honest thing when nobody
+   * nearby stocks a pack — see NOT_STOCKED.
+   *
+   * SEARCH IS PREFIX-ON-WORDS, EVERY TERM REQUIRED. "aashirvaad atta" is an
+   * AND, not a bag of maybes, because a picker that helpfully widens a search
+   * is a picker that puts the wrong pack on somebody's shelf under the right
+   * name. `contains` on a lowercased column, once per term — the index is on
+   * searchText, and Postgres will take the first term's scan and filter the
+   * rest, which at catalogue size is the right shape.
+   */
+  async catalogueSearch(dto: CatalogueSearchDto) {
+    const terms = dto.q ? searchTerms(dto.q) : [];
+    const where: Record<string, unknown> = {};
+    if (dto.aisle) where.aisle = dto.aisle;
+    if (terms.length) {
+      where.AND = terms.map((t) => ({ searchText: { contains: t } }));
+    }
+    const page = dto.page ?? 1;
+    const [rows, total] = await Promise.all([
+      this.catalogue.findMany({
+        where,
+        orderBy: [{ aisle: 'asc' }, { name: 'asc' }],
+        skip: (page - 1) * CATALOGUE_PAGE,
+        take: CATALOGUE_PAGE,
+      }),
+      this.catalogue.count({ where }),
+    ]);
+    return {
+      products: rows.map(catalogueTile),
+      total,
+      page,
+      pageSize: CATALOGUE_PAGE,
+      /* The aisles as the catalogue itself fills them — the same ten the shelf
+         walks, so the picker and the store cannot disagree about what an aisle
+         is called. Counts are not sent: a count here would be the size of the
+         catalogue, and a shopkeeper reading it would think it was their stock. */
+      aisles: AISLES,
+    };
+  }
+
   async groceryShelf(viewerId: string, q: GroceryShelfDto) {
     const where: Record<string, unknown> = {
       moderation: 'approved',
@@ -1573,7 +1695,7 @@ export class LocalServicesService {
       : found.map((r) => ({ ...r, distanceKm: undefined as number | undefined }));
 
     if (listings.length === 0) {
-      return { shops: [], aisles: [], items: [], total: 0, shopCount: 0 };
+      return { shops: [], aisles: [], items: [], products: [], total: 0, shopCount: 0 };
     }
 
     const byId = new Map(listings.map((l) => [l.id, l]));
@@ -1584,6 +1706,7 @@ export class LocalServicesService {
     }) as unknown as Array<{
       id: string; listingId: string; section: string | null; name: string; description: string | null;
       priceInr: number | null; available: boolean; veg: string | null; photoUrl: string | null;
+      productId: string | null;
     }>;
 
     const items = rows.map((r) => {
@@ -1601,6 +1724,9 @@ export class LocalServicesService {
          *  under so a citizen reads their word rather than ours. */
         section: r.section,
         aisle: aisleOf(r.section, shop.categoryKey),
+        /** The catalogue row this line is a priced copy of, or null. The client
+         *  draws a linked row inside its product tile and never twice. */
+        productId: r.productId,
         shopId: shop.id,
         shopSlug: shop.slug,
         shopName: shop.businessName,
@@ -1670,8 +1796,218 @@ export class LocalServicesService {
       hours: parseHours(l.hoursJson),
     }));
 
+    /**
+     * ── ONE PACK, ONE TILE, EVERY SHOP THAT HAS IT (owner, 8 Sep) ───────────
+     *
+     * "Show all the products that's available in an area."
+     *
+     * Eight kiranas within two kilometres all stock Aashirvaad atta 5 kg, and
+     * until now that was eight tiles a citizen had to compare by reading eight
+     * names. Any row the shop picked off the city's catalogue carries a
+     * `productId`, which is the ONLY thing that lets the store say two rows are
+     * the same pack — a name match would merge "Toor Dal 1kg" with "Toor Dal
+     * (Premium) 1kg" and quietly misprice one of them.
+     *
+     * THE SHELF DOES NOT BECOME THE PRODUCT'S. `fromInr` is the cheapest price
+     * a shop actually typed, and it is null when none of them priced it — never
+     * an average, never a "market price", never a number this file computed.
+     * Each offer keeps its own shop, its own price and its own sold-out switch,
+     * because the order still goes to one shop and that shop's till.
+     *
+     * SOLD OUT IS SHOWN, NOT HIDDEN, here too: an offer that is out of stock
+     * stays on the tile, greyed, and is skipped when picking `fromInr` — a
+     * cheapest price you cannot buy is worse than no price at all.
+     *
+     * `items` still carries every row exactly as before, product-linked or not.
+     * A tile is the grouped VIEW of some of them, not a replacement for them.
+     */
+    const linked = items.filter((i) => i.productId);
+    const products: Array<ReturnType<typeof catalogueTile> & {
+      fromInr: number | null; shopCount: number;
+      offers: Array<{ itemId: string; shopId: string; shopSlug: string | null; shopName: string;
+        priceInr: number | null; available: boolean; distanceKm: number | null }>;
+    }> = [];
+
+    if (linked.length) {
+      const ids = [...new Set(linked.map((i) => i.productId as string))];
+      const rows = await this.catalogue.findMany({ where: { id: { in: ids } } });
+      const byProduct = new Map<string, typeof linked>();
+      for (const i of linked) {
+        const k = i.productId as string;
+        const list = byProduct.get(k);
+        if (list) list.push(i); else byProduct.set(k, [i]);
+      }
+      for (const r of rows) {
+        const mine = byProduct.get(r.id) ?? [];
+        if (!mine.length) continue;
+        /* Cheapest first, and a shop that is out of stock sorts to the back
+           whatever it charges. */
+        const offers = [...mine].sort((a, b) =>
+          Number(b.available) - Number(a.available)
+          || (a.priceInr ?? Number.MAX_SAFE_INTEGER) - (b.priceInr ?? Number.MAX_SAFE_INTEGER))
+          .slice(0, SHOPS_PER_PRODUCT)
+          .map((i) => ({
+            itemId: i.id, shopId: i.shopId, shopSlug: i.shopSlug, shopName: i.shopName,
+            priceInr: i.priceInr, available: i.available, distanceKm: i.distanceKm,
+          }));
+        const priced = mine.filter((i) => i.available && i.priceInr != null).map((i) => i.priceInr as number);
+        products.push({
+          ...catalogueTile(r),
+          fromInr: priced.length ? Math.min(...priced) : null,
+          shopCount: new Set(mine.map((i) => i.shopId)).size,
+          offers,
+        });
+      }
+      products.sort((a, b) => aisleRank(a.aisle) - aisleRank(b.aisle) || a.name.localeCompare(b.name));
+    }
+
     void viewerId;
-    return { shops, aisles, items, total: items.length, shopCount: shops.length };
+    return { shops, aisles, items, products, total: items.length, shopCount: shops.length };
+  }
+
+  /**
+   * ── THE ELECTRONICS STORE: EVERY LOCAL SHELF, READ AS ONE (owner, 8 Sep) ──
+   *
+   * "Add the electronics store here."
+   *
+   * THE GROCERY READ, POINTED AT A DIFFERENT PAIR OF TRADES. Every row this
+   * returns was typed by an electronics shop or a mobile shop into their own
+   * Stock list and is already for sale on their own page, at their own price,
+   * behind their own sold-out switch. Asked where the stock should come from,
+   * the owner chose these shops over a national catalogue — so there is no
+   * price here that a shopkeeper in this city did not set.
+   *
+   * WHAT IT DOES NOT DO, AND THE GROCERY SHELF DOES: group rows into product
+   * tiles. That needs a catalogue — a row's `productId`, pointing at a pack the
+   * city has a record of — and the city's catalogue is groceries only. Two
+   * shops' listings for the same television therefore stand as two rows, each
+   * under its own shop's name, which is the honest shape until an electronics
+   * catalogue exists. `products` travels empty rather than absent so the client
+   * reads one shelf shape from both rooms.
+   *
+   * SOLD OUT IS SHOWN, NOT HIDDEN. AN UNPRICED ROW IS "ASK", NEVER FREE. THE
+   * SHELF TAKES NO MONEY — one order is one shop, and `/services/:id/order` is
+   * already live on every one of these pages.
+   */
+  async electronicsShelf(viewerId: string, q: GroceryShelfDto) {
+    const where: Record<string, unknown> = {
+      moderation: 'approved',
+      categoryKey: { in: [...ELECTRONICS_CATEGORIES] },
+    };
+    if (q.city) where.city = { equals: q.city, mode: 'insensitive' };
+    if (q.area) where.areas = { contains: q.area, mode: 'insensitive' };
+
+    /* NEAR ME, the same two steps `browse()` and the grocery shelf use: the box
+       is a query an index can serve, the circle is a trim in memory. A shop
+       that never said where it is is left out of a distance search rather than
+       assumed to be far away. */
+    const centre = parsePoint(q.near);
+    const near = centre && q.withinKm ? { centre, km: q.withinKm } : null;
+    if (near) {
+      const b = boundingBox(near.centre.lat, near.centre.lng, near.km);
+      where.lat = { gte: b.minLat, lte: b.maxLat };
+      where.lng = { gte: b.minLng, lte: b.maxLng };
+    }
+
+    const found = await this.prisma.serviceListing.findMany({
+      where, orderBy: { createdAt: 'desc' }, take: near ? 300 : SHOP_CAP,
+    }) as unknown as ListingRow[];
+
+    const listings = near
+      ? found
+        .map((r) => ({ r, km: haversineKm(near.centre.lat, near.centre.lng, r.lat as number, r.lng as number) }))
+        .filter((x) => x.km <= near.km)
+        .sort((a, b) => a.km - b.km)
+        .slice(0, SHOP_CAP)
+        .map((x) => ({ ...x.r, distanceKm: Math.round(x.km * 100) / 100 }))
+      : found.map((r) => ({ ...r, distanceKm: undefined as number | undefined }));
+
+    if (listings.length === 0) {
+      return { shops: [], aisles: [], items: [], products: [], total: 0, shopCount: 0 };
+    }
+
+    const byId = new Map(listings.map((l) => [l.id, l]));
+    const rows = await this.prisma.serviceMenuItem.findMany({
+      where: { listingId: { in: listings.map((l) => l.id) } },
+      orderBy: [{ listingId: 'asc' }, { sortOrder: 'asc' }],
+      take: ITEM_CAP,
+    }) as unknown as Array<{
+      id: string; listingId: string; section: string | null; name: string; description: string | null;
+      priceInr: number | null; available: boolean; veg: string | null; photoUrl: string | null;
+    }>;
+
+    const items = rows.map((r) => {
+      const shop = byId.get(r.listingId) as ListingRow & { distanceKm?: number };
+      return {
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        /** Null is "ask", never ₹0 — the schema's own rule, carried out. */
+        priceInr: r.priceInr,
+        available: r.available,
+        veg: r.veg,
+        photoUrl: r.photoUrl,
+        /** The shopkeeper's own heading, kept beside the aisle it was filed
+         *  under so a citizen reads their word rather than ours. */
+        section: r.section,
+        aisle: electronicsAisleOf(r.section, shop.categoryKey),
+        /** No catalogue behind this shelf yet, and `null` says so rather than
+         *  the field being absent on one shelf and present on the other. */
+        productId: null as string | null,
+        shopId: shop.id,
+        shopSlug: shop.slug,
+        shopName: shop.businessName,
+        shopCategory: categoryLabel(shop.categoryKey),
+        shopCity: shop.city,
+        distanceKm: shop.distanceKm ?? null,
+      };
+    });
+
+    /* Aisle order first, then what is actually on the shelf before what is sold
+       out, then the shop's own order — so a chip never opens on a run of
+       greyed-out rows. */
+    items.sort((a, b) =>
+      electronicsAisleRank(a.aisle) - electronicsAisleRank(b.aisle)
+      || Number(b.available) - Number(a.available)
+      || a.name.localeCompare(b.name));
+
+    /* THE COUNTS COME OFF THE ITEMS THEMSELVES, never a second list to drift
+       out of step with them. */
+    const counts = new Map<string, number>();
+    for (const i of items) counts.set(i.aisle, (counts.get(i.aisle) ?? 0) + 1);
+    const aisles = ELECTRONICS_AISLES
+      .filter((a) => counts.has(a.key))
+      .map((a) => ({ key: a.key, label: a.label, count: counts.get(a.key) as number }));
+
+    const stocked = new Set(items.map((i) => i.shopId));
+    const open = listings.filter((l) => stocked.has(l.id));
+
+    /* AND THE SHELF CARRIES WHAT THE DIRECTORY KNOWS ABOUT THE SHOP — verified,
+       rated, open, how far — read with the directory's own two grouped reads so
+       a badge here can never disagree with the badge two taps away. Hours
+       travel PARSED and unjudged: the reader owns the moment. */
+    const [ratings, trust] = await Promise.all([
+      this.ratingsFor(open.map((l) => l.id)),
+      this.trustFor(open),
+    ]);
+
+    const shops = open.map((l) => ({
+      id: l.id,
+      slug: l.slug,
+      name: l.businessName,
+      categoryLabel: categoryLabel(l.categoryKey),
+      city: l.city,
+      areas: l.areas,
+      distanceKm: (l as ListingRow & { distanceKm?: number }).distanceKm ?? null,
+      logoUrl: l.logoUrl,
+      itemCount: items.filter((i) => i.shopId === l.id).length,
+      ...(ratings[l.id] ?? { rating: null, count: 0 }),
+      trust: trust.get(l.id) ?? null,
+      hours: parseHours(l.hoursJson),
+    }));
+
+    void viewerId;
+    return { shops, aisles, items, products: [], total: items.length, shopCount: shops.length };
   }
 
   async menu(listingId: string, viewerId: string) {

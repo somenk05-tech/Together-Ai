@@ -105,9 +105,15 @@ import { join } from 'node:path';
  */
 const CEILING = {
   rawRadii: 315,
-  inlineStyleBlocks: 6528,
+  inlineStyleBlocks: 6527,
   distinctFontSizes: 35,
-  rawSpacing: 3538,
+  /* 3538 → 3537 (9 Sep). It read 3534 for part of 8 Sep, which was a number no
+     tree ever stood at: it was lowered against one session's working copy while
+     four other sessions' work sat unlanded beside it, so the ratchet failed for
+     everybody including the session that set it. 3537 is what the day's whole
+     desk actually measures, and it is still a step DOWN from the 3538 that is
+     in HEAD — which is the only comparison a ratchet is entitled to make. */
+  rawSpacing: 3537,
   /* Added 2 Sep. Today's readings, recorded so they can only fall.
    *
    * `distinctTracking` opened at 50 and is recorded at 49, because the last

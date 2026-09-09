@@ -1,0 +1,64 @@
+8904352004520|12|en|personal|Biotique|biotique advanced ayurveda|650 ml
+4045787726671|3|en|personal|Schwarzkopf Professional|Bonacure Time Restore Shampoo Q10+|250 ml
+8901138002428|3|en|personal|Himalaya|Anti-Hair Fall Bhringaraja Shampp|340 ml
+8906190533279|3|en|personal|Derm ease|hibiscus shampoo|200 ml
+8906090575645|3|en|personal|Naturali|Hairfall Arrest Shampoo|200 ml
+8906157900762|10|en|personal|Bare Anatomy|Anti-Dandruff Shampoo|100 ml
+8901030868702|4|en|personal|Love beauty and planet|Argan Oil & Lavender|200 ml
+8904352004414|9|en|personal|Biotique Advanced Ayurveda|Green Apple Shine & Gloss Shampoo & Conditioner|180 ml
+8904092136956|3|en|personal|Glenmark|Scalpe pro|200 mL
+8902979029025|11|en|personal|Meera|Meera Anti-Dandruff Shampoo with Small Onion & Fenugreek|5.5 ml
+8904417317282|3|en|personal|The Dermaco|Peptide-Stem Cell Hair Fall Control Shampoo|200 ml
+8901207025563|4|en|personal|Dabur|Dabur Almond Shampoo|650 ml
+8902979022781|4|en|personal|CavinKare|Meera Shampoo|180 ml
+8901030929663|4|en|personal|Indulekha|Indulekha Bringha shampoo|580 ml
+8901030929656|3|en|personal|Indulekha|Indulekha Bringha shampoo|340 ml
+8902979053990|6|en|personal|Nyle|Anti-Hairfall shampoo|400 ml
+8901030928734|4|en|personal|Indulekha|Dandruff Treatment Shampoo|340 ml
+8906087775829|3|en|personal|Mamaearth|Mamaearth Onion Shampoo|200 ml
+8901088038799|5|en|personal|Shampoo|Mediker|5 ml
+8901030984709|3|en|personal|Clinic Plus|Clinic Plus+ Shampoo|50 ml
+4045787725353|3|en|personal|Schwarzkopf|Bonacure Frizz Away Shampoo|250 ml
+8908006722419|3|en|personal|Shikakai|Shampoo|500 ml
+8901287100013|11|en|personal|Karnataka Soaps & Detergents Ltd.|Mysore Sandal Soap|75 g
+8905110008347|5|en|personal|Vivel|Lime and Aloe Vera Soap|150 g
+8901012118405|3|en|personal|Johnson's|Johnson's Baby Soap|225 g
+8906057533336|3|en|personal|Medimix|Medmix Classic Ayurvedic Soap|28 g
+8901138834081|3|en|personal|Himalaya Wellness Company|Neem & Turmeric Soap (also referred|3 N × 125 g + 1 N × 125 g
+8904355401944|6|en|personal|Apollo Pharmacy|Premium Hand Wash Lemon Grass|250 ml
+8901030907449|6|en|personal|Hamam|Hamam 100% Pure Neem Oil|100 g
+8929991741728|6|en|personal|Ghar soap|Magic soap|300 g
+8903105033572|9|en|personal|Yardley|Yardley Clear Gel Bat Gardenia and waterlily|125 x 3 = 375 g
+8904109450327|10|en|personal|Patanjali|Dant Kanti Natural Toothpaste|200 g
+8901571010844|3|en|personal|Sensodyne|Sensodyne Repair & Protect|100 g
+8901138836306|3|en|personal|Himalaya|Complete Care Toothpaste|300 g
+8901138836108|21|en|personal|Himalaya|Complete Care Toothpaste|150 g
+8901314009081|14|en|personal|Colgate|ACTIVE SALT|200 g
+8901207027253|13|en|personal|Dabur|Dabur Red|100 g
+6706303904840|3|en|personal|Perfora|Dream white toothpaste|150 g
+8908024408029|3|en|personal|Warren remedies pvt.ltd|Kidodent cavity shield toothpaste|60 g
+8901288012001|3|en|personal|Vicco|Vajradanti Paste|200 g
+8901030970368|17|en|personal|Pepsodent|Pepsodent Germi Check Toothpaste|300 g
+8901207049644|11|en|personal|Dabur India Ltd.|Dabur RED|36 g
+8901288011004|15|en|personal|Vicco Laboratories Pvt. Ltd|Vicco Vajradanti Paste|100 g
+8901030970351|15|en|personal|Unilever|Pepsodent|200 g
+4987176177773|5|en|personal|old spice|old spice original deo|140 ml
+8901277013095|3|en|personal|Godrej Consumer Products Ltd.|Park Avenue|147 g / 220 ml
+8904006307267|3|en|personal|Wild Stone|Wild Stone Red Body Deodorant|225 ml / 150 g
+8888202027283|3|en|personal|Enchanteur|Charming|75 ml
+8904006307151|7|en|personal|Wild Stone|Wild Stone Ultra Sensual Deodorant for Men|150 g (225 ml)
+4005900354242|6|en|personal|NIVEA MEN|NIVEA MEN Silver Protect Deodorant Roll-on|50 ml
+4005900294456|9|en|personal|Nivea|Nivea Men Fresh Active Deodorant Roll-on|50 ml
+8904256002820|4|en|personal|Nivea|Men Fresh Active|150 ml
+8901450001246|3|en|personal|HAMILTON|DENVER|165 g
+4005900491879|3|en|personal|Nivea|Deep Impact Roll On|50 ml
+4005808828869|3|en|personal|Nivea|Cool Kick|50 ml
+8901088047265|3|en|personal|Marico|Ayurveda Hot Oil|300 ml
+8904422708990|5|en|personal|Patanjali|Kesh Kanti Hair Cleanser|5 ml
+8901207045813|3|en|personal|Dabur|Anmol Gold|175 ml
+8901030957048|4|en|personal|Vaseline|Gluta hya dewy radicance|200 ml
+8904417306521|3|en|personal|The derma co|Sali-cinamide Anti-acne Serum|30 ml
+4987176278586|3|en|personal|Gillette|Shave Foam|418 g
+4987176177674|7|en|personal|Gillette|Gillette Classic Lemon Lime Pre Shave Foam|196 g
+8901106111220|6|en|personal|Laser|Laser Sport 3 Shaving Foam|400 g
+4987176105929|9|en|personal|Gillette|Gillette pro|195 g

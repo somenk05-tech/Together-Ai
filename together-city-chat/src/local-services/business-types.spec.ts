@@ -182,11 +182,22 @@ describe('the catalogue each kind of business publishes', () => {
     }
   });
 
-  it('a restaurant leads with the photograph; a grocery leads with the sheet', () => {
+  it('a restaurant leads with the photograph; a grocery leads with the catalogue', () => {
     expect(catalogueFor('restaurant', 'restaurants', 'Food & Daily Needs').ways[0]).toBe('photo');
     expect(catalogueFor('restaurant', null, null).kind).toBe('menu');
-    expect(catalogueFor('grocery', 'grocery_stores', 'Food & Daily Needs').ways[0]).toBe('sheet');
+    /* 8 Sep: the sheet was the grocer's lead for one day, and the catalogue
+       took the front of the queue the moment there was one — it asks the shop
+       for a price and nothing else, where a sheet asks them to have kept one.
+       The sheet did not go anywhere; it is the second door. */
+    expect(catalogueFor('grocery', 'grocery_stores', 'Food & Daily Needs').ways[0]).toBe('catalogue');
+    expect(catalogueFor('grocery', 'grocery_stores', 'Food & Daily Needs').ways).toContain('sheet');
     expect(catalogueFor('grocery', null, null).kind).toBe('stock');
+    /* And ONLY a stock list is offered the catalogue: the city's catalogue is
+       groceries, and a salon shown a search box full of atta learns this form
+       was not built for them. */
+    for (const kind of ['menu', 'rateCard', 'packages', 'fares', 'none'] as const) {
+      expect({ kind, offered: CATALOGUES[kind].ways.includes('catalogue') }).toEqual({ kind, offered: false });
+    }
     // and both are the orderable kind — a cart, a wallet, a delivery
     expect(catalogueFor('restaurant', null, null).orderable).toBe(true);
     expect(catalogueFor('grocery', null, null).orderable).toBe(true);

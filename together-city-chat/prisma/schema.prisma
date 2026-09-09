@@ -3808,9 +3808,75 @@ model ServiceMenuItem {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now()) @updatedAt
 
+  /// THE CATALOGUE ROW THIS IS A PRICED COPY OF (owner, 8 Sep: "show all the
+  /// products that's available in an area"). NULL is the normal, older case: a
+  /// line the shop typed or uploaded, which belongs to that shop alone. When it
+  /// is set, eight shops' rows for the same pack are known to be the same pack,
+  /// which is what lets the store show ONE tile with a price from each of them
+  /// instead of eight tiles a citizen has to compare by reading.
+  ///
+  /// SetNull, never Cascade: retiring a catalogue row must never delete a
+  /// shopkeeper's line. Their name and their price are theirs; the link is
+  /// ours, and ours is the only half that may disappear.
+  productId   String?
+
   listing ServiceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  product GroceryProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([listingId, sortOrder])
+  @@index([productId])
+}
+
+/// ── THE CITY'S GROCERY CATALOGUE — WHAT A PRODUCT IS, NEVER WHAT IT COSTS ───
+///
+/// See `local-services/catalogue.ts` for why this table exists and why it has
+/// no price column. In one line: the catalogue holds a product's IDENTITY, read
+/// out of a public database and carrying that database's name on every row; a
+/// shopkeeper's ServiceMenuItem holds the PRICE. A price nobody can be held to
+/// is what this hub shipped in July and apologised for in August, and the
+/// absence of a price column here is that apology made structural.
+model GroceryProduct {
+  id         String   @id @default(uuid())
+  /// One of grocery.ts's ten aisles, decided by the SOURCE database's own
+  /// filing of this product — never by reading the name. See
+  /// `aisleForSourceGroup`.
+  aisle      String
+  /// The brand as the source prints it. NULL for loose goods, which have none:
+  /// an onion has no manufacturer.
+  brand      String?
+  name       String
+  /// The pack, as printed on it — "1 kg", "500 g", "180 ml". NULL for loose
+  /// goods, where the shop names the unit because the shop is the one weighing.
+  pack       String?
+  /// The barcode, where the source is a barcode database. Unique because two
+  /// rows with one barcode are one product entered twice, which would split a
+  /// shelf tile in half.
+  gtin       String?  @unique
+  /// One photograph, hotlinked from the source under its licence. NULL when the
+  /// source had none — a missing picture is a missing picture, and a stock
+  /// silhouette pretending to be this pack is worse.
+  imageUrl   String?
+  /// Loose (weighed out of a sack or a crate) or a sealed pack. Decides whether
+  /// the picker asks the shop for a price per kilo or a price per pack.
+  loose      Boolean  @default(false)
+  /// WHERE THIS ROW CAME FROM — the key in CATALOGUE_SOURCES, and the row's id
+  /// inside that source. NOT NULLABLE, either of them: a catalogue row with no
+  /// source is this table inventing a product, which is the one thing it must
+  /// never be able to do. The pair is unique, so re-running the seed updates a
+  /// row rather than doubling it.
+  sourceKey  String
+  sourceRef  String
+  /// brand + name + pack, lowercased — the picker's haystack, kept as a column
+  /// so search is an index scan and not a scan of the whole catalogue.
+  searchText String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  items ServiceMenuItem[]
+
+  @@unique([sourceKey, sourceRef])
+  @@index([aisle, name])
+  @@index([searchText])
 }
 
 /// AN ORDER A KITCHEN CAN BE HELD TO.

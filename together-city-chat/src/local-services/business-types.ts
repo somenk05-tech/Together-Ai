@@ -83,8 +83,16 @@ export type SectionKind =
  * reads it from here rather than guessing from a category label.
  */
 export type CatalogueKind = 'menu' | 'stock' | 'rateCard' | 'packages' | 'fares' | 'none';
-/** How lines get in: a photograph read by the model, a spreadsheet (CSV / XLSX), or typed. */
-export type CatalogueWay = 'photo' | 'sheet' | 'typed';
+/**
+ * How lines get in: picked off the city's grocery catalogue, a photograph read
+ * by the model, a spreadsheet (CSV / XLSX), or typed.
+ *
+ * `catalogue` is offered to grocers only, and it is offered FIRST, because it
+ * is the shortest road from an empty shelf to a stocked one: the brands, packs,
+ * barcodes and photographs are already there, and what the shop supplies is the
+ * one thing only they can — their price. See local-services/catalogue.ts.
+ */
+export type CatalogueWay = 'catalogue' | 'photo' | 'sheet' | 'typed';
 
 export interface Catalogue {
   kind: CatalogueKind;
@@ -109,8 +117,8 @@ export const CATALOGUES: Record<CatalogueKind, Catalogue> = {
   },
   stock: {
     kind: 'stock', title: 'Stock list', noun: 'product', plural: 'products', orderable: true,
-    blurb: 'Upload your stock sheet (CSV or Excel: name, price, section) or photograph a price list. Your products go on the city’s Grocery Store shelf beside every other shop’s.',
-    ways: ['sheet', 'photo', 'typed'],
+    blurb: 'Tick what you stock off the city’s catalogue, or upload your stock sheet (CSV or Excel: name, price, section), or photograph a price list. You set every price. Your products go on the city’s Grocery Store shelf beside every other shop’s.',
+    ways: ['catalogue', 'sheet', 'photo', 'typed'],
   },
   rateCard: {
     kind: 'rateCard', title: 'Services & rates', noun: 'service', plural: 'services', orderable: false,

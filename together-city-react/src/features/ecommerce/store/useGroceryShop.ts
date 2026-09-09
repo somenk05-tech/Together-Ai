@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useMasterProfile } from '@/features/profile/hooks';
-import { useGroceryShelf, type GroceryItem, type GroceryShop } from '@/features/services/api';
+import { useGroceryShelf, type GroceryItem, type GroceryProductTile, type GroceryShop } from '@/features/services/api';
 import { openSentence, openStateNow, todayIdx } from '@/features/services/hours';
 import type { Shop, ShopItem } from './types';
 
@@ -114,6 +114,73 @@ function tileOf(row: GroceryItem, shop: GroceryShop | undefined, now: Date): Sho
   };
 }
 
+/**
+ * ── ONE PACK, ONE TILE, AND THE SHOPS UNDER IT (owner, 8 Sep) ───────────────
+ *
+ * "Create an online grocery store using the internet, show all the products
+ * that's available in an area."
+ *
+ * The internet half of that is the city's CATALOGUE — what a pack is, read out
+ * of Open Food Facts, Open Beauty Facts and the Government's commodity master,
+ * with the source printed on the tile. The "available in an area" half is still
+ * and only the shops: a product reaches this shelf because a real grocer near
+ * you published it, and the price is the one they typed.
+ *
+ * SO THIS TILE INVENTS NOTHING EITHER. `fromInr` is the cheapest price a shop
+ * actually set among those that have it IN STOCK — a cheapest price you cannot
+ * buy is worse than no price — and when nobody has priced it the tile says
+ * "Ask the shop" exactly as a single row does. There is no average here, no
+ * "market price", and no number this file worked out.
+ *
+ * THE BUTTON GOES TO ONE SHOP, because an order is one shop, one delivery. The
+ * cheapest in-stock shop is the one it opens; the others are named on the tile
+ * so the choice is visible rather than made for you.
+ */
+function productTileOf(p: GroceryProductTile): ShopItem {
+  const priced = p.fromInr != null;
+  /* The offer the button opens: cheapest, in stock. When nothing is in stock
+     the tile still stands (sold out is shown, not hidden) and points at the
+     first shop that carries it. */
+  const lead = p.offers.find((o) => o.available && o.priceInr != null)
+    ?? p.offers.find((o) => o.available)
+    ?? p.offers[0];
+  const anyOpen = p.offers.some((o) => o.available);
+
+  return {
+    id: `product:${p.id}`,
+    name: [p.name, p.loose ? null : p.pack].filter(Boolean).join(' · '),
+    /* The BRAND is the brand here, not the shop — this tile is the product, and
+       the shops are underneath it. A single unlinked row is the other way
+       round, because there the shop is the only thing that identifies it. */
+    brand: p.brand ?? undefined,
+    category: p.aisle,
+    priceInr: priced ? (p.fromInr as number) : 0,
+    priceLabel: priced ? undefined : 'Ask the shops',
+    priceNote: priced
+      ? (p.shopCount > 1 ? `Cheapest of ${p.shopCount} shops near you` : undefined)
+      : 'No shop near you has listed a price for it.',
+    tier: anyOpen ? undefined : 'Sold out',
+    packLabel: p.shopCount === 1
+      ? `At ${lead?.shopName ?? 'one shop'}`
+      : `At ${p.shopCount} shops near you`,
+    /* WHO HAS IT, AND WHAT THEY CHARGE — the reason to group in the first
+       place. Each line is one shop's own price; none of them is combined with
+       any other. */
+    why: p.offers.slice(0, 3).map((o) => {
+      const price = o.priceInr != null ? `₹${o.priceInr}` : 'ask';
+      const far = o.distanceKm != null ? ` · ${o.distanceKm} km` : '';
+      return `${o.shopName} — ${price}${o.available ? '' : ' (sold out)'}${far}`;
+    }),
+    image: p.imageUrl ?? undefined,
+    imageAlt: p.imageUrl ? [p.brand, p.name].filter(Boolean).join(' ') : undefined,
+    group: p.aisle,
+    design: {
+      label: lead ? (lead.available ? `Order at ${lead.shopName}` : `See ${lead.shopName}`) : 'See the shops',
+      path: lead ? `/services/${lead.shopSlug ?? lead.shopId}` : '/services/browse',
+    },
+  };
+}
+
 export function useGroceryShop(
   back: { path: string; label: string } = { path: '/ecommerce/store', label: 'Digital Store' },
 ): Shop {
@@ -130,12 +197,29 @@ export function useGroceryShop(
   const items = useMemo(() => {
     const now = new Date();
     const byId = new Map((shelf.data?.shops ?? []).map((sh) => [sh.id, sh]));
-    return (shelf.data?.items ?? []).map((row) => tileOf(row, byId.get(row.shopId), now));
+    /* PRODUCT TILES FIRST, then every row that has no product behind it. A row
+       that IS in a product tile is skipped here — showing it twice would put
+       one shop's atta beside the tile that already contains that shop's atta,
+       and a citizen would reasonably read them as two different things. */
+    const products = (shelf.data?.products ?? []).map(productTileOf);
+    const loose = (shelf.data?.items ?? [])
+      .filter((row) => !row.productId)
+      .map((row) => tileOf(row, byId.get(row.shopId), now));
+    return [...products, ...loose];
   }, [shelf.data]);
-  const groups = useMemo(
-    () => (shelf.data?.aisles ?? []).map((a) => ({ key: a.key, label: a.label, count: a.count })),
-    [shelf.data],
-  );
+  /* THE COUNTS COME OFF THE TILES THAT ARE ACTUALLY DRAWN, not off the server's
+     row counts. Since eight shops' rows for one pack became one tile, the
+     server's per-aisle row count is no longer what this screen shows — and a
+     chip reading "42" over twenty tiles is the kind of small wrongness nobody
+     reports and everybody notices. Same rule the server keeps for its own
+     aisles: count the things you are about to draw, never a second list. */
+  const groups = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const it of items) counts.set(it.group as string, (counts.get(it.group as string) ?? 0) + 1);
+    return (shelf.data?.aisles ?? [])
+      .filter((a) => counts.has(a.key))
+      .map((a) => ({ key: a.key, label: a.label, count: counts.get(a.key) as number }));
+  }, [shelf.data, items]);
 
   const shopCount = shelf.data?.shopCount ?? 0;
 

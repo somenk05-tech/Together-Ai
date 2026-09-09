@@ -93,12 +93,12 @@ export function hubIsOpen(cfg: HubConfig): boolean {
  *  sorted again where it is used, so an append lands in its place instead of
  *  at the end.                                                              */
 export const NAV: NavItem[] = [
-  /* BABY CARE (owner, 8 Sep) sorts between Astrology and Beauty — this list is
-     asserted to be in localeCompare order by a-drawer-of-ones-own.test.ts, so
-     the entry goes where the sort puts it rather than at the head. It is NOT on
-     HEADER_TABS: the street is four doors wide (7 Sep) and this hub keeps what
-     the other eleven keep — its route, its switch on Design Your Services and
-     the command palette. */
+  /* BABY CARE (owner, 8 Sep) sorts first — 'Bab' < 'Ast' is false, and that is
+     the point of asserting this list rather than eyeballing it: 'B' comes after
+     'A', so Baby Care sits between Astrology and Beauty, not at the head. It is
+     NOT on HEADER_TABS: the street is four doors wide (7 Sep) and this hub keeps
+     what the other eleven keep — its route, its foot tile, its switch on Design
+     Your Services and the command palette. */
   { key: 'astrology', label: 'Astrology', path: '/astrology' },
   { key: 'babycare', label: 'Baby Care', path: '/babycare' },
   { key: 'beauty', label: 'Beauty', path: '/beauty' },
@@ -245,12 +245,23 @@ export const HUBS: Record<HubKey, HubConfig> = {
          Grocery Store tab; the gemstone bench's trick, one room with two
          doors, rather than two shelves that can disagree. */
       { path: '/services/grocery', index: '03', label: 'Grocery Store', sub: 'Vegetables, staples and household — from shops near you' },
-      { path: '/services/list', index: '04', label: 'List your business', sub: 'Pick a category, name your areas' },
-      { path: '/services/mine', index: '05', label: 'My business', sub: 'Edit, close, see who asked' },
-      { path: '/services/regulars', index: '06', label: 'Regulars', sub: 'The businesses you keep' },
-      { path: '/services/offers', index: '07', label: 'Daily offers', sub: 'What is on today' },
-      { path: '/services/messages', index: '08', label: 'Messages', sub: 'Anonymous, and only in this hub' },
-      { path: '/services/orders', index: '09', label: 'My orders', sub: 'Paid from your wallet, tracked to the door' },
+      /* ── THE ELECTRONICS STORE (owner, 8 Sep) ─────────────────────────
+         "Add the electronics store here."
+
+         Fourth, directly under the Grocery Store, because it is the same room
+         built the same way: the published stock of the trades that sell it —
+         electronics stores and mobile shops — read across shops under aisles
+         instead of one shop at a time. Asked whose products these should be,
+         the owner chose these vendors over a national catalogue, so the shelf
+         holds no price nobody in this city typed. It is the same shelf the
+         Open Market draws under its Electronics tab; one room, two doors. */
+      { path: '/services/electronics', index: '04', label: 'Electronics Store', sub: 'Phones, appliances and accessories — from shops near you' },
+      { path: '/services/list', index: '05', label: 'List your business', sub: 'Pick a category, name your areas' },
+      { path: '/services/mine', index: '06', label: 'My business', sub: 'Edit, close, see who asked' },
+      { path: '/services/regulars', index: '07', label: 'Regulars', sub: 'The businesses you keep' },
+      { path: '/services/offers', index: '08', label: 'Daily offers', sub: 'What is on today' },
+      { path: '/services/messages', index: '09', label: 'Messages', sub: 'Anonymous, and only in this hub' },
+      { path: '/services/orders', index: '10', label: 'My orders', sub: 'Paid from your wallet, tracked to the door' },
     ],
   },
   /* ── BABY CARE (owner, 8 Sep) ────────────────────────────────────────────
@@ -374,23 +385,30 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // only, playing on its own, a channel per citizen. The channels have a
       // page of their own, and the wall of posts moved one path over.
       { path: '/social/feed', index: '01', label: 'City TV', sub: 'Videos, playing on their own' },
-      { path: '/social/channels', index: '02', label: 'Together City Channels', sub: 'Every channel is a citizen' },
+      /* 02 IS THE OTHER HALF OF WHAT THE CITY UPLOADS (owner, 8 Sep): "create
+         a tab for city images, and only let users scroll images people may
+         have uploaded." It sits beside the television rather than at the end
+         of the rail because the pair is the point — the city's clips play
+         themselves on 01, the city's photographs are read at your own pace on
+         02 — and everything below shifted one place to let it. */
+      { path: '/social/images', index: '02', label: 'City Photos', sub: 'Photographs and thoughts' },
+      { path: '/social/channels', index: '03', label: 'Together City Channels', sub: 'Every channel is a citizen' },
       // The Wall (/social/wall — the old feed with its five lenses) is off
       // the rail for now (owner, 6 Sep: "hide the wall page for now"). The
       // route stays, unlisted, so nothing that links to it breaks.
       // "Post & Earn" and "places" left these two lines (owner, 4 Sep): the
       // rail promises only what exists. The programme is still reachable from
       // the profile chip, labelled not open; places are a caption on a post.
-      { path: '/social/profile', index: '03', label: 'My Profile', sub: 'Story, stats & posts' },
-      { path: '/social/saved', index: '04', label: 'Saved', sub: 'Bookmarked posts' },
-      // 05 IS A DOOR OUT OF THE HUB, WHICH NO OTHER RAIL KEY IS — and that is
+      { path: '/social/profile', index: '04', label: 'My Profile', sub: 'Story, stats & posts' },
+      { path: '/social/saved', index: '05', label: 'Saved', sub: 'Bookmarked posts' },
+      // 06 IS A DOOR OUT OF THE HUB, WHICH NO OTHER RAIL KEY IS — and that is
       // the point rather than an oversight. Entertainment came off the header
       // on 7 Sep (owner) because "what do I watch tonight" is a question this
       // hub already answers with a television; the four rooms behind it —
       // Movies Now, OTT Watch, Curated Movies, Watchlist — are the same
       // question asked about the rest of the week. The rail is where somebody
       // standing in front of the screen looks for them.
-      { path: '/entertainment', index: '05', label: 'Entertainment', sub: 'Movies, OTT & your watchlist' },
+      { path: '/entertainment', index: '06', label: 'Entertainment', sub: 'Movies, OTT & your watchlist' },
       // Thoughts was here because it was "built, tested, and listed nowhere" —
       // a journal boarding in the social hub for want of anywhere else. It has
       // a home of its own now (Personal), and a private journal listed inside

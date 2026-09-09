@@ -1,0 +1,326 @@
+Vegetables|455|Aloe Vera
+Vegetables|138|Alsandikai
+Vegetables|72|Amaranthus
+Vegetables|456|Ambat Chuka
+Fruits|572|Ambrette Seed/Muskmallow
+Fruits|303|Amla(Nelli Kai)
+Vegetables|348|Amranthas Red
+Fruits|17|Apple
+Fruits|276|Apricot(Jardalu/Khumani)
+Vegetables|457|Arrowroot
+Vegetables|69|Ashgourd
+Fruits|458|Avocado
+Vegetables|459|Baby Corn
+Fruits|347|Bael
+Vegetables|420|Bajji chilli
+Vegetables|228|Balekai
+Vegetables|460|Bamboo Shoot
+Fruits|19|Banana
+Vegetables|76|Banana - Green
+Vegetables|414|Banana Leaf
+Vegetables|412|Banana flower
+Vegetables|413|Banana stem
+Vegetables|129|Beetroot
+Fruits|304|Ber(Zizyphus/Borehannu)
+Vegetables|71|Bhindi(Ladies Finger)
+Fruits|462|Bilimbi
+Vegetables|47|Binoula
+Vegetables|67|Bitter gourd
+Fruits|463|Black Currant
+Fruits|464|Blueberry
+Fruits|159|Borehannu
+Vegetables|68|Bottle gourd
+Fruits|426|Bread Fruit
+Vegetables|32|Brinjal
+Vegetables|416|Brocoli
+Vegetables|126|Cabbage
+Vegetables|136|Capsicum
+Fruits|466|Carissa(Karvand)
+Vegetables|125|Carrot
+Vegetables|31|Cauliflower
+Fruits|158|Chakotha
+Vegetables|141|Chapparad Avare
+Fruits|278|Cherry
+Vegetables|468|Chhappan Kaddu
+Fruits|58|Chikoos(Sapota)
+Vegetables|74|Chilly Capsicum
+Vegetables|139|Chow Chow
+Vegetables|66|Cluster beans
+Vegetables|269|Colacasia
+Vegetables|39|Coriander(Leaves)
+Vegetables|75|Cowpea(Veg)
+Vegetables|131|Cucumbar(Kheera)
+Vegetables|415|Curry Leaf
+Fruits|300|Custard Apple(Sharifa)
+Vegetables|421|Double Beans
+Fruits|424|Dragon fruit
+Vegetables|140|Drumstick
+Vegetables|135|Duster Beans
+Vegetables|247|Elephant Yam(Suran)/Amorphophallus
+Vegetables|474|Field Bean(Anumulu)
+Vegetables|53|Field Pea
+Vegetables|249|French Beans(Frasbean)
+Vegetables|298|Galgal(Lemon)
+Fruits|477|Garcinia
+Vegetables|25|Garlic
+Vegetables|479|Gherkin
+Vegetables|568|Gholbhaji
+Vegetables|480|Ghost Pepper(King Chilli)
+Vegetables|87|Ginger(Green)
+Fruits|423|Goose berry(Nellikkai)
+Vegetables|482|Goosefoot
+Vegetables|306|Gram Raw(Chholia)
+Fruits|22|Grapes
+Vegetables|137|Green Avare(W)
+Vegetables|73|Green Chilli
+Fruits|484|Grey Fruit
+Vegetables|263|Groundnut pods(raw)
+Vegetables|62|Guar
+Fruits|156|Guava
+Fruits|486|Hog Plum
+Vegetables|250|Indian Beans(Seam)
+Vegetables|292|Indian Colza(Sarson)
+Fruits|487|Indian Sherbet Berry(Phalsa)
+Fruits|153|Jack Fruit(Ripe)
+Vegetables|489|Jackfruit Seed
+Vegetables|556|Jackfruit(Green/Raw/Unripe)
+Vegetables|147|Jamamkhan
+Fruits|155|Jamun(Narale Hannu)
+Fruits|157|Karbuja(Musk Melon)
+Fruits|443|Khirni
+Fruits|284|Kinnow
+Fruits|492|Kiwi Fruit
+Vegetables|149|Knool Khol
+Vegetables|127|Ladies Finger
+Vegetables|143|Leafy Vegetable
+Vegetables|495|Leek
+Vegetables|261|Lemon
+Vegetables|497|Lesser Yam
+Vegetables|607|Letuce
+Fruits|151|Lime
+Fruits|299|Litchi
+Vegetables|253|Little gourd(Kundru)
+Vegetables|255|Long Melon(Kakri)
+Vegetables|287|Lotus Sticks
+Fruits|285|Lukad
+Fruits|20|Mango
+Vegetables|144|Mango(Raw-Ripe)
+Fruits|499|Mangosteen
+Fruits|152|Marasebu
+Vegetables|288|Mashrooms
+Vegetables|500|Meal Maker (Soya Chunks)
+Vegetables|558|Mentha(Mint)
+Vegetables|42|Methi(Leaves)
+Vegetables|307|Mint(Pudina)
+Fruits|64|Mousambi(Sweet Lime)
+Fruits|502|Mulberry
+Fruits|181|Nearle Hannu
+Fruits|182|Nelli Kai
+Vegetables|23|Onion
+Vegetables|305|Onion Green
+Fruits|18|Orange
+Vegetables|349|Other green and fresh vegetables
+Fruits|59|Papaya
+Vegetables|264|Papaya(Raw)
+Fruits|504|Passion Fruit
+Vegetables|259|Pea Pod/Pea Cod
+Fruits|281|Peach
+Fruits|280|Pear(Marasebu)
+Vegetables|146|Peas Wet
+Vegetables|252|Pegeon Pea(Arhar Fali)
+Vegetables|418|Perandai
+Fruits|277|Persimon(Japani Fal)
+Vegetables|505|Phuee(Leafy Veg)
+Fruits|21|Pineapple
+Fruits|279|Plum
+Vegetables|254|Pointed gourd(Parval)
+Vegetables|509|Pokcha Leafy Veg
+Fruits|160|Pomegranate
+Fruits|615|Pomelo
+Vegetables|24|Potato
+Vegetables|70|Pumpkin
+Vegetables|512|Purslane
+Fruits|513|Quince(Nakh)
+Vegetables|133|Raddish
+Fruits|514|Rambutan
+Fruits|447|Ramphal
+Vegetables|258|Rat Tail Radish(Mogari)
+Vegetables|422|Red Cabbage
+Vegetables|516|Red Gourd
+Vegetables|517|Ribbed Celery
+Vegetables|519|Ridge Gourd(Permal/Hybrid Gourd)
+Vegetables|132|Ridgeguard(Tori)
+Vegetables|520|Round Chilli
+Vegetables|257|Round gourd
+Vegetables|579|Salad
+Vegetables|230|Season Leaves
+Vegetables|148|Seemebadnekai
+Fruits|162|Seetapal
+Vegetables|523|Sem
+Fruits|154|Siddota
+Vegetables|419|Siru Kizhagu
+Vegetables|128|Snakeguard
+Vegetables|526|Snow Mountain Garlic
+Fruits|609|Sohphi
+Fruits|608|Sohsang
+Fruits|527|Soursop
+Vegetables|290|Spinach
+Vegetables|256|Spiny Gourd / Kartali(Kantola)
+Vegetables|262|Sponge gourd
+Vegetables|282|Squash(Chappal Kadoo)
+Fruits|528|Star Fruit(Kamraikh)
+Fruits|529|Strawberry
+Vegetables|530|Sugar Snap Peas
+Vegetables|417|Sundaikai
+Vegetables|251|Surat Beans(Papadi)
+Vegetables|150|Suvarna Gadde
+Vegetables|531|Swan Phali(Flat Bean)
+Vegetables|124|Sweet Potato
+Vegetables|145|Sweet Pumpkin
+Vegetables|535|Sweet Saag
+Vegetables|85|Tapioca
+Vegetables|537|Taro (Arvi) Leaves
+Vegetables|538|Taro (Arvi) Stem
+Fruits|161|Tender Coconut
+Vegetables|142|Thogrikai
+Vegetables|134|Thondekai
+Vegetables|297|Tinda
+Vegetables|65|Tomato
+Vegetables|260|Turmeric(raw)
+Vegetables|289|Turnip
+Fruits|425|Water Apple
+Fruits|60|Water Melon
+Vegetables|130|White Pumpkin
+Vegetables|542|Wild Cucumber
+Vegetables|543|Wild Garlic / Shoots
+Fruits|544|Wild Melon
+Vegetables|545|Wild Spinach
+Fruits|427|Wild lemon
+Fruits|428|Wood Apple
+Vegetables|546|Yam Bean / Mexican Turnip(Bankla)
+Vegetables|248|Yam(Ratalu)
+Spices|115|Ajwan
+Pulses|234|Alasande Gram
+Dry Fruits|275|Almond(Badam)
+Spices|434|Asgand
+Pulses|223|Avare Dal
+Cereals|28|Bajra(Pearl Millet/Cumbu)
+Cereals|29|Barley(Jau)
+Cereals|461|Barnyard Millet
+Cereals|569|Basmati Rice
+Pulses|80|Beans
+Cereals|216|Beaten Rice
+Cereals|577|Bejhar
+Pulses|217|Bengal Gram Dal(Chana Dal)
+Pulses|6|Bengal Gram(Gram)(Whole)
+Spices|37|Betelnuts
+Pulses|97|Big Gram
+Pulses|218|Black Gram Dal(Urd Dal)
+Pulses|8|Black Gram(Urd Beans)(Whole)
+Spices|34|Black pepper
+Cereals|244|Broken Rice
+Cereals|465|Browntop Millet
+Pulses|237|Bullar
+Oils and Fats|226|Butter
+Spices|36|Cardamom
+Dry Fruits|33|Cashewnuts
+Oils and Fats|224|Castor Oil
+Cereals|467|Chakhao(Black Rice)
+Pulses|246|Chennangi Dal
+Pulses|198|Chennangi(Whole)
+Dry Fruits|614|Chest Nut
+Spices|26|Chili Red
+Spices|267|Cinamon(Dalchini)
+Spices|89|Cloves
+Spices|266|Coca
+Spices|116|Coconut
+Oils and Fats|220|Coconut Oil
+Spices|92|Corriander seed
+Pulses|78|Cowpea(Lobia/Karamani)
+Spices|38|Cummin Seed(Jeera)
+Pulses|578|Dal Mix
+Oils and Fats|227|Dalda
+Dry Fruits|472|Dates
+Spices|113|Dry Chillies
+Dry Fruits|231|Dry Grapes
+Pulses|475|Field Gram
+Dry Fruits|476|Fig (Dry)
+Cereals|104|Foxtail Millet(Navane)
+Oils and Fats|206|Ghee
+Oils and Fats|229|Gingelly Oil
+Spices|481|Ginger Seed
+Spices|27|Ginger(Dry)
+Pulses|219|Green Gram Dal(Moong Dal)
+Pulses|9|Green Gram(Moong)(Whole)
+Pulses|46|Green Peas
+Oils and Fats|221|Ground Nut Oil
+Pulses|342|Guar Seed(Cluster Beans Seed)
+Cereals|102|Hybrid Cumbu
+Cereals|442|Jaee
+Cereals|5|Jowar(Sorghum)
+Pulses|309|Kabuli Chana(Chickpeas-White)
+Spices|268|Kacholam
+Pulses|99|Karamani
+Pulses|491|Kidney Beans(Rajma)
+Cereals|101|Kodo Millet(Varagu)
+Pulses|98|Kulthi(Horse Gram)
+Cereals|344|Kutki
+Pulses|81|Lak(Teora)
+Spices|494|Large Cardamom
+Pulses|52|Lentil(Masur)(Whole)
+Cereals|498|Little Millet
+Spices|91|Mace
+Cereals|4|Maize
+Dry Fruits|557|Makhana(Foxnut)
+Pulses|213|Masur Dal
+Pulses|79|Mataki
+Spices|43|Methi Seeds
+Pulses|452|Moath Dal
+Spices|445|Muskmelon Seeds
+Oils and Fats|274|Mustard Oil
+Spices|90|Nutmeg
+Pulses|82|Other Pulses
+Cereals|343|Paddy(Basmati)
+Cereals|2|Paddy(Common)
+Pulses|295|Peas(Dry)
+Spices|93|Pepper garbled
+Spices|94|Pepper ungarbled
+Dry Fruits|507|Pine Nut(Chilgoza /Niyoza)
+Dry Fruits|508|Pista(Pistachio)
+Cereals|511|Proso Millet
+Cereals|582|Quinoa
+Cereals|30|Ragi(Finger Millet)
+Cereals|446|Rala
+Spices|448|Rayee
+Pulses|214|Red gram split/Arhar dal/Tur dal
+Pulses|45|Red gram/Arhar/Tur(whole)
+Cereals|3|Rice
+Pulses|518|Rice Bean
+Spices|286|Saffron
+Cereals|225|Sajje
+Cereals|105|Same/Savi
+Spices|114|Soanf
+Cereals|239|Soji
+Cereals|534|Sweet Corn
+Cereals|103|T.V. Cumbu
+Spices|613|Tamarind
+Pulses|539|Tevada
+Pulses|100|Thinai(Italian Millet)
+Spices|35|Turmeric
+Spices|610|Turmeric Powder
+Dry Fruits|291|Walnut
+Dry Fruits|450|Water chestnut
+Cereals|1|Wheat
+Pulses|341|White Peas
+Pulses|541|Wild Bean / Pod
+Pulses|345|buttery
+Spices|352|dried mango
+Spices|351|mango powder
+Spices|353|nigella
+Spices|350|poppy seeds
+Live Stock,Poultry,Fisheries|314|Egg
+Live Stock,Poultry,Fisheries|313|Fish
+Live Stock,Poultry,Fisheries|473|Dry Fish
+Live Stock,Poultry,Fisheries|510|Prawn
+Live Stock,Poultry,Fisheries|524|Shrimp
+Live Stock,Poultry,Fisheries|471|Crab

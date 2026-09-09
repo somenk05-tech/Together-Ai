@@ -32,7 +32,7 @@ export interface FieldDef {
  * so none of them holds a second copy of the words.
  */
 export type CatalogueKind = 'menu' | 'stock' | 'rateCard' | 'packages' | 'fares' | 'none';
-export type CatalogueWay = 'photo' | 'sheet' | 'typed';
+export type CatalogueWay = 'catalogue' | 'photo' | 'sheet' | 'typed';
 export interface Catalogue {
   kind: CatalogueKind;
   title: string;
@@ -298,6 +298,38 @@ export interface MenuDraftItem {
   name: string;
   description?: string;
   priceInr: number | null;
+  /** The city catalogue row this line was picked off, when it was. Null and
+   *  absent both mean "this line is the shop's own", which is most of them. */
+  productId?: string | null;
+}
+
+/**
+ * ── A ROW OF THE CITY'S GROCERY CATALOGUE ────────────────────────────────────
+ *
+ * What a product IS — brand, pack, barcode, a photograph — and the public
+ * database it was read out of. There is NO PRICE on this type and there is not
+ * going to be one: the price on a shelf is the shopkeeper's, on their own menu
+ * row. See together-city-chat/src/local-services/catalogue.ts.
+ */
+export interface CatalogueProduct {
+  id: string;
+  aisle: string;
+  brand: string | null;
+  name: string;
+  pack: string | null;
+  gtin: string | null;
+  imageUrl: string | null;
+  /** Weighed out of a sack or a crate — so the shop names the unit, not the pack. */
+  loose: boolean;
+  source: { name: string; licence: string; url: string } | null;
+}
+
+export interface CataloguePage {
+  products: CatalogueProduct[];
+  total: number;
+  page: number;
+  pageSize: number;
+  aisles: Array<{ key: string; label: string }>;
 }
 export interface MenuPage {
   count: number;
@@ -463,6 +495,43 @@ export interface GroceryItem {
   shopCategory: string;
   shopCity: string;
   distanceKm: number | null;
+  /** The city-catalogue row this line is a priced copy of, when the shop picked
+   *  it off the catalogue rather than typing it. Rows that have one are drawn
+   *  inside their product tile, so the shelf never shows them twice. */
+  productId: string | null;
+}
+
+/**
+ * ── ONE PACK, ONE TILE, EVERY SHOP THAT HAS IT ──────────────────────────────
+ *
+ * Owner, 8 Sep: "show all the products that's available in an area."
+ *
+ * Eight kiranas nearby all stock the same 5 kg atta, and until now that was
+ * eight tiles a citizen compared by reading. A row that came off the city's
+ * catalogue knows WHICH pack it is, so the server can group them — and the
+ * tile is what "available in an area" actually looks like: the product once,
+ * and the shops under it with their own prices.
+ *
+ * `fromInr` IS A REAL PRICE SOMEBODY TYPED — the cheapest among the shops that
+ * have it in stock — and it is null when none of them priced it. Never an
+ * average, never a market rate, never a number anybody computed.
+ */
+export interface GroceryProductTile {
+  id: string;
+  aisle: string;
+  brand: string | null;
+  name: string;
+  pack: string | null;
+  gtin: string | null;
+  imageUrl: string | null;
+  loose: boolean;
+  source: { name: string; licence: string; url: string } | null;
+  fromInr: number | null;
+  shopCount: number;
+  offers: Array<{
+    itemId: string; shopId: string; shopSlug: string | null; shopName: string;
+    priceInr: number | null; available: boolean; distanceKm: number | null;
+  }>;
 }
 
 /**
@@ -495,6 +564,9 @@ export interface GroceryShelf {
   shops: GroceryShop[];
   aisles: { key: string; label: string; count: number }[];
   items: GroceryItem[];
+  /** The grouped view of the items that came off the catalogue. Never a
+   *  replacement for `items` — a subset of them, seen as products. */
+  products: GroceryProductTile[];
   total: number;
   shopCount: number;
 }
@@ -507,6 +579,13 @@ export const servicesApi = {
   facets: (city?: string) => api.get<Record<string, number>>('/services/facets', { params: { city } }).then((r) => r.data),
   groceryShelf: (q: GroceryShelfQuery) =>
     api.get<GroceryShelf>('/services/grocery/shelf', { params: q }).then((r) => r.data),
+  /* THE ELECTRONICS SHELF IS THE SAME SHAPE, from the same two reads, and it
+     is typed by the same interfaces on purpose: one client type for one server
+     shape, so a field added to one shelf cannot quietly go missing on the
+     other. `products` arrives empty until the city has an electronics
+     catalogue to group rows into. */
+  electronicsShelf: (q: GroceryShelfQuery) =>
+    api.get<GroceryShelf>('/services/electronics/shelf', { params: q }).then((r) => r.data),
   browse: (q: { category?: string; group?: string; city?: string; area?: string; q?: string; page?: number; near?: string; withinKm?: number }) =>
     api.get<{ items: ServiceCard[]; total: number; page: number; pages: number; saved: string[] }>('/services', { params: q }).then((r) => r.data),
   businessTypes: () =>
@@ -576,6 +655,9 @@ export const servicesApi = {
     api.post<{ items: MenuDraftItem[]; note: string; review: string }>(`/services/${listingId}/menu/scan`, { image }, { timeout: 180000 }).then((r) => r.data),
   saveMenu: (listingId: string, input: { scanUrl?: string; items: MenuDraftItem[] }) =>
     api.post<MenuPage>(`/services/${listingId}/menu`, input).then((r) => r.data),
+  /** The city's grocery catalogue. No listing id: it belongs to nobody. */
+  groceryCatalogue: (params: { q?: string; aisle?: string; page?: number }) =>
+    api.get<CataloguePage>('/services/catalogue/grocery', { params }).then((r) => r.data),
   askAboutMenu: (listingId: string, itemIds: string[], note?: string) =>
     api.post<{ threadId: string }>(`/services/${listingId}/menu/ask`, { itemIds, note }).then((r) => r.data),
   patchMenuItem: (listingId: string, itemId: string, patch: PatchMenuItemInput) =>
@@ -640,6 +722,21 @@ export function useMenu(listingId?: string) {
     enabled: !!listingId,
   });
 }
+/**
+ * The picker's read. `keepPreviousData` is deliberate: a shopkeeper typing
+ * "aashir" should see the list narrow under their fingers, not blink to empty
+ * and back — a flash of "nothing found" while they are still typing reads as
+ * "we do not have it" and is how somebody gives up on the search.
+ */
+export function useGroceryCatalogue(params: { q?: string; aisle?: string; page?: number }, enabled = true) {
+  return useQuery({
+    queryKey: ['services', 'catalogue', 'grocery', params.q ?? '', params.aisle ?? '', params.page ?? 1],
+    queryFn: () => servicesApi.groceryCatalogue(params),
+    enabled,
+    placeholderData: (prev) => prev,
+  });
+}
+
 export function useScanMenu(listingId?: string) {
   return useMutation({ mutationFn: (image: string) => servicesApi.scanMenu(listingId as string, image) });
 }
@@ -941,6 +1038,13 @@ export function useGroceryShelf(q: GroceryShelfQuery) {
   return useQuery({
     queryKey: ['services', 'grocery', q],
     queryFn: () => servicesApi.groceryShelf(q),
+    staleTime: 60_000,
+  });
+}
+export function useElectronicsShelf(q: GroceryShelfQuery) {
+  return useQuery({
+    queryKey: ['services', 'electronics', q],
+    queryFn: () => servicesApi.electronicsShelf(q),
     staleTime: 60_000,
   });
 }

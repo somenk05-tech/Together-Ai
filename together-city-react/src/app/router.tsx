@@ -159,6 +159,8 @@ const SocProfile = lazy(() => import('@/features/social/pages/Profile').then((m)
 const SocPublicProfile = lazy(() => import('@/features/social/pages/Profile').then((m) => ({ default: m.PublicProfilePage })));
 const SocSaved = lazy(() => import('@/features/social/pages/Saved').then((m) => ({ default: m.SocialSaved })));
 const SocPost = lazy(() => import('@/features/social/pages/PostPage').then((m) => ({ default: m.PostPage })));
+const SocImages = lazy(() => import('@/features/social/pages/CityImages').then((m) => ({ default: m.CityImages })));
+const SocReader = lazy(() => import('@/features/social/pages/ReaderPage').then((m) => ({ default: m.ReaderPage })));
 // Medical sub-pages
 const MedTests = lazy(() => import('@/features/medical/pages/Tests').then((m) => ({ default: m.Tests })));
 const MedConnections = lazy(() => import('@/features/medical/pages/Connections').then((m) => ({ default: m.Connections })));
@@ -234,6 +236,7 @@ const SupplementsShop = lazy(() => import('@/features/ecommerce/pages/Supplement
 const SupplementsShopBag = lazy(() => import('@/features/ecommerce/pages/SupplementsShop').then((m) => ({ default: m.SupplementsShopBag })));
 const GemstonesShop = lazy(() => import('@/features/ecommerce/pages/GemstonesShop').then((m) => ({ default: m.GemstonesShop })));
 const GroceryStore = lazy(() => import('@/features/ecommerce/pages/GroceryStore').then((m) => ({ default: m.GroceryStore })));
+const ElectronicsStore = lazy(() => import('@/features/ecommerce/pages/ElectronicsStore').then((m) => ({ default: m.ElectronicsStore })));
 const GemstonesShopBag = lazy(() => import('@/features/ecommerce/pages/GemstonesShop').then((m) => ({ default: m.GemstonesShopBag })));
 /* The Open Market's aisles — the same storefront, the whole shelf. */
 const SkinHairMarket = lazy(() => import('@/features/ecommerce/pages/MarketAisles').then((m) => ({ default: m.SkinHairMarket })));
@@ -445,6 +448,14 @@ const ROUTE_BLOCKS: RouteObject[] = [
          autoplay. The wall of posts it replaced lives one path over. */
       { path: '/social/feed', element: <RequireAuth>{wrap(<CityTVPage />)}</RequireAuth> },
       { path: '/social/channels', element: <RequireAuth>{wrap(<SocChannels />)}</RequireAuth> },
+      /* The still half of what the city uploads (owner, 8 Sep) — City TV's
+         counterpart, and rail key 02. */
+      { path: '/social/images', element: <RequireAuth>{wrap(<SocImages />)}</RequireAuth> },
+      /* THE READER IS A PAGE (owner, 8 Sep). A tile on a wall opens here
+         instead of expanding into an overlay: the post you tapped is the
+         first thing on the page and the wall reads on from it. `?of=<handle>`
+         says whose wall; without it, the citizen's own. */
+      { path: '/social/read/:id', element: <RequireAuth>{wrap(<SocReader />)}</RequireAuth> },
       { path: '/social/wall', element: <RequireAuth>{wrap(<SocialFeed />)}</RequireAuth> },
       { path: '/social/create', element: <RequireAuth>{wrap(<SocCreate />)}</RequireAuth> },
       { path: '/social/notifications', element: <RequireAuth>{wrap(<SocNotifications />)}</RequireAuth> },
@@ -655,6 +666,7 @@ const ROUTE_BLOCKS: RouteObject[] = [
          local grocers' own published shelves, and the room wears this hub's
          rail. The Digital Store draws the same shelf under a tab. */
       { path: '/services/grocery', element: <RequireAuth>{wrap(<GroceryStore />)}</RequireAuth> },
+      { path: '/services/electronics', element: <RequireAuth>{wrap(<ElectronicsStore />)}</RequireAuth> },
       { path: '/services/list', element: <RequireAuth>{wrap(<ListBusiness />)}</RequireAuth> },
       { path: '/services/mine', element: <RequireAuth>{wrap(<MyBusiness />)}</RequireAuth> },
       // Declared before ':id' on the server for the same reason it needs no

@@ -11,6 +11,7 @@ import { Throttle } from '@nestjs/throttler';
 import {
   BrowseSchema, type BrowseDto,
   GroceryShelfSchema, type GroceryShelfDto,
+  CatalogueSearchSchema, type CatalogueSearchDto,
   CreateListingSchema, type CreateListingDto,
   UpdateListingSchema, type UpdateListingDto,
   SendServiceMessageSchema, type SendServiceMessageDto,
@@ -76,6 +77,36 @@ export class LocalServicesController {
   @UsePipes(new ZodValidationPipe(GroceryShelfSchema))
   groceryShelf(@CurrentUser() user: JwtUser, @Query() query: GroceryShelfDto) {
     return this.services.groceryShelf(user.sub, query);
+  }
+
+  /**
+   * THE ELECTRONICS STORE'S SHELF — every local electronics and mobile shop's
+   * own rows, read as one shelf under aisles (owner, 8 Sep: "add the
+   * electronics store here"). Same query shape as the grocery shelf, and
+   * declared BEFORE ':id' with the rest of the literals or 'electronics' is
+   * read as a listing id and 404s.
+   */
+  @Get('electronics/shelf')
+  @UsePipes(new ZodValidationPipe(GroceryShelfSchema))
+  electronicsShelf(@CurrentUser() user: JwtUser, @Query() query: GroceryShelfDto) {
+    return this.services.electronicsShelf(user.sub, query);
+  }
+
+  /**
+   * THE CITY'S GROCERY CATALOGUE — what a product IS, never what it costs
+   * (owner, 8 Sep: "create an online grocery store using the internet, show all
+   * the products that's available in an area"). Read by a shopkeeper filling a
+   * shelf and by a citizen searching one. Declared BEFORE ':id' with the rest
+   * of the literals, or 'catalogue' is read as a listing id and 404s.
+   *
+   * Signed in, like everything else on this controller, and no owner check:
+   * the catalogue is the city's, and there is nothing in it that belongs to
+   * any one shop — no price, no stock, no shop's name.
+   */
+  @Get('catalogue/grocery')
+  @UsePipes(new ZodValidationPipe(CatalogueSearchSchema))
+  catalogueGrocery(@CurrentUser() _user: JwtUser, @Query() query: CatalogueSearchDto) {
+    return this.services.catalogueSearch(query);
   }
 
   @Get('mine')

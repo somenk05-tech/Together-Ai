@@ -171,9 +171,39 @@ export const SaveMenuSchema = z.object({
     description: z.string().trim().max(140).optional(),
     // null is "ask", and it is not the same as free.
     priceInr: z.number().int().min(0).max(500_000).nullable().optional(),
+    /**
+     * THE CATALOGUE ROW THIS LINE IS A PRICED COPY OF (8 Sep). Set when the
+     * shop picked the product off the city's catalogue rather than typing it,
+     * and it is what lets the store know that this shop's "Aashirvaad Atta
+     * 5kg" and the next shop's are the same pack.
+     *
+     * The NAME AND THE PRICE ARE STILL THE SHOP'S. Nothing here overwrites what
+     * they typed: a shop that renamed a line keeps its name, because the row on
+     * their shelf is theirs and the catalogue's job ended at the picking. NULL
+     * is normal and always allowed — most lines in the city have no product
+     * behind them and never will.
+     */
+    productId: z.string().uuid().nullable().optional(),
   })).max(500), // MENU_CAP — a stock sheet, not only a menu card (8 Sep)
 });
 export type SaveMenuDto = z.infer<typeof SaveMenuSchema>;
+
+/**
+ * ── SEARCHING THE CITY'S CATALOGUE ──────────────────────────────────────────
+ *
+ * Two questions and a page, and deliberately no `sourceKey`: which public
+ * database a row came from is something the tile PRINTS, not something a
+ * caller filters by, or "the catalogue" would mean a different thing to a shop
+ * that happened to pass a parameter.
+ *
+ * `q` is optional so an empty picker opens on an aisle rather than on nothing.
+ */
+export const CatalogueSearchSchema = z.object({
+  q: z.string().trim().max(80).optional(),
+  aisle: z.string().trim().max(30).optional(),
+  page: z.coerce.number().int().min(1).max(200).optional(),
+});
+export type CatalogueSearchDto = z.infer<typeof CatalogueSearchSchema>;
 
 /** Items a citizen picked off a menu and wants to ask about. */
 export const SendMenuItemsSchema = z.object({

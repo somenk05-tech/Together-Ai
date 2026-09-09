@@ -396,8 +396,35 @@ describe('The Open Market aisles show the whole shelf', () => {
       expect({ key, shelf: AISLES[key]?.shelf.path }).toEqual({ key, shelf: `/ecommerce/market/${key}` });
       expect(router).toContain(`path: '/ecommerce/market/${key}'`);
     }
+  });
+
+  /* ── AND ONE AISLE'S SHELF IS A ROOM OF ANOTHER HUB (owner, 8 Sep) ────────
+     "Add the electronics store here." Electronics has a tab and an adapter
+     like the four above, and NO `/ecommerce/market/electronics` — because its
+     shelf is the Local Market's Electronics Store, the same one room drawn
+     under two doors, which is the arrangement the grocery store already uses
+     on the other floor. A second copy of the shelf could disagree with the
+     first the day either was edited.
+
+     The list is asserted whole rather than by membership, so a shelf added to
+     this floor without an adapter (a tab that opens nothing) fails here. */
+  it('names every aisle that has an adapter, and roots the one with no market route', () => {
+    const router = code('app/router.tsx');
     expect(OPEN.filter((s) => s.shop).map((s) => s.shop).sort())
-      .toEqual(['gemstones', 'pets', 'skin-hair', 'supplements']);
+      .toEqual(['electronics', 'gemstones', 'pets', 'skin-hair', 'supplements']);
+    expect(AISLES.electronics).toBeUndefined();
+    expect(router).not.toContain("path: '/ecommerce/market/electronics'");
+    const shelf = OPEN.find((s) => s.shop === 'electronics');
+    expect({ hub: shelf?.hub, path: shelf?.path }).toEqual({ hub: 'services', path: '/services/electronics' });
+    expect(router).toContain("path: '/services/electronics'");
+  });
+
+  /* THE ELECTRONICS SHELF TAKES NO MONEY EITHER, and for the grocery shelf's
+     reason: a bag across six shops would be six orders and six vans. */
+  it('leaves the electronics shelf without a bag or a till', () => {
+    const electronics = code('features/ecommerce/store/useElectronicsShop.ts');
+    expect(electronics).toMatch(/bag: null/);
+    expect(electronics).not.toMatch(/useMutation|checkout/i);
   });
 
   it('carries the engine verdict onto every supplement tile that has one', () => {

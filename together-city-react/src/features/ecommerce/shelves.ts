@@ -181,6 +181,17 @@ export const OPEN: Shelf[] = [
      two floors open two different rooms, which is what "both floors" was always
      supposed to mean: the counter here, the chart's own five over there. */
   { hub: 'astrology', path: '/astrology/gemstones', category: 'Gemstones', shop: 'gemstones' },
+  /* ── ELECTRONICS (owner, 8 Sep: "add the electronics store here") ───────
+     On THIS floor and not the other one, which was the owner's own answer when
+     asked: nothing here is ranked, and nothing about this shelf could be. The
+     Personalized Store's promise is a shortlist read off a profile, and there
+     is no electronics profile in the city to read — a fit score with nothing
+     behind it is a number a citizen would believe. So it stands in the market,
+     where the promise is the whole shelf and no order to it.
+
+     Its stock is the Local Market's, like the grocery shelf's: the rows
+     electronics stores and mobile shops published themselves. */
+  { hub: 'services', path: '/services/electronics', category: 'Electronics', shop: 'electronics' },
   { hub: 'services', path: '/services/offers', category: 'Deals & offers' },
   /* THE JEWELLERY AISLE — the plain shelf, not the bench. It stands beside
      Gemstones and it is not the same shop: a stone at the bench is prescribed

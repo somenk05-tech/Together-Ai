@@ -3,6 +3,7 @@ import { Button } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { useMenu, useScanMenu, useSaveMenu, menuPhotoToDataUrl, type Catalogue, type MenuDraftItem } from './api';
 import { readSheetFile } from './sheet';
+import { CataloguePicker } from './CataloguePicker';
 
 /**
  * THE OWNER'S MENU: PHOTOGRAPH IT, TYPE IT, OR CHANGE IT LATER.
@@ -69,6 +70,7 @@ export function MenuEditor({ listingId, catalogue }: { listingId: string; catalo
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [picking, setPicking] = useState(false);
 
   const count = live.data?.count ?? 0;
 
@@ -128,7 +130,18 @@ export function MenuEditor({ listingId, catalogue }: { listingId: string; catalo
     } finally { setBusy(false); }
   };
 
-  const stop = () => { setDraft(null); setNote(''); setScanUrl(undefined); setErr(null); setOpen(false); };
+  const stop = () => { setDraft(null); setNote(''); setScanUrl(undefined); setErr(null); setOpen(false); setPicking(false); };
+
+  /** Picked catalogue rows join whatever is already in the grid rather than
+   *  replacing it — a shop fills a shelf in several passes, and a second search
+   *  that wiped the first one would be a trap you only notice after publishing. */
+  const addPicked = (items: MenuDraftItem[]) => {
+    setPicking(false);
+    setErr(null);
+    setDraft((d) => (d && d.length ? [...d.filter((x) => x.name.trim()), ...items] : items));
+    setNote(`${items.length} picked from the city’s catalogue. Put your own price on each line — a blank price shows as “Ask”.`);
+    setOpen(true);
+  };
 
   const publish = () => {
     if (!draft) return;
@@ -161,7 +174,13 @@ export function MenuEditor({ listingId, catalogue }: { listingId: string; catalo
         )}
       </div>
 
-      {open && !draft && (
+      {picking && (
+        <div style={{ marginTop: 'var(--space-10)' }}>
+          <CataloguePicker onAdd={addPicked} onCancel={() => setPicking(false)} />
+        </div>
+      )}
+
+      {open && !draft && !picking && (
         <div style={{ marginTop: 10, display: 'grid', gap: 12 }}>
           <p className="muted" style={{ fontSize: 12.5, margin: 0 }}>{words.blurb}</p>
           {/* The doors, in the catalogue's order — the first is the one this
@@ -179,6 +198,21 @@ export function MenuEditor({ listingId, catalogue }: { listingId: string; catalo
                     aria-label={`Photograph of your ${words.title.toLowerCase()}`}
                     onChange={(e) => { void readMenu(e.target.files?.[0]); e.target.value = ''; }}
                     style={{ fontSize: 13, fontFamily: 'inherit' }} />
+                </div>
+              );
+            }
+            if (way === 'catalogue') {
+              return (
+                <div key={way}>
+                  <p style={{ fontSize: 12.5, margin: '0 0 6px', fontWeight: lead ? 700 : 500 }} className={lead ? undefined : 'muted'}>
+                    {lead
+                      ? 'Pick what you stock off the city’s catalogue — brands, packs and pictures are already there.'
+                      : 'Or pick from the city’s catalogue.'}
+                  </p>
+                  <Button variant={lead ? 'accent' : 'line'} size="sm" disabled={busy}
+                    onClick={() => { setPicking(true); setErr(null); }}>
+                    Search the catalogue
+                  </Button>
                 </div>
               );
             }
@@ -211,7 +245,7 @@ export function MenuEditor({ listingId, catalogue }: { listingId: string; catalo
         </div>
       )}
 
-      {draft && (
+      {draft && !picking && (
         <div style={{ marginTop: 10 }}>
           <p style={{ fontSize: 12.5, margin: '0 0 4px', fontWeight: 700 }}>
             {scanUrl ? 'Read from your photo — check every price before publishing.' : note ? 'Read from your sheet — check every price before publishing.' : 'Change anything, then publish.'}
@@ -250,6 +284,9 @@ export function MenuEditor({ listingId, catalogue }: { listingId: string; catalo
               {save.isPending ? 'Publishing…' : `Publish ${draft.length} ${draft.length === 1 ? words.noun : words.plural}`}
             </Button>
             <Button variant="line" size="sm" onClick={() => setDraft((d) => (d ? [...d, { ...BLANK }] : d))}>Add a line</Button>
+            {words.ways.includes('catalogue') && (
+              <Button variant="line" size="sm" onClick={() => { setPicking(true); setErr(null); }}>Add from the catalogue</Button>
+            )}
             <Button variant="line" size="sm" onClick={stop}>Discard</Button>
           </div>
           {err && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: '8px 0 0' }} role="alert">{err}</p>}

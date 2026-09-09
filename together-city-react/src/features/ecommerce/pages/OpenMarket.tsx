@@ -1,6 +1,7 @@
 import { useHubTheme } from '@/hooks/useHubTheme';
 import { openShelves } from '../shelves';
 import { TabbedFloor } from '../store/TabbedFloor';
+import { useElectronicsShop } from '../store/useElectronicsShop';
 import { useGemCounterShop } from '../store/useGemCounterShop';
 import { useBeautyMarketShop, usePetMarketShop, useSupplementsMarketShop } from '../store/useMarketShops';
 
@@ -34,7 +35,7 @@ export function OpenMarket() {
     <TabbedFloor
       path="/ecommerce/market"
       shelves={openShelves()}
-      shopOf={{ 'skin-hair': useBeautyMarketShop, supplements: useSupplementsMarketShop, pets: usePetMarketShop, gemstones: useGemCounterShop }}
+      shopOf={{ 'skin-hair': useBeautyMarketShop, supplements: useSupplementsMarketShop, pets: usePetMarketShop, gemstones: useGemCounterShop, electronics: useElectronicsShop }}
     />
   );
 }

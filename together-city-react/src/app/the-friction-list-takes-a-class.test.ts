@@ -112,8 +112,21 @@ describe('the friction list takes a class', () => {
     // written out as `style={{ color: 'var(--gem-body)' }}` at seventeen
     // elements of one page. It is four scoped rules in layout.css now, which
     // is what that file's own comment had claimed all along. 6540 → 6528.
-    expect(s).toMatch(/inlineStyleBlocks: 6528,/);
-    expect(s).toMatch(/rawSpacing: 3538,/);
+    // And 8 Sep, with the grocery catalogue picker: the four ceilings were
+    // re-read after it landed. The picker is a new screen and adds blocks of
+    // its own, so the fall is somebody else's saving that had not been
+    // recorded — which is exactly what the ratchet is for. 6528 → 6527,
+    // 3538 → 3534 (the picker's own radii and gaps went in as var(--r-*) and
+    // var(--space-*) rather than as numbers).
+    // And 9 Sep, one BACK UP — the only correction on this list, and it is a
+    // correction rather than a slackening. 3534 was read against one session's
+    // working copy while four others' work sat unlanded beside it, so it was a
+    // number no tree ever stood at: every landing script that ran afterwards
+    // died on it, including the one that set it. The whole desk measures 3537,
+    // which is still a step DOWN from the 3538 in HEAD — and HEAD is the only
+    // thing a ratchet is entitled to compare itself with.
+    expect(s).toMatch(/inlineStyleBlocks: 6527,/);
+    expect(s).toMatch(/rawSpacing: 3537,/);
     // The two the script prints beside them, pinned for the same reason: a
     // number nothing reads is a number that drifts back up.
     expect(s).toMatch(/distinctFontSizes: 35,/);
