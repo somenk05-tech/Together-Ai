@@ -5,7 +5,7 @@ import { useHubTheme } from '@/hooks/useHubTheme';
 import { useCityDesign } from '@/hooks/useCityDesign';
 import { useAuthStore } from '@/store/auth.store';
 import { useMasterProfile } from '@/features/profile/hooks';
-import { districtLine, districtName, splitDistrictLine } from '@/pages/Home';
+import { districtName } from '@/pages/Home';
 
 /**
  * ── PERSONALIZE ─────────────────────────────────────────────────────────────
@@ -46,30 +46,13 @@ import { districtLine, districtName, splitDistrictLine } from '@/pages/Home';
  * a different reason: nothing in any of them is set up from a profile, so a
  * banner would promise a form that does not exist.
  */
-/**
- * THE DISTRICTS WITH A MEN'S CUT OF THEIR BANNER (owner, 7 Sep: "update
- * beauty for men users, only female keep to see what's already there").
- *
- * ONE RULE, ONE FILE PER EXCEPTION. Beauty's banner is a woman at a mirror and
- * a shelf of colour cosmetics; the men's cut is the same room said in the same
- * type — MEN'S SHOP, skin, beard, hair, wellness. Nothing else is different
- * about it: same 3:1, same page, same door.
- *
- * IT READS THE HALL'S OWN ANSWER, not a second one. `hall` is already the
- * page's decision about which pictures this citizen is shown — Male on an
- * explicit Male, the other cut for everyone else — so a district with a men's
- * banner follows it and nobody can end up in a hall of men beside a shelf of
- * lipstick. A district NOT in this set keeps its one banner whatever the
- * answer, which is the owner's second half: only Beauty changes.
- *
- * Adding the next one is a file and a key.
- */
-const MENS_CUT: ReadonlySet<HubKey> = new Set<HubKey>(['beauty']);
-
-const BANNERS: readonly HubKey[] = [
-  'beauty', 'fitness', 'nutrition', 'medical', 'financial',
-  'realestate', 'astrology', 'dating', 'pets',
-];
+/* THE MEN'S CUT WENT WITH THE BANNERS (9 Sep). `MENS_CUT` chose which
+   district was drawn in its men's version — only Beauty ever was — and with
+   the banner grid gone there is no picture left on this page for it to
+   choose. The HALL still has both cuts and still reads the same answer, so
+   the rule the owner asked for on 7 Sep ("update beauty for men users") is
+   unbroken: a man arrives in the men's hall. beauty-male.webp stays on disk
+   with the other nine banners. */
 
 /**
  * ── THE HALL, AND THE NINE BAYS IN IT ───────────────────────────────────────
@@ -114,7 +97,6 @@ export function Personalize() {
      everybody — has no banner here, for the same reason it has no billboard on
      the walk and no tile in the foot grid. The page is their city, not ours. */
   const { hubOn } = useCityDesign();
-  const shown = BANNERS.filter((key) => hubOn(key));
 
   /* WHICH HALL (owner, 7 Sep). `resolvedGender` is the server's one answer —
      the split identity field where a citizen has one, the pre-split column
@@ -190,10 +172,11 @@ export function Personalize() {
       </nav>
 
     <div className="pz">
-      {/* The paragraph over the run (owner, 8 Sep). It was a sticky column
-          beside a single stack of banners; the banners are three to a row in
-          the walk's own grid now, so there is no column for it to be one half
-          of. */}
+      {/* THE WORDS UNDER THE DOORS. This was a sticky column beside a stack of
+          banners, then the paragraph over a grid of them (8 Sep). The banners
+          are gone (9 Sep) and the owner kept it: it is the only place on the
+          page that says what personalising BUYS, and nine pills cannot say
+          that for themselves. */}
       <div className="pz-say">
         <div className="eyebrow">Together City</div>
         {/* THE OWNER'S OWN WORDS, 7 SEP. The headline was one sentence with a
@@ -212,50 +195,28 @@ export function Personalize() {
         <p className="pz-feet">People · Places · Possibilities</p>
       </div>
 
-      <div className="pz-run">
-        {shown.length === 0 && (
-          <p className="muted pz-empty">
-            Every district is switched off. Turn hubs back on in{' '}
-            <Link to="/profile">Design your services</Link>.
-          </p>
-        )}
-        {shown.map((key, i) => {
-          // The men's cut where one was drawn, and the one banner everywhere
-          // else — the same answer the hall above the page is standing on.
-          const cut = hall === 'male' && MENS_CUT.has(key) ? `${key}-male` : key;
-          return (
-          /* The picture carries every word, so it is decorative and the LINK
-             holds the name. An alt describing the banner would read the
-             district's name a second time to the one person who cannot see
-             that it is already written on it. */
-          <Link key={key} to={HUBS[key].backPath} data-hub={key} className="pz-card"
-            aria-label={districtName(key)}>
-            <img className="no-case" src={`/assets/img/personalize/${cut}.webp`} alt=""
-              width={1600} height={533}
-              loading={i < 2 ? 'eager' : 'lazy'} decoding="async"
-              fetchPriority={i === 0 ? 'high' : undefined} />
-            {/* THE NAME UNDER THE PICTURE (owner, 8 Sep: "add the hub name
-                below in the personalized tab too"). This reverses the 7 Sep
-                "no need to write it separately": three to a row the banner's
-                own eyebrow is nine-point type, and the card needs a label a
-                person can read from the chair. The same foot as the walk on
-                Home — one name, one line, one set of classes — so the two
-                pages that show the nine districts read as one city. */}
-            {(() => {
-              const { lead, emph } = splitDistrictLine(districtLine(key));
-              return (
-                <span className="district-card-foot">
-                  <span className="district-card-name">{districtName(key)}</span>
-                  <span className="district-card-line">
-                    {lead && <span className="district-card-lead">{lead} </span>}{emph}
-                  </span>
-                </span>
-              );
-            })()}
-          </Link>
-          );
-        })}
-      </div>
+      {/* ── THE BANNERS CAME OFF (owner, 9 Sep) ─────────────────────────
+          "Remove these images and tabs from here too — only keep the buttons."
+
+          Nine 3:1 photographs, three to a row, each one a door into a district
+          — and nine glass pills a screen above them that are the same nine
+          doors. That is the whole reason: the page asked a citizen to choose
+          from the same list twice, and the second ask was four screens of
+          scroll. The pills are the ones that survive because they are the ones
+          that work everywhere — every device, every district, no baked-in type
+          to re-measure, and a district switched off simply is not drawn.
+
+          It is the same removal the home page had this morning, and the same
+          thing survives it: the words. The lockup below was written as the
+          paragraph OVER the run, but the owner kept it — it says what
+          personalising actually buys, which the pills cannot say for
+          themselves.
+
+          THE PICTURES ARE NOT DELETED. public/assets/img/personalize/ still
+          holds all ten cuts including the men's, `MENS_CUT` still reads the
+          hall's answer, and the hall itself is still a photograph with nine
+          doors cut into it. Hidden is not deleted; the banners are one press
+          from coming back if a page ever wants them. */}
     </div>
     </>
   );

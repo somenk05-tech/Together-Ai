@@ -164,150 +164,71 @@ describe('a hub whose landing is its content', () => {
   });
 });
 
-describe('the nine banners', () => {
+/**
+ * ── THE NINE BANNERS CAME OFF (owner, 9 Sep) ────────────────────────────────
+ *
+ * "Remove these images and tabs from here too — only keep the buttons."
+ *
+ * This block asserted the banner run in nine ways: the owner's order, the
+ * men's cut, one finished file per district, the walk's caption under each
+ * picture, the door each one opened, and the citizen's own switches. All of it
+ * described a grid of pictures that duplicated the nine glass pills one screen
+ * above it — the page asked a citizen to choose from the same list twice, and
+ * the second ask was four screens of scroll.
+ *
+ * WHAT IS ASSERTED NOW is that it left cleanly and took nothing with it that
+ * the page still needs. The doors, the hall and its nine bays are unchanged
+ * and still have their own blocks above and below this one.
+ */
+describe('the nine banners came off, and the doors did not', () => {
   const page = code('pages/Personalize.tsx');
-  const NINE = ['beauty', 'fitness', 'nutrition', 'medical', 'financial',
-    'realestate', 'astrology', 'dating', 'pets'] as const;
-
-  it('is the districts the owner drew, in his poster\u2019s order', () => {
-    const listed = page.slice(page.indexOf('const BANNERS'));
-    const keys = [...listed.slice(0, listed.indexOf('];')).matchAll(/'([a-z]+)'/g)].map((m) => m[1]);
-    expect(keys).toEqual([...NINE]);
-  });
-
-  it('leaves out the four districts nothing personalises in', () => {
-    // Jobs, Local Services, the Digital Store and Together City TV are all
-    // real districts with real rooms; none of them is set up from a profile,
-    // and a banner here would promise a form that does not exist.
-    for (const absent of ['jobs', 'services', 'ecommerce', 'social']) {
-      expect({ absent, listed: (NINE as readonly string[]).includes(absent) })
-        .toEqual({ absent, listed: false });
-    }
-  });
-
-  it('leaves Entertainment out until its banner is drawn, and says so', () => {
-    /* The poster names ten and nine banners were commissioned. Standing the
-       tenth up out of its walk tile would put one cropped photograph with a
-       label bolted under it in a column of nine finished pieces. The absence
-       is a decision, so it is written down where the list is. */
-    expect((NINE as readonly string[]).includes('entertainment')).toBe(false);
-    expect(read('pages/Personalize.tsx')).toMatch(/ENTERTAINMENT IS ABSENT/);
-  });
-
-  it('gives Beauty a men\u2019s cut, and nothing else a second banner', () => {
-    /* Owner, 7 Sep: "update beauty for men users, only female keep to see
-       what's already there." One rule, one file per exception, and it reads
-       the HALL's answer rather than a second one — so nobody lands in a hall
-       of men beside a shelf of lipstick. */
-    const at = page.indexOf('const MENS_CUT');
-    const keys = [...page.slice(at, page.indexOf(');', at)).matchAll(/'([a-z]+)'/g)].map((m) => m[1]);
-    expect(keys).toEqual(['beauty']);
-    expect(page).toMatch(/hall === 'male' && MENS_CUT\.has\(key\) \? `\$\{key\}-male` : key/);
-    const problems: string[] = [];
-    for (const key of keys) {
-      const path = join(APP, 'public/assets/img/personalize', `${key}-male.webp`);
-      if (!existsSync(path)) { problems.push(`missing ${key}-male.webp`); continue; }
-      const kb = Math.round(statSync(path).size / 1024);
-      if (kb > 160) problems.push(`${key}-male.webp is ${kb} KB`);
-    }
-    expect(problems).toEqual([]);
-  });
-
-  it('draws the owner\u2019s own banner, one finished file per district', () => {
-    // "Use these images directly." One file per key, named by the key, so a
-    // tenth banner is one line in the list and one file beside the others.
-    // `cut` is the key, or the key plus `-male` where a men's banner was drawn.
-    expect(page).toMatch(/src=\{`\/assets\/img\/personalize\/\$\{cut\}\.webp`\}/);
-    const problems: string[] = [];
-    for (const key of NINE) {
-      const path = join(APP, 'public/assets/img/personalize', `${key}.webp`);
-      if (!existsSync(path)) { problems.push(`missing ${key}.webp`); continue; }
-      const kb = Math.round(statSync(path).size / 1024);
-      // Nine on one page: a banner over 160 KB is a page nobody waits for.
-      if (kb > 160) problems.push(`${key}.webp is ${kb} KB`);
-    }
-    expect(problems).toEqual([]);
-  });
-
-  it('writes the name and the line under the picture, in the walk’s own foot', () => {
-    /* 7 Sep: "use these images directly and no need to write it separately."
-       8 Sep, three to a row: "add the hub name below in the personalized tab
-       too." The banner's painted eyebrow is nine-point type at this width; the
-       card gets the same foot as the walk on Home — the SAME classes, so the
-       two pages that show the nine districts stay one city — and no second
-       vocabulary of its own. */
-    expect(page).toMatch(/district-card-foot/);
-    expect(page).toMatch(/district-card-name/);
-    expect(page).toMatch(/district-card-line/);
-    expect(page).toMatch(/splitDistrictLine\(districtLine\(key\)\)/);
-    expect(page).not.toMatch(/pz-card-name|pz-card-line|pz-card-say|pz-card-mark|BANNER_LINE/);
-    // The name reaches a screen reader once — through the link.
-    expect(page).toMatch(/aria-label=\{districtName\(key\)\}/);
-    expect(page).toMatch(/alt=""/);
-  });
-
-  it('opens the district\u2019s own landing, at the owner\u2019s call', () => {
-    // Not the district's first room, which is what the walk does. This page is
-    // "which parts of my life", so the answer is the district's own front door.
-    expect(page).toMatch(/to=\{HUBS\[key\]\.backPath\}/);
-  });
-
-  it('is the citizen\u2019s city, not ours \u2014 a hub switched off has no banner', () => {
-    expect(page).toMatch(/useCityDesign\(\)/);
-    expect(page).toMatch(/BANNERS\.filter\(\(key\) => hubOn\(key\)\)/);
-  });
-
-  it('has no Personalize button \u2014 every banner is already a door', () => {
-    // Owner, 7 Sep. The poster has a pill under the headline; on the page it
-    // would say the room's own name a second time, which is the "Explore ___"
-    // pill the walk dropped for the same reason.
-    expect(page).not.toMatch(/btn-gold|>Personalize</);
-  });
-});
-
-describe('the banner is the whole card', () => {
   const css = read('styles/relief.css');
 
-  it('is the walk\u2019s card at this page\u2019s width \u2014 paper, depth, and the picture inset', () => {
-    /* Owner, 7 Sep: "the personalized tabs, make it look like walk the hub but
-       more wide feel." The same material as `.district-card`: white paper, one
-       soft depth, and the photograph inset on all four sides so the paper
-       shows around it. Two pages showing the same nine districts in two
-       materials is two cities. */
-    expect(css).toMatch(/\.pz-card \{[\s\S]*?background: var\(--paper\); box-shadow: var\(--e2\)/);
-    expect(css).toMatch(/\.pz-card \{[\s\S]*?padding: clamp/);
-    // The ratio is the PICTURE's; on the outer box it would eat the inset.
-    expect(css).toMatch(/\.pz-card img \{[\s\S]*?aspect-ratio: 3 \/ 1/);
+  it('draws no banner run, and keeps no list to draw one from', () => {
+    expect(page).not.toMatch(/className="pz-run"/);
+    expect(page).not.toMatch(/const BANNERS/);
+    expect(page).not.toMatch(/const MENS_CUT/);
+    expect(page).not.toMatch(/assets\/img\/personalize\/\$\{cut\}/);
   });
 
-  it('takes the card AND the walk\u2019s caption \u2014 and grows no caption vocabulary of its own', () => {
-    // 8 Sep: the name and line go under the banner, in the walk's own foot.
-    // What must not appear is a second set of caption classes for this page:
-    // one foot, two pages.
+  it('keeps the pills, which were always the doors this page is for', () => {
+    expect(page).toMatch(/className="doors pz-doors"/);
+    expect(page).toMatch(/to=\{HUBS\[bay\.key\]\.backPath\}/);
+    // …and still the citizen's own city: a district switched off has no pill.
+    expect(page).toMatch(/BAYS\.filter\(\(bay\) => hubOn\(bay\.key\)\)/);
+  });
+
+  it('keeps the owner\u2019s words, which the pills cannot say for themselves', () => {
+    /* Owner's call when the banners went: the lockup stays. It is the only
+       place on the page that says what personalising BUYS. */
+    expect(page).toMatch(/className="pz-say"/);
+    expect(page).toMatch(/Personalize once, and Together City builds your own personalized store/);
+    expect(page).toMatch(/Your preferences\. Your store\. Your city\./);
+  });
+
+  it('has no Personalize button \u2014 every door is already a door', () => {
+    // Owner, 7 Sep. A pill saying the room's own name a second time.
+    expect(page).not.toMatch(/btn-gold|>Personalize</);
+  });
+
+  it('leaves the pictures on disk, and the hall still choosing between two cuts', () => {
+    /* Hidden is not deleted — Travel's rule since 15 Aug. The ten banner files
+       stay in public/assets/img/personalize/ (the men's cut among them), and
+       the HALL still reads the same answer it always did, so "update beauty
+       for men users" (7 Sep) is unbroken where it is still drawn. */
+    for (const f of ['beauty', 'beauty-male', 'fitness', 'pets']) {
+      expect({ f, there: existsSync(join(SRC, `../public/assets/img/personalize/${f}.webp`)) })
+        .toEqual({ f, there: true });
+    }
+    expect(page).toMatch(/hall-\$\{hall\}\.webp/);
+  });
+
+  it('grows no caption vocabulary of its own on the way out', () => {
+    // The page never had one and must not gain one: the walk's foot was
+    // borrowed, and it went back with the banners that wore it.
     expect(css).not.toMatch(/\.pz-card-art|\.pz-card-say|\.pz-card-name|\.pz-card-line/);
-    expect(code('pages/Personalize.tsx')).toMatch(/district-card-foot/);
-    expect(code('pages/Personalize.tsx')).not.toMatch(/BANNER_LINE/);
-  });
-
-  it('runs three to a row, in the walk\u2019s own grid (owner, 8 Sep)', () => {
-    /* It ran one to a row - nine screens of scroll for nine districts, with a
-       column of text beside the first two and nothing beside the other seven.
-       The owner pointed at Walk the districts: "the banners make it three in
-       one row - in this style." So it is that grid, not a new one: the same
-       three columns, the same gap, and the same drop to `auto-fill` at 230px
-       on a phone, which is where a card stops being one. */
-    expect(css).toMatch(/\.pz-run \{ display: grid; grid-template-columns: repeat\(3, 1fr\)/);
-    expect(css).toMatch(/@media \(max-width: 899px\) \{[\s\S]*?\.pz-run \{ grid-template-columns: repeat\(auto-fill, minmax\(230px, 1fr\)\)/);
-    // and the run reads the same as the walk's, which is the point of copying it
-    expect(css).toMatch(/\.district-run \{[\s\S]*?grid-template-columns: repeat\(3, 1fr\)/);
-  });
-
-  it('and the lockup is a paragraph over the run, not a column beside it', () => {
-    // Nothing to stay level with any more: a sticky paragraph over a grid is
-    // a paragraph in the reader's way.
-    expect(css).not.toMatch(/\.pz-say \{ position: sticky/);
-    expect(css).toMatch(/\.pz-say \{ max-width: 62ch/);
-    expect(css).toMatch(/\.pz \{\s*display: block/);
+    expect(page).not.toMatch(/district-card-foot/);
+    expect(page).not.toMatch(/BANNER_LINE/);
   });
 });
 

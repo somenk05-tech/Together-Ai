@@ -188,51 +188,18 @@ export function districtName(key: HubKey): string {
   return DISTRICT_COPY[key]?.name ?? HUBS[key].name;
 }
 
-/** The district's one sentence. The hub's own tag stands in where the master
- *  list has not given the district a line (Local Services, deliberately). */
-export function districtLine(key: HubKey): string {
-  return DISTRICT_COPY[key]?.line ?? HUBS[key].tag;
-}
+/* `districtLine` AND `splitDistrictLine` WENT WITH THEIR LAST READER (9 Sep).
+   The walk printed the district's sentence in two weights; Personalize's
+   banners printed the same sentence in the same foot. The walk came off this
+   morning and the banners came off this afternoon, so nothing in the city
+   draws a district line any more and two exported functions with no caller is
+   what dead-export-audit exists to catch.
 
-/**
- * WHERE THE SENTENCE TAKES ITS WEIGHT (owner's card reference, 6 Sep).
- *
- * The reference sets its line in two weights — the setup grey, the payoff
- * black — and that is what makes a two-line caption read as a caption rather
- * than a paragraph. These lines are already written for it: "Your stars. Your
- * journey. Your timing." and "Your food, personalized to you." both end on the
- * part worth reading twice.
- *
- * So the split is the last sentence, or failing that the last clause, and the
- * emphasis is on what comes after it. A line with neither — one plain sentence
- * — is set whole in the darker ink rather than being cut somewhere arbitrary,
- * because a break invented to satisfy a rule is worse than no break.
- */
-export function splitDistrictLine(line: string): { lead: string; emph: string } {
-  const at = Math.max(line.lastIndexOf('. ', line.length - 2), line.lastIndexOf(', '));
-  if (at < 0) return { lead: '', emph: line };
-  return { lead: line.slice(0, at + 1), emph: line.slice(at + 1).trim() };
-}
-
-/* ═══ THE WALK IS GONE (owner, 9 Sep: "remove walk the hub") ════════════════
-   Thirteen photographs of hub landings, three to a row, under the film. It was
-   the home page's longest section and, by the end, its most redundant one: the
-   header carries the four doors, the hero carries the same four as glass
-   pills, Personalize carries these very districts as banners the owner drew
-   himself, the foot grid carries twelve tiles, and the command palette carries
-   all of them. A citizen who scrolled past the film met the city a fourth
-   time.
-
-   WHAT WENT: PANELS (which district wears which photograph), DISTRICTS (its
-   alphabetical sort) and the section that drew them.
-
-   WHAT STAYED, and why none of it is orphaned: DISTRICT_COPY and the three
-   readers below it are the master list of what each district is CALLED and
-   what it SAYS, and Personalize imports all three for its banners — that copy
-   was never the walk's, it only happened to be printed there first. The foot
-   grid, the routes, the map buildings, the palette entries and the Design Your
-   Services switches are untouched. `.district-card*` stays in relief.css for
-   the same reason: Personalize's banners wear it (the-poster-is-a-room). */
+   DISTRICT_COPY KEEPS ITS LINES. `districtName` still reads the map — it is
+   what the Personalize pills and the hall's nine bays are labelled from — and
+   the sentences beside those names are the owner's master copy for the
+   districts, which hubs.ts points at by name. A page that wants them back
+   needs the words, not a function; the function is four lines. */
 
 /** City home — the pavilion city, ported 1:1 from index.html. */
 export function Home() {

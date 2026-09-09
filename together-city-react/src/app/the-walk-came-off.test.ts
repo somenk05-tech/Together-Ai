@@ -52,21 +52,33 @@ describe('the walk came off the home page', () => {
   it('keeps the district copy, which was never the walk’s to take', () => {
     /* One noun and one sentence per district — "MATCHMAKING / Compatibility
        first. Attraction next. Intention follows." It lived here because the
-       walk printed it first, and Personalize's banners read the same three
-       functions today. */
+       walk printed it first.
+       THE SENTENCE LOST ITS LAST READER on 9 Sep, when Personalize's banners
+       came off too — so `districtLine` and `splitDistrictLine` went with them
+       rather than sitting exported with no caller. The NAMES are still read,
+       by the pills and by the hall's nine bays, and the lines stay in the map
+       because they are the owner's master copy rather than the walk's. */
     expect(home).toMatch(/const DISTRICT_COPY/);
-    for (const fn of ['districtName', 'districtLine', 'splitDistrictLine']) {
-      expect({ fn, exported: home.includes(`export function ${fn}`) }).toEqual({ fn, exported: true });
-    }
+    expect(home).toMatch(/export function districtName/);
+    expect(home).not.toMatch(/export function districtLine|export function splitDistrictLine/);
     expect(read('pages/Personalize.tsx'))
-      .toMatch(/import \{ districtLine, districtName, splitDistrictLine \} from '@\/pages\/Home'/);
+      .toMatch(/import \{ districtName \} from '@\/pages\/Home'/);
   });
 
-  it('keeps the card material in the stylesheet, which Personalize wears', () => {
+  it('leaves the card material in the stylesheet, now that nothing wears it', () => {
+    /* THIS ASSERTED THAT PERSONALIZE WORE IT, and that was the reason to keep
+       it when the walk came off in the morning. The banners came off in the
+       afternoon, so the classes have no reader at all today.
+
+       They stay anyway, and that is a decision rather than an oversight: CSS
+       nobody selects costs a few hundred bytes and breaks nothing, while the
+       walk's card is the one piece of this city's furniture two pages have
+       already been rebuilt on twice this week. Deleting it is the easy half of
+       a change nobody has asked for. Nothing here says a page must use it —
+       only that it is still on the shelf. */
     const relief = read('styles/relief.css');
     for (const cls of ['.district-card {', '.district-card-art {', '.district-card-foot', '.district-card-name', '.district-card-lead']) {
       expect({ cls, kept: relief.includes(cls) }).toEqual({ cls, kept: true });
     }
-    expect(read('pages/Personalize.tsx')).toMatch(/district-card-foot/);
   });
 });
