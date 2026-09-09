@@ -2,6 +2,17 @@ import { http as api } from '@/api/client';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 /** Social domain types — mirror the NestJS social module DTOs. */
+/**
+ * THE CITY'S ONE CEILING ON A POST'S WORDS — 10,000 (owner, 8 Sep: "remove the
+ * cap on the text part"), mirroring POST_TEXT_MAX in the API's social DTO.
+ *
+ * It is HERE rather than in the composer because three screens need it and
+ * they had drifted: the composer's counter, the card's edit box (a literal
+ * 2,200 of its own, which is how an edit ends up refusing text the composer
+ * had just accepted) and the server. One number, imported.
+ */
+export const POST_TEXT_MAX = 10_000;
+
 export interface PostAuthor { id: string; handle: string; name: string; profileImage: string | null }
 /**
  * A person on the blocked list. `handle` and `profileImage` are null, and the

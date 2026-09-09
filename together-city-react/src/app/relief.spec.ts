@@ -1751,10 +1751,18 @@ describe('Relief stays a system', () => {
     ];
     /** A mood is something somebody chose to feel — content, not chrome. Both
      *  the list they pick from and the map that guesses one from their words
-     *  are the same thing wearing different hats. */
+     *  are the same thing wearing different hats.
+     *
+     *  AND SO IS THE EMOJI DRAWER (owner, 8 Sep: "add emojis"). The rule this
+     *  test enforces is Icon.tsx's own — "emoji stay reserved for
+     *  user-generated content" — and a drawer whose entire purpose is to put a
+     *  character into the citizen's sentence is the clearest case of that
+     *  there is. The TILE that opens it is chrome and still wears an icon;
+     *  what the drawer holds is the post's own words. */
     const CONTENT = [
       /const FEELINGS\s*=\s*\[[^\]]*\]/g,
       /const MOOD_HINTS[\s\S]*?\n\];/g,
+      /const EMOJI: ReadonlyArray[\s\S]*?\n\];/g,
     ];
     const EMOJI = /\p{Extended_Pictographic}|[\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/gu;
 

@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+/** The one ceiling on a post's words. Create and edit both read it, so an edit
+ *  can never exceed what a create allows — they drifted apart as two literals
+ *  once already. */
+export const POST_TEXT_MAX = 10_000;
+
 /**
  * A POST'S MEDIA IS ONE OF OUR OWN KEYS, AND NOTHING ELSE (30 Aug audit).
  *
@@ -33,7 +38,15 @@ const mediaRef = z
 /** Create a post — text and/or media, optional feeling + geo (for the city map). */
 export const CreatePostSchema = z
   .object({
-    text: z.string().max(2200).optional(),
+    /* 10,000, RAISED FROM 2,200 (owner, 8 Sep: "remove the cap on the text
+       part"). 2,200 was Instagram's caption limit borrowed whole, and it is
+       the wrong shape for a city where a shopkeeper writes about a delivery,
+       a citizen writes up a day, or somebody explains a recipe under the
+       photograph of it. A ceiling still exists because a text column with no
+       ceiling is a paste bomb in a feed everybody reads, and because every
+       row of it is broadcast down the websocket to a citizen's followers —
+       but it is now far past where anybody writing a post will meet it. */
+    text: z.string().max(POST_TEXT_MAX).optional(),
     feeling: z.string().max(60).optional(),
     media: z
       .array(
@@ -108,7 +121,14 @@ export const FeedQuerySchema = z.object({
      "has a latitude" — no radius, no longitude, no viewer coordinates. An API
      that offers a ranking and a proximity search it does not have is the same
      defect as a screen that invents data. */
-  filter: z.enum(['foryou', 'friends', 'following', 'photos', 'videos', 'thoughts']).optional(),
+  /* `stills` joined the list on 9 Sep for City Images (owner: "just the
+     photos and thoughts"). It is not `photos` with a wider net: `photos` asks
+     for posts that HAVE a photograph, and a post carrying four pictures and a
+     clip satisfies it. `stills` asks the opposite question — everything the
+     city posted that is NOT a video — which is one predicate, one cursor and
+     the correct newest-first order across both kinds, where merging two lenses
+     in the client would have been two cursors interleaved by hand. */
+  filter: z.enum(['foryou', 'friends', 'following', 'photos', 'videos', 'thoughts', 'stills']).optional(),
 });
 export type FeedQueryDto = z.infer<typeof FeedQuerySchema>;
 

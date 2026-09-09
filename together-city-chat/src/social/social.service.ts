@@ -1181,7 +1181,7 @@ export class SocialService {
      * city-wide one pixel away. The bounded view is what Friends and Following
      * are FOR; these two are lenses on the same city For You shows.
      */
-    const cityWide = filter === 'videos' || filter === 'foryou' || filter === 'photos' || filter === 'thoughts';
+    const cityWide = filter === 'videos' || filter === 'foryou' || filter === 'photos' || filter === 'thoughts' || filter === 'stills';
     /* The two gates are a value shared with the Saved page's read — see
        `viewerGates` for the rules and their history. */
     const { blockedSet, audienceGate, repostWhere } = this.viewerGates(userId, circle, familySet, graph.blocked);
@@ -1218,6 +1218,18 @@ export class SocialService {
         // Thoughts: Twitter-style text-only posts — no media, real caption,
         // and not a repost.
         ...(filter === 'thoughts' ? { media: { none: {} }, text: { not: null }, repostOfId: null } : {}),
+        /* STILLS: everything the city posted that is not a video — the
+           photographs and the thoughts in one stream. `media: { none: { kind:
+           'video' } }` is true of a post with pictures and of a post with no
+           media at all, which is exactly the pair asked for.
+
+           REPOSTS ARE OUT, and that is the whole reason this is a predicate
+           rather than `photos` widened. A repost row carries no media of its
+           own — the feed hydrates it from the original — so `none: { kind:
+           'video' }` is trivially true of a repost OF A VIDEO, and a page
+           promising no videos would have served one. `repostOfId: null` is
+           what closes that, the same way it closes it for thoughts. */
+        ...(filter === 'stills' ? { media: { none: { kind: 'video' } }, repostOfId: null } : {}),
         // Two ORs cannot share one object literal — the second would replace
         // the first — so the audience gate and the repost gate are ANDed by name.
         AND: [audienceGate, repostWhere],

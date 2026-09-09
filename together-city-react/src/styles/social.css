@@ -805,3 +805,57 @@ textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
 .sl-ed-lab { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: var(--fs-3); }
 .sl-ed-stage { margin-bottom: 12px; border-radius: var(--r-2); overflow: hidden; background: var(--media-bg); }
 .sl-ed-btns { display: flex; gap: 8px; margin-bottom: 12px; }
+
+/* ═══ THE READER PAGE, CITY IMAGES, AND THE EMOJI DRAWER (8 Sep) ═════════════
+   Three screens arrived at once and every one of them is a column of cards
+   with the same furniture around it. Written here rather than inline for the
+   reason the editor's own furniture above is: the size ratchet counts each
+   copy, and five spellings of "a gap and a margin" is five chances to drift. */
+.sl-read-item { scroll-margin-top: 14px; margin-bottom: var(--space-18); }
+.sl-more { padding: var(--space-16); }
+.sl-sentinel { height: 1px; }
+.sl-lede { margin-top: 0; }
+.sl-empty { text-align: center; padding: 44px 24px; }
+.sl-empty-p { margin: 0; font-size: var(--fs-4); }
+.sl-empty-ic { margin: 0 auto 14px; }
+
+/* The author's own tools under a card on the reader page: sort this post. */
+.sl-sort { margin: 8px 0 0; padding: 12px 14px; border: 1.5px solid var(--accent); }
+.sl-sort-h { margin-bottom: var(--space-8); font-size: var(--fs-3); font-weight: 700; }
+.sl-sort-h .muted { font-weight: 500; }
+.sl-sort-row { display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; }
+.sl-sort-chip {
+  padding: 6px 12px; border-radius: var(--r-full); cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--card); color: var(--ink);
+  font-family: inherit; font-size: var(--fs-3); font-weight: 600;
+}
+.sl-sort-chip.on { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+
+/* DELETE, ON THE TILE (owner, 8 Sep). Bottom right, because the other three
+   corners are taken: the cover/sort door at top left, the outdoor pin and the
+   category badge at the top, the date at bottom left. 44 to the thumb, 24 to
+   the eye — the mark sits inside the tap target. */
+.sl-tile-del {
+  position: absolute; bottom: 0; right: 0; width: 44px; height: 44px;
+  padding: 0; border: none; background: none; cursor: pointer;
+  display: grid; place-items: center; line-height: 0;
+}
+.sl-tile-del span {
+  width: 24px; height: 24px; border-radius: var(--r-full);
+  color: var(--on-accent); background: var(--scrim-deep);
+  display: grid; place-items: center;
+}
+
+/* The emoji drawer. The tile that opens it is chrome and wears an icon; what
+   is inside is the citizen's own words, which is why emoji are allowed here
+   (see relief.spec.ts). */
+.sl-emoji { margin-top: 12px; padding: 14px; border-radius: var(--r-2); background: var(--wash); }
+.sl-emoji-g { margin-bottom: 10px; }
+.sl-emoji-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.sl-emoji-b {
+  min-width: 44px; min-height: 44px; padding: 0;
+  border: 1px solid transparent; border-radius: var(--r-1); background: none;
+  font-family: inherit; font-size: 20px; line-height: 1; cursor: pointer;
+}
+.sl-emoji-b:hover { background: var(--card); }
+.sl-emoji-note { margin: 0; font-size: var(--fs-2); }

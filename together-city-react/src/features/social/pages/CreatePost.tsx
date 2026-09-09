@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useDialog } from '@/hooks/useDialog';
 import { Avatar } from '../PostCard';
 import { Confirm } from '../Confirm';
-import { useCreatePost } from '../api';
+import { POST_TEXT_MAX, useCreatePost } from '../api';
 import { MUSIC_LIBRARY, type Track } from '../musicLibrary';
 
 // `file` is kept for media that uploads to storage (video) — the `src` is only a
@@ -468,11 +468,45 @@ const ATTACH: ReadonlyArray<{ key: string; label: string; icon: IconName; tint: 
   { key: 'feeling', label: 'Feeling', icon: 'mood', tint: 'amber' },
   { key: 'tag', label: 'Tag people', icon: 'people', tint: 'pink' },
   { key: 'hashtags', label: 'Hashtags', icon: 'hash', tint: 'orange' },
+  { key: 'emoji', label: 'Emoji', icon: 'sparkles', tint: 'teal' },
 ];
 
-/** Mirrors CreatePostSchema's `text: z.string().max(2200)`, so the counter under
- *  the box is the server's ceiling and not a number chosen to look tidy. */
-const TEXT_MAX = 2200;
+/** Mirrors CreatePostSchema's `POST_TEXT_MAX`, so the counter under the box is
+ *  the server's ceiling and not a number chosen to look tidy.
+ *
+ *  RAISED FROM 2,200 (owner, 8 Sep: "remove the cap on the text part"). 2,200
+ *  was Instagram's caption limit borrowed whole, and it is the wrong shape for
+ *  a city where a shopkeeper writes up a delivery, a citizen writes up a day,
+ *  or somebody puts the recipe under the photograph of the dish. */
+const TEXT_MAX = POST_TEXT_MAX;
+
+/** How close to the wall the counter appears. A number under the box from the
+ *  first character is a word limit announcing itself at somebody who is trying
+ *  to write; a number that appears when the wall is actually in sight is a
+ *  warning. Below this, the box is just a box. */
+const COUNT_FROM = TEXT_MAX - 500;
+
+/**
+ * ── THE EMOJI DRAWER (owner, 8 Sep: "add emojis") ──────────────────────────
+ *
+ * Not a library. Every emoji picker on npm ships a few hundred kilobytes of
+ * sprite sheets and a search index for a composer that needs neither, and this
+ * page already carries an image encoder, a video prober and a music picker.
+ * These are the ones people actually reach for, in the order a keyboard would
+ * put them, and the phone's own keyboard is still right there for the rest.
+ *
+ * The 😊 row deliberately overlaps the Feeling chips and does not replace
+ * them: a feeling is a FIELD on the post, printed as "feeling 😊 Happy"; these
+ * are characters in the sentence.
+ */
+const EMOJI: ReadonlyArray<{ group: string; chars: readonly string[] }> = [
+  { group: 'Smileys', chars: ['😀', '😄', '😅', '😂', '🙂', '😉', '😊', '😍', '🥰', '😘', '😎', '🤩', '🤗', '🤔', '😴', '😮', '🥳', '😢', '😭', '😤'] },
+  { group: 'Gestures', chars: ['👍', '👏', '🙏', '🤝', '💪', '✌️', '🤞', '👋', '🙌', '👌'] },
+  { group: 'Hearts', chars: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🤍', '💖', '✨', '🔥'] },
+  { group: 'Life', chars: ['🎉', '🎂', '🎁', '🏠', '🚗', '✈️', '🏖️', '🌧️', '☀️', '🌙', '🌸', '🌿'] },
+  { group: 'Food', chars: ['☕', '🍵', '🍎', '🥗', '🍲', '🍛', '🍕', '🍰', '🍦', '🥂'] },
+  { group: 'City', chars: ['🏙️', '🛍️', '💼', '📚', '🎬', '🎵', '⚽', '🧘', '🐶', '🐱'] },
+];
 
 export function CreatePost() {
   const nav = useNavigate();
@@ -482,6 +516,8 @@ export function CreatePost() {
   const connections = useConnections('accepted');
   const photoPicker = useRef<HTMLInputElement>(null);
   const videoPicker = useRef<HTMLInputElement>(null);
+  /** The words box itself — the emoji drawer writes into it at the caret. */
+  const box = useRef<HTMLTextAreaElement>(null);
 
   /**
    * ── THE DRAFT SURVIVES LEAVING THE PAGE (30 Aug audit) ────────────────────
@@ -569,6 +605,30 @@ export function CreatePost() {
     setOpen(tool);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * AN EMOJI GOES WHERE THE CARET IS, NOT AT THE END.
+   *
+   * Appending would be simpler and wrong: somebody who has written three
+   * sentences and gone back to put a heart after the first one would get it
+   * after the third. The selection is read off the element, the text is spliced
+   * there, and the caret is put back after what was inserted — on the next
+   * frame, because React has to re-render the value first, and a caret set
+   * before that lands wherever the old value put it.
+   *
+   * A selection is REPLACED rather than pushed aside, which is what every text
+   * box on the machine does with a keystroke.
+   */
+  const insertEmoji = (ch: string) => {
+    const el = box.current;
+    if (!el) { setText((t) => (t + ch).slice(0, TEXT_MAX)); return; }
+    const from = el.selectionStart ?? text.length;
+    const to = el.selectionEnd ?? from;
+    const next = (text.slice(0, from) + ch + text.slice(to)).slice(0, TEXT_MAX);
+    setText(next);
+    const caret = Math.min(from + ch.length, TEXT_MAX);
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(caret, caret); });
+  };
 
   const onFiles = async (files: FileList | null) => {
     if (!files) return;
@@ -852,12 +912,17 @@ export function CreatePost() {
           <Avatar name={user?.name ?? 'You'} src={user?.profileImage} />
           <div className="sl-wrap" style={{ flex: '1 1 auto', minWidth: 0 }}>
             <textarea
+              ref={box}
               value={text} onChange={(e) => setText(e.target.value)} rows={4} disabled={busy} maxLength={TEXT_MAX}
               aria-label="What's happening today?"
               placeholder="What's happening today?"
               style={{ ...inputStyle, border: 'none', padding: '6px 0 22px', resize: 'vertical', fontSize: 16, lineHeight: 1.6, background: 'none', boxShadow: 'none' }}
             />
-            <span className="sl-count">{text.length}/{TEXT_MAX}</span>
+            {/* THE COUNTER WAITS UNTIL THE WALL IS IN SIGHT. At 10,000 a
+                running total from the first character is a limit standing over
+                somebody who is trying to write; it appears with five hundred
+                left, which is where it becomes information. */}
+            {text.length > COUNT_FROM && <span className="sl-count">{text.length}/{TEXT_MAX}</span>}
           </div>
         </div>
 
@@ -974,6 +1039,7 @@ export function CreatePost() {
           {tile(ATTACH[3], Boolean(feeling), feeling || undefined)}
           {tile(ATTACH[4], tagged.length > 0, tagged.length ? `${tagged.length} tagged` : undefined)}
           {tile(ATTACH[5], hashtags.length > 0)}
+          {tile(ATTACH[6], false)}
         </div>
 
         {media.some((m) => m.type === 'video') && (
@@ -1001,6 +1067,27 @@ export function CreatePost() {
               {geoStat && <span className="muted" style={{ fontSize: 11.5 }}>{geoStat}</span>}
             </div>
             <p className="muted" style={{ fontSize: 11, marginTop: 6 }}>The location shows on your post so people nearby can find it.</p>
+          </div>
+        )}
+        {open === 'emoji' && (
+          <div className="sl-emoji">
+            {EMOJI.map((row) => (
+              <div key={row.group} className="sl-emoji-g">
+                <div className="sl-field-l">{row.group}</div>
+                <div className="sl-emoji-row">
+                  {row.chars.map((ch) => (
+                    /* The character IS the label. An emoji button whose
+                       accessible name is the emoji is what a screen reader
+                       announces anyway, and inventing English for 😅 would be
+                       one more thing to get wrong in every language. */
+                    <button key={ch} type="button" className="sl-emoji-b" onClick={() => insertEmoji(ch)}>
+                      {ch}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <p className="muted sl-emoji-note">Goes in wherever the cursor is. Your keyboard’s own emoji still work too.</p>
           </div>
         )}
         {open === 'feeling' && (

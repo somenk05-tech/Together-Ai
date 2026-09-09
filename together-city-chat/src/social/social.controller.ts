@@ -12,6 +12,7 @@ import {
   CreateCommentSchema, type CreateCommentDto,
   CreatePostSchema, type CreatePostDto,
   FeedQuerySchema, ListQuerySchema, BookmarkSyncSchema,
+  POST_TEXT_MAX,
 } from './dto/social.dto';
 
 /* THE SOCIAL HUB HAD NO CEILING OF ITS OWN (30 Aug audit).
@@ -76,12 +77,13 @@ export class SocialController {
 
   @Patch('posts/:id')
   update(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: unknown) {
-    // Same cap as create (2200) — an edit must not exceed the create limit.
+    // Same cap as create — an edit must not exceed the create limit, which is
+    // why both read POST_TEXT_MAX rather than repeating a number.
     // Both fields optional: edit the caption, and/or re-sort the post into a
     // Work / Personal category (or clear it with null) from the profile.
     const dto = parseOrThrow(
       z.object({
-        text: z.string().max(2200).optional(),
+        text: z.string().max(POST_TEXT_MAX).optional(),
         category: z.enum(['work', 'personal']).nullable().optional(),
       }),
       body,

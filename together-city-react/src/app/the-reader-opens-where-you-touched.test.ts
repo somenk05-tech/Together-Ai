@@ -10,73 +10,93 @@ const code = (p: string) =>
   read(p).replace(/(^[ \t]*|\{)\/\*[\s\S]*?\*\//gm, '$1 ').replace(/^\s*\/\/.*$/gm, ' ');
 
 /**
- * ── THE READER OPENS WHERE YOU TOUCHED, AND KEEPS GOING ─────────────────────
+ * ── THE READER IS A PAGE (owner, 8 Sep) ─────────────────────────────────────
  *
- * Owner, 4 Sep, of the profile grid: "when clicked it should play at the same
- * place and then make a scroll." Two defects behind one sentence.
+ * "fix the scroll feel that start on the edge, make it a completely new page."
  *
- *   1 · THE COLUMN ARRIVED SOMEWHERE ELSE. You pressed a picture on the right
- *       of a nine-tile wall and the answer appeared centred, at full size, in
- *       the middle of the screen. Nothing was wrong with what it showed — the
- *       post you tapped was at the top — but nothing connected the thing you
- *       pressed to the thing that opened. The column now starts AT the tile's
- *       rectangle and travels to its resting place: one FLIP, measured after
- *       the instant scroll and released on the next paint.
+ * THIS FILE USED TO ASSERT THE OPPOSITE, AND BOTH READINGS ARE THE SAME ASK.
+ * On 4 Sep the ask was "when clicked it should play at the same place and then
+ * make a scroll", and the answer was a dialog that expanded out of the tile's
+ * rectangle and then scrolled ITSELF to the tapped post. The half that worked
+ * — read on from here, videos advancing to the next video — is kept. The half
+ * that produced "starts on the edge" is what a scroll-to-the-post always
+ * produces: the column arrives part-way down a card, the picture cut off at
+ * the top before anybody has touched it.
  *
- *   2 · THE VIDEO ENDED AND THE SCREEN SAT STILL. Autoplay-in-view plays
- *       whatever is on screen; nothing ever moved the screen. So watching two
- *       videos meant watching one and then scrolling for the other by hand.
- *       The end of a clip now scrolls the column to the next post that HAS a
- *       video — the next VIDEO, not the next post, because skipping three
- *       photos to reach one is what "play my videos" means.
+ * The fix is not a better scroll, it is an ORDER. The post you tapped is the
+ * FIRST item on the page and the wall follows it, so there is nothing to
+ * scroll to on arrival — the only way a page opens at its top reliably.
  *
- * THE SUBTLE HALF IS THE LOOP. `loop` was on for every autoplay-in-view video,
- * and a looping video never fires `ended` — so an auto-advance wired to
- * `ended` would have been dead code that typechecked. The loop is off exactly
- * where a listener is waiting, and stays on for the Videos feed.
- *
- * Asserted against the SOURCE: jsdom does not lay out, does not paint a
- * transform, and does not play a video to its end.
+ * Asserted against the SOURCE: jsdom does not lay out, does not paint, and
+ * does not play a video to its end.
  */
-describe('the reader opens where you touched', () => {
-  const reader = code('features/social/pages/Profile.tsx');
+describe('the reader is a page, and it opens at the top', () => {
+  const grid = code('features/social/pages/Profile.tsx');
+  const page = code('features/social/pages/ReaderPage.tsx');
+  const helpers = code('features/social/reader.ts');
   const card = code('features/social/PostCard.tsx');
+  const router = code('app/router.tsx');
 
-  it('carries the touched tile’s rectangle into the reader', () => {
-    expect(reader).toMatch(/originRect\?: DOMRect \| null/);
-    expect(reader).toMatch(/openFrom\.current = e\.currentTarget\.getBoundingClientRect\(\)/);
-    // Both walls — the citizen's own grid and another citizen's — plus the
-    // owner's manage door on a video tile (8 Sep: video tiles tune the TV
-    // instead, and the reader stays for photographs and for the cover/sort
-    // tools, which open from that corner button).
-    expect(reader.match(/getBoundingClientRect\(\); setOpenId/g)?.length).toBe(3);
-    expect(reader.match(/originRect=\{openFrom\.current\}/g)?.length).toBe(2);
+  it('has an address, so Back and reload are the browser’s again', () => {
+    expect(router).toMatch(/path: '\/social\/read\/:id'/);
+    expect(helpers).toMatch(/\/social\/read\/\$\{encodeURIComponent\(postId\)\}/);
   });
 
-  it('inverts before it paints, not after', () => {
-    // useEffect would show the column at rest for one frame and then snap
-    // back to the tile to begin.
-    expect(reader).toMatch(/useLayoutEffect\(\(\) => \{\s*startRef\.current\?\.scrollIntoView/);
-    expect(reader).toMatch(/col\.style\.transform = `translate\(\$\{dx\}px, \$\{dy\}px\) scale\(\$\{sx\}, \$\{sy\}\)`/);
-    // Read back between the two writes, or the browser animates nothing.
-    expect(reader).toMatch(/void col\.offsetWidth;[\s\S]{0,200}col\.style\.transform = 'none'/);
+  it('left the grid entirely — no dialog, no rectangle, no scroll-to-the-post', () => {
+    /* The three moving parts of the overlay, each of which is how the old
+       version arrived mid-card. If any comes back, so does the defect. */
+    expect(grid).not.toMatch(/PostReader/);
+    expect(grid).not.toMatch(/originRect/);
+    expect(grid).not.toMatch(/getBoundingClientRect\(\); setOpenId/);
+    expect(grid).not.toMatch(/aria-modal="true" aria-label="Posts"/);
   });
 
-  it('leaves the travel out when the citizen asked for no motion', () => {
-    expect(reader).toMatch(/prefers-reduced-motion: reduce[\s\S]{0,400}if \(!col \|\| !originRect \|\| reduce/);
+  it('opens on the post you tapped by putting it FIRST, not by scrolling to it', () => {
+    // items.slice(at) — the tapped post, then the wall after it. No
+    // scrollIntoView runs on arrival, which is the whole point.
+    expect(page).toMatch(/const column = at >= 0 \? items\.slice\(at\) : \[\]/);
+    expect(page).not.toMatch(/startRef|scrollIntoView\(\{ block: 'start' \}\)/);
   });
 
-  it('advances to the next VIDEO, and never wraps', () => {
-    expect(reader).toMatch(/post\.media\.some\(\(m\) => m\.kind === 'video'\)/);
-    expect(reader).toMatch(/if \(i < 0 \|\| i \+ 1 >= videoIds\.length\) return;/);
-    expect(reader).toMatch(/onVideoEnded=\{\(\) => advance\(post\.id\)\}/);
+  it('keeps asking for pages until the post is found, and only then says it is not there', () => {
+    // A wall is paged; a reload of this address has none of the grid's pages.
+    expect(page).toMatch(/if \(at >= 0 \|\| !hasNextPage \|\| isFetchingNextPage\) return;\s*void fetchNextPage\(\);/);
+  });
+
+  it('still advances to the next VIDEO, and still never wraps', () => {
+    expect(page).toMatch(/p\.media\.some\(\(m\) => m\.kind === 'video'\)/);
+    expect(page).toMatch(/if \(i < 0 \|\| i \+ 1 >= videoIds\.length\) return;/);
+    expect(page).toMatch(/onVideoEnded=\{\(\) => advance\(p\.id\)\}/);
   });
 
   it('turns the loop off where something is waiting for the end', () => {
+    // Unchanged, and load-bearing for the line above: a looping video never
+    // fires `ended`, so an auto-advance wired to it would be dead code that
+    // typechecked.
     expect(card).toMatch(/loop=\{!onEnded && \(isNew \|\| autoInView\)\}/);
     expect(card).toMatch(/onEnded=\{onEnded\}/);
     // Only the first video of a card reports its end — a carousel of clips
     // would otherwise advance the column three times.
     expect(card).toMatch(/onEnded=\{i === 0 \? onVideoEnded : undefined\}/);
+  });
+
+  it('puts the citizen back on the tile they were reading', () => {
+    /* Back to a grid of ninety tiles lands at the top of it, three screens
+       above the post just closed. The id is left on the way out and TAKEN
+       (once) on the way back, and only cleared when the tile is actually
+       found — so a grid still loading its first page does not swallow it. */
+    expect(grid).toMatch(/rememberTile\(p\.id\); navigate\(/);
+    expect(grid).toMatch(/returnTo\.current = takeRememberedTile\(\)/);
+    expect(grid).toMatch(/returnTo\.current = null;\s*el\.scrollIntoView\(\{ block: 'center' \}\)/);
+    expect(helpers).toMatch(/sessionStorage\.removeItem\(RETURN_KEY\)/);
+  });
+
+  it('reads someone else’s wall through the same page, not a second one', () => {
+    expect(helpers).toMatch(/return handle \? `\$\{base\}\?of=\$\{encodeURIComponent\(handle\)\}` : base;/);
+    expect(page).toMatch(/const of = params\.get\('of'\)/);
+    // …and the author's own tools are the author's: no cover, no sorting, on
+    // a wall that is not yours.
+    expect(page).toMatch(/const mine = !of;/);
+    expect(page).toMatch(/manage=\{mine\}/);
   });
 });

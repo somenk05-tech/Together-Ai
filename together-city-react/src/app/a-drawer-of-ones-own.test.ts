@@ -100,12 +100,19 @@ describe('Entertainment leaves the header for the television', () => {
     expect(NAV.some((n) => n.key === 'entertainment')).toBe(false);
   });
 
-  it('and arrives as key 05 on Together City TV’s rail', () => {
-    const five = HUBS.social.items.find((i) => i.index === '05');
-    expect(five?.path).toBe('/entertainment');
-    expect(five?.label).toBe('Entertainment');
-    // The rail runs 01-05 with nothing skipped.
-    expect(HUBS.social.items.map((i) => i.index)).toEqual(['01', '02', '03', '04', '05']);
+  it('and arrives as the LAST key on Together City TV’s rail', () => {
+    /* IT WAS 05, AND THE NUMBER IS NOT THE POINT — being last is. City Images
+       joined the rail at 02 on 8 Sep, beside the television it is the still
+       half of, and everything below it moved down one. Asserting the literal
+       '05' would have made that ordinary insertion look like a regression in
+       Entertainment, which is the opposite of what this test is here to
+       protect: the one door out of the hub, at the end of the list. */
+    const items = HUBS.social.items;
+    const last = items[items.length - 1];
+    expect(last.path).toBe('/entertainment');
+    expect(last.label).toBe('Entertainment');
+    // The rail is numbered from 01 with nothing skipped and nothing repeated.
+    expect(items.map((i) => i.index)).toEqual(items.map((_, i) => String(i + 1).padStart(2, '0')));
   });
 
   it('but the hub itself is untouched — config, rooms, routes, art', () => {
