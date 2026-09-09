@@ -43,6 +43,18 @@ interface Shelf {
    * the whole of what "coming soon" means here.
    */
   hub?: HubKey;
+  /**
+   * THE SHELF THAT IS NOT A ROOM (owner, 9 Sep: "add a search tab for all
+   * categories and all stores").
+   *
+   * Every shelf here takes its name and line from the rail of the room that
+   * holds its products, which is what keeps the store and the hub saying the
+   * same thing. The market's search has no room — it is a question, answered
+   * from every trade at once — so it carries its own two words. This is the
+   * same exception `soon` is, for the opposite reason: `soon` has no room YET,
+   * and this one never will.
+   */
+  own?: { name: string; line: string };
   /** the room that actually holds the products. A coming-soon shelf has none
    *  — there is no room — which is what stops the tile being a door. */
   path?: string;
@@ -121,6 +133,7 @@ function resolve(shelf: Shelf): ShelfCard | null {
      the point of it. It never drops out of the list the way an unresolvable
      one does — there is nothing here that can go stale. */
   if (shelf.soon) return { ...shelf, name: shelf.soon.name, line: '', hubName: '' };
+  if (shelf.own) return { ...shelf, name: shelf.own.name, line: shelf.own.line, hubName: '' };
   const cfg = HUBS[shelf.hub!];
   const item = cfg?.items.find((i) => i.path === shelf.path);
   if (!item) return null;
@@ -194,6 +207,15 @@ export const OPEN: Shelf[] = [
      order to it — the same answer, for the same reason, as Electronics. */
   { hub: 'services', path: '/services/grocery', category: 'Grocery', shop: 'grocery' },
   { hub: 'services', path: '/services/offers', category: 'Deals & offers' },
+  /* ── SEARCH, AND IT IS LAST ON PURPOSE (owner, 9 Sep) ────────────────────
+     "Add a search tab for all categories and all stores."
+
+     Every tab to its left is a place — a set of trades read as one shelf. This
+     one is a question, answered from every trade at once and bounded only by
+     the distance strip. It sits at the end because a citizen who knows which
+     aisle they want should meet the aisle first; the ones who do not are the
+     ones who scroll to the end of a tab row looking for a search box. */
+  { category: 'Search', shop: 'search', own: { name: 'Search the market', line: 'Every list every shop near you has published' } },
   /* THE JEWELLERY AISLE — the plain shelf, not the bench. It stands beside
      Gemstones and it is not the same shop: a stone at the bench is prescribed
      off a chart and priced by the carat, and this is a shelf somebody walks.

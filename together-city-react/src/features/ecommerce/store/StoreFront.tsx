@@ -59,6 +59,56 @@ export function StoreBar({ shop, back, backLabel, name }: { shop: Shop; back: st
  * reach; it does not know what any of them are made of. A draft is kept
  * locally so typing "2" on the way to "2000" does not save a ₹2 budget.
  */
+/**
+ * ── THE DISTANCE STRIP ──────────────────────────────────────────────────────
+ *
+ * Owner, 9 Sep: "give users a distance tab where they can increase the
+ * distance to search for an item they want."
+ *
+ * IT SAYS WHAT IT IS DOING RATHER THAN WHAT IT COULD DO. With no location
+ * shared there is no radius, so the strip does not draw a set of kilometre
+ * chips nobody can act on — it says which city the shelf is reading and offers
+ * the one control that turns it into a radius. Once a location arrives the
+ * chips appear and the city line goes, because they are two answers to the
+ * same question and only one of them is live.
+ *
+ * A REFUSED LOCATION IS NOT AN ERROR STATE FOR THE SHELF. The browser's own
+ * message is shown, the shelf carries on reading the city, and nothing about
+ * the page is broken — a citizen who does not want to share where they are
+ * still gets their city's shops.
+ */
+function NearBar({ near }: { near: NonNullable<Shop['nearby']> }) {
+  return (
+    <div className="st-near" role="group" aria-label="How far this shelf reaches">
+      {near.centre ? (
+        <>
+          <span className="st-near-l">Within</span>
+          {near.steps.map((km) => (
+            <button key={km} type="button"
+              className={`st-near-k${near.km === km ? ' on' : ''}`}
+              aria-pressed={near.km === km} onClick={() => near.onKm(km)}>
+              {km} km
+            </button>
+          ))}
+          <button type="button" className="st-near-x" onClick={near.onClear}>
+            Whole city
+          </button>
+        </>
+      ) : (
+        <>
+          <span className="st-near-l">
+            {near.fallback ? `Shops in ${near.fallback}` : 'Shops across the city'}
+          </span>
+          <button type="button" className="st-near-k" onClick={near.onFindMe} disabled={near.busy}>
+            {near.busy ? 'Finding you…' : 'Shops near me'}
+          </button>
+        </>
+      )}
+      {near.error && <span role="alert" className="st-near-e">{near.error}</span>}
+    </div>
+  );
+}
+
 function BudgetBar({ budget }: { budget: NonNullable<Shop['budget']> }) {
   const [draft, setDraft] = useState<string>(budget.valueInr === null ? '' : String(budget.valueInr));
   const [seen, setSeen] = useState<number | null>(budget.valueInr);
@@ -173,6 +223,21 @@ export function StoreFront({ shop, floor }: { shop: Shop; floor?: Floor }) {
       {/* THE NUMBER BEFORE THE SHELF, and drawn even when the shelf is empty —
           an empty kit is most often a number set too low, and the way to fix
           it must not vanish with the tiles. */}
+      {/* ── HOW FAR THE SHELF REACHES (owner, 9 Sep) ─────────────────────
+          Above the aisles, because it changes what the aisles CONTAIN — a chip
+          that filters what is on the shelf sits under a control that decides
+          what got onto it. Only the shelves made of local stock carry one. */}
+      {/* The question comes before the radius that bounds it. */}
+      {shop.search && (
+        <div className="st-find">
+          <input className="st-find-i" type="search" value={shop.search.value}
+            onChange={(e) => shop.search?.onChange(e.target.value)}
+            placeholder={shop.search.placeholder} aria-label={shop.search.placeholder} />
+          {shop.search.hint && <p className="st-find-h">{shop.search.hint}</p>}
+        </div>
+      )}
+      {shop.nearby && <NearBar near={shop.nearby} />}
+
       {shop.budget && <BudgetBar budget={shop.budget} />}
 
       {shop.groups && shop.groups.length > 1 && (

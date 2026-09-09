@@ -193,13 +193,58 @@ export interface Shop {
    *  shop quietly claiming it had chosen. */
   countLabel?: string;
   /**
+   * ── HOW FAR THE SHELF REACHES (owner, 9 Sep) ──────────────────────────────
+   *
+   * "The store here should show the combined menu of all the local stores in
+   * the 3 km radius. Also give users a distance tab where they can increase
+   * the distance to search for an item they want."
+   *
+   * Only the shelves made of LOCAL stock have one — grocery and electronics —
+   * because only they have a distance to be within. A beauty shortlist read
+   * off a profile is not nearer or further away.
+   *
+   * `centre` is null until the citizen shares a location, and the shelf falls
+   * back to their city while it is. That is deliberate: a page claiming a 3 km
+   * radius with no idea where the citizen is standing is inventing the one
+   * number the whole control is about.
+   */
+  nearby?: {
+    centre: { lat: number; lng: number } | null;
+    km: number;
+    steps: readonly number[];
+    onKm: (km: number) => void;
+    onFindMe: () => void;
+    onClear: () => void;
+    busy: boolean;
+    error: string | null;
+    /** What the shelf falls back to with no location — the citizen's city. */
+    fallback?: string;
+  };
+  /**
+   * ── A SHELF THAT IS A QUESTION (owner, 9 Sep) ─────────────────────────────
+   *
+   * "Add a search tab for all categories and all stores."
+   *
+   * One shelf in the market is not a set of things — it is whatever the
+   * citizen typed. The shell already draws tiles, aisles, a cart bar and the
+   * distance strip, so a search is that shelf with a box over it rather than a
+   * page of its own that would have to grow all four again.
+   */
+  search?: {
+    value: string;
+    onChange: (v: string) => void;
+    placeholder: string;
+    /** What to say under the box — how many shops answered, or the floor. */
+    hint?: string;
+  };
+  /**
    * WHAT A TILE IS, WHEN IT IS NOT AN ITEM.
    *
-   * Five shelves sell things and the sentence "12 items shortlisted" is true of
-   * all of them. The Grocery Store stopped being one on 9 Sep — its tiles are
-   * SHOPS now, and "3 items near you" is the shell describing a room it does
-   * not understand. The noun comes from the shelf, like every other word on
-   * this screen; absent, it is "item".
+   * The shelves sell things and the sentence "12 items shortlisted" is true of
+   * all of them. The Search tab is not one: what comes back is whatever
+   * answered a question, and "12 items" is the shell describing a room it does
+   * not understand — "12 results" is what a citizen typed for. The noun comes
+   * from the shelf, like every other word on this screen; absent, it is "item".
    */
   itemNoun?: { one: string; many: string };
   isLoading: boolean;

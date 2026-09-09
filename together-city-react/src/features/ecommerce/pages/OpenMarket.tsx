@@ -2,6 +2,8 @@ import { useHubTheme } from '@/hooks/useHubTheme';
 import { openShelves } from '../shelves';
 import { TabbedFloor } from '../store/TabbedFloor';
 import { useElectronicsShop } from '../store/useElectronicsShop';
+import { useGroceryShop } from '../store/useGroceryShop';
+import { useMarketSearchShop } from '../store/useMarketSearchShop';
 import { useGemCounterShop } from '../store/useGemCounterShop';
 import { useBeautyMarketShop, usePetMarketShop, useSupplementsMarketShop } from '../store/useMarketShops';
 
@@ -35,7 +37,12 @@ export function OpenMarket() {
     <TabbedFloor
       path="/ecommerce/market"
       shelves={openShelves()}
-      shopOf={{ 'skin-hair': useBeautyMarketShop, supplements: useSupplementsMarketShop, pets: usePetMarketShop, gemstones: useGemCounterShop, electronics: useElectronicsShop }}
+      /* GROCERY WAS A TAB WITH NO ADAPTER, which is why it opened on the
+         "open in Local Market" pane rather than on a shelf: `TabbedFloor` draws
+         the room card when it cannot find a `shop` key here. It has one now,
+         and it is the SAME adapter the Local Market room uses — one shelf, two
+         doors, the rule this file's own grocery note has kept since 8 Sep. */
+      shopOf={{ 'skin-hair': useBeautyMarketShop, supplements: useSupplementsMarketShop, pets: usePetMarketShop, gemstones: useGemCounterShop, electronics: useElectronicsShop, grocery: useGroceryShop, search: useMarketSearchShop }}
     />
   );
 }

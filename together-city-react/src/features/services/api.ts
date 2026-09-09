@@ -573,10 +573,27 @@ export interface GroceryShelf {
 
 export interface GroceryShelfQuery { city?: string; area?: string; near?: string; withinKm?: number }
 
+/**
+ * ── ONE SEARCH ACROSS EVERY TRADE (owner, 9 Sep) ────────────────────────────
+ *
+ * "Add a search tab for all categories and all stores."
+ *
+ * Every shelf in this hub is bounded to a set of trades because a shelf is a
+ * place. A search is not: somebody typing "atta" or "phone charger" is asking
+ * the city. The rows come back in the shelf's own item shape — the same
+ * `GroceryItem` the grocery and electronics shelves already draw — so a result
+ * carries its shop's name, trade and distance without a second type to keep in
+ * step with the first.
+ */
+export interface MarketSearchQuery { q: string; near?: string; withinKm?: number; city?: string }
+export interface MarketSearchResult { items: GroceryItem[]; total: number; shopCount: number }
+
 export const servicesApi = {
   categories: () => api.get<{ groups: CategoryGroup[] }>('/services/categories').then((r) => r.data),
   places: () => api.get<{ countries: PlaceCountry[] }>('/services/places').then((r) => r.data),
   facets: (city?: string) => api.get<Record<string, number>>('/services/facets', { params: { city } }).then((r) => r.data),
+  searchItems: (q: MarketSearchQuery) =>
+    api.get<MarketSearchResult>('/services/search/items', { params: q }).then((r) => r.data),
   groceryShelf: (q: GroceryShelfQuery) =>
     api.get<GroceryShelf>('/services/grocery/shelf', { params: q }).then((r) => r.data),
   /* THE ELECTRONICS SHELF IS THE SAME SHAPE, from the same two reads, and it
@@ -1038,6 +1055,22 @@ export function useGroceryShelf(q: GroceryShelfQuery) {
   return useQuery({
     queryKey: ['services', 'grocery', q],
     queryFn: () => servicesApi.groceryShelf(q),
+    staleTime: 60_000,
+  });
+}
+/**
+ * TWO CHARACTERS IS THE FLOOR, and it is the server's rule read back rather
+ * than a second one: a one-letter `contains` matches most rows in the table and
+ * no index can help it. Below the floor the query simply does not fire, so the
+ * search tab opens on its own instructions instead of on every item in the
+ * city.
+ */
+export function useMarketSearch(q: MarketSearchQuery) {
+  const term = q.q.trim();
+  return useQuery({
+    queryKey: ['services', 'search', { ...q, q: term }],
+    queryFn: () => servicesApi.searchItems({ ...q, q: term }),
+    enabled: term.length >= 2,
     staleTime: 60_000,
   });
 }

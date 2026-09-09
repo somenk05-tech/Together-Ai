@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { useElectronicsShelf, type GroceryItem, type GroceryShop } from '@/features/services/api';
 import { openSentence, openStateNow, todayIdx } from '@/features/services/hours';
+import { useNearby } from './useNearby';
 import type { Shop, ShopItem } from './types';
 
 /**
@@ -94,7 +95,11 @@ export function useElectronicsShop(
   /* The query waits for the profile read rather than firing twice — once for
      the whole directory and once for the city — which would show a citizen a
      national shelf for a moment and then take half of it away. */
-  const shelf = useElectronicsShelf({ city });
+  /* The same strip the grocery shelf grew (owner, 9 Sep). Both shelves are
+     made of local stock, so both have a distance to be within — and one hook
+     rather than two copies of a radius. */
+  const near = useNearby(city);
+  const shelf = useElectronicsShelf({ city, ...near.query });
 
   /* ONE CLOCK FOR THE WHOLE SHELF, taken once per read rather than per tile:
      forty tiles each calling `new Date()` can straddle a minute boundary and
@@ -138,6 +143,7 @@ export function useElectronicsShop(
 
     items,
     groups,
+    nearby: near.nearby,
     countLabel: shopCount > 0
       ? `from ${shopCount} shop${shopCount === 1 ? '' : 's'} near you`
       : 'on this shelf',

@@ -120,7 +120,10 @@ describe('The shop is the city’s own shelves', () => {
 
   it('takes each card’s name and line from that hub’s own sidebar', () => {
     for (const card of [...fittedShelves(), ...openShelves()]) {
-      if (card.soon) continue;
+      /* Two shelves have no room to take a name from, for opposite reasons: a
+         coming-soon one has no room YET, and the market's search never will —
+         it is a question answered from every trade at once (owner, 9 Sep). */
+      if (card.soon || card.own) continue;
       const item = HUBS[card.hub!].items.find((i) => i.path === card.path);
       expect({ path: card.path, name: card.name, line: card.line })
         .toEqual({ path: card.path, name: item?.label, line: item?.sub });
