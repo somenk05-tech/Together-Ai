@@ -163,7 +163,9 @@ export function StoreFront({ shop, floor }: { shop: Shop; floor?: Floor }) {
         )}
         {shop.items.length > 0 && (
           <p className="st-count">
-            {shop.items.length} item{shop.items.length === 1 ? '' : 's'} {shop.countLabel ?? 'shortlisted'}
+            {shop.items.length}{' '}
+            {shop.items.length === 1 ? (shop.itemNoun?.one ?? 'item') : (shop.itemNoun?.many ?? 'items')}{' '}
+            {shop.countLabel ?? 'shortlisted'}
           </p>
         )}
       </header>

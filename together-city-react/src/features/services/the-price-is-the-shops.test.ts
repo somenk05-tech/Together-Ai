@@ -57,20 +57,44 @@ describe('the catalogue type the browser holds', () => {
   });
 });
 
-describe('the grouped product tile on the shelf', () => {
+describe('the grouped product tile left the room, and the catalogue did not', () => {
   const shelf = code('features/ecommerce/store/useGroceryShop.ts');
 
-  it('computes no price of its own — no average, no sum, no markup', () => {
-    // fromInr arrives from the server, chosen among prices shopkeepers typed.
-    expect(shelf).toMatch(/p\.fromInr/);
+  /**
+   * ── THE PRODUCT WALL WENT (owner, 9 Sep) ──────────────────────────────────
+   *
+   * "Just show the shop name first and when clicked we see the entire menu and
+   * catalogue."
+   *
+   * The room drew every row of every grocer as one wall, with the same pack
+   * across shops grouped into a product tile carrying the cheapest in-stock
+   * price. Nothing on that wall could be bought together — an order is one
+   * shop, one basket, one delivery, which is why every tile's button was that
+   * shop's own door. The button became the whole tile.
+   *
+   * WHAT THIS FILE STILL GUARDS is the half that did not move: the CATALOGUE.
+   * The product master, its sources and its price-free type are untouched, and
+   * the server still groups and prices honestly for whoever reads it next.
+   * What is asserted here is that the client stopped computing anything at
+   * all — the failure mode the deleted tile was written against (an average, a
+   * sum, a "market price" the city made up) cannot come back through a shelf
+   * that no longer holds a price.
+   */
+  it('computes no price of its own — there is no arithmetic left to get wrong', () => {
     expect(shelf).not.toMatch(/reduce\(|\/\s*(offers|p\.offers)\.length|Math\.round\(.*price/i);
+    expect(shelf).not.toMatch(/fromInr/);
+    expect(shelf).not.toMatch(/function productTileOf/);
   });
 
-  it('still says Ask rather than ₹0 when nobody has priced it', () => {
-    expect(shelf).toMatch(/priceLabel:\s*priced\s*\?\s*undefined\s*:/);
+  it('prints no price on a tile that is a shop rather than a thing', () => {
+    // The slot carries the shop's item count through `priceLabel`, which is
+    // the same door the unpriced vegetable used — never ₹0.
+    expect(shelf).toMatch(/priceInr: 0,/);
+    expect(shelf).toMatch(/priceLabel: `\$\{shop\.itemCount\} item/);
   });
 
-  it('draws a row inside its product tile or on its own, never both', () => {
-    expect(shelf).toMatch(/filter\(\(row\)\s*=>\s*!row\.productId\)/);
+  it('sends the citizen to one shop, which is the only thing an order can be', () => {
+    expect(shelf).toMatch(/path: `\/services\/\$\{shop\.slug \?\? shop\.id\}`/);
+    expect(shelf).toMatch(/bag: null/);
   });
 });

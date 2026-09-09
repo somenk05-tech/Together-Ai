@@ -131,28 +131,12 @@ function resolve(shelf: Shelf): ShelfCard | null {
 export const FITTED: Shelf[] = [
   { hub: 'beauty', path: '/beauty/routine', reads: { name: 'Skin & Hair Profile', path: '/beauty/profile' }, shop: 'beauty' },
   { hub: 'fitness', path: '/fitness/supplements', reads: { name: 'Training Profile', path: '/fitness/profile' }, shop: 'supplements' },
-  /* ── THE GROCERY LIST BECAME A GROCERY STORE (owner, 8 Sep) ──────────────
-     "Instead of grocery list create a grocery store with vegetables, food
-     items, household items etc."
-
-     For two weeks this shelf was a DOWNLOAD, and the note here said why: a
-     list of ingredients with no prices on it and no order endpoint behind it,
-     so a storefront would have been a till the city did not have. That was
-     true of the NUTRITION hub's list and it is still true of it — nothing has
-     changed on /nutrition/grocery, which still prints and still downloads.
-
-     What changed is that the shelf is somebody else's now. Every row on it was
-     typed by a local grocer, supermarket, sabzi market, bakery, butcher or
-     fish shop into their own menu, at their own price, behind their own
-     sold-out switch — and every one of those trades already has a cart, a
-     wallet payment and an order counter on its own page. So the shelf is real
-     stock at real prices, and it opens the shop rather than a till of its own.
-
-     IT READS WHERE YOU LIVE RATHER THAN WHAT YOU EAT, and that is a `reads`
-     entry like any other: this floor's promise is "only what's right for you",
-     and for groceries what is right for you is your own city's shops instead
-     of a national catalogue. */
-  { hub: 'services', path: '/services/grocery', reads: { name: 'city', path: '/profile' }, shop: 'grocery' },
+  /* THE GROCERY STORE MOVED TO THE MARKET FLOOR (owner, 9 Sep). See OPEN
+     below for the shelf and the argument; it was here from 8 Sep until this
+     morning, on the reading that "your own city's shops rather than a national
+     catalogue" was a personalisation. It is not one — it is where the shop is.
+     Nothing on that shelf is ranked, scored or shortlisted, which is the one
+     promise this floor makes. */
   { hub: 'astrology', path: '/astrology/gemstones', reads: { name: 'Astrology Profile', path: '/profile/astrology' }, shop: 'gemstones' },
   /* AND THIS ONE IS CALLED "PETS" RATHER THAN "DIET PLAN" (owner, 23 Aug).
      The room is called Diet plan and stays called that — inside the Pets rail
@@ -192,6 +176,23 @@ export const OPEN: Shelf[] = [
      Its stock is the Local Market's, like the grocery shelf's: the rows
      electronics stores and mobile shops published themselves. */
   { hub: 'services', path: '/services/electronics', category: 'Electronics', shop: 'electronics' },
+  /* ── THE GROCERY STORE, MOVED HERE FROM THE OTHER FLOOR (owner, 9 Sep) ──
+     It stood in the Personalized Store from 8 Sep, and the argument written
+     there was that it reads WHERE YOU LIVE rather than what you eat — a
+     `reads` entry like the beauty routine's skin profile.
+
+     That argument does not hold, and the electronics shelf two lines up is why
+     it does not. Both are the Local Market's own rows, both are bounded to the
+     citizen's city, and neither ranks, scores or shortlists anything. A city
+     bound is not a shortlist: it is where the shop physically is, and every
+     shelf in the city would carry one if the city sold anything you could not
+     post. The Personalized Store's promise is that something read a profile
+     and CHOSE; nothing chose here, and a shelf standing on that floor while
+     choosing nothing is the floor quietly overclaiming.
+
+     So it stands in the market, where the promise is the whole shelf and no
+     order to it — the same answer, for the same reason, as Electronics. */
+  { hub: 'services', path: '/services/grocery', category: 'Grocery', shop: 'grocery' },
   { hub: 'services', path: '/services/offers', category: 'Deals & offers' },
   /* THE JEWELLERY AISLE — the plain shelf, not the bench. It stands beside
      Gemstones and it is not the same shop: a stone at the bench is prescribed

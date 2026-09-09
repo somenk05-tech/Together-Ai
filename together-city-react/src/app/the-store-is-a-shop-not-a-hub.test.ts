@@ -259,27 +259,40 @@ describe('Three shelves have shops, and one deliberately does not', () => {
       expect({ key, shelf: SHOPS[key]?.shelf.path }).toEqual({ key, shelf: `/ecommerce/shop/${key}` });
       expect({ key, bag: SHOPS[key]?.bag.path }).toEqual({ key, bag: `/ecommerce/shop/${key}/bag` });
     }
+    /* Grocery left this floor on 9 Sep — see the Open Market block below for
+       why. Three shelves here read a profile; the fourth read a city, which is
+       where a shop is rather than a shortlist of one. */
     expect(FITTED.filter((s) => s.shop).map((s) => s.shop).sort())
-      .toEqual(['beauty', 'gemstones', 'grocery', 'supplements']);
+      .toEqual(['beauty', 'gemstones', 'supplements']);
   });
 
   /**
-   * ── THE GROCERY LIST BECAME A GROCERY STORE (owner, 8 Sep) ────────────────
+   * ── THE GROCERY LIST BECAME A GROCERY STORE (owner, 8 Sep), AND THEN IT
+   *    CHANGED FLOORS (owner, 9 Sep) ────────────────────────────────────────
    *
    * "Instead of grocery list create a grocery store with vegetables, food
-   * items, household items etc."
+   * items, household items etc." — then "move the grocery store from
+   * personalized to open market."
    *
    * The tab was a DOWNLOAD for two weeks, and the note that stood here said
    * why: the nutrition hub's list has no prices on it and no order endpoint
    * behind it, so a storefront would have been a till the city did not have.
    * All of that is still true of /nutrition/grocery, which still prints and
-   * still downloads. What changed is whose shelf this tab draws: local
-   * grocers' own published rows, at their own prices.
+   * still downloads — which is the half of this assertion that has not moved.
+   *
+   * The shelf itself is on the market floor now; this checks it left cleanly
+   * rather than being copied, because a shelf on both floors is two rooms that
+   * disagree the first time either is edited (the gemstone bench is the one
+   * deliberate exception, and it opens two DIFFERENT rooms).
    */
-  it('opens the local grocers’ shelf rather than the nutrition list', () => {
+  it('opens the local grocers’ shelf rather than the nutrition list, on the market floor', () => {
     expect(FITTED.find((s) => s.path === '/nutrition/grocery')).toBeUndefined();
-    const shelf = FITTED.find((s) => s.shop === 'grocery');
+    expect(FITTED.find((s) => s.shop === 'grocery')).toBeUndefined();
+    const shelf = OPEN.find((s) => s.shop === 'grocery');
     expect({ hub: shelf?.hub, path: shelf?.path }).toEqual({ hub: 'services', path: '/services/grocery' });
+    expect(shelf?.category).toBe('Grocery');
+    // Nothing on that floor is ranked, so nothing on this shelf claims to be.
+    expect(shelf?.reads).toBeUndefined();
   });
 
   /**
@@ -289,15 +302,16 @@ describe('Three shelves have shops, and one deliberately does not', () => {
    * cart and a real wallet payment on their own page, so every tile is that
    * shop's door — the gem counter's `design` mechanism, for the same reason.
    */
-  it('takes no money of its own, and says whose counter it is', () => {
+  it('takes no money of its own, and every tile is a shop’s own door', () => {
+    /* THE TILE IS THE SHOP NOW (owner, 9 Sep: "just show the shop name first
+       and when clicked we see the entire menu and catalogue"). It used to be
+       every row of every grocer on one wall, each tile carrying that shop's
+       name in small type and a button to that shop's page. The button was
+       always the honest part — an order is one shop, one basket, one delivery
+       — so it became the whole tile. */
     const grocery = code('features/ecommerce/store/useGroceryShop.ts');
     expect(grocery).toMatch(/bag: null/);
-    expect(grocery).toMatch(/design: \{/);
-    expect(grocery).toMatch(/path: `\/services\/\$\{where\}`/);
-    // The shop's own name is on every tile: a price on this shelf belongs to
-    // somebody, and a tile that did not say whose would be the store quietly
-    // claiming the stock.
-    expect(grocery).toMatch(/brand: row\.shopName/);
+    expect(grocery).toMatch(/design: \{ label: 'Open the shop', path: `\/services\/\$\{shop\.slug \?\? shop\.id\}` \}/);
     // No storefront routes: a pair of routes is what a shop with a BAG earns.
     expect(SHOPS.grocery).toBeUndefined();
   });
@@ -341,9 +355,14 @@ describe('Three shelves have shops, and one deliberately does not', () => {
    * can say "seasonal"; turning that into ₹0 on a tile is the one answer that
    * would be a lie.
    */
-  it('says “ask” where a shop listed no price, and never a number', () => {
+  it('never prints ₹0 in a price slot that has no price behind it', () => {
+    /* The shelf's tiles are shops, and a shop has no price — so the slot
+       carries the one number that decides whether a door is worth opening,
+       through the same `priceLabel` the unpriced vegetable used. The shell
+       still prefers the shelf's word to a number it would have made up. */
     const grocery = code('features/ecommerce/store/useGroceryShop.ts');
-    expect(grocery).toMatch(/priceLabel: priced \? undefined : 'Ask the shop'/);
+    expect(grocery).toMatch(/priceInr: 0,/);
+    expect(grocery).toMatch(/priceLabel: `\$\{shop\.itemCount\} item/);
     const front = code('features/ecommerce/store/StoreFront.tsx');
     expect(front).toMatch(/item\.priceLabel \?\? rupees\(item\.priceInr\)/);
   });
@@ -411,7 +430,7 @@ describe('The Open Market aisles show the whole shelf', () => {
   it('names every aisle that has an adapter, and roots the one with no market route', () => {
     const router = code('app/router.tsx');
     expect(OPEN.filter((s) => s.shop).map((s) => s.shop).sort())
-      .toEqual(['electronics', 'gemstones', 'pets', 'skin-hair', 'supplements']);
+      .toEqual(['electronics', 'gemstones', 'grocery', 'pets', 'skin-hair', 'supplements']);
     expect(AISLES.electronics).toBeUndefined();
     expect(router).not.toContain("path: '/ecommerce/market/electronics'");
     const shelf = OPEN.find((s) => s.shop === 'electronics');

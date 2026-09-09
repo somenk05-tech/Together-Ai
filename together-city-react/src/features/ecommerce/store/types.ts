@@ -192,6 +192,16 @@ export interface Shop {
    *  "shortlisted"; an open shelf is not, and calling it that would be the
    *  shop quietly claiming it had chosen. */
   countLabel?: string;
+  /**
+   * WHAT A TILE IS, WHEN IT IS NOT AN ITEM.
+   *
+   * Five shelves sell things and the sentence "12 items shortlisted" is true of
+   * all of them. The Grocery Store stopped being one on 9 Sep — its tiles are
+   * SHOPS now, and "3 items near you" is the shell describing a room it does
+   * not understand. The noun comes from the shelf, like every other word on
+   * this screen; absent, it is "item".
+   */
+  itemNoun?: { one: string; many: string };
   isLoading: boolean;
   isError: boolean;
   /** Why the shelf is empty, when it is — not "no results" but the reason. */
