@@ -26,6 +26,20 @@ export const SaveFitnessProfileSchema = z.object({
    */
   equipment: z.array(z.enum(EQUIPMENT_KEYS)).max(EQUIPMENT_KEYS.length).optional(),
   daysPerWeek: z.number().int().min(1).max(7).optional(),
+  /**
+   * ── THE DAYS THAT ARE NOT OURS (owner, 9 Sep) ────────────────────────────
+   *
+   * Weekday indices, Monday = 0. At most six, because a citizen who takes all
+   * seven off has not chosen rest days — they have left, and the honest
+   * answer to that is a different conversation than a schema can hold.
+   */
+  restDays: z.array(z.number().int().min(0).max(6)).max(6).optional(),
+  /**
+   * What an off day IS. Free text on purpose: the trainer asked "what would
+   * you rather do", and an answer of "cricket" is a better answer than the
+   * nearest item on a list of six. Never parsed — only printed back.
+   */
+  restActivity: z.string().trim().max(24).optional(),
   limitations: z.string().max(280).optional(),
   place: z.enum(['home', 'gym']).optional(),
   sessionMinutes: z.number().int().min(15).max(120).optional(),
@@ -33,6 +47,25 @@ export const SaveFitnessProfileSchema = z.object({
   method: z.enum(['wallet', 'card']).optional(),
 });
 export type SaveFitnessProfileDto = z.infer<typeof SaveFitnessProfileSchema>;
+
+/**
+ * ── THE WEEK, ON ITS OWN ────────────────────────────────────────────────────
+ *
+ * Not part of SaveFitnessProfile, and that is a pricing decision as much as a
+ * shape one. Saving the training profile is metered — five free changes a
+ * month, then ₹50 — because it is the citizen changing their mind about who
+ * they are. Moving a rest day is not that: it is somebody looking at their
+ * week and telling the trainer that Wednesday is gone. A control the owner
+ * wants people to press should never be one they are charged for pressing.
+ *
+ * `restDays: []` is a real answer — "no days off" — and reaches the column as
+ * an empty string; the field being ABSENT is what leaves it alone.
+ */
+export const SaveTrainingWeekSchema = z.object({
+  restDays: z.array(z.number().int().min(0).max(6)).max(6).optional(),
+  restActivity: z.string().trim().max(24).optional(),
+});
+export type SaveTrainingWeekDto = z.infer<typeof SaveTrainingWeekSchema>;
 
 /** Where the work happened. The log's own list, longer than the profile's
  *  `place`: that one instructs the session engine, which can only program the

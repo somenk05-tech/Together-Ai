@@ -1855,6 +1855,21 @@ model FitnessProfile {
   /// fitness/programme-engine.ts), and roll into a new cycle every 28 days.
   /// Null until the citizen has opened it.
   programmeStart DateTime?
+  /// ── THE DAYS THAT ARE NOT OURS (owner, 9 Sep) ─────────────────────────────
+  /// CSV of weekday indices, Monday = 0 … Sunday = 6: the days the citizen
+  /// keeps for their own life. NULL means never asked, and the calendar's own
+  /// placement stands — which is every month built before 9 Sep, so an empty
+  /// column reads exactly as it did.
+  ///
+  /// These WIN over `daysPerWeek`. A citizen who asks for five days and keeps
+  /// three has four, and the programme is rebuilt as a four-day split rather
+  /// than a five-day one squeezed into four; the month says so out loud.
+  restDays   String?
+  /// WHAT AN OFF DAY IS: 'rest', one of OFF_DAY_ACTIVITIES, or the citizen's
+  /// own word for it, printed as they typed it. NULL or 'rest' means a real
+  /// rest day. It is never parsed for meaning — a trainer asked "what would
+  /// you rather do" and this is the answer, not an instruction to a machine.
+  restActivity String?
   /// WHAT THEY WILL SPEND ON SUPPLEMENTS, ₹ a month, total — the citizen's own
   /// number (owner, 5 Sep). Null = never set; the kit is then one best-quality
   /// pack per recommended supplement with no cap. Read by

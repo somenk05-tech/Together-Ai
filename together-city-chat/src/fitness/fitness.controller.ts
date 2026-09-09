@@ -10,11 +10,13 @@ import {
   EditWorkoutSchema,
   LogWorkoutSchema,
   SaveFitnessProfileSchema,
+  SaveTrainingWeekSchema,
   TodaySessionQueryDto,
   TodaySessionQuerySchema,
   type EditWorkoutDto,
   type LogWorkoutDto,
   type SaveFitnessProfileDto,
+  type SaveTrainingWeekDto,
 } from './dto/fitness.dto';
 import {
   SupplementBagSchema, type SupplementBagDto,
@@ -74,6 +76,19 @@ export class FitnessController {
   @Get('programme')
   programme(@CurrentUser() user: JwtUser) {
     return this.fitness.programme(user.sub);
+  }
+
+  /**
+   * PUT /api/fitness/programme/week — which days the citizen keeps for their
+   * own life, and what they do on them (owner, 9 Sep). Its own route rather
+   * than two more fields on the profile save, because the profile save is
+   * METERED and a rest-day toggle must not cost ₹50. Returns the rebuilt
+   * month, so the grid redraws from the answer rather than from a refetch.
+   */
+  @Put('programme/week')
+  @UsePipes(new ZodValidationPipe(SaveTrainingWeekSchema))
+  saveTrainingWeek(@CurrentUser() user: JwtUser, @Body() dto: SaveTrainingWeekDto) {
+    return this.fitness.saveTrainingWeek(user.sub, dto);
   }
 
   @Get('body-goal')

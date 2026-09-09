@@ -96,10 +96,79 @@ export const SPLITS: Record<number, SplitDay[]> = {
 };
 
 /** Which weekdays (Mon = 0) the training days land on, so hard days have rest
- *  between them where the week allows it. */
+ *  between them where the week allows it. The default, used whenever the
+ *  citizen has not said which days are theirs — see `placeTraining` below. */
 const PLACEMENT: Record<number, number[]> = {
   1: [0], 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 3, 4], 6: [0, 1, 2, 3, 4, 5],
 };
+
+export const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
+
+/**
+ * ── WHAT A CITIZEN DOES ON A DAY OFF (owner, 9 Sep) ─────────────────────────
+ *
+ * "Let the user decide which two days they want a break — or if they don't
+ * want a break, what they can do: maybe just a walk or a run or a swim,
+ * something else."
+ *
+ * That last clause is the whole design. A trainer asked for seven training
+ * days does not say yes and does not say no; they say *the seventh day is
+ * easy*, and then ask what easy looks like for you. So an off day is never
+ * nothing-or-everything: it is either genuine rest or one of these, and the
+ * citizen picks which.
+ *
+ * `rest` is first because it is the answer a trainer gives by default.
+ */
+export const OFF_DAY_ACTIVITIES = ['rest', 'walk', 'run', 'swim', 'cycle', 'yoga'] as const;
+export type OffDayActivity = (typeof OFF_DAY_ACTIVITIES)[number] | string;
+
+const OFF_DAY_WORDS: Record<string, { title: string; parts: string; note: string; minutes: number }> = {
+  rest: { title: 'Rest', parts: 'recovery', minutes: 20, note: 'A rest day is training too. A 20-minute walk, water, and sleep.' },
+  walk: { title: 'Walk', parts: 'easy movement', minutes: 40, note: 'Easy on purpose. Brisk enough to be breathing, easy enough to talk — this is recovery, not a session.' },
+  run: { title: 'Run', parts: 'easy movement', minutes: 30, note: 'Keep it conversational. If you finish this wanting to lie down, it was too fast to count as a day off.' },
+  swim: { title: 'Swim', parts: 'easy movement', minutes: 30, note: 'Steady lengths, nothing timed. The water takes the load off everything you trained this week.' },
+  cycle: { title: 'Cycle', parts: 'easy movement', minutes: 45, note: 'Flat and easy, spinning rather than grinding. Save the hills for a training day.' },
+  yoga: { title: 'Yoga', parts: 'mobility & breath', minutes: 30, note: 'Whatever length you have. Range and breathing today — nothing that leaves you sore tomorrow.' },
+};
+
+/** A citizen's own word for it, printed as they wrote it. */
+function offDay(activity: string | undefined): { title: string; parts: string; note: string; minutes: number } {
+  const key = (activity ?? 'rest').trim();
+  if (!key) return OFF_DAY_WORDS.rest;
+  const known = OFF_DAY_WORDS[key.toLowerCase()];
+  if (known) return known;
+  return {
+    title: key.slice(0, 24),
+    parts: 'easy movement',
+    minutes: 30,
+    note: 'Your own choice for a day off — keep it easy. If it leaves you sore tomorrow it was a training day, and this month already has enough of those.',
+  };
+}
+
+/**
+ * WHERE THE TRAINING DAYS LAND, once the citizen has said which days are
+ * theirs. The rest days WIN: they are somebody's Sunday lunch and somebody
+ * else's night shift, and a plan that argues with a life is a plan that gets
+ * abandoned in week two. What gives instead is the number of training days,
+ * and the trainer says so out loud rather than quietly building a shorter week.
+ *
+ * The default placement is kept wherever it still fits inside the days the
+ * citizen left free — so a citizen who picks Saturday and Sunday, which is
+ * what the calendar assumed all along, gets exactly the week they had before.
+ */
+export function placeTraining(days: number, restDays: readonly number[] | undefined): number[] {
+  const fallback = PLACEMENT[days] ?? PLACEMENT[3];
+  if (!restDays || restDays.length === 0) return fallback;
+  const off = new Set(restDays.filter((d) => d >= 0 && d <= 6));
+  if (off.size === 0) return fallback;
+  const free = [0, 1, 2, 3, 4, 5, 6].filter((d) => !off.has(d));
+  if (free.length === 0) return [];
+  if (fallback.every((d) => !off.has(d))) return fallback;
+  const n = Math.min(days, free.length);
+  /* Evenly spaced through the days that are left, so two hard days do not end
+     up back to back when a whole free day sits between them. */
+  return Array.from({ length: n }, (_, i) => free[Math.floor((i * free.length) / n)]);
+}
 
 /**
  * THE MONTH IN PHASES. Sets against the goal's prescription, reps against its
@@ -151,6 +220,25 @@ export interface ProgrammeDay {
   note: string;
 }
 
+/**
+ * WHAT THE CITIZEN CHOSE, AND WHAT THE TRAINER MADE OF IT. Carried on the
+ * programme rather than worked out again on the web, so the words a citizen
+ * reads about their own week are written once, next to the code that acted
+ * on them.
+ */
+export interface ProgrammeRest {
+  /** Weekday indices, Monday = 0, as the citizen set them. */
+  days: number[];
+  /** 'rest' | 'walk' | … | whatever they typed. */
+  activity: string;
+  /** 'Saturday and Sunday' — for printing. */
+  label: string;
+  /** Whether the citizen set these, or the calendar did. */
+  chosen: boolean;
+  /** The trainer talking: what this choice costs, and what it buys. */
+  advice: string[];
+}
+
 export interface Programme {
   startDate: string;
   /** 0–27, or -1 before the start and 28 after the end (the service rolls the month). */
@@ -161,6 +249,8 @@ export interface Programme {
   days: ProgrammeDay[];
   /** Why the month is shaped this way — every clause names an input. */
   why: string[];
+  /** The days off, and the trainer's word on them. */
+  rest: ProgrammeRest;
 }
 
 export interface ProgrammeInput {
@@ -190,6 +280,16 @@ export interface ProgrammeInput {
   seed: string;
   /** Which 28-day cycle this is, so a second month is not the first again. */
   cycle: number;
+  /**
+   * ── THE DAYS THAT ARE NOT OURS (owner, 9 Sep) ────────────────────────────
+   *
+   * Weekday indices, Monday = 0. Empty or absent means the citizen has not
+   * said, and the calendar's own placement stands — which is what every month
+   * built before today used.
+   */
+  restDays?: number[];
+  /** What an off day IS: 'rest', or the easy thing they would rather do. */
+  restActivity?: string;
 }
 
 // ── the pool ────────────────────────────────────────────────────────────────
@@ -292,11 +392,23 @@ const SPLIT_NAMES: Record<number, string> = {
 };
 
 export function buildProgramme(input: ProgrammeInput): Programme {
-  const days = Math.min(6, Math.max(1, Math.round(input.daysPerWeek)));
+  const asked = Math.min(6, Math.max(1, Math.round(input.daysPerWeek)));
+  const restDays = [...new Set((input.restDays ?? []).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b);
+  /**
+   * THE DAYS OFF WIN, AND THE SPLIT IS REBUILT AROUND THEM (owner, 9 Sep).
+   * A citizen who asks for five days and then keeps three of them for their
+   * own life has four — and a trainer writes them a FOUR-day split, not a
+   * five-day split crammed into four. `asked` is kept so the month can say
+   * what it did and why, which is the difference between being consulted and
+   * being overruled.
+   */
+  const free = restDays.length ? 7 - restDays.length : 7;
+  const days = Math.max(1, Math.min(asked, free));
   const goal = GOAL_PRESCRIPTION[input.bodyGoal] ?? GOAL_PRESCRIPTION.athletic;
   const lvl = LEVEL_ADJUST[input.level] ?? LEVEL_ADJUST.intermediate;
   const split = SPLITS[days] ?? SPLITS[3];
-  const placement = PLACEMENT[days] ?? PLACEMENT[3];
+  const placement = placeTraining(days, restDays);
+  const off = offDay(input.restActivity);
   const pool = poolFor(input.equipment, input.conditions);
 
   // A walking or running month keeps two strength days and gives the rest of
@@ -361,7 +473,13 @@ export function buildProgramme(input: ProgrammeInput): Programme {
     const base = { index: i, date, week, phase: phase.key };
 
     if (slotInWeek < 0) {
-      out.push({ ...base, kind: 'rest', title: 'Rest', parts: 'recovery', muscles: [], exercises: [], cardioMinutes: 20, note: 'A rest day is training too. A 20-minute walk, water, and sleep.' });
+      /* NOT ALWAYS THE WORD "REST" (owner, 9 Sep). A citizen who said they
+         would rather swim on a day off gets a day that says Swim, with the
+         trainer's reason for keeping it easy. The KIND stays 'rest' because
+         that is what it is to the programme — a day off the split — and
+         every reader of `kind` is asking that question, not what the citizen
+         does with the afternoon. */
+      out.push({ ...base, kind: 'rest', title: off.title, parts: off.parts, muscles: [], exercises: [], cardioMinutes: off.minutes, note: off.note });
       continue;
     }
     if (slotInWeek >= strengthDays) {
@@ -395,6 +513,44 @@ export function buildProgramme(input: ProgrammeInput): Programme {
     });
   }
 
+  /**
+   * ── THE TRAINER ANSWERS THE CHOICE (owner, 9 Sep: "act as a trainer
+   * consulting the user") ────────────────────────────────────────────────
+   *
+   * A trainer does not silently absorb what you ask for. They tell you what
+   * it costs, what it buys, and where they had to give. Each line below fires
+   * on a condition that is actually true of THIS week — a paragraph that
+   * appears whatever you chose is decoration, and gets ignored as such.
+   */
+  const trained = placement.length;
+  const restLabel = restDays.length
+    ? restDays.map((d) => WEEKDAY_NAMES[d]).reduce((acc, w, i, all) => i === 0 ? w : i === all.length - 1 ? `${acc} and ${w}` : `${acc}, ${w}`, '')
+    : [0, 1, 2, 3, 4, 5, 6].filter((d) => !placement.includes(d)).map((d) => WEEKDAY_NAMES[d]).reduce((acc, w, i, all) => i === 0 ? w : i === all.length - 1 ? `${acc} and ${w}` : `${acc}, ${w}`, '');
+  const advice: string[] = [];
+  if (!restDays.length && off.title !== 'Rest') {
+    /* "IF THEY DON'T WANT A BREAK, WHAT THEY CAN DO" (owner, 9 Sep). A citizen
+       who has named an easy activity without naming days has answered the
+       second half of the question and not the first, and telling them they
+       have said nothing would be false — and would bury the half they did
+       answer under a nag about the half they did not. */
+    advice.push(`You have not said which days are yours, so the month takes ${restLabel} — and on those you ${off.title.toLowerCase()} rather than stop, which is what you asked for. Name the days that actually suit your week and they move.`);
+  } else if (!restDays.length) {
+    advice.push(`You have not told us which days are yours, so the month takes ${restLabel} off. Say which days suit your week and it moves — a plan that argues with your life is a plan you abandon in week two.`);
+  } else if (trained < asked) {
+    advice.push(`You asked for ${asked} training day${asked === 1 ? '' : 's'} and kept ${restDays.length} of the week for yourself, which leaves ${trained}. The days off win — they are the ones with a reason outside this app — so this is a ${SPLIT_NAMES[trained] ?? SPLIT_NAMES[3]} month rather than a ${SPLIT_NAMES[asked] ?? SPLIT_NAMES[3]} one, and every muscle still gets its turn.`);
+  } else {
+    advice.push(`${restLabel} ${restDays.length === 1 ? 'is' : 'are'} yours. The ${trained} training days are spread through what is left so two hard days are not stacked back to back.`);
+  }
+  if (restDays.length === 0 && trained >= 7) {
+    /* SEVEN HARD DAYS IS NOT A PLAN, and the honest thing is to say so once
+       and then still build the week they asked for — with the seventh day
+       easy, which is the trainer's actual answer. */
+    advice.push('Seven hard days a week is how people stop, not how they get strong. Keep at least one easy — that is the day your body does the building the other six asked for.');
+  }
+  if (off.title !== 'Rest') {
+    advice.push(`Your days off are a ${off.title.toLowerCase()} rather than nothing at all — good, as long as it stays easy. If it leaves you sore, it was a training day and the week is really ${trained + restDays.length} hard days, not ${trained}.`);
+  }
+
   const why = [
     `You can give ${days} day${days === 1 ? '' : 's'} a week, so the month is ${SPLIT_NAMES[days] ?? SPLIT_NAMES[3]}: every muscle is worked, then left alone long enough to grow.`,
     `Your body goal sets the work — ${goal.sets + lvl.sets} sets of ${goal.reps[0]}–${goal.reps[1]} at your level, with ${goal.restSec + lvl.restSec}s rest — and the four weeks move through base, build, peak and deload.`,
@@ -415,5 +571,12 @@ export function buildProgramme(input: ProgrammeInput): Programme {
     phases: PHASES,
     days: out,
     why,
+    rest: {
+      days: restDays.length ? restDays : [0, 1, 2, 3, 4, 5, 6].filter((d) => !placement.includes(d)),
+      activity: (input.restActivity ?? 'rest').trim() || 'rest',
+      label: restLabel,
+      chosen: restDays.length > 0,
+      advice,
+    },
   };
 }

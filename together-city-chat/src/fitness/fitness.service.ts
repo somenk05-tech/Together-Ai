@@ -17,13 +17,16 @@ import {
 import { buildSession, type LevelKey, type BodyGoalKey, type SessionInput, type Intensity } from './session-engine';
 import { buildProgramme, daysBetween, type Muscle } from './programme-engine';
 import { EQUIPMENT_KEYS, type Condition, type Equipment , type Pattern } from './exercise-library';
-import type { SaveFitnessProfileDto, LogWorkoutDto, EditWorkoutDto, TodaySessionQueryDto } from './dto/fitness.dto';
+import type { SaveFitnessProfileDto, SaveTrainingWeekDto, LogWorkoutDto, EditWorkoutDto, TodaySessionQueryDto } from './dto/fitness.dto';
 
 const DEFAULT_PROFILE = {
   age: 35, sex: 'other', level: 'beginner', mode: 'mixed', goal: 'general', conditions: [] as string[],
   heightCm: null as number | null, weightKg: null as number | null, bodyGoal: 'athletic',
   equipment: [] as string[], daysPerWeek: null as number | null, limitations: null as string | null,
   place: null as string | null, sessionMinutes: null as number | null,
+  /* Null, not [] and not 'rest'. "Never asked" and "asked, and they said none"
+     have to stay tellable apart here for the same reason `equipment` does. */
+  restDays: null as number[] | null, restActivity: null as string | null,
 };
 
 /** How a nutrition goal reads in a sentence. The note names the setting that
@@ -82,6 +85,12 @@ export class FitnessService {
       limitations: row.limitations ?? null,
       place: row.place ?? null,
       sessionMinutes: row.sessionMinutes ?? null,
+      /* A csv of weekday indices in, a sorted list of numbers out, and an
+         empty string reads as "never asked" exactly as `equipment` does. */
+      restDays: row.restDays
+        ? [...new Set(row.restDays.split(',').map((n) => Number(n)).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))].sort((a, b) => a - b)
+        : null,
+      restActivity: row.restActivity ?? null,
       saved: true, options: this.optionsFor(sex),
     };
   }
@@ -143,6 +152,12 @@ export class FitnessService {
       // shorter form both write through here.
       equipment: dto.equipment ? dto.equipment.join(',') : undefined,
       daysPerWeek: dto.daysPerWeek ?? undefined,
+      /* An EMPTY array is an answer — "no days off, I train every day" — and
+         it has to reach the column as '' rather than be swallowed by the
+         `?? undefined` rule above, which exists for fields a short form did
+         not send. `undefined` is still what an absent field sends. */
+      restDays: dto.restDays ? dto.restDays.join(',') : undefined,
+      restActivity: dto.restActivity ?? undefined,
       limitations: dto.limitations ?? undefined,
       place: dto.place ?? undefined,
       sessionMinutes: dto.sessionMinutes ?? undefined,
@@ -330,6 +345,25 @@ export class FitnessService {
    * of the profile and the day, so it is the same on every open and moves
    * the moment the profile does. Done marks come from the workout log.
    */
+  /**
+   * ── THE CITIZEN MOVES THEIR OWN WEEK (owner, 9 Sep) ───────────────────────
+   *
+   * Two columns, written on their own and never through `saveProfile`. That
+   * is deliberate: the profile save is metered, and a rest-day toggle the
+   * owner wants pressed is not a change of mind about who somebody is. It
+   * also does not set `answeredAt` — a citizen who has moved a rest day has
+   * not filled in their training profile, and pretending otherwise would make
+   * every default on the row read as an answer.
+   */
+  async saveTrainingWeek(userId: string, dto: SaveTrainingWeekDto) {
+    const data = {
+      restDays: dto.restDays ? [...new Set(dto.restDays)].sort((a, b) => a - b).join(',') : undefined,
+      restActivity: dto.restActivity ?? undefined,
+    };
+    await this.prisma.fitnessProfile.upsert({ where: { userId }, update: data, create: { userId, ...data } });
+    return this.programme(userId);
+  }
+
   async programme(userId: string) {
     const profile = await this.getProfile(userId);
     const today = cityDay(new Date());
@@ -359,6 +393,11 @@ export class FitnessService {
       daysPerWeek: profile.daysPerWeek ?? levelDef(profile.level).days,
       level: profile.level as LevelKey, mode: profile.mode, bodyGoal: profile.bodyGoal as BodyGoalKey,
       equipment, place: profile.place === 'gym' ? 'gym' : 'home', conditions, seed: userId, cycle,
+      /* THE CITIZEN'S OWN WEEK (owner, 9 Sep). Null travels as undefined, and
+         the engine's fallback is the calendar's placement — the month every
+         citizen had before they were asked. */
+      restDays: profile.restDays ?? undefined,
+      restActivity: profile.restActivity ?? undefined,
     });
     /* A computation, and one the WHERE already bounds: the 28 days of the cycle
        on screen, reduced below to a Set of the days that were done. A `take`
