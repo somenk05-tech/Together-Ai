@@ -1,10 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useHubTheme } from '@/hooks/useHubTheme';
 import { useAuthStore } from '@/store/auth.store';
 import { CityHeader } from '@/components/CityHeader';
 import { RecentPanel } from '@/components/RecentPanel';
-import { HUBS, hubDoor, hubIsOpen } from '@/config/hubs';
+import { HUBS } from '@/config/hubs';
 import { useCityDesign, useMiraShown } from '@/hooks/useCityDesign';
 import type { HubKey } from '@/types';
 import { InstallCity } from '@/components/InstallCity';
@@ -24,6 +24,38 @@ import { Icon } from '@/components/ui/Icon';
    not already answer; and if the map ever comes back as a section of its own,
    it comes back against the picture it is measured for, not against these
    numbers. git remembers them. */
+
+/* ═══ THE REEL ═══════════════════════════════════════════════════════════════
+   TWO FILMS, NOT ONE (owner, 8 Sep). The hero used to be a single commercial
+   with `loop` on the element, which is the browser's own one-clip repeat. A
+   second film cannot be added to that: `loop` restarts the file it is set on
+   and knows nothing about a next one.
+
+   So the reel is kept here instead — the first film, then the second, then
+   round again, for as long as the page is open. Both cuts of each film are
+   listed so <source media> still picks the phone file before a byte is
+   downloaded, and each film keeps its own poster frame so the first paint is
+   the picture that is about to move rather than a black rectangle. */
+interface Film { phone: string; wide: string; poster: string; label: string; }
+/* The phone cut is written FIRST in each entry because it is offered first in
+   the markup: <source media> is read top down and the browser stops at the
+   first rule it matches, so the small file has to precede the large one or a
+   phone downloads fifteen megabytes to show a five-inch picture. Keeping the
+   fields in the order the sources are emitted means the two can never drift. */
+const FILMS: Film[] = [
+  {
+    phone: '/assets/video/together-city-commercial-phone.mp4',
+    wide: '/assets/video/together-city-commercial.mp4',
+    poster: 'together-city-commercial.webp',
+    label: 'Together City — the film',
+  },
+  {
+    phone: '/assets/video/together-city-commercial-2-phone.mp4',
+    wide: '/assets/video/together-city-commercial-2.mp4',
+    poster: 'together-city-commercial-2.webp',
+    label: 'Together City — the second film',
+  },
+];
 
 interface Pavilion { to: string; img: string; title: string; }
 const PAVILIONS: Pavilion[] = [
@@ -52,12 +84,6 @@ const PAVILIONS: Pavilion[] = [
    entry is gone, so the slice would now be a rule with nothing to enforce. */
 const FALLBACK = PAVILIONS;
 
-/**
- * "Walk the districts" — the hub landing heroes laid out inline on the home
- * page, full-bleed and stacked so you scroll through them one by one. Each
- * panel links straight INTO the hub (its first inner page), not the hub
- * landing, so the landing isn't shown twice. Copy comes from the hub config.
- */
 /**
  * THE DISTRICTS' OWN VOICE (owner's master list, 9 Aug 2026).
  *
@@ -188,67 +214,25 @@ export function splitDistrictLine(line: string): { lead: string; emph: string } 
   return { lead: line.slice(0, at + 1), emph: line.slice(at + 1).trim() };
 }
 
-interface Panel { key: HubKey; img: string; }
-const PANELS: Panel[] = [
-  // No travel plate: the district left the walk (owner, 15 Aug).
-  { key: 'astrology', img: 'astrology-hub.webp' },
-  { key: 'nutrition', img: 'nutrition-and-groceies.webp' },
-  { key: 'social', img: 'social-life.webp' },
-  { key: 'dating', img: 'dating-hub.webp' },
-  { key: 'realestate', img: 'real-estate.webp' },
-  { key: 'jobs', img: 'jobs-hub.webp' },
-  { key: 'medical', img: 'medical-hub.webp' },
-  { key: 'beauty', img: 'beautymarket.webp' },
-  { key: 'fitness', img: 'fitness-hero.webp' },
-  { key: 'services', img: 'local-services.webp' },
-  /* E-COMMERCE IS BACK ON THE WALK (owner, 22 Aug). The only thing worth
-     saying about it is the difference from the plate removed on 10 Aug: that
-     one read "Coming soon" because there was no hub for the key, and this one
-     has two rooms behind it, so the `soon` branch below never sees it. */
-  { key: 'ecommerce', img: 'e-commerce.webp' },
-  // Pet Care spent four days on this walk as a photograph with "Coming soon"
-  // under it — the first hub ever to stand in the `is-soon` branch below. It
-  // has sixteen rooms now, so the branch is unused again and this plate is a
-  // link like the other twelve.
-  { key: 'pets', img: 'pets-hub.webp' },
-  /* THREE PLATES CAME OFF THE WALK (owner, 7 Sep): Entertainment, Financial
-     and Personalize. They are not three of a kind and the reason is different
-     each time, which is why none of them is deleted:
+/* ═══ THE WALK IS GONE (owner, 9 Sep: "remove walk the hub") ════════════════
+   Thirteen photographs of hub landings, three to a row, under the film. It was
+   the home page's longest section and, by the end, its most redundant one: the
+   header carries the four doors, the hero carries the same four as glass
+   pills, Personalize carries these very districts as banners the owner drew
+   himself, the foot grid carries twelve tiles, and the command palette carries
+   all of them. A citizen who scrolled past the film met the city a fourth
+   time.
 
-       ENTERTAINMENT left the header this morning for key 05 on Together TV's
-       rail — a hub whose whole question is "what do I watch tonight", answered
-       one door under the screen. A billboard here sends the same person the
-       long way round.
-       FINANCIAL left the street on 22 Aug for the Personal drawer, on the
-       argument that money is not a district you walk through. It kept a plate
-       on this walk anyway, which was the old decision still standing on the
-       one surface nobody re-read.
-       PERSONALIZE is the door onto the ten districts that read a profile —
-       and this walk IS ten of those districts, at full width, one to a row. A
-       plate advertising the room you are standing in is the walk's own table
-       of contents laid on top of the walk.
+   WHAT WENT: PANELS (which district wears which photograph), DISTRICTS (its
+   alphabetical sort) and the section that drew them.
 
-     WHAT THEY KEEP: their route, their hub, their tile in the foot grid, their
-     building on the map, their entry in the command palette and their switch
-     on Design Your Services. Hidden is not deleted — Travel's rule since
-     15 Aug, and the reason DESIGNABLE_HUBS is untouched by this. */
-];
-
-
-/**
- * THE ORDER YOU WALK THEM IN: A TO Z, BY WHAT THE PLATE SAYS.
- *
- * The owner asked for alphabetical. Sorted here rather than retyped into
- * PANELS because the two can disagree: a district's billboard name is not its
- * key and not always its hub name — `dating` reads "Matchmaking" and sorts
- * under M, `services` reads "Local Services" and sorts under L. A hand-typed
- * order would be correct today and quietly wrong the first time a district is
- * renamed. This cannot be.
- *
- * PANELS keeps its own order because it is a different list: which districts
- * exist and which photograph each one wears.
- */
-const DISTRICTS: Panel[] = [...PANELS].sort((a, b) => districtName(a.key).localeCompare(districtName(b.key)));
+   WHAT STAYED, and why none of it is orphaned: DISTRICT_COPY and the three
+   readers below it are the master list of what each district is CALLED and
+   what it SAYS, and Personalize imports all three for its banners — that copy
+   was never the walk's, it only happened to be printed there first. The foot
+   grid, the routes, the map buildings, the palette entries and the Design Your
+   Services switches are untouched. `.district-card*` stays in relief.css for
+   the same reason: Personalize's banners wear it (the-poster-is-a-room). */
 
 /** City home — the pavilion city, ported 1:1 from index.html. */
 export function Home() {
@@ -267,13 +251,33 @@ export function Home() {
   const { hubOn } = useCityDesign();
   /* The film and whether it is speaking. `sound` follows the element rather
      than leading it — see the button below. */
-  const film = useRef<HTMLVideoElement>(null);
+  const films = useRef<(HTMLVideoElement | null)[]>([]);
+  const [clip, setClip] = useState(0);
+  /* The second film is not mounted with the page. It is mounted once the
+     first one is actually PLAYING, so it buffers through those forty seconds
+     and the change-over is a cut rather than a spinner — and a visitor who
+     leaves before the first film ends never pays for the second. */
+  const [warm, setWarm] = useState(false);
   const [sound, setSound] = useState(false);
+  /* One place decides what is playing: the active film runs, the other is
+     stopped and wound back to its first frame so it is ready to open on it,
+     and both carry the same mute state so the button can never lie. */
+  useEffect(() => {
+    films.current.forEach((el, i) => {
+      if (!el) return;
+      el.muted = !sound;
+      if (i === clip) {
+        void el.play().catch(() => undefined);
+      } else {
+        el.pause();
+        try { el.currentTime = 0; } catch { /* not seekable yet; it opens on its poster */ }
+      }
+    });
+  }, [clip, sound, warm]);
   // The sixth door (owner, 5 Sep): the hero's "Talk to Mira" follows the
   // operator's switch like her other five. Off, the door is not drawn — she
   // keeps answering, and an open conversation stays open.
   const miraShown = useMiraShown();
-  const districts = DISTRICTS.filter((p) => hubOn(p.key));
   const tiles = FALLBACK.filter((p) => hubOn(p.to.slice(1)));
 
   return (
@@ -308,28 +312,43 @@ export function Home() {
             900px rule the old loop had: that rule was for a BACKDROP, and
             this is the message. The phone is served a 1280-wide cut at a third
             of the bytes, chosen by <source media> so the browser picks before
-            it downloads anything. */}
-        <video
-          ref={film}
-          className="bg"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          poster={img('together-city-commercial.webp')}
-          aria-label="Together City — the film"
-        >
-          <source src="/assets/video/together-city-commercial-phone.mp4" type="video/mp4" media="(max-width: 899px)" />
-          <source src="/assets/video/together-city-commercial.mp4" type="video/mp4" />
-        </video>
+            it downloads anything.
+
+            AND NOW THERE ARE TWO OF THEM (owner, 8 Sep). The films are stacked
+            in the same frame rather than swapped into one element: swapping
+            `src` throws the decoded picture away and shows the poster while
+            the next file opens, which at the join of two commercials reads as
+            a fault. Stacked, the one that has ended fades out of the way of
+            the one already buffered behind it, and the cut is instant. */}
+        {FILMS.map((f, i) => (
+          (i === 0 || warm) ? (
+            <video
+              key={f.wide}
+              ref={(el) => { films.current[i] = el; }}
+              className="bg"
+              style={{ opacity: i === clip ? 1 : 0, zIndex: i === clip ? 2 : 1 }}
+              autoPlay={i === 0}
+              muted
+              playsInline
+              preload="auto"
+              poster={img(f.poster)}
+              aria-hidden={i !== clip}
+              aria-label={f.label}
+              onPlaying={() => { if (i === 0) setWarm(true); }}
+              onEnded={() => setClip((i + 1) % FILMS.length)}
+            >
+              <source src={f.phone} type="video/mp4" media="(max-width: 899px)" />
+              <source src={f.wide} type="video/mp4" />
+            </video>
+          ) : null
+        ))}
         <button
           type="button"
           className="cinema-sound"
           aria-pressed={!sound}
           aria-label={sound ? 'Mute the film' : 'Play the film with sound'}
           onClick={() => {
-            const el = film.current;
+            const el = films.current[clip];
             if (!el) return;
             el.muted = !el.muted;
             // A film that was paused by the browser starts when the sound is
@@ -412,73 +431,6 @@ export function Home() {
         {/* ============ CONTINUE WHERE YOU LEFT OFF ============ */}
         {!phone && <RecentPanel />}
       </div>
-
-      {/* ============ WALK THE DISTRICTS — full-bleed hub heroes, stacked ============ */}
-      <section aria-label="Walk the districts">
-        <div className="district-head">
-          {/* ONE DOOR PER RUN. "Your city today →" sat at the right-hand end of
-              this line and went to the social feed, which is not a district —
-              a second call to action, in the accent colour, competing with the
-              thirteen photographs underneath it for the same thumb. The
-              heading stays because it is the one label the run has. The feed
-              keeps every other way in it already had. */}
-          <div className="blk-head"><h2>Walk the districts</h2></div>
-        </div>
-        <div className="district-run">
-          {/* An all-off walk is a citizen's decision, not a broken page — it
-              says where the switch is rather than standing silently empty. */}
-          {districts.length === 0 && (
-            <p className="muted" style={{ fontSize: 13, padding: '18px 24px', lineHeight: 1.6 }}>
-              Every district is switched off. Turn hubs back on in{' '}
-              <Link to="/profile" style={{ fontWeight: 700 }}>Design your services</Link>.
-            </p>
-          )}
-          {districts.map((p, panelIndex) => {
-            const cfg = HUBS[p.key];
-            const soon = !hubIsOpen(cfg);   // no rooms and no door of its own is a facade
-            const name = districtName(p.key);
-            const { lead, emph } = splitDistrictLine(districtLine(p.key));
-            // A room nobody can enter is not linked, only labelled. No district
-            // is in that state today; the branch stays because the next one to
-            // be built will pass through it before its pages exist.
-            const to = soon ? null : hubDoor(cfg);
-            const inner = (
-              <>
-                {/* THE PICTURE IS INSET, NOT FULL-BLEED, and that is the whole
-                    difference between this and the billboard it replaces: the
-                    card's own paper shows on all four sides of the photograph,
-                    which is what makes the picture read as a thing resting on
-                    a card rather than as the card itself.
-
-                    THE TILE, NOT THE PLATE. These panels were the full
-                    billboard art — 200KB and 1800px wide — laid out one to a
-                    row. Three to a row they are ~380px across, so the tile
-                    variant is not a compromise, it is the correct file: every
-                    one is under 40KB and `a-grid-tile-is-not-a-photograph`
-                    holds them there. */}
-                <span className="district-card-art">
-                  <img className="no-case" src={img(p.img.replace(/\.webp$/, '-tile.webp'))} alt=""
-                    loading={panelIndex < 3 ? 'eager' : 'lazy'} decoding="async"
-                    style={{ opacity: 0, transition: 'opacity .5s ease' }}
-                    onLoad={(e) => { e.currentTarget.style.opacity = '1'; }} />
-                </span>
-                {/* The district's name is the card's label and the link's own
-                    accessible name — no "Explore" pill to say it a second time,
-                    which is what the reference card does not have either. */}
-                <span className="district-card-foot">
-                  <span className="district-card-name">{soon ? `${name} · coming soon` : name}</span>
-                  <span className="district-card-line">
-                    {lead && <span className="district-card-lead">{lead} </span>}{emph}
-                  </span>
-                </span>
-              </>
-            );
-            return to
-              ? <Link key={p.key} to={to} className="district-card">{inner}</Link>
-              : <div key={p.key} className="district-card is-soon">{inner}</div>;
-          })}
-        </div>
-      </section>
 
       {/* THE CITY GRID, AT THE FOOT. It used to sit at the top of a phone,
           above the welcome — twelve doors before a word of introduction. It is

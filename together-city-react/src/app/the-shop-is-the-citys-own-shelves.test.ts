@@ -39,12 +39,15 @@ describe('E-Commerce is a district with rooms behind it', () => {
       .toEqual(['/ecommerce/store', '/ecommerce/market', '/ecommerce/cart', '/ecommerce/orders']);
   });
 
-  it('is a plate you can walk into, not one that is only labelled', () => {
-    // Home.tsx renders `soon` — labelled, unlinked — for a hub with no items.
-    // That branch is what the district stood in until 10 Aug, and this is the
-    // assertion that it is not standing in it again.
-    expect(read('pages/Home.tsx')).toMatch(/key: 'ecommerce'/);
+  it('is a door you can walk into, not a label with nothing behind it', () => {
+    /* Home.tsx used to render a `soon` branch — labelled, unlinked — for a hub
+       with no items, and this district stood in it until 10 Aug. Both the
+       branch and the walk that held it went on 9 Sep, so the thing being
+       asserted is now the thing that branch was READING: a facade with rooms
+       behind it. That was always the real claim; the walk was where it showed.
+       The door itself is on the header, which the four-doors test holds. */
     expect(HUBS.ecommerce.items.length).toBeGreaterThan(0);
+    expect(read('app/router.tsx')).toMatch(/path: '\/ecommerce'/);
   });
 
   it('routes both rooms, and every shelf it points at', () => {

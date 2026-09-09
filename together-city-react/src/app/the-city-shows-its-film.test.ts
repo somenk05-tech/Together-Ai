@@ -20,11 +20,21 @@ const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
 describe('the film on the home page', () => {
   const home = read('pages/Home.tsx');
 
-  it('loops, plays inline, and starts muted — because every browser refuses otherwise', () => {
+  it('repeats as a REEL, not as one clip — `loop` had to come off (owner, 8 Sep)', () => {
+    /* THIS ASSERTION WAS THE OPPOSITE ON 8 SEP AND IS THE SAME DECISION.
+       The ask was "keep the film on loop" and the answer was <video loop>,
+       which is the browser's own one-clip repeat. The ask is now "add this
+       video after this video ends and keep both on loop", and `loop` is the
+       one thing preventing it: a looping element rewinds its own file and
+       never fires `ended`. So the repeat moved up a level — a list of films,
+       `ended` advancing the index, the index wrapping — and the attribute
+       that used to carry it must NOT come back. */
     const film = home.slice(home.indexOf('<video'), home.indexOf('</video>'));
-    for (const attr of ['autoPlay', 'muted', 'loop', 'playsInline']) {
+    for (const attr of ['autoPlay', 'muted', 'playsInline']) {
       expect({ attr, on: film.includes(attr) }).toEqual({ attr, on: true });
     }
+    expect(film).not.toMatch(/^\s*loop\s*$/m);
+    expect(film).toMatch(/onEnded=/);
     // A page that shouted at its first visitor would deserve the refusal.
     expect(film).toMatch(/poster=/);
   });
@@ -59,16 +69,26 @@ describe('the film on the home page', () => {
     expect((cinema.match(/<button/g) ?? []).length).toBe(1);
   });
 
-  it('ships the film, its phone cut and its poster', () => {
+  it('ships BOTH films, their phone cuts and their posters', () => {
     for (const f of ['public/assets/video/together-city-commercial.mp4',
       'public/assets/video/together-city-commercial-phone.mp4',
-      'public/assets/img/together-city-commercial.webp']) {
+      'public/assets/img/together-city-commercial.webp',
+      'public/assets/video/together-city-commercial-2.mp4',
+      'public/assets/video/together-city-commercial-2-phone.mp4',
+      'public/assets/img/together-city-commercial-2.webp']) {
       expect({ f, there: existsSync(join(APP, f)) }).toEqual({ f, there: true });
     }
-    // The poster is the film's own first frame. A poster from another picture
-    // is a page that changes its mind a second after it loads.
-    expect(home).toMatch(/poster=\{img\('together-city-commercial\.webp'\)\}/);
-    expect(statSync(join(APP, 'public/assets/img/together-city-commercial.webp')).size).toBeLessThan(300 * 1024);
+    /* The poster is the film's OWN first frame — a poster from another picture
+       is a page that changes its mind a second after it loads. It is written
+       per film now (`poster={img(f.poster)}`) rather than as one literal, so
+       the pairing is checked in the array where it is made. */
+    expect(home).toMatch(/poster=\{img\(f\.poster\)\}/);
+    expect(home).toMatch(/poster: 'together-city-commercial\.webp'/);
+    expect(home).toMatch(/poster: 'together-city-commercial-2\.webp'/);
+    for (const p of ['public/assets/img/together-city-commercial.webp',
+      'public/assets/img/together-city-commercial-2.webp']) {
+      expect(statSync(join(APP, p)).size).toBeLessThan(300 * 1024);
+    }
   });
 
   it('leaves SignIn its own loop, which is a backdrop and not a message', () => {

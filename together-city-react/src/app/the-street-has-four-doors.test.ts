@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HEADER_TABS, NAV, HUBS } from '@/config/hubs';
@@ -149,10 +149,29 @@ describe('hidden is not deleted — the other eleven', () => {
     expect(read('nav/registry.ts')).not.toMatch(/HEADER_TABS/);
   });
 
-  it('keeps their billboards on the walk', () => {
-    const home = read('pages/Home.tsx');
-    for (const key of ['astrology', 'beauty', 'fitness', 'medical', 'nutrition', 'pets', 'realestate', 'jobs']) {
-      expect({ key, onTheWalk: home.includes(`key: '${key}'`) }).toEqual({ key, onTheWalk: true });
+  it('keeps a route of its own — the walk they used to stand on is gone', () => {
+    /* THIS ASSERTED BILLBOARDS ON THE WALK UNTIL 9 SEP ("remove walk the
+       hub"). The surface changed; the rule did not. "Off a menu is not off the
+       city" was always the claim that there is ANOTHER way in, and the walk
+       was only ever one of five — the foot grid, the map building, the route,
+       the command palette and the switch on Design Your Services. Four of
+       those are asserted elsewhere in this file and in DESIGNABLE_HUBS above;
+       the route is the one that makes the others mean anything, so it is what
+       is checked here now. A door with no room behind it is the failure this
+       is guarding against, and it does not depend on which walls the door is
+       drawn on. */
+    expect(read('pages/Home.tsx')).not.toMatch(/Walk the districts/);
+    /* TWO PLACES DECLARE A ROUTE: router.tsx, and a feature that exports its
+       own rooms as route objects — the Pets district's shape, and Baby Care's.
+       Reading only the router would call those districts unrouted. */
+    const routes = ['app/router.tsx', ...readdirSync(join(SRC, 'features'))
+      .map((f) => `features/${f}/routes.tsx`)
+      .filter((f) => existsSync(join(SRC, f)))].map(read).join('\n');
+    const cfgs = HUBS as Record<string, { backPath: string } | undefined>;
+    for (const key of eleven) {
+      const cfg = cfgs[key];
+      if (!cfg) continue;
+      expect({ key, routed: routes.includes(`'${cfg.backPath}'`) }).toEqual({ key, routed: true });
     }
   });
 });
