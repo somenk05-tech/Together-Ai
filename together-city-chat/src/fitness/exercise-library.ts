@@ -127,13 +127,37 @@ export interface Exercise {
  */
 export const LIBRARY: Exercise[] = [
   // ── squat ────────────────────────────────────────────────────────────────
-  { id: 'bw-squat', name: 'Bodyweight squat', pattern: 'squat', muscles: ['quads', 'glutes'], equipment: [], impact: 'low', steps: ['Stand with your feet a little wider than your hips, toes turned slightly out.', 'Send your hips back and down as though sitting into a low chair, keeping your chest up.', 'Go as low as you can with your heels flat and your knees tracking over your toes.', 'Drive through the whole foot to stand tall again.'] },
+  { id: 'bw-squat', name: 'Bodyweight squat', pattern: 'squat', muscles: ['quads', 'glutes'], equipment: [], impact: 'low', video: '/assets/workout/bw-squat.mp4', steps: ['Stand with your feet a little wider than your hips, toes turned slightly out.', 'Send your hips back and down as though sitting into a low chair, keeping your chest up.', 'Go as low as you can with your heels flat and your knees tracking over your toes.', 'Drive through the whole foot to stand tall again.'] },
   { id: 'goblet-squat', name: 'Goblet squat', pattern: 'squat', muscles: ['quads', 'glutes', 'core'], equipment: ['dumbbells'], impact: 'low', datasetId: '1760' },
   { id: 'kb-goblet-squat', name: 'Kettlebell goblet squat', pattern: 'squat', muscles: ['quads', 'glutes'], equipment: ['kettlebell'], impact: 'low', datasetId: '0534' },
   { id: 'back-squat', name: 'Back squat', pattern: 'squat', muscles: ['quads', 'glutes'], equipment: ['barbell'], impact: 'low', datasetId: '0043' },
   { id: 'leg-press', name: 'Leg press', pattern: 'squat', muscles: ['quads', 'glutes'], equipment: ['machines'], impact: 'low', steps: ['Sit into the machine with your back and head against the pad, feet flat on the platform about hip-width apart.', 'Release the safety catches and lower the platform until your knees are near ninety degrees.', 'Press through your heels until your legs are almost straight — do not lock the knees out hard.', 'Lower under control; do not let the weight drop onto the stack.'] },
   { id: 'split-squat', name: 'Split squat', pattern: 'squat', muscles: ['quads', 'glutes'], equipment: [], impact: 'low', unilateral: true, steps: ['Stand in a long stride, one foot forward and one behind, weight mostly on the front leg.', 'Lower straight down until the back knee is just above the floor.', 'Keep the front shin close to vertical and your torso upright.', 'Push through the front heel to stand, and finish all the reps before you swap legs.'] },
   { id: 'jump-squat', name: 'Jump squat', pattern: 'squat', muscles: ['quads', 'glutes'], equipment: [], impact: 'high', avoidWith: ['jointPain', 'pregnancy'], swapFor: 'bw-squat', datasetId: '0514' },
+  /**
+   * ── THE SISSY SQUAT (owner, 9 Sep) ──────────────────────────────────────
+   *
+   * The one squat in here that is not a squat: the hips do NOT travel back.
+   * The lifter rises onto the toes, drives the knees forward and leans the
+   * torso back so that knee, hip and shoulder stay in one line, which puts
+   * almost the whole load on the quadriceps through a very deep knee bend.
+   *
+   * That is also why `avoidWith` reads the way it does. Deep loaded knee
+   * flexion with the shin far past vertical is the classic caution for a
+   * painful knee, and this file's rule is that where the reading is arguable
+   * it takes the cautious side. It swaps to the plain bodyweight squat: same
+   * pattern, same muscles, none of the shear.
+   *
+   * `steps`, not a `datasetId`. The catalogue names the movement only with
+   * apparatus attached — a bench or a sissy-squat frame — and printing
+   * "hook your feet under the pad" at somebody standing in their front room
+   * is the borrowed-instructions lie this library exists to refuse.
+   *
+   * NO FILM. The clip the owner sent with this request is a plain bodyweight
+   * squat — heels flat, hips back, torso upright — which is the opposite
+   * shape. It went to `bw-squat`, where it is true. This row waits.
+   */
+  { id: 'sissy-squat', name: 'Sissy squat', pattern: 'squat', muscles: ['quads'], equipment: [], impact: 'low', avoidWith: ['jointPain', 'pregnancy'], swapFor: 'bw-squat', steps: ['Stand tall with your feet hip-width apart and hold something steady at your side — a rack upright, a door frame — with one hand.', 'Rise onto the balls of your feet and let your knees travel forward as you lean your upper body back.', 'Keep your hips, knees and shoulders in one straight line the whole way down; the hips do not sit back as they would in a normal squat.', 'Go only as low as you can hold that line without pain at the front of the knee, then pull yourself back up with your thighs.'] },
   { id: 'wall-sit', name: 'Wall sit', pattern: 'squat', muscles: ['quads'], equipment: [], impact: 'low', seconds: 40, avoidWith: ['hypertension'], swapFor: 'bw-squat', steps: ['Stand with your back flat against a wall and walk your feet out about two steps.', 'Slide down until your thighs are roughly parallel to the floor and your knees are over your ankles.', 'Hold, breathing normally — do not hold your breath.', 'Push through your heels and slide back up to finish.'] },
 
   // ── hinge ────────────────────────────────────────────────────────────────

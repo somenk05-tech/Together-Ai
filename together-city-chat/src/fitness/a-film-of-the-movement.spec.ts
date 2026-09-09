@@ -29,9 +29,59 @@ describe('the films the library names', () => {
     }
   });
 
-  it('are the two the owner shot first', () => {
+  it('are the ones the owner has actually shot', () => {
     expect(exerciseById('hip-opener')?.video).toBe('/assets/workout/hip-opener.mp4');
     expect(exerciseById('calf-stretch')?.video).toBe('/assets/workout/calf-stretch.mp4');
+    /* THE THIRD, 9 SEP — and it is here because of what it is NOT. The clip
+       arrived called a sissy squat. It shows a plain bodyweight squat: heels
+       flat, hips travelling back, torso upright, which is the opposite shape
+       to a sissy squat in every one of those three respects. Filed under the
+       movement it shows, the film is worth having; filed under the name it
+       came with, it would have printed "rise onto your toes and lean back"
+       over somebody sitting into a normal squat. */
+    expect(exerciseById('bw-squat')?.video).toBe('/assets/workout/bw-squat.mp4');
+  });
+
+  it('leave the sissy squat waiting for a film of a sissy squat', () => {
+    const sissy = exerciseById('sissy-squat');
+    expect(sissy).toBeDefined();
+    expect(sissy?.video).toBeUndefined();
+    /* The rule this file has held since 6 Sep, stated the other way round: a
+       link to a film that is not there is the one thing worse than no link,
+       and a link to a film of a DIFFERENT MOVEMENT is worse than both. */
+    expect(sissy?.video).not.toBe(exerciseById('bw-squat')?.video);
+  });
+});
+
+describe('the sissy squat says what it is and who should not do it', () => {
+  const sissy = exerciseById('sissy-squat');
+
+  it('is a squat-pattern quad movement that needs nothing', () => {
+    expect(sissy?.pattern).toBe('squat');
+    expect(sissy?.muscles).toEqual(['quads']);
+    expect(sissy?.equipment).toEqual([]);
+  });
+
+  it('carries its own words rather than borrowing the catalogue\'s', () => {
+    /* The catalogue names it only with apparatus attached — a bench, a
+       sissy-squat frame — so "hook your feet under the pad" would be printed
+       at somebody standing in their front room. That is the borrowed-
+       instructions lie the library was built to refuse. */
+    expect(sissy?.datasetId).toBeUndefined();
+    expect(sissy?.steps?.length).toBeGreaterThanOrEqual(4);
+    /* The two cues that separate it from every other squat in here. */
+    expect(sissy?.steps?.join(' ')).toMatch(/balls of your feet/i);
+    expect(sissy?.steps?.join(' ')).toMatch(/lean your upper body back/i);
+  });
+
+  it('is withheld from a painful knee, and names its stand-in', () => {
+    /* Deep loaded knee flexion with the shin far past vertical is the classic
+       caution here, and this library takes the cautious side where the reading
+       is arguable. The swap is the same pattern and the same muscles without
+       the shear, so the block is substituted rather than dropped and the
+       session does not come up short. */
+    expect(sissy?.avoidWith).toContain('jointPain');
+    expect(sissy?.swapFor).toBe('bw-squat');
   });
 });
 
