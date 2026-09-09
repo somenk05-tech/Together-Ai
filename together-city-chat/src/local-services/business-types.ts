@@ -30,6 +30,8 @@
  * negotiable per listing. What varies is WHICH SECTIONS a page has and WHAT
  * QUESTIONS it asks — the structure, not the skin.
  */
+import { AISLES as GROCERY_AISLES } from './grocery';
+import { AISLES as ELECTRONICS_AISLES, isElectronicsCategory } from './electronics';
 
 import { GROCERY_CATEGORIES } from './grocery';
 
@@ -94,6 +96,12 @@ export type CatalogueKind = 'menu' | 'stock' | 'rateCard' | 'packages' | 'fares'
  */
 export type CatalogueWay = 'catalogue' | 'photo' | 'sheet' | 'typed';
 
+/* THE HEADINGS EACH SHELF ALREADY FILES UNDER — the aisle labels, read from
+   the one place that owns them rather than typed again here. A second list
+   would be the copy that drifts the first time an aisle is renamed. */
+const GROCERY_AISLE_LABELS = GROCERY_AISLES.map((a) => a.label);
+const ELECTRONICS_AISLE_LABELS = ELECTRONICS_AISLES.map((a) => a.label);
+
 export interface Catalogue {
   kind: CatalogueKind;
   /** The heading on the owner's editor and on the public page. */
@@ -107,9 +115,30 @@ export interface Catalogue {
   ways: readonly CatalogueWay[];
   /** Whether a citizen can put these in a cart and pay (food, groceries) or only ask. */
   orderable: boolean;
+  /**
+   * ── THE HEADINGS THIS TRADE FILES UNDER (owner, 9 Sep) ──────────────────
+   *
+   * "An electronics store should show only electronic options. Electronic
+   * store needs electronic vocabulary."
+   *
+   * The Section box on the stock editor was free text with nothing beside it,
+   * and the only vocabulary anywhere near this screen was the GROCERY
+   * catalogue's aisles — which is how an electronics shop came to publish
+   * seventy-two grocery products against its own name. Offered rather than
+   * enforced: a shopkeeper's own heading is still their answer, and the aisle
+   * rules read it before they read anything of ours.
+   */
+  sections?: readonly string[];
 }
 
-export const CATALOGUES: Record<CatalogueKind, Catalogue> = {
+/**
+ * KEYED BY FLAVOUR, NOT BY KIND (9 Sep). It was `Record<CatalogueKind,
+ * Catalogue>`, which forced exactly one catalogue per kind — and that is why
+ * an electronics shop got the grocery tick-list: there was nowhere to put a
+ * second `stock`. The KIND still says what a listing publishes and everything
+ * that reads `.kind` is unchanged; the key is now just which flavour of it.
+ */
+export const CATALOGUES: Record<string, Catalogue> & Record<CatalogueKind, Catalogue> = {
   menu: {
     kind: 'menu', title: 'Menu', noun: 'item', plural: 'items', orderable: true,
     blurb: 'Photograph your menu card and it is typed out for you. Citizens order from it and pay from their wallet.',
@@ -119,6 +148,37 @@ export const CATALOGUES: Record<CatalogueKind, Catalogue> = {
     kind: 'stock', title: 'Stock list', noun: 'product', plural: 'products', orderable: true,
     blurb: 'Tick what you stock off the city’s catalogue, or upload your stock sheet (CSV or Excel: name, price, section), or photograph a price list. You set every price. Your products go on the city’s Grocery Store shelf beside every other shop’s.',
     ways: ['catalogue', 'sheet', 'photo', 'typed'],
+    sections: GROCERY_AISLE_LABELS,
+  },
+  /**
+   * ── THE SAME SHELF, A DIFFERENT VOCABULARY (owner, 9 Sep) ────────────────
+   *
+   * "An electronics store should show only electronic options. Electronic
+   * store needs electronic vocabulary."
+   *
+   * `stock` was ONE catalogue for every counter trade, and it leads with
+   * `catalogue` — the tick-list over the city's grocery products — and a blurb
+   * naming the Grocery Store. An electronics shop was shown Fruit & Vegetables,
+   * Dairy & Eggs and Bakery, told "nothing in the catalogue matches that", and
+   * then successfully published SEVENTY-TWO grocery products against its own
+   * name. That is not a wrong label; it is the wrong shelf entirely.
+   *
+   * SO THE CATALOGUE WAY IS GONE HERE, and it is gone for a reason worth
+   * saying out loud rather than fixing quietly: the city's catalogue is
+   * GROCERIES. There is no electronics catalogue and there will not be one
+   * until somebody sources it — the 8 Sep decision that refused a national
+   * price list stands. Offering a tick-list of things this shop cannot
+   * possibly stock is worse than offering none.
+   *
+   * What replaces it is the vocabulary the shelf already owns: the ten aisles
+   * electronics.ts files rows under. The typed and sheet doors stay, because
+   * an electronics shop's stock is its own.
+   */
+  stockDevices: {
+    kind: 'stock', title: 'Stock list', noun: 'product', plural: 'products', orderable: true,
+    blurb: 'Type your stock, upload a sheet (CSV or Excel: name, price, section), or photograph a price list. You set every price. Your products go on the city’s Electronics Store shelf beside every other shop’s.',
+    ways: ['typed', 'sheet', 'photo'],
+    sections: ELECTRONICS_AISLE_LABELS,
   },
   rateCard: {
     kind: 'rateCard', title: 'Services & rates', noun: 'service', plural: 'services', orderable: false,
@@ -482,7 +542,18 @@ export function sectionsFor(typeKey: string | null): readonly SectionKind[] {
  */
 export function catalogueFor(typeKey: string | null, categoryKey: string | null, categoryGroup: string | null): Catalogue {
   const typed = typeKey ? BY_KEY.get(typeKey) : null;
-  if (typed && typed.key !== 'general') return CATALOGUES[typed.catalogue];
+  /* WHICH FLAVOUR OF STOCK (9 Sep). A stock list is a stock list, but its
+     vocabulary is the shelf's: a grocer ticks the city's grocery catalogue and
+     files under Fruit & Vegetables; an electronics shop has no catalogue to
+     tick and files under Mobiles & Tablets. Decided by the TRADE rather than
+     the business type, because the type is a shape ("Shop") and the trade is
+     what they sell — and a shop that never chose a type must still get the
+     right one. */
+  const devices = categoryKey ? isElectronicsCategory(categoryKey) : false;
+  const stockFor = () => (devices ? CATALOGUES.stockDevices : CATALOGUES.stock);
+  if (typed && typed.key !== 'general') {
+    return typed.catalogue === 'stock' ? stockFor() : CATALOGUES[typed.catalogue];
+  }
   if (categoryKey && (GROCERY_CATEGORIES as readonly string[]).includes(categoryKey)) return CATALOGUES.stock;
   if (categoryGroup === 'Food & Daily Needs') return CATALOGUES.menu;
   if (categoryGroup === 'Automotive' || categoryGroup === 'Travel & Hospitality') return CATALOGUES.fares;
@@ -493,7 +564,7 @@ export function catalogueFor(typeKey: string | null, categoryKey: string | null,
      the group and quietly taken its shelf away, which is a worse bug than the
      one the split fixes: the shop would list, publish nothing, and still not
      appear. electronics.spec.ts asserts this rather than trusting it. */
-  if (categoryGroup === 'Shopping' || categoryGroup === 'Electronics') return CATALOGUES.stock;
+  if (categoryGroup === 'Shopping' || categoryGroup === 'Electronics') return stockFor();
   if (categoryGroup === 'Event Services' || categoryGroup === 'Learning' || categoryGroup === 'Fitness & Sports') return CATALOGUES.packages;
   if (typed) return CATALOGUES.none;
   return CATALOGUES.rateCard;

@@ -45,6 +45,9 @@ export interface Catalogue {
   plural: string;
   ways: CatalogueWay[];
   orderable: boolean;
+  /** The headings this trade files under — offered on the Section box, never
+   *  enforced. A shopkeeper's own word is still their answer. */
+  sections?: string[];
 }
 
 export interface BusinessTypeDef {

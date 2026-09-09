@@ -245,6 +245,14 @@ export function MenuEditor({ listingId, catalogue }: { listingId: string; catalo
         </div>
       )}
 
+      {/* ONE LIST FOR THE WHOLE GRID. A datalist per row would be forty copies
+          of the same ten words in the document for a shop with forty lines. */}
+      {draft && words.sections && words.sections.length > 0 && (
+        <datalist id="tc-sections">
+          {words.sections.map((sec) => <option key={sec} value={sec} />)}
+        </datalist>
+      )}
+
       {draft && !picking && (
         <div style={{ marginTop: 10 }}>
           <p style={{ fontSize: 12.5, margin: '0 0 4px', fontWeight: 700 }}>
@@ -257,7 +265,19 @@ export function MenuEditor({ listingId, catalogue }: { listingId: string; catalo
               <div key={i} className="menu-edit-row">
                 <input style={cell} className="menu-edit-name" value={it.name} aria-label={`Item ${i + 1} name`}
                   placeholder={words.noun[0].toUpperCase() + words.noun.slice(1)} onChange={(e) => patch(i, { name: e.target.value })} maxLength={90} />
+                {/* ── THE HEADINGS THIS TRADE FILES UNDER (owner, 9 Sep) ──
+                    "Electronic store needs electronic vocabulary." The Section
+                    box was free text with nothing beside it, and the only
+                    vocabulary near this screen was the GROCERY catalogue's
+                    aisles — which is how an electronics shop published
+                    seventy-two grocery products against its own name.
+
+                    A datalist, not a select: the aisle rules read the
+                    shopkeeper's own heading FIRST and only fall back to their
+                    trade, so a word we have never heard of has to stay
+                    typeable. Offered, never enforced. */}
                 <input style={cell} value={it.section ?? ''} aria-label={`Item ${i + 1} section`} placeholder="Section"
+                  list={words.sections?.length ? 'tc-sections' : undefined}
                   onChange={(e) => patch(i, { section: e.target.value || undefined })} maxLength={60} />
                 <input style={cell} inputMode="numeric" aria-label={`Item ${i + 1} price in rupees`}
                   placeholder="Ask" value={it.priceInr == null ? '' : String(it.priceInr)}
