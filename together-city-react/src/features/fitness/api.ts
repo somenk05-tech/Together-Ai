@@ -13,6 +13,12 @@ export interface FitnessProfile {
    *  real equipment answer and the session engine keeps the two apart. */
   equipment?: string[];
   daysPerWeek?: number | null;
+  /** ── THE DAYS THAT ARE NOT OURS (owner, 9 Sep) ─────────────────────────
+   *  Weekday indices, Monday = 0. NULL means never asked and the month keeps
+   *  the calendar's own placement; [] means asked, and they said none. */
+  restDays?: number[] | null;
+  /** 'rest' | 'walk' | … | their own word. Never parsed, only printed. */
+  restActivity?: string | null;
   limitations?: string | null;
   place?: string | null;
   sessionMinutes?: number | null;
@@ -89,6 +95,7 @@ export interface SaveProfileInput {
   /** Optional so a form that does not ask leaves them alone rather than
    *  erasing them — the service writes `?? undefined`, never null. */
   equipment?: string[]; daysPerWeek?: number; limitations?: string;
+  restDays?: number[]; restActivity?: string;
   place?: 'home' | 'gym'; sessionMinutes?: number;
 }
 export const fitnessApi = {
@@ -247,14 +254,50 @@ export interface ProgrammeDay {
   kind: 'strength' | 'cardio' | 'rest'; title: string; parts: string; muscles: string[];
   exercises: ProgrammeExercise[]; cardioMinutes: number; note: string; done: boolean;
 }
+/** What the citizen chose about their own week, and what the trainer made of
+ *  it. Written on the server beside the code that acted on it, so the words a
+ *  citizen reads about their week are not composed twice. */
+export interface ProgrammeRest {
+  days: number[]; activity: string; label: string; chosen: boolean; advice: string[];
+}
 export interface Programme {
   startDate: string; today: string; todayIndex: number; cycle: number; daysPerWeek: number; splitName: string;
   phases: { key: string; label: string; note: string }[];
   days: ProgrammeDay[];
   why: string[];
+  rest: ProgrammeRest;
 }
+/** The six a trainer would name first, and 'rest' is one of them. The box
+ *  beside them takes anything — see OFF_DAY_ACTIVITIES on the server. */
+export const OFF_DAY_ACTIVITIES = ['rest', 'walk', 'run', 'swim', 'cycle', 'yoga'] as const;
+export const WEEKDAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+export const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
 export function useProgramme() {
   return useQuery({ queryKey: ['fitness', 'programme'], queryFn: () => api.get<Programme>('/fitness/programme').then((r) => r.data) });
+}
+/**
+ * ── MOVING THE WEEK IS FREE (owner, 9 Sep) ──────────────────────────────────
+ *
+ * Its own route, not two more fields on `saveProfile`, because the profile
+ * save is METERED — five free changes a month, then ₹50 — and a rest-day
+ * toggle the owner wants people to press must never be one they are charged
+ * for pressing.
+ *
+ * The server returns the REBUILT month, so the grid redraws from the answer
+ * rather than from a second round trip; the profile is invalidated because
+ * its own copy of these two fields is now behind.
+ */
+export function useSaveTrainingWeek() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { restDays?: number[]; restActivity?: string }) =>
+      api.put<Programme>('/fitness/programme/week', input).then((r) => r.data),
+    onSuccess: (p) => {
+      qc.setQueryData(['fitness', 'programme'], p);
+      void qc.invalidateQueries({ queryKey: ['fitness', 'profile'] });
+      void qc.invalidateQueries({ queryKey: ['fitness', 'session'] });
+    },
+  });
 }
 
 /**

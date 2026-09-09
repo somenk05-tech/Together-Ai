@@ -2377,26 +2377,89 @@ details[open] > summary .fold-state::after { content: 'Close −'; }
   list-style: none; margin: 14px 0 0; padding: 0;
   display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px;
 }
-.wk-month-grid li {
-  position: relative; display: grid; gap: 2px; padding: 8px 6px; min-height: 52px;
+/* EVERY DAY IS A DOOR (owner, 9 Sep: "let user see past and future
+   workouts"). The tile was a <li> with words in it, so the twenty-eight days
+   were a picture of a month rather than a way into one; a citizen who wanted
+   to know what Thursday holds had to wait until Thursday. The button undoes
+   the browser's chrome so the grid still LOOKS like a grid — the same trick
+   the share sheet's recipient rows use, and for the same reason. */
+.wk-month-grid li { display: contents; }
+.wk-month-key {
+  position: relative; display: grid; gap: 2px; padding: 8px 6px; min-height: 52px; width: 100%;
   border: 1px solid var(--line); border-radius: var(--r-1); background: var(--card);
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
 }
-.wk-month-grid .n { font-size: var(--fs-1); color: var(--muted); font-variant-numeric: tabular-nums; }
-.wk-month-grid .t { font-size: var(--fs-2); font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wk-month-grid .d { position: absolute; top: 6px; right: 7px; font-size: var(--fs-2); font-weight: 700; color: var(--ok-ink); }
-.wk-month-grid li.is-rest .t { color: var(--muted); font-weight: 500; }
-.wk-month-grid li.is-cardio .t { color: var(--ink-soft); }
-.wk-month-grid li.is-past { opacity: .6; }
-.wk-month-grid li.is-done { border-color: var(--ok-line); background: var(--ok-soft); opacity: 1; }
-.wk-month-grid li.is-today { border: 2px solid var(--accent); opacity: 1; }
-.wk-month-grid li.is-today .t { color: var(--accent-ink); }
+.wk-month-key:hover { border-color: var(--accent); }
+.wk-month-key[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.wk-month-key .n { font-size: var(--fs-1); color: var(--muted); font-variant-numeric: tabular-nums; }
+.wk-month-key .t { font-size: var(--fs-2); font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wk-month-key .d { position: absolute; top: 6px; right: 7px; font-size: var(--fs-2); font-weight: 700; color: var(--ok-ink); }
+.wk-month-key.is-rest .t { color: var(--muted); font-weight: 500; }
+.wk-month-key.is-cardio .t { color: var(--ink-soft); }
+.wk-month-key.is-past { opacity: .6; }
+.wk-month-key.is-done { border-color: var(--ok-line); background: var(--ok-soft); opacity: 1; }
+.wk-month-key.is-today { border: 2px solid var(--accent); opacity: 1; }
+.wk-month-key.is-today .t { color: var(--accent-ink); }
 .wk-month-why { margin-top: 12px; font-size: var(--fs-3); }
 .wk-month-why summary { cursor: pointer; font-weight: 700; color: var(--accent-ink); }
 .wk-month-why ul { margin: 8px 0 0; padding-left: 18px; line-height: 1.55; display: grid; gap: 4px; }
+
+/* ── THE DAY YOU OPENED (owner, 9 Sep) ─────────────────────────────────────
+   Under the grid rather than over it, so the month stays on screen while you
+   read a day out of it — a citizen comparing Thursday with Friday should not
+   have to shut one to see the other. */
+.wk-day { margin-top: 14px; border: 1px solid var(--accent); border-radius: var(--r-2); padding: 14px 16px; background: var(--card); }
+.wk-day-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.wk-day-t { margin: 0; font-size: var(--fs-6); font-weight: 700; }
+.wk-day-when { font-size: var(--fs-2); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--accent-ink); }
+.wk-day-note { margin: 6px 0 0; font-size: var(--fs-3); line-height: 1.6; color: var(--ink-soft); }
+.wk-day-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 2px; }
+.wk-day-list li { display: flex; gap: 10px; align-items: center; padding: 7px 2px; border-bottom: 1px solid var(--line); }
+.wk-day-list .w { flex: 1 1 auto; min-width: 0; }
+.wk-day-list .nm { font-size: var(--fs-3); font-weight: 600; }
+.wk-day-list .mu { font-size: var(--fs-2); color: var(--muted); }
+.wk-day-list .tg { font-size: var(--fs-2); font-weight: 700; white-space: nowrap; color: var(--accent-ink); }
+.wk-day-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+/* ── THE WEEK IS THE CITIZEN'S (owner, 9 Sep) ──────────────────────────────
+   Seven keys under the grid, because the consequence of the choice is the
+   thing directly above them: press Wednesday and the month redraws while you
+   are still looking at it. */
+.wk-week { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+.wk-week-l { font-size: var(--fs-2); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.wk-week-keys { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.wk-week-k {
+  flex: 1 1 auto; min-width: 46px; padding: 9px 6px; cursor: pointer;
+  border: 1.5px solid var(--line); border-radius: var(--r-1); background: var(--card); color: var(--ink);
+  font: inherit; font-size: var(--fs-2); font-weight: 700;
+}
+.wk-week-k[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+.wk-week-say { margin: 10px 0 0; font-size: var(--fs-3); line-height: 1.6; }
+.wk-week-say li { margin-top: 4px; }
+.wk-week-own { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.wk-week-own input {
+  flex: 1 1 140px; min-width: 0; padding: 8px 12px; font: inherit; font-size: var(--fs-3);
+  border: 1.5px solid var(--line); border-radius: var(--r-full); background: var(--card); color: var(--ink);
+}
+
+/* The same question in the training profile (owner, 9 Sep: asked in both
+   places). Written here rather than inline because seven style objects for a
+   label, two key rows and a box is seven the size ratchet counts one by one —
+   and the profile's own week block is a shape, not a one-off. */
+.fp-week { margin-top: 14px; }
+.fp-week-l { font-size: var(--fs-2); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 6px; }
+.fp-week-l + .fp-week-l, .fp-week-row + .fp-week-l { margin-top: 12px; }
+.fp-week-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.fp-week-own {
+  width: 170px; padding: 8px 10px; font: inherit; font-size: var(--fs-4);
+  border: 1.5px solid var(--line); border-radius: var(--r-1); background: var(--card); color: var(--ink);
+}
+.fp-week-say { font-size: var(--fs-2); margin: 6px 0 0; }
+
 @media (max-width: 560px) {
   .wk-month-grid { gap: 4px; }
-  .wk-month-grid li { padding: 6px 4px; min-height: 44px; }
-  .wk-month-grid .t { font-size: var(--fs-1); }
+  .wk-month-key { padding: 6px 4px; min-height: 44px; }
+  .wk-month-key .t { font-size: var(--fs-1); }
 }
 
 /* ── THE THUMB GETS THE 44px IT WAS PROMISED, WITHOUT THE PILLS GROWING ─────

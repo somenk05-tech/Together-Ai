@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useFormValidation, ValidationSummary, successToast } from '@/components/form-validation';
 import { Button, Spinner, EmptyState, SavedMark } from '@/components/ui';
-import { useFitnessProfile, useSaveFitnessProfile } from '../api';
+import { OFF_DAY_ACTIVITIES, WEEKDAY_SHORT, useFitnessProfile, useSaveFitnessProfile } from '../api';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { serverMessage } from '@/features/dating/server-sentence';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
@@ -70,6 +70,14 @@ export function Profile() {
    */
   const [equipment, setEquipment] = useState<string[]>([]);
   const [daysPerWeek, setDaysPerWeek] = useState<number | ''>('');
+  /* ── THE DAYS THAT ARE NOT OURS (owner, 9 Sep) ───────────────────────────
+     Asked here with the rest of what the month is built from, and changeable
+     from the month card itself, which is where a citizen is standing when a
+     Wednesday disappears. Null on the profile means never asked — the month
+     keeps the calendar's own placement and says so — so the state starts
+     empty rather than at a guessed weekend. */
+  const [restDays, setRestDays] = useState<number[]>([]);
+  const [restActivity, setRestActivity] = useState('');
   const [limitations, setLimitations] = useState('');
   const [place, setPlace] = useState<'home' | 'gym' | ''>('');
   const [sessionMinutes, setSessionMinutes] = useState<number | ''>('');
@@ -96,6 +104,7 @@ export function Profile() {
     setLevel(d.level); setMode(d.mode); setGoal(d.goal); setConditions(d.conditions);
     setHeightCm(d.heightCm ?? (m?.heightCm ?? '')); setWeightKg(d.weightKg ?? (m?.weightKg ?? '')); setBodyGoal(d.bodyGoal ?? 'athletic');
     setEquipment(d.equipment ?? []); setDaysPerWeek(d.daysPerWeek ?? ''); setLimitations(d.limitations ?? '');
+    setRestDays(d.restDays ?? []); setRestActivity(d.restActivity ?? '');
     setPlace((d.place as 'home' | 'gym' | null) ?? ''); setSessionMinutes(d.sessionMinutes ?? '');
     // Already completed before → open as a compact summary, not the full form.
     setCollapsed(Boolean(d.heightCm && d.weightKg));
@@ -269,6 +278,41 @@ export function Profile() {
           </div>
         </div>
 
+        {/* ── WHICH DAYS ARE YOURS (owner, 9 Sep) ──────────────────────
+            Beside "days a week", because the two answers are one question
+            asked twice: how much of your week can I have, and which parts of
+            it are already spoken for. The days off WIN over the number — a
+            citizen who asks for five and keeps three has four, and the month
+            says so rather than quietly building a shorter week. */}
+        <div className="fp-week">
+          <div className="fp-week-l">Which days are yours? (optional)</div>
+          <div className="fp-week-row">
+            {WEEKDAY_SHORT.map((w, i) => (
+              <Choice key={w} on={restDays.includes(i)} label={w}
+                onClick={() => setRestDays((cur) => (cur.includes(i) ? cur.filter((x) => x !== i) : cur.length >= 6 ? cur : [...cur, i].sort((a, b) => a - b)))} />
+            ))}
+          </div>
+          <div className="fp-week-l">And on a day off?</div>
+          <div className="fp-week-row">
+            {OFF_DAY_ACTIVITIES.map((a) => (
+              <Choice key={a} on={restActivity.toLowerCase() === a || (a === 'rest' && !restActivity)} label={a === 'rest' ? 'Nothing' : a[0].toUpperCase() + a.slice(1)}
+                onClick={() => setRestActivity(a)} />
+            ))}
+            {/* Free text, printed back and never parsed — the same rule as the
+                limitations box below. "Cricket" is a better answer than the
+                nearest of six. */}
+            <input type="text" className="fp-week-own" maxLength={24}
+              value={(OFF_DAY_ACTIVITIES as readonly string[]).includes(restActivity.toLowerCase()) ? '' : restActivity}
+              onChange={(e) => setRestActivity(e.target.value)} placeholder="or something else…"
+              aria-label="Your own word for a day off" />
+          </div>
+          <p className="muted fp-week-say">
+            Leave them all off and the month takes the weekend, and tells you it did. A day off is never
+            nothing-or-everything: it is real rest, or one easy thing — which is what a trainer would say to
+            somebody asking for seven hard days.
+          </p>
+        </div>
+
         <div style={{ marginTop: 14 }}>
           <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', margin: '0 0 6px' }}>Anything we should work around?</div>
           {/* NEVER PARSED — printed at the top of the session for a human to
@@ -290,6 +334,7 @@ export function Profile() {
         <Button variant="accent" state={save.isPending ? 'loading' : undefined} loadingLabel="Saving…"
           onClick={() => { if (!v.validate()) return; save.mutate({ age, sex, level, mode, goal, conditions, heightCm: num(heightCm), weightKg: num(weightKg), bodyGoal,
             equipment, daysPerWeek: daysPerWeek === '' ? undefined : daysPerWeek, limitations: limitations.trim() || undefined,
+            restDays, restActivity: restActivity.trim() || undefined,
             place: place || undefined, sessionMinutes: sessionMinutes === '' ? undefined : sessionMinutes }, { onSuccess: () => { setCollapsed(true); successToast('Profile saved.'); } }); }}>
           Save &amp; build my plan
         </Button>

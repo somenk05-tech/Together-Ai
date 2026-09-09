@@ -2,7 +2,11 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui';
-import { EXERCISE_MEDIA_ATTRIBUTION, useAddWorkout, useProgramme, useTodaySession, type TodaySession } from '../api';
+import {
+  EXERCISE_MEDIA_ATTRIBUTION, OFF_DAY_ACTIVITIES, WEEKDAY_NAMES, WEEKDAY_SHORT,
+  useAddWorkout, useProgramme, useSaveTrainingWeek, useTodaySession,
+  type ProgrammeDay, type TodaySession,
+} from '../api';
 import { BodyGoalPanel } from '../components/BodyGoalPanel';
 import { useFoodPref, useNutritionTargets } from '@/features/nutrition/hooks';
 
@@ -125,6 +129,36 @@ function stepsFrom(session: TodaySession | undefined, includeWalk: boolean): Ste
   if (includeWalk) out.push(walkStepOf(session.walkMinutes, session.blocks.find((b) => b.title === 'Then walk')?.exercises[0]));
   return out;
 }
+/**
+ * ── ANY DAY OF THE MONTH, NOT ONLY TODAY (owner, 9 Sep: "let user see past
+ * and future workouts") ─────────────────────────────────────────────────────
+ *
+ * The runner already walked a session's blocks; a programme day is the same
+ * material one level flatter — movements with sets, reps, a rest and their own
+ * steps — so it gets its own flattener rather than a fake TodaySession, which
+ * would have had to invent a headline, an intensity and a walk it does not
+ * have.
+ *
+ * NO WALK ON THE END. Today's session earns one from the citizen's activity
+ * goal; a Thursday opened on a Tuesday has not.
+ */
+function stepsFromDay(day: ProgrammeDay): Step[] {
+  const out: Step[] = [];
+  for (const ex of day.exercises) {
+    const perSet = Math.round((ex.reps?.[1] ?? 10) * REP_SECONDS);
+    for (let i = 1; i <= ex.sets; i++) {
+      out.push({
+        name: ex.name, block: day.title, dur: perSet, reps: ex.reps ? ex.reps[1] : null,
+        note: ex.reps ? `${ex.reps[0]}–${ex.reps[1]} reps` : undefined,
+        ...(ex.sets > 1 ? { round: i } : {}),
+        steps: ex.steps, muscles: [ex.works], gif: ex.gif,
+      });
+      if (i < ex.sets && ex.restSec > 0) out.push({ name: 'Rest', block: day.title, dur: ex.restSec, reps: null, rest: true });
+    }
+  }
+  return out;
+}
+
 const walkStepOf = (minutes: number, from?: { steps?: string[]; muscles?: string[] }): Step => ({
   name: 'Brisk walk', block: 'Finish', dur: minutes * 60, reps: null, walk: true,
   note: `${minutes} minutes · brisk enough to be breathing, easy enough to talk`,
@@ -197,7 +231,27 @@ export function Workout() {
   const monthDay = month && month.todayIndex >= 0 && month.todayIndex < month.days.length ? month.days[month.todayIndex] : null;
   const monthNext = month && monthDay ? month.days.slice(monthDay.index + 1).find((d) => d.kind !== 'rest') : undefined;
   const dayWord = (d: { kind: string; title: string; parts: string; cardioMinutes: number }) =>
-    d.kind === 'strength' ? `${d.title} — ${d.parts}` : d.kind === 'rest' ? 'Rest' : `${d.title} · ${d.cardioMinutes} min`;
+    d.kind === 'strength' ? `${d.title} — ${d.parts}` : d.kind === 'rest' ? d.title : `${d.title} · ${d.cardioMinutes} min`;
+
+  /* ── THE DAY THE CITIZEN OPENED (owner, 9 Sep) ──────────────────────────
+     Null is today, not "nothing": the card has always opened on today and
+     should keep doing so, and a citizen who reads Thursday and comes back
+     tomorrow should find their own day again rather than Thursday. */
+  const [openDay, setOpenDay] = useState<number | null>(null);
+  const shown = month && openDay != null ? month.days[openDay] ?? null : null;
+  const saveWeek = useSaveTrainingWeek();
+  /* THE KEYS ARE PRESSED LOCALLY AND SAVED ON RELEASE. A save per tap would
+     rebuild the month three times while somebody chose two days, and the grid
+     would jump under their finger between the taps. */
+  const chosenRest = month ? (saveWeek.variables?.restDays ?? month.rest.days) : [];
+  const chosenActivity = month ? (saveWeek.variables?.restActivity ?? month.rest.activity) : 'rest';
+  const toggleRest = (d: number) => {
+    const next = chosenRest.includes(d) ? chosenRest.filter((x) => x !== d) : [...chosenRest, d].sort((a, b) => a - b);
+    /* SEVEN OFF IS NOT A WEEK — it is having left, and the schema will not
+       hold it either. The key simply does not turn. */
+    if (next.length >= 7) return;
+    saveWeek.mutate({ restDays: next, restActivity: chosenActivity });
+  };
 
   // Body profile is shared with the Nutrition food-preference profile — no re-typing.
   const health = useMemo(() => healthFromPref(foodPref.data), [foodPref.data]);
@@ -270,6 +324,25 @@ export function Workout() {
     // has no such call and the overlay already fills the viewport there.
     void document.documentElement.requestFullscreen?.().catch(() => undefined);
   };
+  /**
+   * ── ANY DAY OF THE MONTH, RUN (owner, 9 Sep) ─────────────────────────────
+   *
+   * The same runner, from the programme day rather than from today's session.
+   * What it does NOT do is pretend about the calendar: `finish` logs against
+   * `dayKey()`, which is the real date, so doing Saturday's legs on Thursday
+   * is recorded as a workout on Thursday. Backdating a log to make a grid look
+   * tidier would be the history lying to the engine that reads it back.
+   */
+  const startDay = (day: ProgrammeDay) => {
+    const seq = stepsFromDay(day);
+    if (!seq.length) return;
+    setOpenDay(null);
+    rt.current = { seq, idx: 0, remain: seq[0].dur, paused: false, running: true, workoutSec: 0, walkSec: 0, mode: 'full' };
+    force();
+    speak(seq[0].name);
+    void document.documentElement.requestFullscreen?.().catch(() => undefined);
+  };
+
   const finish = (early: boolean) => {
     const t = rt.current; t.running = false;
     try { speechSynthesis.cancel(); } catch { /* ignore */ }
@@ -444,15 +517,109 @@ export function Workout() {
             <h3 className="wk-month-title">{dayWord(monthDay)}</h3>
             <p className="wk-month-note">{monthDay.note}</p>
             {monthNext && <p className="muted wk-month-next">Next: {dayWord(monthNext)}{monthNext.index === monthDay.index + 1 ? ', tomorrow' : ` on day ${monthNext.index + 1}`}.</p>}
+            {/* EVERY DAY IS A DOOR (owner, 9 Sep: "let user see past and future
+                workouts"). The tile was a word on a grid, so a citizen who
+                wanted to know what Thursday held had to wait until Thursday.
+                It opens the day underneath instead of navigating, so the month
+                stays on screen while you read a day out of it. */}
             <ol className="wk-month-grid" aria-label="The twenty-eight days">
               {month.days.map((d) => (
-                <li key={d.index} className={[d.index === monthDay.index ? 'is-today' : '', d.done ? 'is-done' : '', d.index < monthDay.index ? 'is-past' : '', `is-${d.kind}`].filter(Boolean).join(' ')}>
-                  <span className="n">{d.index + 1}</span>
-                  <span className="t">{d.kind === 'rest' ? 'Rest' : d.title}</span>
-                  {d.done && <span className="d" aria-label="done">✓</span>}
+                <li key={d.index}>
+                  <button type="button" aria-pressed={d.index === openDay}
+                    aria-label={`Day ${d.index + 1}, ${dayWord(d)}${d.done ? ', done' : ''}`}
+                    onClick={() => setOpenDay((cur) => (cur === d.index ? null : d.index))}
+                    className={['wk-month-key', d.index === monthDay.index ? 'is-today' : '', d.done ? 'is-done' : '', d.index < monthDay.index ? 'is-past' : '', `is-${d.kind}`].filter(Boolean).join(' ')}>
+                    <span className="n">{d.index + 1}</span>
+                    <span className="t">{d.title}</span>
+                    {d.done && <span className="d" aria-hidden>✓</span>}
+                  </button>
                 </li>
               ))}
             </ol>
+
+            {/* THE DAY YOU OPENED. Its whole session — the movements, the sets
+                and reps, the trainer's note for the phase — and a way to run
+                it, because a citizen who opens Saturday's legs day on a
+                Thursday evening usually wants to do it, not admire it. The LOG
+                still records the day it was actually done on. */}
+            {shown && (
+              <div className="wk-day">
+                <div className="wk-day-head">
+                  <h4 className="wk-day-t">{dayWord(shown)}</h4>
+                  <span className="wk-day-when">
+                    Day {shown.index + 1}
+                    {shown.index === monthDay.index ? ' · today' : shown.index < monthDay.index ? ` · ${monthDay.index - shown.index} day${monthDay.index - shown.index === 1 ? '' : 's'} ago` : ` · in ${shown.index - monthDay.index} day${shown.index - monthDay.index === 1 ? '' : 's'}`}
+                    {shown.done ? ' · done' : ''}
+                  </span>
+                </div>
+                <p className="wk-day-note">{shown.note}</p>
+                {shown.exercises.length > 0 && (
+                  <ul className="wk-day-list">
+                    {shown.exercises.map((ex) => (
+                      <li key={ex.id}>
+                        <span className="w">
+                          <span className="nm">{ex.name}</span>
+                          <span className="mu" style={{ display: 'block' }}>{ex.works} · {ex.equipment} · rest {ex.restSec}s</span>
+                        </span>
+                        <span className="tg">{ex.sets} × {ex.reps[0]}–{ex.reps[1]}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="wk-day-acts">
+                  {shown.exercises.length > 0 && (
+                    <Button variant="accent" onClick={() => startDay(shown)}>
+                      ▶ {shown.index === monthDay.index ? 'Start this day' : shown.index < monthDay.index ? 'Do it again' : 'Do it early'}
+                    </Button>
+                  )}
+                  <Button variant="ghost" onClick={() => setOpenDay(null)}>Close</Button>
+                </div>
+              </div>
+            )}
+
+            {/* ── THE WEEK IS THE CITIZEN'S (owner, 9 Sep) ────────────────
+                "Let the user decide which two days they want a break — or if
+                they don't want a break, what they can do." Directly under the
+                grid, because the consequence of the choice is the thing above
+                it: press Wednesday and the month redraws while you watch. */}
+            <div className="wk-week">
+              <div className="wk-week-l">Which days are yours?</div>
+              <div className="wk-week-keys" role="group" aria-label="The days you keep for yourself">
+                {WEEKDAY_SHORT.map((w, i) => (
+                  <button key={w} type="button" className="wk-week-k" aria-pressed={chosenRest.includes(i)}
+                    aria-label={`${WEEKDAY_NAMES[i]} off`} disabled={saveWeek.isPending}
+                    onClick={() => toggleRest(i)}>{w}</button>
+                ))}
+              </div>
+              <div className="wk-week-own">
+                <span className="wk-week-l">And on a day off?</span>
+                {OFF_DAY_ACTIVITIES.map((a) => (
+                  <button key={a} type="button" className="wk-week-k" aria-pressed={chosenActivity.toLowerCase() === a}
+                    disabled={saveWeek.isPending}
+                    onClick={() => saveWeek.mutate({ restDays: chosenRest, restActivity: a })}>
+                    {a === 'rest' ? 'Nothing' : a[0].toUpperCase() + a.slice(1)}
+                  </button>
+                ))}
+                {/* THE BOX TAKES ANYTHING. The trainer asked what you would
+                    rather do; "cricket" is a better answer than the nearest of
+                    six, and a list that cannot hold it makes the question
+                    dishonest. It is printed back, never parsed. */}
+                <input type="text" maxLength={24} placeholder="or something else…"
+                  aria-label="Your own word for a day off" disabled={saveWeek.isPending}
+                  defaultValue={(OFF_DAY_ACTIVITIES as readonly string[]).includes(chosenActivity.toLowerCase()) ? '' : chosenActivity}
+                  onBlur={(e) => { const v = e.target.value.trim(); if (v && v.toLowerCase() !== chosenActivity.toLowerCase()) saveWeek.mutate({ restDays: chosenRest, restActivity: v }); }} />
+              </div>
+              {/* THE TRAINER TALKING. Written on the server beside the code
+                  that acted on the choice, so the words a citizen reads about
+                  their own week are not composed twice. */}
+              <ul className="wk-week-say muted">{month.rest.advice.map((a) => <li key={a}>{a}</li>)}</ul>
+              {saveWeek.isError && (
+                <p role="alert" style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600, margin: '8px 0 0' }}>
+                  That didn&rsquo;t reach us — your week is unchanged. Try again in a moment.
+                </p>
+              )}
+            </div>
+
             <details className="wk-month-why">
               <summary>Why this month<span className="fold-state" aria-hidden /></summary>
               <ul>{month.why.map((w) => <li key={w}>{w}</li>)}</ul>

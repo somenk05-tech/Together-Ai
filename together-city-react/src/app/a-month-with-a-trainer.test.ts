@@ -41,8 +41,13 @@ describe('the whiteboard', () => {
     expect(page).toMatch(/d\.done \? 'is-done'/);
     const css = read('styles/layout.css');
     expect(css).toMatch(/\.wk-month-grid \{[^}]*grid-template-columns: repeat\(7, minmax\(0, 1fr\)\)/);
-    expect(css).toMatch(/\.wk-month-grid li\.is-today \{ border: 2px solid var\(--accent\)/);
-    expect(css).toMatch(/\.wk-month-grid li\.is-done \{ border-color: var\(--ok-line\)/);
+    /* THE TILE BECAME A BUTTON (owner, 9 Sep: "let user see past and future
+       workouts"), so the state classes moved off the <li> and onto the key
+       inside it. The <li> is `display: contents` — it exists only to keep the
+       list a list for a screen reader, and the button is what is drawn. */
+    expect(css).toMatch(/\.wk-month-key\.is-today \{ border: 2px solid var\(--accent\)/);
+    expect(css).toMatch(/\.wk-month-key\.is-done \{ border-color: var\(--ok-line\)/);
+    expect(css).toMatch(/\.wk-month-grid li \{ display: contents; \}/);
   });
 
   it('says why the month is shaped this way', () => {
