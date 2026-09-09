@@ -1,6 +1,4 @@
-import { useEffect } from 'react';
-import { Link, Navigate } from 'react-router-dom';
-import { useAuthStore } from '@/store/auth.store';
+import { Link } from 'react-router-dom';
 import type { HubKey } from '@/types';
 import { HUBS, hubDoor } from '@/config/hubs';
 import { useHubTheme } from '@/hooks/useHubTheme';
@@ -148,23 +146,26 @@ export function HubLanding({ hub }: { hub: HubKey }) {
   const cfg = HUBS[hub];
   const firstInner = hubDoor(cfg);
   const heroSrc = `/assets/img/${HUB_HERO[hub] ?? `${hub}.webp`}`;
-  // The poster earns one showing (consumer review #7): a returning citizen
-  // walks straight into their own kitchen. First visit still sees it (and the
-  // consent gate, which always has the final word), and the per-user seen
-  // flags are wiped with the rest of tc:* on sign-out/user-switch.
-  const authed = useAuthStore((s) => Boolean(s.tokens?.accessToken && s.user));
-  let seen = false;
-  try { seen = authed && localStorage.getItem(`tc:hub-seen:${hub}`) === '1'; } catch { seen = false; }
-  useEffect(() => {
-    if (authed) try { localStorage.setItem(`tc:hub-seen:${hub}`, '1'); } catch { /* storage unavailable */ }
-  }, [authed, hub]);
-  if (seen) {
-    return (
-      <HubConsentGate hub={hub}>
-        <Navigate to={firstInner} replace />
-      </HubConsentGate>
-    );
-  }
+  /* ── THE POSTER SHOWS EVERY TIME (owner, 9 Sep) ──────────────────────────
+     "When the user clicks on the button these images should come everytime."
+
+     IT USED TO EARN ONE SHOWING (consumer review #7): a `tc:hub-seen:<hub>`
+     flag in localStorage, and every visit after the first went straight past
+     the picture into the hub's first room. The argument was that a returning
+     citizen wants their own kitchen, not the poster of it.
+
+     That argument was made when the poster was a splash screen in front of a
+     destination. It is the district's FRONT — the owner's own billboard, one
+     per hub, with the district's promise printed on it and Explore under it —
+     and the pills on Personalize and the doors in the header now send people
+     here on purpose. A door that shows you the room the first time and then
+     silently stops being a door is a door nobody can rely on: press the same
+     pill twice and the city does two different things.
+
+     So there is no flag, no read, no write, and nothing to wipe on sign-out.
+     `Explore` is still one press from the room for anybody who wants past it,
+     and the consent gate still has the final word — it wraps the whole page
+     rather than only the redirect it used to hide behind. */
   /* Medical used to arrive through weather rather than through a photograph
      in a case — a stage, built for the amber reference and then the gradient
      one. It went with the atmosphere when the city turned black and white,
