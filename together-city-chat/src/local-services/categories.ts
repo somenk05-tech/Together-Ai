@@ -120,13 +120,43 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
 
   // Shopping
   { key: 'clothing_stores', label: 'Clothing stores', group: 'Shopping' },
-  { key: 'electronics_stores', label: 'Electronics stores', group: 'Shopping' },
   { key: 'furniture_stores', label: 'Furniture stores', group: 'Shopping' },
   { key: 'jewelry_stores', label: 'Jewelry stores', group: 'Shopping' },
-  { key: 'mobile_shops', label: 'Mobile shops', group: 'Shopping' },
   { key: 'bookstores', label: 'Bookstores', group: 'Shopping' },
   { key: 'gift_shops', label: 'Gift shops', group: 'Shopping' },
   { key: 'pet_stores', label: 'Pet stores', group: 'Shopping' },
+
+  /* ── ELECTRONICS, ITS OWN GROUP (owner, 9 Sep) ────────────────────────────
+   *
+   * "Add an electronics store category in the Local Services hub which will be
+   * the source of the Open Market."
+   *
+   * These two trades ARE the source, and have been since 8 Sep — the
+   * Electronics Store reads exactly `electronics_stores` and `mobile_shops`.
+   * The keys do not change here, so every listing already filed under them
+   * keeps working and the shelf's read is untouched. What changes is where a
+   * shopkeeper FINDS them.
+   *
+   * They were inside Shopping, between furniture and bookstores. A shop that
+   * sells phones opens the group list, reads "Digital & Technology", and picks
+   * it — because electronics sounds like technology. Every trade in that group
+   * is a REPAIR or a service (mobile repair, computer repair, cyber cafés) and
+   * none of them feeds the store, deliberately: repair sells labour by the
+   * visit, and a call-out charge on a shelf between a washing machine and a
+   * pair of earbuds is the store misreading what the shop does.
+   *
+   * So the shopkeeper lists themselves, believes they are listed, and never
+   * appears. A group named for the thing is the fix, and it is the whole fix:
+   * the word the shopkeeper is looking for is now a heading rather than a row
+   * they have to find inside a different one.
+   *
+   * IT IS NOT A NEW TRADE. Adding a third "Electronics store" key beside these
+   * two would split the city's supply across keys the shelf reads and keys it
+   * does not — the same failure the catalogue's (sourceKey, sourceRef) unique
+   * exists to prevent, one level up.
+   */
+  { key: 'electronics_stores', label: 'Electronics stores', group: 'Electronics' },
+  { key: 'mobile_shops', label: 'Mobile shops', group: 'Electronics' },
 
   // Professional Services
   { key: 'lawyers', label: 'Lawyers', group: 'Professional Services' },

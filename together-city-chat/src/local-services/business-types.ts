@@ -321,6 +321,34 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
       { key: 'warranty', label: 'Warranty or exchange offered', kind: 'toggle' },
     ],
   },
+  /* ── AND THE GROUP NEEDS A TYPE OF ITS OWN (9 Sep) ──────────────────────
+   *
+   * `typesForGroup` filters by group, so moving the two electronics trades out
+   * of Shopping without this would have offered them nothing but 'general' —
+   * losing the Shop type's own questions AND its stock catalogue. That is the
+   * second half of the same trap `catalogueFor` above carries the first half
+   * of: a group is not one field, it is everything that reads the field.
+   *
+   * It is the retail type's shape with the questions an electronics shop is
+   * actually asked at the counter — what you carry, whether you install it,
+   * and who honours the warranty, which is the single most common question in
+   * the trade and the one a rate card has nowhere to put.
+   */
+  {
+    key: 'electronics', label: 'Electronics or mobile shop', group: 'Electronics',
+    catalogue: 'stock',
+    blurb: 'A shopfront selling phones, computers, televisions or appliances.',
+    sections: ['about', 'priceList', 'offers', 'gallery', 'reviews', 'availability', 'location'],
+    fields: [
+      { key: 'sells', label: 'What you sell', kind: 'text', hint: 'In your own words — people search this.' },
+      { key: 'brands', label: 'Brands you carry', kind: 'text' },
+      { key: 'fulfilment', label: 'How people get it', kind: 'chips',
+        options: ['In store', 'Home delivery', 'Pickup', 'Order on request'] },
+      { key: 'services', label: 'What you also do', kind: 'chips',
+        options: ['Installation', 'Demo at home', 'Exchange', 'Repairs', 'AMC', 'Data transfer'] },
+      { key: 'warranty', label: 'Warranty or exchange offered', kind: 'toggle' },
+    ],
+  },
   {
     key: 'gym', label: 'Gym or studio', group: 'Fitness & Sports',
     catalogue: 'packages',
@@ -458,7 +486,14 @@ export function catalogueFor(typeKey: string | null, categoryKey: string | null,
   if (categoryKey && (GROCERY_CATEGORIES as readonly string[]).includes(categoryKey)) return CATALOGUES.stock;
   if (categoryGroup === 'Food & Daily Needs') return CATALOGUES.menu;
   if (categoryGroup === 'Automotive' || categoryGroup === 'Travel & Hospitality') return CATALOGUES.fares;
-  if (categoryGroup === 'Shopping') return CATALOGUES.stock;
+  /* ELECTRONICS IS A SHOPPING GROUP IN EVERY WAY BUT ITS NAME (9 Sep). It was
+     split out of Shopping so a shopkeeper can find it, and the stock list is
+     the entire reason those two trades matter — the Electronics Store reads
+     nothing else. Leaving this line naming only 'Shopping' would have moved
+     the group and quietly taken its shelf away, which is a worse bug than the
+     one the split fixes: the shop would list, publish nothing, and still not
+     appear. electronics.spec.ts asserts this rather than trusting it. */
+  if (categoryGroup === 'Shopping' || categoryGroup === 'Electronics') return CATALOGUES.stock;
   if (categoryGroup === 'Event Services' || categoryGroup === 'Learning' || categoryGroup === 'Fitness & Sports') return CATALOGUES.packages;
   if (typed) return CATALOGUES.none;
   return CATALOGUES.rateCard;

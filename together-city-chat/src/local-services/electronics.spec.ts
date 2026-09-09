@@ -1,8 +1,8 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { AISLES, ELECTRONICS_CATEGORIES, aisleOf, aisleRank, isElectronicsCategory, sectionAisle } from './electronics';
-import { SERVICE_CATEGORIES } from './categories';
-import { catalogueFor } from './business-types';
+import { SERVICE_CATEGORIES, categoryGroup } from './categories';
+import { catalogueFor, typesForGroup } from './business-types';
 
 /**
  * THE ELECTRONICS STORE'S ONE RULE, HELD FROM BOTH ENDS — the grocery shelf's
@@ -10,22 +10,40 @@ import { catalogueFor } from './business-types';
  * trade they registered under, never by what the product appears to be.
  */
 describe('the trades that sell electronics', () => {
-  it('are all real categories, and all in Shopping', () => {
+  it('are all real categories, and all in the Electronics group', () => {
+    /* THEY WERE IN "Shopping" UNTIL 9 SEP, between furniture and bookstores.
+       A shop that sells phones opened the group list, read "Digital &
+       Technology", and picked it — a group of repair trades this shelf does
+       not read. They list, believe they are listed, and never appear. A group
+       named for the thing is the fix; the KEYS are untouched, so every listing
+       already filed under them keeps working. */
     for (const key of ELECTRONICS_CATEGORIES) {
       const cat = SERVICE_CATEGORIES.find((c) => c.key === key);
       expect({ key, found: !!cat }).toEqual({ key, found: true });
-      expect({ key, group: cat?.group }).toEqual({ key, group: 'Shopping' });
+      expect({ key, group: cat?.group }).toEqual({ key, group: 'Electronics' });
     }
   });
 
   /* THE SHELF ONLY EXISTS BECAUSE THESE SHOPS ALREADY PUBLISH STOCK. If the
-     Shopping group ever stopped getting a stock list, this shelf would be
-     reading a publishing surface that no longer exists — so the assumption is
-     asserted rather than assumed. */
+     group ever stopped getting a stock list, this shelf would be reading a
+     publishing surface that no longer exists — so the assumption is asserted
+     rather than assumed. It is asserted through `categoryGroup(key)` rather
+     than a group written out here, because the 9 Sep split is exactly the
+     change a hardcoded 'Shopping' would have passed straight through. */
   it('publish a stock list, which is what this shelf reads', () => {
     for (const key of ELECTRONICS_CATEGORIES) {
-      expect({ key, kind: catalogueFor(null, key, 'Shopping').kind }).toEqual({ key, kind: 'stock' });
+      expect({ key, kind: catalogueFor(null, key, categoryGroup(key)).kind }).toEqual({ key, kind: 'stock' });
     }
+  });
+
+  it('are offered a business type of their own, not just "something else"', () => {
+    /* `typesForGroup` filters by group, so the split would have left these two
+       with nothing but 'general' — losing the Shop type's questions AND its
+       stock catalogue. A group is not one field; it is everything that reads
+       the field. */
+    const types = typesForGroup('Electronics');
+    expect(types.map((t) => t.key)).toContain('electronics');
+    expect(types.find((t) => t.key === 'electronics')?.catalogue).toBe('stock');
   });
 
   it('leaves repair trades out — a call-out charge is not a product', () => {
@@ -66,6 +84,11 @@ describe("the shopkeeper's own heading decides the aisle", () => {
     ['Air Conditioners', 'cooling'],
     ['Inverter & Battery', 'power'],
     ['Power Banks', 'power'],
+    ['Smartwatches', 'wearables'],
+    ['Fitness Bands', 'wearables'],
+    ['Cameras', 'cameras'],
+    ['DSLR & Mirrorless', 'cameras'],
+    ['Gaming Consoles', 'tv'],
     ['Chargers', 'accessories'],
     ['Mobile Accessories', 'accessories'],
   ];

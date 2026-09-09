@@ -39,10 +39,16 @@
  */
 
 /**
- * THE TRADES THAT SELL ELECTRONICS, by the key their listing stores. Both are
- * in the "Shopping" group, which `catalogueFor` already gives a **Stock list**
- * — the publishing surface this shelf reads. Nothing had to be built for the
- * stock; what was missing was a way to read those shelves across shops.
+ * THE TRADES THAT SELL ELECTRONICS, by the key their listing stores. They sat
+ * in the "Shopping" group until 9 Sep and have their own group, "Electronics",
+ * since — the keys did not move, only where a shopkeeper finds them, because
+ * anyone selling phones was reading "Digital & Technology" and filing
+ * themselves into a group of repair trades this shelf does not read.
+ *
+ * `catalogueFor` gives that group a **Stock list**, which is the publishing
+ * surface this shelf reads and the entire reason these two trades matter here.
+ * Nothing had to be built for the stock; what was missing was a way to read
+ * those shelves across shops.
  *
  * APPLIANCE REPAIR, AC REPAIR AND ELECTRICIANS ARE DELIBERATELY NOT HERE. They
  * are Home Services: they sell labour by the visit, and a call-out charge on a
@@ -65,6 +71,8 @@ export const AISLES: { key: string; label: string }[] = [
   { key: 'computers', label: 'Computers & Networking' },
   { key: 'tv', label: 'TV & Home Entertainment' },
   { key: 'audio', label: 'Audio' },
+  { key: 'wearables', label: 'Watches & Wearables' },
+  { key: 'cameras', label: 'Cameras' },
   { key: 'appliances', label: 'Home Appliances' },
   { key: 'kitchen', label: 'Kitchen Appliances' },
   { key: 'cooling', label: 'Fans, Coolers & ACs' },
@@ -104,7 +112,13 @@ const SECTION_WORDS: { aisle: string; words: string[] }[] = [
   { aisle: 'accessories', words: ['accessory', 'accessories', 'charger', 'chargers', 'cable', 'cables', 'adapter', 'adapters', 'cover', 'covers', 'case', 'cases', 'screen guard', 'tempered glass', 'memory card', 'pen drive', 'pendrive', 'mount', 'holder', 'extension board', 'spare parts', 'spares'] },
   { aisle: 'phones', words: ['mobile', 'mobiles', 'phone', 'phones', 'smartphone', 'smartphones', 'handset', 'handsets', 'tablet', 'tablets', 'feature phone', 'landline'] },
   { aisle: 'computers', words: ['computer', 'computers', 'laptop', 'laptops', 'desktop', 'desktops', 'pc', 'printer', 'printers', 'monitor', 'monitors', 'keyboard', 'keyboards', 'mouse', 'hard disk', 'hard drive', 'ssd', 'router', 'routers', 'wifi', 'wi fi', 'networking', 'modem', 'ups systems'] },
-  { aisle: 'tv', words: ['tv', 'tvs', 'television', 'televisions', 'led tv', 'smart tv', 'set top box', 'settop', 'projector', 'projectors', 'home theatre', 'home theater', 'dish', 'dth'] },
+  { aisle: 'tv', words: ['tv', 'tvs', 'television', 'televisions', 'led tv', 'smart tv', 'set top box', 'settop', 'projector', 'projectors', 'home theatre', 'home theater', 'dish', 'dth', 'gaming', 'console', 'consoles', 'video games'] },
+  /* WATCHES AND CAMERAS EARN AISLES OF THEIR OWN, and they earned them the
+     way an aisle should be earned: a real stock list arrived with headings
+     this file had no word for, and both would have stood under "Everything
+     else" — the shelf's own way of saying it did not understand. */
+  { aisle: 'wearables', words: ['watch', 'watches', 'smartwatch', 'smartwatches', 'smart watch', 'wearable', 'wearables', 'fitness band', 'fitness bands', 'smart band', 'band'] },
+  { aisle: 'cameras', words: ['camera', 'cameras', 'dslr', 'mirrorless', 'action camera', 'drone', 'drones', 'cctv', 'security camera', 'lens', 'lenses'] },
   { aisle: 'audio', words: ['audio', 'speaker', 'speakers', 'headphone', 'headphones', 'earphone', 'earphones', 'earbuds', 'buds', 'soundbar', 'sound bar', 'music system', 'woofer', 'amplifier', 'mic', 'microphone'] },
   { aisle: 'kitchen', words: ['kitchen', 'mixer', 'mixers', 'grinder', 'grinders', 'microwave', 'microwaves', 'oven', 'ovens', 'induction', 'kettle', 'kettles', 'toaster', 'blender', 'juicer', 'air fryer', 'chimney', 'chimneys', 'cooktop', 'gas stove', 'rice cooker'] },
   { aisle: 'appliances', words: ['appliance', 'appliances', 'white goods', 'refrigerator', 'refrigerators', 'fridge', 'fridges', 'washing machine', 'washing machines', 'geyser', 'geysers', 'water heater', 'water heaters', 'iron', 'irons', 'vacuum', 'dishwasher', 'water purifier', 'purifier', 'purifiers', 'sewing machine'] },

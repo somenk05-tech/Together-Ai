@@ -45,17 +45,41 @@ describe('the service vocabulary', () => {
     expect(SERVICE_CATEGORIES.filter((c) => !c.label.trim()).map((c) => c.key)).toEqual([]);
   });
 
-  it('carries the owner’s groups — eighteen on 5 Aug, fifteen since three were retired on 8 Sep', () => {
+  it('carries the owner’s groups — eighteen on 5 Aug, fifteen after the 8 Sep retirements, sixteen with Electronics', () => {
     // Not a count for its own sake: a group quietly disappearing in a merge is
     // the kind of thing that shows up as "the directory feels smaller" six
-    // weeks later. Fifteen offered, plus "Other" — which must be LAST, or it
+    // weeks later. Sixteen offered, plus "Other" — which must be LAST, or it
     // lands in the middle of the browse chips and reads as a trade rather than
     // an escape hatch.
-    expect(CATEGORY_GROUPS).toHaveLength(16);
+    //
+    // ELECTRONICS IS THE SIXTEENTH (owner, 9 Sep: "add an electronics store
+    // category in the Local Services hub which will be the source of the Open
+    // Market"). It is the two trades the Electronics Store already read, lifted
+    // out of Shopping into a group named for the thing — because a shop that
+    // sells phones was reading "Digital & Technology" and filing itself into a
+    // group of repair trades the shelf does not read. This count went UP by one
+    // and the category count did not move at all, which is the assertion that
+    // the split added no trade and lost none.
+    expect(CATEGORY_GROUPS).toHaveLength(17);
     expect(CATEGORY_GROUPS[CATEGORY_GROUPS.length - 1]).toBe('Other');
     expect(SERVICE_CATEGORIES[SERVICE_CATEGORIES.length - 1].key).toBe('other');
-    const want = ['Healthcare', 'Food & Daily Needs', 'Home Services', 'Learning', 'Personal Care', 'Automotive'];
+    const want = ['Healthcare', 'Food & Daily Needs', 'Home Services', 'Learning', 'Personal Care', 'Automotive', 'Electronics'];
     expect(want.filter((g) => !CATEGORY_GROUPS.includes(g))).toEqual([]);
+  });
+
+  it('gave Electronics its trades rather than inventing any', () => {
+    /* THE KEYS ARE THE SUPPLY. A third "Electronics store" key beside these two
+       would split the city's shops across keys the shelf reads and keys it does
+       not — the same failure the catalogue's (sourceKey, sourceRef) unique
+       exists to prevent, one level up. So the group holds exactly the two that
+       were already in Shopping, under exactly the keys they already had, and
+       nothing else moved with them. */
+    const inGroup = SERVICE_CATEGORIES.filter((c) => c.group === 'Electronics').map((c) => c.key).sort();
+    expect(inGroup).toEqual(['electronics_stores', 'mobile_shops']);
+    const shopping = SERVICE_CATEGORIES.filter((c) => c.group === 'Shopping').map((c) => c.key);
+    expect(shopping).not.toContain('electronics_stores');
+    expect(shopping).not.toContain('mobile_shops');
+    expect(shopping).toContain('clothing_stores');
   });
 
   /**
