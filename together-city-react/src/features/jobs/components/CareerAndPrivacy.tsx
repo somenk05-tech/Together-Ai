@@ -1,5 +1,5 @@
 import { useId, useState, type CSSProperties } from 'react';
-import { Button } from '@/components/ui';
+import { Button, SavedMark } from '@/components/ui';
 import {
   useSaveCareerPreferences, useSaveVisibility,
   type EmploymentStatus, type EmploymentType, type JobProfile,
@@ -246,9 +246,8 @@ export function CareerAndPrivacy({ p }: { p: JobProfile }) {
       {error && <p role="alert" style={{ color: 'var(--danger-ink)', fontSize: 13, margin: 0 }}>{error}</p>}
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <Button variant="accent" disabled={savePrefs.isPending} onClick={submit}>
-          {savePrefs.isPending ? 'Saving…' : 'Save what I am looking for'}
-        </Button>
+        <Button variant="accent" onClick={submit} state={savePrefs.isPending ? 'loading' : undefined} loadingLabel="Saving…">Save what I am looking for</Button>
+        {savePrefs.isSuccess && <SavedMark />}
         {saved && !savePrefs.isPending && (
           <span className="muted" style={{ fontSize: 12.5 }}>Saved.</span>
         )}

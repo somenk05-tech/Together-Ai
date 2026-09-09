@@ -19,6 +19,7 @@
  */
 
 import { useState } from 'react';
+import { Button } from '@/components/ui';
 import { Fold } from '@/components/ui/Fold';
 import { useBabyCare } from '../store';
 import { ageWords, BAND_LABEL, bandForDob, monthsOld } from '../age';
@@ -79,7 +80,7 @@ function Row({ child }: { child: Child }) {
             </span>
           </label>
           <div className="bc-row">
-            <button type="button" className="btn btn-accent" onClick={save}>Save</button>
+            <Button variant="accent" onClick={save}>Save</Button>
             {confirming
               ? (
                 <>

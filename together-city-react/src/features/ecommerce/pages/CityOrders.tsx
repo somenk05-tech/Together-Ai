@@ -157,7 +157,6 @@ export function CityOrders() {
             return (
               <details key={day.key} className="sf-day" open={i === 0}>
                 <summary className="sf-day-head">
-                  <span className="sf-day-chev" aria-hidden />
                   <span className="sf-day-when">
                     <span className="sf-day-date">{w.head}</span>
                     <span className="sf-day-sub">{w.sub}</span>
@@ -166,6 +165,7 @@ export function CityOrders() {
                     <span className="sf-day-n">{day.orders.length} order{day.orders.length === 1 ? '' : 's'}</span>
                     <span className="sf-day-total">{rupees(day.totalInr)}</span>
                   </span>
+                  <span className="fold-state" aria-hidden />
                 </summary>
 
                 <div className="sf-day-body">

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useFormValidation, ValidationSummary, FieldError, successToast } from '@/components/form-validation';
-import { Button, Spinner , Switch} from '@/components/ui';
+import { Button, SavedMark, Spinner, Switch } from '@/components/ui';
 import { useFoodPref, useNutritionTargets, useUpdateFoodPref } from '../hooks';
 import { TargetsRefusal } from '../components/TargetsDisclosure';
 import { MedicalRecs } from '../components/MedicalRecs';
@@ -446,7 +446,8 @@ export function Preferences() {
               <div className="eyebrow" style={{ color: 'var(--accent-ink)' }}>Saved ✓</div>
               <h3 style={{ margin: '2px 0 0' }}>Your food profile</h3>
             </div>
-            <Button type="button" variant="line" size="sm" onClick={() => { setCollapsed(false); setSaved(false); }}>Edit Food Preference Profile</Button>
+            <Button type="button" variant="line" size="sm" aria-expanded={false} aria-controls="food-preference-form"
+              onClick={() => { setCollapsed(false); setSaved(false); }}>Edit Food Preference Profile</Button>
           </div>
           <div style={{ marginTop: 12 }}>
             {summaryRows.map(([k, v]) => (
@@ -462,7 +463,7 @@ export function Preferences() {
         </div>
       )}
 
-      <form onSubmit={submit} style={{ display: collapsed ? 'none' : 'block' }}>
+      <form id="food-preference-form" onSubmit={submit} style={{ display: collapsed ? 'none' : 'block' }}>
         <ValidationSummary missing={v.missing} />
         {/* 0 · Blood test status (from Medical hub) */}
         <div className="card" style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -731,9 +732,8 @@ export function Preferences() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 18 }}>
-          <Button type="submit" variant="accent" disabled={update.isPending}>
-            {update.isPending ? 'Saving…' : 'Save preferences'}
-          </Button>
+          <Button type="submit" variant="accent" state={update.isPending ? 'loading' : undefined} loadingLabel="Saving…">Save preferences</Button>
+          {update.isSuccess && <SavedMark />}
           {saved && !update.isPending && <span className="muted" style={{ fontSize: 12.5 }}>Saved — targets updated ✓</span>}
         </div>
       </form>

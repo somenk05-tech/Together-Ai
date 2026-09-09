@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Spinner } from '@/components/ui';
+import { Button, SavedMark, Spinner } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { useBloodHistory, useLatestPanel, useSaveBloodTest, useIngestBlood, useHealthSummary, useBloodTrends, useBiomarkerCatalog, useDeleteBloodTest, type BloodTestSummary, type Citation, type TrendKind, type TrendPick, type BiomarkerSection, type UnitChoice } from '../api';
 import { PrivacyNote } from '@/features/privacy/PrivacyNote';
@@ -464,7 +464,8 @@ export function BloodAnalysis() {
             </div>
           )}
         <div style={{ marginTop: 14 }}>
-          <Button type="submit" variant="accent" disabled={save.isPending}>{save.isPending ? 'Saving to your records…' : 'Save & analyse'}</Button>
+          <Button type="submit" variant="accent" state={save.isPending ? 'loading' : undefined} loadingLabel="Saving to your records…">Save & analyse</Button>
+          {save.isSuccess && <SavedMark />}
         </div>
       </form>
       </>

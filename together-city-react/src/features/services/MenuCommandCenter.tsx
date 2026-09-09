@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui';
+import { Button, useDisclosure } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import {
   rupees, useBusinessOrders, useMenu, usePatchMenuItem,
@@ -84,9 +84,7 @@ function OptionsEditor({ label, hint, value, onSave, saving }: {
       ))}
       <div className="svo-row">
         <Button variant="line" size="sm" onClick={() => setRows((x) => [...x, { name: '', price: '' }])}>Add a line</Button>
-        <Button variant="accent" size="sm" disabled={saving} onClick={() => onSave(clean)}>
-          {saving ? 'Saving…' : `Save ${label.toLowerCase()}`}
-        </Button>
+        <Button variant="accent" size="sm" disabled={saving} onClick={() => onSave(clean)} state={saving ? 'loading' : undefined} loadingLabel="Saving…">{`Save ${label.toLowerCase()}`}</Button>
       </div>
     </div>
   );
@@ -96,7 +94,8 @@ function ItemRow({ listingId, item }: { listingId: string; item: MenuItem }) {
   const patch = usePatchMenuItem(listingId);
   const [price, setPrice] = useState(item.priceInr == null ? '' : String(item.priceInr));
   const [prep, setPrep] = useState(item.prepMinutes == null ? '' : String(item.prepMinutes));
-  const [more, setMore] = useState(false);
+  const m = useDisclosure();
+  const more = m.open;
   const [busyPhoto, setBusyPhoto] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -134,13 +133,13 @@ function ItemRow({ listingId, item }: { listingId: string; item: MenuItem }) {
           aria-label={item.available ? `Mark ${item.name} sold out` : `Put ${item.name} back on`}>
           {item.available ? '● Available' : '● Sold out'}
         </button>
-        <button type="button" className="svo-linkbtn" onClick={() => setMore((v) => !v)}>
+        <button type="button" className="svo-linkbtn" {...m.faceProps}>
           {more ? 'Less' : 'More'}
         </button>
       </div>
 
       {more && (
-        <div className="mcc-more">
+        <div {...m.panelProps} className="mcc-more">
           <div className="svo-row mcc-wide">
             <label className="svo-minlabel">
               Diet
@@ -194,7 +193,8 @@ function ItemRow({ listingId, item }: { listingId: string; item: MenuItem }) {
 
 export function MenuCommandCenter({ listingId }: { listingId: string }) {
   const live = useMenu(listingId);
-  const [open, setOpen] = useState(false);
+  const d = useDisclosure();
+  const open = d.open;
   const count = live.data?.count ?? 0;
   if (count === 0) return null;
   const items = (live.data?.sections ?? []).flatMap((s) => s.items);
@@ -209,12 +209,12 @@ export function MenuCommandCenter({ listingId }: { listingId: string }) {
           {count} {count === 1 ? 'item' : 'items'}{off > 0 ? ` · ${off} sold out` : ''}
           {priced.length > 0 ? ` · from ${rupees(Math.min(...priced.map((i) => i.priceInr as number)))}` : ''}
         </span>
-        <Button variant="line" size="sm" onClick={() => setOpen((v) => !v)}>
+        <Button variant="line" size="sm" {...d.faceProps}>
           {open ? 'Close' : 'Prices, sold-out & photos'}
         </Button>
       </div>
       {open && (
-        <div className="mcc-open">
+        <div {...d.panelProps} className="mcc-open">
           <p className="muted mcc-note">
             Every change lands on your public page the same minute. Sold out keeps the dish on
             the menu and says so — it does not hide it.

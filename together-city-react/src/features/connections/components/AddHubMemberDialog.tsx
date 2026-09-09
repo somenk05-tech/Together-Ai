@@ -151,9 +151,7 @@ export function AddHubMemberDialog({
                   <span style={{ fontSize: 13, fontWeight: 600 }}>{def.emoji} {def.label}</span>
                   <span className="muted" style={{ fontSize: 11.5 }}>will be connected · Chat & Mail are always on</span>
                 </div>
-                <Button variant="accent" onClick={() => void connect()} disabled={requestConn.isPending} style={{ width: '100%' }}>
-                  {requestConn.isPending ? 'Sending…' : `Send request →`}
-                </Button>
+                <Button variant="accent" onClick={() => void connect()} disabled={requestConn.isPending} style={{ width: '100%' }} state={requestConn.isPending ? 'loading' : undefined} loadingLabel="Sending…">{`Send request →`}</Button>
               </div>
             )}
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useFormValidation, ValidationSummary, successToast } from '@/components/form-validation';
-import { Button, Spinner, EmptyState } from '@/components/ui';
+import { Button, Spinner, EmptyState, SavedMark } from '@/components/ui';
 import { useFitnessProfile, useSaveFitnessProfile } from '../api';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { serverMessage } from '@/features/dating/server-sentence';
@@ -287,13 +287,13 @@ export function Profile() {
 
       <ValidationSummary missing={v.missing} />
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-        <Button variant="accent" disabled={save.isPending}
+        <Button variant="accent" state={save.isPending ? 'loading' : undefined} loadingLabel="Saving…"
           onClick={() => { if (!v.validate()) return; save.mutate({ age, sex, level, mode, goal, conditions, heightCm: num(heightCm), weightKg: num(weightKg), bodyGoal,
             equipment, daysPerWeek: daysPerWeek === '' ? undefined : daysPerWeek, limitations: limitations.trim() || undefined,
             place: place || undefined, sessionMinutes: sessionMinutes === '' ? undefined : sessionMinutes }, { onSuccess: () => { setCollapsed(true); successToast('Profile saved.'); } }); }}>
-          {save.isPending ? 'Saving…' : 'Save & build my plan'}
+          Save &amp; build my plan
         </Button>
-        {save.isSuccess && <span style={{ fontSize: 13, color: 'var(--accent-ink)', fontWeight: 700 }}>✓ Saved — see your Workout</span>}
+        {save.isSuccess && <SavedMark>Saved — see your Workout</SavedMark>}
       </div>
       {save.isError && (
         <p role="alert" style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600, margin: '10px 0 0' }}>

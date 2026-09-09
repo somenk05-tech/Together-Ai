@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Button } from '@/components/ui';
 
 interface Entry { total: number; wakes: number; bed: string; wake: string; score: number }
 type Log = Record<string, Entry>;
@@ -184,7 +185,7 @@ export function Sleep() {
             <label style={fieldL}>Bedtime<input style={inS} type="time" value={bedF} onChange={(e) => setBedF(e.target.value)} /></label>
             <label style={fieldL}>Wake<input style={inS} type="time" value={wakeF} onChange={(e) => setWakeF(e.target.value)} /></label>
             <label style={fieldL}>Nightly goal<input style={{ ...inS, width: 90 }} type="text" value={hm(durMin(bedF, wakeF))} readOnly /></label>
-            <button type="button" className="btn btn-accent btn-sm" onClick={saveSchedule}>Save schedule</button>
+            <Button variant="accent" size="sm" onClick={saveSchedule}>Save schedule</Button>
           </div>
           <p className="muted" style={{ fontSize: 11.5, marginTop: 12 }}>{schedNote}</p>
         </div>

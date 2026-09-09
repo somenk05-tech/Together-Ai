@@ -178,6 +178,7 @@ export function LocationPicker({ value, onChange, hint, onPlace }: {
       <details>
         <summary style={{ cursor: 'pointer', fontSize: 12.5, color: 'var(--muted)', minHeight: 44, display: 'flex', alignItems: 'center' }}>
           Enter coordinates instead
+          <span className="fold-state" aria-hidden style={{ marginLeft: 'auto' }} />
         </summary>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10, marginTop: 8 }}>
           <div>

@@ -46,7 +46,10 @@ describe('the whiteboard', () => {
   });
 
   it('says why the month is shaped this way', () => {
-    expect(page).toMatch(/<summary>Why this month<\/summary>/);
+    // The summary carries the city's one state word since the 8 Sep
+    // disclosure audit — `.fold-state`, painted by CSS, aria-hidden because
+    // the browser has already announced the same thing.
+    expect(page).toMatch(/<summary>Why this month<span className="fold-state" aria-hidden \/><\/summary>/);
     expect(page).toMatch(/month\.why\.map/);
   });
 });

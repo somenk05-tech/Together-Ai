@@ -113,7 +113,7 @@ export function CityProfiles() {
               <span className="ccode">TC</span>
               <b>What this record supplies</b>
               <span className="csum">{filledMaster} of {mastered.length} filled in</span>
-              <i className="cchev" aria-hidden="true" />
+              <span className="fold-state" aria-hidden="true" />
             </summary>
             <div className="cbody">
               <p className="muted cnote">
@@ -156,7 +156,7 @@ function Panel({ panel: p, open, onToggle }: { panel: CityProfilePanel; open: bo
             somebody has never opened, and they never need to open the panel. */}
         <span className="csum">{p.summary ?? (p.started ? `${shown} recorded` : 'Nothing recorded yet')}</span>
         {p.percent !== null && <span className="cpct">{p.percent}%</span>}
-        <i className="cchev" aria-hidden="true" />
+        <span className="fold-state" aria-hidden="true" />
       </summary>
       <div className="cbody">
         <p className="muted cnote">{p.blurb}</p>

@@ -1,5 +1,5 @@
 import { useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { Button, EmptyState, PageHeader, Spinner } from '@/components/ui';
+import { Button, EmptyState, PageHeader, SavedMark, Spinner } from '@/components/ui';
 import {
   useAvatarAsset, useAvatarOptions, useAvatarPreview, useAvatars,
   useCreateAvatar, useDeleteAvatar, useDeselectAvatar, useSelectAvatar,
@@ -214,10 +214,8 @@ export function Avatars() {
           <Button
             style={{ marginTop: 12, width: '100%' }}
             disabled={busy}
-            onClick={() => create.mutate(current)}
-          >
-            {create.isPending ? 'Saving…' : 'Save this avatar'}
-          </Button>
+            onClick={() => create.mutate(current)} state={create.isPending ? 'loading' : undefined} loadingLabel="Saving…">Save this avatar</Button>
+            {create.isSuccess && <SavedMark />}
           {create.isError && (
             <p style={{ color: 'var(--danger-ink)', fontSize: 12, margin: '8px 0 0' }}>
               {(create.error as { response?: { data?: { message?: string } } })?.response?.data?.message

@@ -120,9 +120,7 @@ export function VerifyChannel({ channel, current, onVerified, onCancel }: Verify
         <p className="muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>{copy.hint}</p>
         {error && <p role="alert" style={errorStyle}>{error}</p>}
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button type="submit" variant="accent" disabled={busy || !target.trim()}>
-            {busy ? 'Sending…' : 'Send me a code'}
-          </Button>
+          <Button type="submit" variant="accent" disabled={!target.trim()} state={busy ? 'loading' : undefined} loadingLabel="Sending…">Send me a code</Button>
           {onCancel && <Button variant="line" onClick={onCancel} disabled={busy}>Cancel</Button>}
         </div>
       </form>

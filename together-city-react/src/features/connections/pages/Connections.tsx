@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Avatar, Button, EmptyState, Spinner } from '@/components/ui';
+import { Avatar, Button, EmptyState, SavedMark, Spinner } from '@/components/ui';
 import { useConnections, useRespondConnection, chatApi } from '@/api';
 import type { Connection } from '@/api/schemas';
 import { MemberFinder } from '../components/MemberFinder';
@@ -87,10 +87,11 @@ function ManagePanel({ c, onDone }: { c: Connection; onDone: () => void }) {
       </div>
       <ModuleToggles relationship={rel} selected={selected.filter((k) => allowedModules(hubs, rel).includes(k))} onChange={setSelected} />
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
-        <Button size="sm" variant="accent" disabled={update.isPending}
+        <Button size="sm" variant="accent" state={update.isPending ? 'loading' : undefined} loadingLabel="Saving…"
           onClick={() => update.mutate({ id: c.id, modules: selected, relationship: rel }, { onSuccess: onDone })}>
-          {update.isPending ? 'Saving…' : 'Save changes'}
+          Save changes
         </Button>
+        {update.isSuccess && !update.isPending && <SavedMark />}
         <span className="muted" style={{ fontSize: 11 }}>Connected hubs update everywhere immediately.</span>
       </div>
     </div>

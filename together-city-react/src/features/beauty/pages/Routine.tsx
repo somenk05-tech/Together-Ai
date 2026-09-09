@@ -446,9 +446,7 @@ function BudgetCard(
               : <>Best routine: <strong>{rupees(ask)}</strong> — above your {rupees(c.budgetInr)}.</>}
           </p>
           <div className="rt-ask-actions">
-            <Button variant="accent" size="sm" disabled={raising} onClick={() => onRaise(ask)}>
-              {raising ? 'Saving…' : `Set ${rupees(ask)}`}
-            </Button>
+            <Button variant="accent" size="sm" disabled={raising} onClick={() => onRaise(ask)} state={raising ? 'loading' : undefined} loadingLabel="Saving…">{`Set ${rupees(ask)}`}</Button>
             <Button variant="line" size="sm" onClick={onKeep}>Keep {rupees(c.budgetInr)}</Button>
           </div>
         </div>

@@ -254,9 +254,7 @@ export function VerificationTab({ listingId }: { listingId: string }) {
             <div>
               <Button variant="accent" size="sm"
                 disabled={!kind || (wantsDoc && (!chosenDoc || docRef.trim().length < 4)) || submit.isPending}
-                onClick={send}>
-                {submit.isPending ? 'Sending…' : 'Send for checking'}
-              </Button>
+                onClick={send} state={submit.isPending ? 'loading' : undefined} loadingLabel="Sending…">Send for checking</Button>
             </div>
             <p className="muted" style={{ fontSize: 11.5, margin: 0 }}>
               A person reads this, not a machine. We write to you either way, and a refusal says why.

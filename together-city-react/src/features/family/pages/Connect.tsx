@@ -300,7 +300,7 @@ function EditMemberForm({ initial, isSelf, onSave, onCancel, saving }: { initial
         <input style={fld} value={f.allergies ?? ''} placeholder="e.g. peanuts, shellfish" onChange={(e) => set('allergies', e.target.value)} />
       </div>
       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-        <Button variant="accent" disabled={saving} onClick={() => onSave(f)}>{saving ? 'Saving…' : isSelf ? 'Save my profile' : `Save ${initial.name.split(' ')[0]}’s details`}</Button>
+        <Button variant="accent" disabled={saving} onClick={() => onSave(f)} state={saving ? 'loading' : undefined} loadingLabel="Saving…">{isSelf ? 'Save my profile' : `Save ${initial.name.split(' ')[0]}’s details`}</Button>
         <Button variant="line" onClick={onCancel}>Cancel</Button>
       </div>
     </div>

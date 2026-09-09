@@ -454,7 +454,7 @@ export function Workout() {
               ))}
             </ol>
             <details className="wk-month-why">
-              <summary>Why this month</summary>
+              <summary>Why this month<span className="fold-state" aria-hidden /></summary>
               <ul>{month.why.map((w) => <li key={w}>{w}</li>)}</ul>
             </details>
           </div>

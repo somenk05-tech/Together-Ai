@@ -5873,14 +5873,13 @@ button.own-month-day:hover { border-color: var(--accent); }
    looking broken. */
 .cprof[data-started="false"] .csum { color: var(--faint); }
 
-.cprof .cchev {
-  flex: none; width: 8px; height: 8px; margin-left: 2px;
-  border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
-  transform: rotate(45deg) translate(-2px, -2px);
-  transition: transform var(--dur-base) var(--ease-out);
-}
-.cprof[open] > summary .cchev { transform: rotate(-135deg) translate(-2px, -2px); }
-@media (prefers-reduced-motion: reduce) { .cprof .cchev { transition: none; } }
+/* The chevron went with the 8 Sep disclosure audit: one state word for the
+   whole city, and it is `.fold-state` in layout.css. */
+.cprof > summary .fold-state { margin-left: 4px; }
+/* The hub's name gives up room to the state word before the row wraps — the
+   summary beside it already truncates for the same reason. */
+.cprof > summary b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 480px) { .cprof > summary { gap: 8px; } }
 
 .cprof .cbody { padding: 2px 2px 20px; }
 .cprof .cnote { font-size: 12px; line-height: 1.55; margin: 0 0 12px; max-width: 62ch; }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Button, Card, EmptyState, Spinner } from '@/components/ui';
+import { Button, Card, EmptyState, SavedMark, Spinner, useDisclosure } from '@/components/ui';
 import { payError, useOnboarding, useSavePayoutAccount } from '../api';
 import { StatusChip } from '../InvoiceBits';
 
@@ -32,7 +32,9 @@ export function PayoutAccount() {
   const q = useOnboarding(listingId);
   const save = useSavePayoutAccount();
 
-  const [open, setOpen] = useState(false);
+  const d = useDisclosure();
+  const open = d.open;
+  const setOpen = d.setOpen;
   const [legalName, setLegalName] = useState('');
   const [entityKind, setEntityKind] = useState('individual');
   const [accountNumber, setAccountNumber] = useState('');
@@ -157,13 +159,13 @@ export function PayoutAccount() {
       <Card>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <strong style={{ fontSize: 13.5 }}>{a ? 'Change the account' : 'Add an account'}</strong>
-          <Button variant={a ? 'line' : 'accent'} size="sm" style={{ marginLeft: 'auto' }} onClick={() => setOpen((v) => !v)}>
+          <Button variant={a ? 'line' : 'accent'} size="sm" style={{ marginLeft: 'auto' }} {...d.faceProps}>
             {open ? 'Cancel' : a ? 'Fix payout details' : 'Add payout account'}
           </Button>
         </div>
 
         {open && (
-          <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+          <div {...d.panelProps} style={{ display: 'grid', gap: 8, marginTop: 12 }}>
             <label style={{ fontSize: 12.5 }}>
               <span className="muted">Name on the account</span>
               <input style={field} value={legalName} maxLength={140} onChange={(e) => setLegalName(e.target.value)} />
@@ -206,9 +208,8 @@ export function PayoutAccount() {
             {err && <p role="alert" style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: 0 }}>{err}</p>}
 
             <div>
-              <Button variant="accent" size="sm" disabled={!ready || save.isPending} onClick={submit}>
-                {save.isPending ? 'Sending…' : 'Save account'}
-              </Button>
+              <Button variant="accent" size="sm" disabled={!ready} onClick={submit} state={save.isPending ? 'loading' : undefined} loadingLabel="Sending…">Save account</Button>
+              {save.isSuccess && <SavedMark />}
             </div>
           </div>
         )}

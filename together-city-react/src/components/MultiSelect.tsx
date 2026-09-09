@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useDisclosure } from '@/components/ui';
 import { useLookups, type LookupOption } from '@/api/lookups.api';
 
 /** THE EMPTY LIST IS A CONSTANT, NOT A LITERAL.
@@ -25,7 +26,8 @@ interface Props {
  * friendly and mobile friendly, matching the Together City form language.
  */
 export function MultiSelect({ values, onChange, category, options: staticOptions, placeholder = 'Search…', max, ariaLabel }: Props) {
-  const [open, setOpen] = useState(false);
+  const d = useDisclosure();
+  const { open, setOpen, close: shut } = d;
   const [q, setQ] = useState('');
   const [hi, setHi] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -44,10 +46,10 @@ export function MultiSelect({ values, onChange, category, options: staticOptions
 
   useEffect(() => {
     if (!open) return;
-    const onDoc = (e: MouseEvent) => { if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false); };
+    const onDoc = (e: MouseEvent) => { if (rootRef.current && !rootRef.current.contains(e.target as Node)) shut(); };
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
-  }, [open]);
+  }, [open, shut]);
 
   const add = (label: string) => { if (!full && !values.includes(label)) onChange([...values, label]); setQ(''); setHi(0); };
   const remove = (label: string) => onChange(values.filter((v) => v !== label));
@@ -74,14 +76,16 @@ export function MultiSelect({ values, onChange, category, options: staticOptions
               style={{ minWidth: 44, minHeight: 44, border: 'none', background: 'rgba(255,255,255,.25)', color: 'var(--on-accent)', width: 16, height: 16, borderRadius: '50%', cursor: 'pointer', fontSize: 11, lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
           </span>
         ))}
-        <input value={q} aria-label={ariaLabel} onFocus={() => setOpen(true)} onChange={(e) => { setQ(e.target.value); setOpen(true); setHi(0); }} onKeyDown={onKey}
+        <input value={q} aria-label={ariaLabel}
+          role="combobox" {...d.announces} aria-autocomplete="list"
+          onFocus={() => setOpen(true)} onChange={(e) => { setQ(e.target.value); setOpen(true); setHi(0); }} onKeyDown={onKey}
           placeholder={full ? `Max ${max} selected` : values.length ? '' : placeholder} disabled={full}
           autoCapitalize="off" autoCorrect="off" spellCheck={false}
           style={{ flex: 1, minWidth: 90, border: 'none', outline: 'none', fontSize: 14, fontFamily: 'inherit', background: 'transparent', padding: '4px 2px' }} />
       </div>
 
       {open && !full && filtered.length > 0 && (
-        <div role="listbox" style={{
+        <div role="listbox" id={d.panelProps.id} style={{
           position: 'absolute', zIndex: 40, top: 'calc(100% + 6px)', left: 0, right: 0, background: 'var(--card)',
           border: '1.5px solid var(--line)', borderRadius: 12, boxShadow: '0 12px 32px rgba(20,18,16,.16)', overflow: 'hidden',
           animation: 'tc-rise .16s ease',

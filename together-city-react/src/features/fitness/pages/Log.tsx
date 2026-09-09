@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Button, EmptyState, Spinner } from '@/components/ui';
+import { Button, EmptyState, SavedMark, Spinner } from '@/components/ui';
 import {
   useFitnessLog, useAddWorkout, useEditWorkout, useRemoveWorkout,
   WORKOUT_STYLES, type Intensity, type WorkoutEntry, type WorkoutStyle,
@@ -97,9 +97,8 @@ function Row({ e }: { e: WorkoutEntry }) {
           {INTENSITIES.map((i) => (
             <Chip key={i} label={i[0].toUpperCase() + i.slice(1)} on={intensity === i} onClick={() => setIntensity(i)} tone={color[i]} />
           ))}
-          <Button type="button" variant="accent" size="sm" onClick={save} disabled={edit.isPending || !focus.trim()}>
-            {edit.isPending ? 'Saving…' : 'Save'}
-          </Button>
+          <Button type="button" variant="accent" size="sm" onClick={save} disabled={!focus.trim()} state={edit.isPending ? 'loading' : undefined} loadingLabel="Saving…">Save</Button>
+          {edit.isSuccess && <SavedMark />}
           <Button type="button" variant="ghost" size="sm" onClick={cancel}>Cancel</Button>
         </div>
         {edit.isError && <div style={{ color: 'var(--danger-ink)', fontSize: 12, marginTop: 8 }}>That didn’t save. Nothing was changed.</div>}

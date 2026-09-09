@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useFormValidation, ValidationSummary, FieldError, successToast } from '@/components/form-validation';
-import { Button, EmptyState, Spinner } from '@/components/ui';
+import { Button, EmptyState, SavedMark, Spinner, UnsavedGuard } from '@/components/ui';
+import { useUnsavedGuard } from '@/hooks/useUnsavedGuard';
 import { SearchSelect } from '@/components/SearchSelect';
 import { MultiSelect } from '@/components/MultiSelect';
 import type { LookupOption } from '@/api/lookups.api';
@@ -373,7 +374,7 @@ function SelfieVerify({ onFile, onSaved, onClear, saving, clearing, failed }: {
               <Button variant="line" size="sm" onClick={close}>Cancel</Button>
               {err
                 ? <Button variant="accent" size="sm" onClick={() => void start()}>Try again</Button>
-                : <Button variant="accent" size="sm" disabled={!ready || busy} onClick={() => void capture()}>{busy ? 'Saving…' : 'Capture selfie'}</Button>}
+                : <Button variant="accent" size="sm" disabled={!ready || busy} onClick={() => void capture()} state={busy ? 'loading' : undefined} loadingLabel="Saving…">Capture selfie</Button>}
             </div>
           </div>
         </div>
@@ -505,6 +506,11 @@ export function DatingProfilePage() {
    * manage the rest. A background refetch never rewrites a form mid-edit.
    */
   const seededFor = useRef<string | null>(null);
+  /* WHAT THEY CHANGED, NOT WHAT THE SERVER SENT. The guard needs a baseline and
+     this form does not have one anywhere else: it is seeded once per profile
+     (see below) and then owned entirely by the citizen. Stringified because the
+     shape is plain data and a deep compare here would be a library. */
+  const baseline = useRef<string>('');
   useEffect(() => {
     const d = existingData as (typeof existing.data & { saved?: boolean; name?: string; country?: string | null; state?: string | null; city?: string | null; heightCm?: number | null; photo?: string | null; diet?: string | null }) | null;
     if (!d) return;
@@ -512,14 +518,16 @@ export function DatingProfilePage() {
     if (seededFor.current === identity) return;
     seededFor.current = identity;
     const isSaved = (d as { saved?: boolean }).saved !== false; // prefill objects carry saved:false
-    setForm({
+    const seed: UpsertProfileInput = {
       // The prefill already carries the Master Profile's answer, in this form's
       // own vocabulary — the citizen answered this once (p22, p23).
       gender: (d.gender ?? '') as UpsertProfileInput['gender'],
       seeking: d.seeking ?? 'any',
       bio: d.bio ?? '', birthDate: d.birthDate ?? '', birthTime: d.birthTime ?? '',
       birthPlace: d.birthPlace ?? '', interests: d.interests ?? [],
-    });
+    };
+    baseline.current = JSON.stringify(seed);
+    setForm(seed);
     if (isSaved) {
       let ex: DX = {};
       try {
@@ -579,6 +587,11 @@ export function DatingProfilePage() {
     { key: 'bio', label: 'Bio', valid: () => (form.bio ?? '').trim().length >= 20, message: 'Write a short Bio (at least 20 characters).' },
     { key: 'interests', label: 'Interests', valid: () => (form.interests ?? []).length >= 3, message: 'Pick at least 3 Interests.' },
   ]);
+
+  /* EIGHTEEN QUESTIONS AND NOWHERE TO PUT THEM BACK. Before 8 Sep this page
+     had no idea whether it had been touched: a hub tab pressed halfway
+     through threw the lot away without a word. */
+  const guard = useUnsavedGuard(baseline.current !== '' && JSON.stringify(form) !== baseline.current);
 
   if (existing.isLoading) return <Spinner label="Loading your profile…" />;
 
@@ -750,7 +763,11 @@ export function DatingProfilePage() {
     // "Invalid" under the button and no way past it. Send nothing instead.
     upsert.mutate(
       { ...form, birthTime: form.birthTime || undefined, interests: (form.interests ?? []), extras: JSON.stringify(extras) },
-      { onSuccess: (p) => { setCollapsed(p.moderation !== 'rejected'); successToast('Matchmaking profile saved successfully.'); } },
+      { onSuccess: (p) => {
+        baseline.current = JSON.stringify(form);
+        setCollapsed(p.moderation !== 'rejected');
+        successToast('Matchmaking profile saved successfully.');
+      } },
     );
   };
 
@@ -988,6 +1005,7 @@ export function DatingProfilePage() {
 
   return (
     <div>
+      <UnsavedGuard guard={guard} what="answers" />
       <div className="eyebrow">Matchmaking Hub · Your profile</div>
       <h1 style={{ fontSize: 26 }}>Tell the stars about you</h1>
       <p className="muted" style={{ fontSize: 13.5, marginTop: 6 }}>
@@ -1399,7 +1417,8 @@ export function DatingProfilePage() {
         )}
 
         <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <Button type="submit" variant="accent" disabled={upsert.isPending || !dx.sensitiveConsentAt}>{upsert.isPending ? 'Saving…' : saved ? 'Save profile' : 'Create profile'}</Button>
+          <Button type="submit" variant="accent" disabled={!dx.sensitiveConsentAt} state={upsert.isPending ? 'loading' : undefined} loadingLabel="Saving…">{saved ? 'Save profile' : 'Create profile'}</Button>
+          {upsert.isSuccess && <SavedMark />}
           {data?.sign && <span className="pill" style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '6px 14px', fontSize: 12.5 }}>✨ Your sign: <strong>{data.sign}</strong></span>}
         </div>
       </form>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Button, EmptyState, Spinner } from '@/components/ui';
+import { Button, EmptyState, SavedMark, Spinner } from '@/components/ui';
 import { useProperty, useUpdateProperty, useCloseProperty, type Photo, type PostPropertyInput } from '../api';
 import { PhotoCapture } from '../PhotoCapture';
 import { Masthead } from '../components/Masthead';
@@ -241,7 +241,8 @@ export function EditListing() {
       )}
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
-        <Button variant="gold" disabled={update.isPending} onClick={save}>{update.isPending ? 'Saving…' : 'Save & resubmit'}</Button>
+        <Button variant="gold" onClick={save} state={update.isPending ? 'loading' : undefined} loadingLabel="Saving…">Save & resubmit</Button>
+        {update.isSuccess && <SavedMark />}
         <Link to="/realestate/mine"><Button variant="line">Cancel</Button></Link>
         {p.moderation !== 'removed' && (
           <span style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>

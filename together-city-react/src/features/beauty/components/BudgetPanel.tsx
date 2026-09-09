@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button } from '@/components/ui';
+import { Button, SavedMark } from '@/components/ui';
 import { useBeautyBudget, useBeautyRoutine, useSaveBeautyBudget, type BeautyBudget } from '../api';
 
 /**
@@ -283,10 +283,12 @@ export function BudgetPanel(
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 16 }}>
         {/* Disabled at nothing-anywhere rather than saving an all-zero budget
             and sending somebody to an empty routine to work out why. */}
-        <Button variant="accent" disabled={save.isPending || total === 0}
+        <Button variant="accent" disabled={total === 0}
+          state={save.isPending ? 'loading' : undefined} loadingLabel="Saving…"
           onClick={() => save.mutate(draft, { onSuccess: () => { setTouched(false); onSaved?.(); } })}>
-          {save.isPending ? 'Saving…' : saved.data && !dirty ? 'Budget saved' : saved.data ? 'Update my budget' : 'Create my routine'}
+          {saved.data && !dirty ? 'Budget saved' : saved.data ? 'Update my budget' : 'Create my routine'}
         </Button>
+        {save.isSuccess && <SavedMark />}
         {total === 0 && <span className="muted" style={{ fontSize: 11.5 }}>Set at least one of the three to build a routine.</span>}
         {save.isError && (
           <span style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600 }}>

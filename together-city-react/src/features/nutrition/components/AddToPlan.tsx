@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, useDisclosure } from '@/components/ui';
 import { useComposedPlan, usePinMeal, useUnpinMeal } from '../composed.api';
 import { planDates, planDayOffset, dayLabel, longDate } from '../planDates';
 
@@ -42,7 +42,9 @@ export function AddToPlan({ recipeId, recipeName }: { recipeId: string; recipeNa
   const plan = useComposedPlan();
   const pin = usePinMeal();
   const unpin = useUnpinMeal();
-  const [open, setOpen] = useState(false);
+  const d = useDisclosure();
+  const open = d.open;
+  const setOpen = d.setOpen;
   const [day, setDay] = useState(0);
   const [slot, setSlot] = useState('l');
   const [done, setDone] = useState<{ warnings: string[]; day: number; slot: string } | null>(null);
@@ -102,12 +104,14 @@ export function AddToPlan({ recipeId, recipeName }: { recipeId: string; recipeNa
       {!open ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ fontWeight: 700, fontSize: 14 }}>Add this to your week</div>
-          <Button variant="accent" size="sm" style={{ marginLeft: 'auto' }} onClick={() => { setOpen(true); setDone(null); }}>
+          <Button variant="accent" size="sm" style={{ marginLeft: 'auto' }}
+            {...d.announces}
+            onClick={() => { setOpen(true); setDone(null); }}>
             Choose a day
           </Button>
         </div>
       ) : (
-        <>
+        <div id={d.panelProps.id}>
           <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>Where should {recipeName} go?</div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             <label style={{ fontSize: 12, color: 'var(--muted)' }}>Date{' '}
@@ -134,7 +138,7 @@ export function AddToPlan({ recipeId, recipeName }: { recipeId: string; recipeNa
             This becomes your choice for that slot and stays there — the rest of the day is built
             around it. You can hand the slot back straight after, from here.
           </p>
-        </>
+        </div>
       )}
 
       {errorMessage && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, marginTop: 10, lineHeight: 1.6 }}>{errorMessage}</p>}

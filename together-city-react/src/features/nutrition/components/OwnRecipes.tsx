@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Card, EmptyState, Spinner } from '@/components/ui';
+import { Button, Card, EmptyState, SavedMark, Spinner } from '@/components/ui';
 import {
   useMyRecipes, useSaveOwnRecipe, useDeleteOwnRecipe,
   type MyRecipe, type OwnIngredient, type OwnRecipeInput,
@@ -217,9 +217,8 @@ export function OwnRecipes() {
         {error && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, marginTop: 12, lineHeight: 1.6 }}>{error}</p>}
 
         <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-          <Button variant="accent" disabled={!ready || save.isPending} onClick={submit}>
-            {save.isPending ? 'Saving…' : editing ? 'Save changes' : 'Save this recipe'}
-          </Button>
+          <Button variant="accent" disabled={!ready} onClick={submit} state={save.isPending ? 'loading' : undefined} loadingLabel="Saving…">{editing ? 'Save changes' : 'Save this recipe'}</Button>
+          {save.isSuccess && <SavedMark />}
           {editing && <Button variant="line" onClick={reset}>Cancel</Button>}
         </div>
       </Card>

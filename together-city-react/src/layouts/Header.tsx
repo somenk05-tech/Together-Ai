@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { firstName as fromName } from '@/lib/salutation';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { HEADER_TABS, NAV } from '@/config/hubs';
@@ -8,6 +8,7 @@ import {
   useUnreadNotificationCount, useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead,
 } from '@/api';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { useDisclosure } from '@/components/ui';
 import { CommandPalette } from '@/components/CommandPalette';
 import { QuickActions } from './QuickActions';
 import { useTrackRecent } from '@/hooks/useTrackRecent';
@@ -50,14 +51,15 @@ function NotificationBell() {
   const list = useNotifications();
   const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
-  const [open, setOpen] = useState(false);
+  const d = useDisclosure();
+  const { open, setOpen, close: shut } = d;
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
-    const close = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [open]);
+    const away = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) shut(); };
+    document.addEventListener('mousedown', away);
+    return () => document.removeEventListener('mousedown', away);
+  }, [open, shut]);
 
   const items = list.data ?? [];
   const openItem = (id: string, href?: string, read?: boolean) => {
@@ -75,6 +77,7 @@ function NotificationBell() {
   return (
     <div ref={ref} style={{ position: 'relative', display: 'inline-flex' }}>
       <button type="button" aria-label="Notifications" title="Alerts" onClick={toggle}
+        {...d.announces} aria-haspopup="menu"
         // Geometry only — see the note on QuickActions' `pill`. `padding: 0` and
         // `background: transparent` here beat relief.css and flattened this
         // button against a page where everything else was raised.
@@ -89,7 +92,7 @@ function NotificationBell() {
            32px black pill in layout.css and relief.css — and this dropdown is
            rendered inside the action bar, so every row in it was claiming that
            rule. See the `.notif-panel` reset in layout.css. */
-        <div className="notif-panel" style={{ position: 'absolute', top: 'calc(100% + 10px)', right: 0, width: 340, maxHeight: 460, overflowY: 'auto',
+        <div className="notif-panel" id={d.panelProps.id} style={{ position: 'absolute', top: 'calc(100% + 10px)', right: 0, width: 340, maxHeight: 460, overflowY: 'auto',
           background: 'var(--card)', border: 0, borderRadius: 'var(--r-3)', boxShadow: 'var(--e3)', zIndex: 90 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid var(--line)' }}>
             <strong style={{ fontSize: 14 }}>Notifications</strong>

@@ -186,7 +186,7 @@ export function JobProfileForm({ p, onDone }: { p: JobProfile; onDone: () => voi
               },
             });
           }}>
-          {save.isPending ? 'Saving…' : 'Save my profile'}
+          Save my profile
         </Button>
         <Button variant="line" onClick={onDone}>Cancel</Button>
       </div>

@@ -88,7 +88,8 @@ function BudgetBar({ budget }: { budget: NonNullable<Shop['budget']> }) {
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }} />
           <span className="st-budget-unit">/ month</span>
         </span>
-        <button type="button" className="st-budget-save" disabled={budget.saving} onClick={commit}>
+        <button type="button" className="st-budget-save" disabled={budget.saving} onClick={commit}
+          aria-busy={budget.saving || undefined}>
           {budget.saving ? 'Saving…' : 'Set'}
         </button>
         {set && (

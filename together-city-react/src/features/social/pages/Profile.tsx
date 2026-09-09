@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useScrollLock } from '@/hooks/useScrollLock';
-import { useBackToClose } from '@/hooks/useBackToClose';
 import { useDialog } from '@/hooks/useDialog';
 import { Icon } from '@/components/ui/Icon';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { onStaleMedia } from '@/lib/remint';
-import { Avatar, Button, Spinner } from '@/components/ui';
+import { Avatar, Button, SavedMark, Spinner } from '@/components/ui';
 import { chatApi } from '@/api';
 import { useConnections, useRequestConnection, useRespondConnection } from '@/api/connections.api';
 import { ModuleChips } from '@/features/connections/components/ModuleToggles';
@@ -16,8 +14,8 @@ import {
   useMyProfile, useMyPosts, usePeopleSearch, usePublicProfile, usePublicPosts, useUpdateProfile, useReorderMyPosts,
   type MyProfile, type ProfilePost, type PersonResult, type PublicProfile, type Relationship,
 } from '../myProfile.api';
-import { useFollowers, useFollowing, useFollow, useUnfollow, useBlock, useSetCover, useSetPostCategory, type FollowPerson, type Post } from '../api';
-import { PostCard } from '../PostCard';
+import { useFollowers, useFollowing, useFollow, useUnfollow, useBlock, useDeletePost, type FollowPerson } from '../api';
+import { hasVideo, readerHref, rememberTile, takeRememberedTile, tvHref } from '../reader';
 import { ReportMenu } from '../report';
 import { Confirm } from '../Confirm';
 import { Tablist } from '../Tablist';
@@ -125,223 +123,20 @@ function PostTile({ p }: { p: ProfilePost }) {
   );
 }
 
-/** Map the profile's ProfilePost into the full feed Post shape so the profile
- *  can render the exact same PostCard (like / comment / share / save / play /
- *  edit / delete) as the city feed. */
-function profilePostToPost(p: ProfilePost, me?: { id: string; handle: string; name: string; profileImage: string | null }): Post {
-  const author = p.author ?? me ?? { id: '', handle: '', name: 'You', profileImage: null };
-  return {
-    id: p.id,
-    text: p.text,
-    feeling: p.feeling,
-    audience: p.audience ?? 'public',
-    placeName: p.placeName ?? null,
-    tagged: p.tagged ?? [],
-    lat: null,
-    lng: null,
-    author,
-    media: p.media.map((m) => ({ id: `${p.id}:${m.url}`, url: m.url, kind: (m.kind === 'video' ? 'video' : 'image'), thumbUrl: m.thumbUrl })),
-    likes: p.likeCount,
-    comments: p.commentCount,
-    likedByMe: p.likedByMe ?? false,
-    savedByMe: p.savedByMe ?? false,
-    createdAt: p.createdAt,
-  };
-}
+/* THE READER LEFT THIS FILE (owner, 8 Sep): "fix the scroll feel that start
+   on the edge, make it a completely new page."
 
-/**
- * THE READER — a scroll, not a single card in a box.
- *
- * Tapping a tile used to open exactly one post in an overlay with a Close
- * button under it, so seeing the next one meant closing, finding the next
- * tile, and opening again. Instagram opens the same grid as a COLUMN, scrolled
- * to the one you touched, and you keep going from there. That is the whole
- * change: the overlay holds the list now, and the tapped post is where it
- * starts rather than all it contains.
- *
- * VIDEOS PLAY ONE AT A TIME, and that is not decoration — it is the reason a
- * column of them is usable at all. `autoplayVideo` is machinery PostCard
- * already has for the Videos feed: muted autoplay above 60% visibility, pause
- * on the way out, and `src` withheld until the card is nearly on screen so
- * opening the reader does not open a connection per video. Without it, five
- * videos in a column is five sound tracks and five sockets.
- *
- * The scroll is INSTANT, not smooth. You touched a specific tile; arriving
- * anywhere else first and gliding to it is a journey nobody asked for.
- */
-/**
- * ── THE READER OPENS WHERE YOU TOUCHED, AND KEEPS GOING (owner, 4 Sep) ──────
- *
- * "when clicked it should play at the same place and then make a scroll."
- *
- *   1 · THE COLUMN ARRIVED SOMEWHERE ELSE. A tap on the right of a nine-tile
- *       wall opened a column centred at full size with nothing connecting the
- *       tile to it. The column now starts AT the tile's rectangle
- *       (`originRect`) and travels to its resting place — one FLIP, measured
- *       after the instant scroll and released on the next paint. A citizen
- *       who asked for no motion gets the column at rest, at once.
- *   2 · THE VIDEO ENDED AND THE SCREEN SAT STILL. Autoplay-in-view plays what
- *       is on screen; nothing moved the screen. The end of a clip now scrolls
- *       to the next post that HAS a video — the next VIDEO, not the next
- *       post — and never wraps.
- */
-function PostReader({
-  posts, startId, onClose, manage, onOpenAuthor, originRect,
-}: {
-  posts: { post: Post; category?: string | null }[];
-  startId: string;
-  onClose: () => void;
-  manage?: boolean;
-  onOpenAuthor?: (handle: string) => void;
-  /** Where the tile that opened this sat, so the column can start there. */
-  originRect?: DOMRect | null;
-}) {
-  const setCover = useSetCover();
-  const setCategory = useSetPostCategory();
-  const scroller = useRef<HTMLDivElement | null>(null);
-  const startRef = useRef<HTMLDivElement>(null);
-  const column = useRef<HTMLDivElement | null>(null);
+   It was a dialog that expanded out of the tile you touched and then scrolled
+   ITSELF to that post — so it opened part-way down a card, the picture already
+   cut off at the top. It had no address, no browser Back, a second scroll
+   surface inside a locked page, and a Close button pinned to a corner three
+   screens above wherever you had read to.
 
-  // useLayoutEffect, not useEffect: an effect would show the column at rest
-  // for one frame and then snap it back to the tile to begin. The scroll is
-  // instant so the FLIP measures the resting position, not a mid-scroll one.
-  useLayoutEffect(() => {
-    startRef.current?.scrollIntoView({ block: 'start' });
-    const col = column.current;
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-    if (!col || !originRect || reduce) return;
-    const to = col.getBoundingClientRect();
-    if (!to.width || !to.height) return;
-    const dx = originRect.left - to.left;
-    const dy = originRect.top - to.top;
-    const sx = originRect.width / to.width;
-    const sy = originRect.height / to.height;
-    col.style.transition = 'none';
-    col.style.transformOrigin = 'top left';
-    col.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
-    // Read back between the two writes, or the browser coalesces them and
-    // animates nothing.
-    void col.offsetWidth;
-    col.style.transition = 'transform 260ms cubic-bezier(.2,.8,.2,1)';
-    col.style.transform = 'none';
-    const done = () => { col.style.transition = ''; col.style.transformOrigin = ''; };
-    col.addEventListener('transitionend', done, { once: true });
-    return () => col.removeEventListener('transitionend', done);
-  }, [startId, originRect]);
-
-  // The next post that HAS a video, in column order. Photos between two
-  // clips are skipped: "play my videos" means the videos.
-  const videoIds = posts.filter(({ post }) => post.media.some((m) => m.kind === 'video')).map(({ post }) => post.id);
-  const advance = (fromId: string) => {
-    const i = videoIds.indexOf(fromId);
-    if (i < 0 || i + 1 >= videoIds.length) return;
-    const next = scroller.current?.querySelector<HTMLElement>(`[data-reader-post="${videoIds[i + 1]}"]`);
-    next?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-  };
-
-  // Escape closes, because a full-height scroller with a button at the bottom
-  // has no reachable Close once you are three posts down. The shared hook does
-  // that AND the three things the hand-rolled listener never did: move focus
-  // in, keep Tab inside the reader, and hand focus back to the thumbnail that
-  // opened it. The ref goes on the OVERLAY, not the column, because the Close
-  // button is fixed to the overlay — trapping to the column would put the one
-  // way out on the wrong side of the trap.
-  const reader = useDialog(onClose);
-
-  // ONE SCROLL CONTEXT. The page behind the reader is locked while it is
-  // open, so a flick at the reader's end cannot hand the gesture to the wall
-  // underneath — two scrollable layers under one thumb is the classic "the
-  // feed fights the swipe" bug. Same pattern the reels portal uses.
-  // The shared counted lock — see useScrollLock. This reader can sit OVER the
-  // reels player, and the two ad-hoc body locks used to clobber each other.
-  useScrollLock(true);
-  // Escape already closed this; a phone has no Escape key, and Back was
-  // leaving the profile instead of the reader (30 Aug audit).
-  useBackToClose(true, onClose);
-
-  /**
-   * TWO WRITES IN THIS READER SAID "SAVING…" AND THEN SAID NOTHING (30 Aug).
-   *
-   * Sorting a post and pinning a cover frame both showed a pending label and
-   * then simply stopped. The chip stayed where it was, the cover stayed what
-   * it was, and neither told the citizen why — while the card's own copy
-   * promises of the cover that "it's pinned for good", which a silent failure
-   * turns into a lie rather than an omission.
-   */
-  const [saveErr, setSaveErr] = useState<string | null>(null);
-
-  const chip = (postId: string, cur: string, key: '' | 'personal' | 'work', label: string) => (
-    <button key={key || 'none'} type="button" disabled={setCategory.isPending}
-      onClick={() => {
-        setSaveErr(null);
-        setCategory.mutate({ postId, category: key === '' ? null : key },
-          { onError: () => setSaveErr('That didn’t save — the post is still sorted the way it was. Try again.') });
-      }}
-      style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 'var(--r-full)',
-        border: `1.5px solid ${cur === key ? 'var(--accent)' : 'var(--line)'}`,
-        background: cur === key ? 'var(--accent)' : 'var(--card)', color: cur === key ? 'var(--on-accent)' : 'var(--ink)' }}>
-      {label}
-    </button>
-  );
-
-  return (
-    /* `is-reader`: on touch screens the frost drops its backdrop blur (see
-       relief.css) — a full-viewport blur repainted under a scrolling column is
-       the single most expensive thing an iPhone can be asked to composite.
-       `overflow: hidden` because the COLUMN is the one scroller here; the
-       overlay's own `overflow: auto` was a second scroll surface fighting it. */
-    <div ref={reader} role="dialog" aria-modal="true" aria-label="Posts" tabIndex={-1}
-      className="sheet-ov is-top is-reader" onClick={onClose} style={{ overflow: 'hidden' }}>
-      {/* Close is FIXED to the overlay, not placed after the list. Three posts
-          down, a button at the end of the column is not a way out. */}
-      <button type="button" onClick={onClose} className="btn btn-line btn-sm"
-        style={{ position: 'fixed', top: 14, right: 16, zIndex: 2 }}>Close</button>
-      <div ref={(el) => { scroller.current = el; column.current = el; }} onClick={(e) => e.stopPropagation()}
-        style={{ width: 'min(600px,96vw)', maxHeight: '100dvh', overflowY: 'auto', padding: '14px 0 40px', scrollbarWidth: 'thin',
-          overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
-        {posts.map(({ post, category }) => (
-          <div key={post.id} data-reader-post={post.id} ref={post.id === startId ? startRef : undefined} style={{ scrollMarginTop: 14, marginBottom: 'var(--space-18)' }}>
-            <PostCard post={post} autoplayVideo
-              onVideoEnded={() => advance(post.id)}
-              manage={manage}
-              onOpenAuthor={onOpenAuthor}
-              onSetCover={manage ? (t) => {
-                setSaveErr(null);
-                setCover.mutate({ postId: post.id, time: t }, {
-                  /* The server now SCREENS this frame, and it answers with two
-                     different sentences: "we couldn’t check it just now" is
-                     worth retrying and "it didn’t pass" is not. Showing our own
-                     generic line instead threw that distinction away at the
-                     last step, and told a citizen to try again forever. */
-                  onError: (e) => setSaveErr(
-                    (e as { response?: { data?: { message?: string } } })?.response?.data?.message
-                    || 'That cover wasn’t set — the post still shows the frame it had. Try again.',
-                  ),
-                });
-              } : undefined}
-              coverBusy={manage ? setCover.isPending : undefined} />
-            {manage && (
-              <div className="card" style={{ margin: '8px 0 0', padding: '12px 14px', border: '1.5px solid var(--accent)' }}>
-                <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 'var(--space-8)' }}>
-                  <Icon name="sort" size={14} /> Sort this post {setCategory.isPending && <span className="muted" style={{ fontWeight: 500 }}>· Saving…</span>}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', flexWrap: 'wrap' }}>
-                  {chip(post.id, category ?? '', '', 'None')}
-                  {chip(post.id, category ?? '', 'personal', 'Personal')}
-                  {chip(post.id, category ?? '', 'work', 'Work')}
-                </div>
-                {/* One message for both writes in this card — the chips and the
-                    cover button are the only two, and a citizen who just
-                    pressed one knows which. */}
-                {saveErr && <p role="alert" className="sl-fail-alert">{saveErr}</p>}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+   It is a page now (pages/ReaderPage.tsx, /social/read/:id), where the post
+   you tapped is simply the FIRST thing on it and the wall reads on from there.
+   Nothing has to be scrolled to on arrival, which is the only way a page opens
+   at its top reliably. `profilePostToPost` went with it, into ../reader, since
+   it is the shape both walls hand the card and neither owns it. */
 
 /** The citizen's own tile wall. EXPORTED because Personal's Album draws the
  *  same pictures — one grid, not two that drift apart the first time a
@@ -350,9 +145,22 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
   const navigate = useNavigate();
   const posts = useMyPosts();
   const reorder = useReorderMyPosts();
-  const me = useMyProfile();
-  const [openId, setOpenId] = useState<string | null>(null);
-  const openFrom = useRef<DOMRect | null>(null);
+  /* THE GRID NO LONGER HOLDS THE READER. A tile is a link to a page now
+     (owner, 8 Sep), so there is no open post to keep state about. What is kept
+     instead is where to put the citizen back: the id is left on the way out
+     and taken on the way back, so Back lands on the tile they were reading
+     rather than at the top of ninety of them. */
+  const returnTo = useRef<string | null>(null);
+  useEffect(() => { returnTo.current = takeRememberedTile(); }, []);
+  /* DELETE, ON THE TILE ITSELF (owner, 8 Sep: "make it easy to delete posts").
+     It lived only in the ••• menu inside an opened card, which meant opening
+     the post you wanted rid of and hunting a menu — and clearing out ten of
+     them was ten round trips. The confirmation is the same one the card asks,
+     because "easy to delete" is not the same sentence as "easy to delete by
+     accident". */
+  const del = useDeletePost();
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [delErr, setDelErr] = useState<string | null>(null);
   const matchesFilter = (p: ProfilePost) => {
     const hasVideo = p.media.some((m) => m.kind === 'video');
     const hasImage = p.media.some((m) => m.kind === 'image');
@@ -384,6 +192,19 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
   // cell — a full cell width in one frame, mid-drag, is the jump this prevents.
   const gridRef = useRef<HTMLDivElement>(null);
   const firstRects = useRef<Map<string, DOMRect>>(new Map());
+
+  /* BACK PUTS THE TILE UNDER YOUR EYE. The id is only cleared when the tile is
+     actually found, so a grid that has not finished its first page yet does
+     not swallow the return trip — the effect runs again on the next page. */
+  useEffect(() => {
+    const id = returnTo.current;
+    if (!id || !items.length) return;
+    const el = gridRef.current?.querySelector<HTMLElement>(`[data-tile="${id}"]`);
+    if (!el) return;
+    returnTo.current = null;
+    el.scrollIntoView({ block: 'center' });
+  }, [items]);
+
 
   /** Read positions BEFORE the state change. Called first inside `move`. */
   const captureFirst = () => {
@@ -535,7 +356,8 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
             <>
               <span className="muted" style={{ fontSize: 12 }}>Drag posts to reorder</span>
               <Button variant="line" size="sm" onClick={cancelArranging} disabled={reorder.isPending}>Cancel</Button>
-              <Button variant="accent" size="sm" onClick={saveArranging} disabled={reorder.isPending}>{reorder.isPending ? 'Saving…' : 'Save order'}</Button>
+              <Button variant="accent" size="sm" onClick={saveArranging} state={reorder.isPending ? 'loading' : undefined} loadingLabel="Saving…">Save order</Button>
+              {reorder.isSuccess && <SavedMark />}
             </>
           )}
         </div>
@@ -585,16 +407,13 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
             <div key={p.id} data-tile={p.id} style={{ position: 'relative' }}>
               <button type="button"
                 aria-label={hasVideo(p) ? 'Play on Together TV' : 'Open post'}
-                onClick={(e) => {
-                  if (hasVideo(p)) { navigate(tvHref(p.id)); return; }
-                  openFrom.current = e.currentTarget.getBoundingClientRect(); setOpenId(p.id);
-                }}
+                onClick={() => { rememberTile(p.id); navigate(hasVideo(p) ? tvHref(p.id) : readerHref(p.id)); }}
                 style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', font: 'inherit' }}>
                 <PostTile p={p} />
               </button>
               {hasVideo(p) && (
                 <button type="button" aria-label="Cover and sorting for this post"
-                  onClick={(e) => { openFrom.current = e.currentTarget.getBoundingClientRect(); setOpenId(p.id); }}
+                  onClick={() => { rememberTile(p.id); navigate(readerHref(p.id)); }}
                   style={{ position: 'absolute', top: 0, left: 0, width: 44, height: 44, padding: 0, border: 'none', cursor: 'pointer', background: 'none', display: 'grid', placeItems: 'center', lineHeight: 0 }}>
                   {/* 44 to the thumb, 26 to the eye — the mark sits inside the tap target. */}
                   <span aria-hidden style={{ width: 26, height: 26, color: 'var(--on-accent)', background: 'var(--scrim-deep)', borderRadius: 'var(--r-1)', display: 'grid', placeItems: 'center' }}>
@@ -602,29 +421,35 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
                   </span>
                 </button>
               )}
+              {/* Bottom right — the other three corners are taken (see
+                  .sl-tile-del in social.css for which). */}
+              <button type="button" aria-label="Delete this post" className="sl-tile-del"
+                onClick={() => { setDelErr(null); setDeleting(p.id); }}>
+                <span aria-hidden><Icon name="close" size={13} /></span>
+              </button>
             </div>
           )
         ))}
       </div>
       {!arranging && <div ref={sentinel} style={{ height: 1 }} />}
       {!arranging && posts.isFetchingNextPage && <div style={{ padding: 'var(--space-16)' }}><Spinner /></div>}
-      {(() => {
-        // Driven by live items: if a post is edited or deleted the reader
-        // reflects it, and it closes when the post you opened is gone.
-        // THE SAME SET THE GRID IS SHOWING, not every post. On the Videos tab
-        // you tapped a video; scrolling on from it into photos would be the
-        // reader disagreeing with the grid you opened it from.
-        if (!openId || !view.some((x) => x.id === openId)) return null;
-        return (
-          <PostReader
-            posts={view.map((x) => ({ post: profilePostToPost(x, me.data), category: x.category }))}
-            startId={openId}
-            originRect={openFrom.current}
-            manage
-            onClose={() => setOpenId(null)}
-          />
-        );
-      })()}
+      {/* A FAILED DELETE USED TO BE A SILENCE. The mutation removes the tile
+          from the grid on success; on failure the tile is still there and the
+          only honest thing is to say so. */}
+      {delErr && <p role="alert" className="sl-fail-alert">{delErr}</p>}
+      <Confirm open={deleting !== null} title="Delete this post?"
+        body="It comes off the city feed and your profile, and its photographs leave the bucket. This cannot be undone."
+        confirmLabel={del.isPending ? 'Deleting…' : 'Delete post'} danger busy={del.isPending}
+        onClose={() => setDeleting(null)}
+        onConfirm={() => {
+          const id = deleting;
+          if (!id) return;
+          setDelErr(null);
+          del.mutate(id, {
+            onSuccess: () => setDeleting(null),
+            onError: () => { setDeleting(null); setDelErr('That post wasn’t deleted — it is still here. Try again.'); },
+          });
+        }} />
     </>
   );
 }
@@ -830,11 +655,9 @@ function FollowButton({ userId, handle, iFollow }: { userId: string; handle: str
 /* ReadOnlyLightbox is gone — the reader below serves both profiles. */
 
 /** Read-only grid of another citizen's posts (Posts / Photos / Videos). */
-function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filter: 'all' | 'photo' | 'video'; onOpenAuthor: (handle: string) => void }) {
+function PublicPostsTab({ handle, filter }: { handle: string; filter: 'all' | 'photo' | 'video' }) {
   const posts = usePublicPosts(handle);
   const navigate = useNavigate();
-  const [openId, setOpenId] = useState<string | null>(null);
-  const openFrom = useRef<DOMRect | null>(null);
   const sentinel = useRef<HTMLDivElement>(null);
   const postsRef = useRef(posts);
   postsRef.current = posts;
@@ -883,10 +706,7 @@ function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filt
         {view.map((p) => (
           <button key={p.id} type="button"
             aria-label={hasVideo(p) ? 'Play on Together TV' : 'Open post'}
-            onClick={(e) => {
-              if (hasVideo(p)) { navigate(tvHref(p.id)); return; }
-              openFrom.current = e.currentTarget.getBoundingClientRect(); setOpenId(p.id);
-            }}
+            onClick={() => { navigate(hasVideo(p) ? tvHref(p.id) : readerHref(p.id, handle)); }}
             style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', font: 'inherit' }}>
             <PostTile p={p} />
           </button>
@@ -894,19 +714,6 @@ function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filt
       </div>
       <div ref={sentinel} style={{ height: 1 }} />
       {posts.isFetchingNextPage && <div style={{ padding: 'var(--space-16)' }}><Spinner /></div>}
-      {(() => {
-        const op = openId ? view.find((x) => x.id === openId) : null;
-        if (!op) return null;
-        return (
-          <PostReader
-            posts={view.map((x) => ({ post: profilePostToPost(x) }))}
-            startId={op.id}
-            originRect={openFrom.current}
-            onOpenAuthor={onOpenAuthor}
-            onClose={() => setOpenId(null)}
-          />
-        );
-      })()}
     </>
   );
 }
@@ -919,7 +726,6 @@ export function PublicProfilePage() {
   const q = usePublicProfile(handle ?? null);
   const p = q.data as PublicProfile | undefined;
   const [tab, setTab] = useState<'posts' | 'photos' | 'videos'>('posts');
-  const openAuthor = (h: string) => navigate(`/social/u/${encodeURIComponent(h)}`);
 
   // If you land on your own handle, send you to your editable profile.
   useEffect(() => { if (p?.isMe) navigate('/social/profile', { replace: true }); }, [p?.isMe, navigate]);
@@ -973,7 +779,10 @@ export function PublicProfilePage() {
         <button type="button" className={`pill ${tab === 'videos' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('videos')}>Videos</button>
       </div>
 
-      <PublicPostsTab handle={p.handle} filter={tab === 'photos' ? 'photo' : tab === 'videos' ? 'video' : 'all'} onOpenAuthor={openAuthor} />
+      {/* The author door left this prop when the reader became a page: the
+          page navigates to a citizen itself, and a wall handing one down was a
+          second copy of the same route. */}
+      <PublicPostsTab handle={p.handle} filter={tab === 'photos' ? 'photo' : tab === 'videos' ? 'video' : 'all'} />
     </div>
   );
 }
@@ -1111,7 +920,7 @@ function EditProfileModal({ me, onClose }: { me: MyProfile; onClose: () => void 
 
         <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end', marginTop: 'var(--space-18)' }}>
           <Button variant="line" size="sm" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button variant="accent" size="sm" onClick={() => void save()} disabled={busy || !name.trim() || handle.length < 3}>{busy ? 'Saving…' : 'Save changes'}</Button>
+          <Button variant="accent" size="sm" onClick={() => void save()} disabled={busy || !name.trim() || handle.length < 3} state={busy ? 'loading' : undefined} loadingLabel="Saving…">Save changes</Button>
         </div>
       </div>
     </div>
@@ -1294,8 +1103,6 @@ function FollowList({ kind }: { kind: 'followers' | 'following' }) {
  * post — keep one small door on the tile's corner, since a set has no
  * settings and those two are the shopkeeper's, not the viewer's.
  */
-const hasVideo = (p: { media: Array<{ kind: string }> }) => p.media.some((m) => m.kind === 'video');
-const tvHref = (postId: string) => `/social/feed?post=${encodeURIComponent(postId)}`;
 
 type Tab = 'posts' | 'photos' | 'videos' | 'personal' | 'work' | 'earn' | 'followers' | 'following';
 

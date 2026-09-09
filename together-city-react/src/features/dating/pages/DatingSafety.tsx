@@ -135,9 +135,7 @@ export function DatingSafety() {
               style={{ width: '100%', marginTop: 10, fontSize: 13.5, fontFamily: 'inherit', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--card)', color: 'inherit', resize: 'vertical' }}
             />
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 8 }}>
-              <Button size="sm" disabled={!canAppeal || text.trim().length < 10 || appeal.isPending} onClick={submit}>
-                {appeal.isPending ? 'Sending…' : 'Send appeal'}
-              </Button>
+              <Button size="sm" disabled={!canAppeal || text.trim().length < 10 || appeal.isPending} onClick={submit} state={appeal.isPending ? 'loading' : undefined} loadingLabel="Sending…">Send appeal</Button>
               {appeal.isSuccess && (
                 <span className="muted" style={{ fontSize: 12.5 }}>
                   {appeal.data.duplicate ? 'You already have an open appeal for this — it is in the queue.' : 'Sent. You will hear back here.'}

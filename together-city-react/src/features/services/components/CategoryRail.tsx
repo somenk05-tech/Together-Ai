@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useId } from 'react';
+import { useDisclosure } from '@/components/ui';
 import { Chip } from '@/components/ui';
 import type { CategoryGroup } from '../api';
 
@@ -28,7 +29,9 @@ export function CategoryRail({
   onGroup: (g: string) => void;
   onCategory: (c: string) => void;
 }) {
-  const [showAll, setShowAll] = useState(false);
+  const all = useDisclosure();
+  const showAll = all.open;
+  const rowId = useId();
 
   const withCounts = groups
     .map((g) => ({ g, n: g.items.reduce((sum, c) => sum + (counts[c.key] ?? 0), 0) }))
@@ -51,7 +54,7 @@ export function CategoryRail({
 
   return (
     <div style={{ display: 'grid', gap: 8 }}>
-      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+      <div id={rowId} style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
         <Chip selected={group === '' && category === ''} onClick={() => { onGroup(''); onCategory(''); }}>
           Everything
         </Chip>
@@ -61,10 +64,11 @@ export function CategoryRail({
             {g.group}{n ? ` · ${n}` : ''}
           </Chip>
         ))}
-        {!showAll && rest > 0 && (
-          <Chip onClick={() => setShowAll(true)}>More · {rest}</Chip>
+        {(showAll || rest > 0) && (
+          <Chip onClick={all.toggle} expanded={showAll} controls={rowId}>
+            {showAll ? 'Fewer' : `More · ${rest}`}
+          </Chip>
         )}
-        {showAll && <Chip onClick={() => setShowAll(false)}>Fewer</Chip>}
       </div>
 
       {group && (

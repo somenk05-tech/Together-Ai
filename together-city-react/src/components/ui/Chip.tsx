@@ -17,6 +17,15 @@ export interface ChipProps {
   onClick?: () => void;
   selected?: boolean;
   title?: string;
+  /**
+   * A CHIP THAT OPENS SOMETHING. The Local Market category rail's "More · 7"
+   * grows its own row rather than navigating, which is a disclosure — and a
+   * disclosure whose only announcement was the label changing to "Fewer"
+   * afterwards. Two attributes, passed rather than invented, so the chip is
+   * not a second implementation of the fold contract.
+   */
+  expanded?: boolean;
+  controls?: string;
   style?: React.CSSProperties;
 }
 
@@ -25,7 +34,7 @@ export interface ChipProps {
  * Static by default; pass onClick to make it a selectable filter chip. Distinct
  * from Tag (inline status word) and Pill (nav/segment toggle).
  */
-export function Chip({ children, tone = 'default', icon, onClick, selected, title, style }: ChipProps) {
+export function Chip({ children, tone = 'default', icon, onClick, selected, title, expanded, controls, style }: ChipProps) {
   const t = selected ? TONES.accent : TONES[tone];
   const base: React.CSSProperties = {
     display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 'var(--r-full)',
@@ -34,7 +43,9 @@ export function Chip({ children, tone = 'default', icon, onClick, selected, titl
   };
   if (onClick) {
     return (
-      <button type="button" onClick={onClick} title={title} aria-pressed={selected}
+      <button type="button" onClick={onClick} title={title}
+        aria-pressed={expanded === undefined ? selected : undefined}
+        aria-expanded={expanded} aria-controls={controls}
         style={{ ...base, cursor: 'pointer', fontFamily: 'inherit' }}>
         {icon}{children}
       </button>

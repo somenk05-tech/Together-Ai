@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useState, type ReactNode } from 'react';
 
 /**
  * THE ONE DISCLOSURE IN THE CITY.
@@ -23,10 +23,98 @@ import { useId, useState, type ReactNode } from 'react';
  * There is no chevron and no animation. A fold that measures its own height to
  * animate it is a fold that fights the browser over a number the browser
  * already knows, and the word on the right says everything an arrow would.
+ *
+ * ── THE WORD IS THE CITY'S STATE INDICATOR (owner, 8 Sep) ──────────────────
+ *
+ * The disclosure audit found four visual languages for one behaviour: this
+ * word, a rotating chevron on the Master Profile panels, a second rotating
+ * chevron on the store's order days, and a `▸` on the nutrition targets. The
+ * owner's call was to keep the WORD and retire the chevrons, because it is
+ * already the majority treatment and it is the one that reads without colour,
+ * at any size, in any hub's paper. `.fold-state` in layout.css is the same
+ * word for the native `<details>` sections, which announce themselves to a
+ * screen reader without help and only ever needed the paint.
  */
+
+/**
+ * THE FOUR LINES, FOR THE THINGS THAT ARE NOT SECTIONS.
+ *
+ * A Fold is a titled section of a page. A menu key, an edit-mode toggle and a
+ * combobox are not — they have their own markup and their own place in their
+ * own room, and wrapping them in a Fold would be dressing a control as a
+ * chapter. But they are the SAME FOUR LINES, and before this hook eighteen of
+ * them were written out by hand and nineteen were not written at all: the
+ * panel opened and the screen reader was told nothing.
+ *
+ * So the contract lives here, once, and the skin stays the caller's:
+ *
+ *   const d = useDisclosure();
+ *   <Button {...d.faceProps}>{d.open ? 'Cancel' : 'Edit hours'}</Button>
+ *   {d.open && <div {...d.panelProps}>…</div>}
+ *
+ * `faceProps` carries the click as well as the two attributes, so a caller
+ * cannot wire the paint without wiring the announcement — which is exactly the
+ * failure this whole file exists to make impossible.
+ */
+export function useDisclosure(initial = false) {
+  const [open, setOpen] = useState(initial);
+  const id = useId();
+  const toggle = useCallback(() => setOpen((o) => !o), []);
+  const close = useCallback(() => setOpen(false), []);
+  return {
+    open,
+    setOpen,
+    toggle,
+    close,
+    /** Spread on the control. Carries the click AND what it announces. */
+    faceProps: { onClick: toggle, 'aria-expanded': open, 'aria-controls': id } as const,
+    /**
+     * THE TWO ATTRIBUTES WITHOUT THE CLICK, for a control that already owns
+     * its own handler — a combobox that opens on focus and on typing, a
+     * "Change it" that fills the form before it shows it, an alerts key that
+     * marks everything read on the way open. They still must not be written
+     * out by hand: `aria-expanded={open}` typed into a page is exactly the
+     * copy a-read-section-folds-itself.test.ts counts, and the half of it
+     * that gets forgotten is always `aria-controls`.
+     */
+    announces: { 'aria-expanded': open, 'aria-controls': id } as const,
+    /** Spread on the panel, which is rendered only while it is open. */
+    panelProps: { id } as const,
+  };
+}
+
+/**
+ * WHAT A SECTION REMEMBERS.
+ *
+ * Owner, 8 Sep: a fold's state should survive going somewhere and coming back.
+ * It survives for the TAB and not for the account — sessionStorage, not the
+ * server — because a fold is a reading posture, not a preference, and syncing
+ * one to the server is a write on every tap of a chevron the city does not
+ * even draw.
+ *
+ * The key is the caller's to give and is opt-in: a fold that opens on what is
+ * in it today (the photo section while photos are staged, the newest order)
+ * must not be overruled by what somebody did to it yesterday.
+ */
+const KEY = (k: string) => `tc.fold.${k}`;
+function useRemembered(rememberAs: string | undefined, fallback: boolean) {
+  const [open, setOpen] = useState(() => {
+    if (!rememberAs) return fallback;
+    try {
+      const v = sessionStorage.getItem(KEY(rememberAs));
+      return v === null ? fallback : v === '1';
+    } catch { return fallback; }
+  });
+  useEffect(() => {
+    if (!rememberAs) return;
+    try { sessionStorage.setItem(KEY(rememberAs), open ? '1' : '0'); } catch { /* private mode */ }
+  }, [rememberAs, open]);
+  return [open, setOpen] as const;
+}
+
 export function Fold({
   title, meta, defaultOpen = false, face = 'fold', panel = 'fold-open',
-  open: openProp, onOpenChange, action, children,
+  open: openProp, onOpenChange, action, rememberAs, children,
 }: {
   title: ReactNode;
   /**
@@ -59,9 +147,14 @@ export function Fold({
    * shared component becomes a shared risk.
    */
   action?: ReactNode;
+  /**
+   * Remember open/closed for this tab under this name. Opt-in: see
+   * `useRemembered` above for why it is not the default.
+   */
+  rememberAs?: string;
   children: ReactNode;
 }) {
-  const [self, setSelf] = useState(defaultOpen);
+  const [self, setSelf] = useRemembered(rememberAs, defaultOpen);
   const open = openProp ?? self;
   const toggle = () => (onOpenChange ? onOpenChange(!open) : setSelf(!open));
   const id = useId();

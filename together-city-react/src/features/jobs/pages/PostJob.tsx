@@ -105,8 +105,9 @@ export function PostJob() {
       </div>
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-        <Button variant="accent" disabled={busy || !valid} onClick={submit}>
-          {busy ? (editId ? 'Saving…' : 'Posting…') : (editId ? 'Save changes' : 'Publish role')}
+        <Button variant="accent" disabled={!valid} onClick={submit}
+          state={busy ? 'loading' : undefined} loadingLabel={editId ? 'Saving…' : 'Posting…'}>
+          {editId ? 'Save changes' : 'Publish role'}
         </Button>
         {editId && <Link to="/jobs/postings" style={{ fontSize: 13, color: 'var(--muted)' }}>Cancel</Link>}
         {(post.error || edit.error) && <span style={{ fontSize: 12.5, color: 'var(--danger-ink)' }}>Couldn't save — you may already have this posting.</span>}

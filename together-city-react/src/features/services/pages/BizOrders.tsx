@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Card, Button, Spinner, EmptyState } from '@/components/ui';
+import { Card, Fold, Spinner, EmptyState } from '@/components/ui';
 import { useBusinessOrders, useMyServices, rupees } from '../api';
 import { OrderCard } from '../ThreadOrder';
 
@@ -23,7 +22,6 @@ export function BizOrders() {
   const { id } = useParams<{ id: string }>();
   const mine = useMyServices();
   const q = useBusinessOrders(id);
-  const [showDone, setShowDone] = useState(false);
 
   const listing = (mine.data ?? []).find((l) => l.id === id);
   if (mine.isLoading || q.isLoading) return <Spinner label="Opening the board…" />;
@@ -65,28 +63,28 @@ export function BizOrders() {
         </>
       )}
 
+      {/* THE FINISHED PILE FOLDS, and it folds the way every other section in
+          the city folds (8 Sep disclosure audit). It was an eyebrow with a
+          Show/Hide button beside it — a fourth spelling of the same gesture,
+          announcing nothing, and the only one whose word for "closed" was
+          "Show". The meta line is what the closed state is FOR: the takings
+          are the number an owner opens this to find, so they are readable
+          without opening it. `rememberAs`, because an owner who opened the
+          pile and walked into one order should not have to open it again. */}
       {done.length > 0 && (
-        <>
-          <div className="svo-row">
-            <span className="eyebrow">Finished · {done.length}</span>
-            {takings > 0 && <span className="muted mcc-sub">{rupees(takings)} taken through completed orders shown here</span>}
-            <Button variant="line" size="sm" onClick={() => setShowDone((v) => !v)}>
-              {showDone ? 'Hide' : 'Show'}
-            </Button>
+        <Fold title={`Finished · ${done.length}`} rememberAs="biz-orders-finished"
+          meta={takings > 0 ? `${rupees(takings)} taken through completed orders shown here` : undefined}>
+          <div className="svo-stack">
+            {done.map((o) => (
+              <Card key={o.id} className="svo-gap svo-dim">
+                <OrderCard o={o} />
+                <Link to={`/services/messages/${o.enquiryId}`} className="svo-open">
+                  Open the conversation →
+                </Link>
+              </Card>
+            ))}
           </div>
-          {showDone && (
-            <div className="svo-stack svo-eyebrow-gap">
-              {done.map((o) => (
-                <Card key={o.id} className="svo-gap svo-dim">
-                  <OrderCard o={o} />
-                  <Link to={`/services/messages/${o.enquiryId}`} className="svo-open">
-                    Open the conversation →
-                  </Link>
-                </Card>
-              ))}
-            </div>
-          )}
-        </>
+        </Fold>
       )}
     </div>
   );

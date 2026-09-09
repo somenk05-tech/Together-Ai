@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Card, Button, Spinner, EmptyState } from '@/components/ui';
+import { Card, Button, Spinner, EmptyState, useDisclosure } from '@/components/ui';
 import {
   useCloseService, useReopenService, useDeleteServiceForever, useMyServices, useServiceInbox, useMyOffers,
   usePostOffer, useRemoveOffer, useReviews, useReplyToReview, rupees, offerWhen, stars,
@@ -122,7 +122,9 @@ function Offers({ listingId }: { listingId: string }) {
   const q = useMyOffers(listingId);
   const post = usePostOffer();
   const remove = useRemoveOffer();
-  const [open, setOpen] = useState(false);
+  const d = useDisclosure();
+  const open = d.open;
+  const setOpen = d.setOpen;
   const [title, setTitle] = useState('');
   const [detail, setDetail] = useState('');
   const [startsOn, setStarts] = useState(today());
@@ -152,13 +154,13 @@ function Offers({ listingId }: { listingId: string }) {
         <span className="muted" style={{ fontSize: 12.5 }}>
           {live.length === 0 ? 'Nothing running' : `${live.length} running`}
         </span>
-        <Button variant="line" size="sm" onClick={() => setOpen((v) => !v)}>
+        <Button variant="line" size="sm" {...d.faceProps}>
           {open ? 'Cancel' : 'Post an offer'}
         </Button>
       </div>
 
       {open && (
-        <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+        <div {...d.panelProps} style={{ display: 'grid', gap: 8, marginTop: 10 }}>
           <input style={field} value={title} onChange={(e) => setTitle(e.target.value)}
             aria-label="Offer" placeholder="20% off drain cleaning" maxLength={90} />
           <input style={field} value={detail} onChange={(e) => setDetail(e.target.value)}
@@ -175,9 +177,7 @@ function Offers({ listingId }: { listingId: string }) {
           </div>
           {err && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: 0 }} role="alert">{err}</p>}
           <div>
-            <Button variant="accent" size="sm" disabled={title.trim().length < 3 || post.isPending} onClick={submit}>
-              {post.isPending ? 'Posting…' : 'Post it'}
-            </Button>
+            <Button variant="accent" size="sm" disabled={title.trim().length < 3 || post.isPending} onClick={submit} state={post.isPending ? 'loading' : undefined} loadingLabel="Posting…">Post it</Button>
           </div>
         </div>
       )}

@@ -12,7 +12,7 @@ import { ReportMenu } from './report';
 import { Confirm } from './Confirm';
 import {
   useAddComment, useComments, useDeleteComment, useDeletePost, useUpdatePost, useRepost, useToggleBookmark, useToggleLike,
-  type Post, type PostComment, type PostMedia,
+  POST_TEXT_MAX, type Post, type PostComment, type PostMedia,
 } from './api';
 
 /**
@@ -562,13 +562,13 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
             </div>
             {editing ? (
               <div style={{ marginTop: 8 }}>
-                <textarea aria-label="Edit your post" value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} maxLength={2200} autoFocus
+                <textarea aria-label="Edit your post" value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} maxLength={POST_TEXT_MAX} autoFocus
                   style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }} />
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <button type="button" disabled={upd.isPending}
-                    onClick={() => { setActionErr(null); upd.mutate({ postId: post.id, text: draft }, { onSuccess: () => setEditing(false), onError: () => setActionErr('That edit wasn’t saved — try again.') }); }}
-                    className="btn btn-accent btn-sm">{upd.isPending ? 'Saving…' : 'Save'}</button>
-                  <button type="button" onClick={() => { setEditing(false); setDraft(post.text ?? ''); }} className="btn btn-line btn-sm">Cancel</button>
+                  <Button variant="accent" size="sm"
+                    state={upd.isPending ? 'loading' : undefined} loadingLabel="Saving…"
+                    onClick={() => { setActionErr(null); upd.mutate({ postId: post.id, text: draft }, { onSuccess: () => setEditing(false), onError: () => setActionErr('That edit wasn’t saved — try again.') }); }}>Save</Button>
+                  <Button variant="line" size="sm" onClick={() => { setEditing(false); setDraft(post.text ?? ''); }}>Cancel</Button>
                 </div>
               </div>
             ) : (

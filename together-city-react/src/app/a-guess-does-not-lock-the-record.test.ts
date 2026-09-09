@@ -46,9 +46,18 @@ describe('the Save button', () => {
     // the count beside the button says what is left.
     const src = readFileSync(join(web, 'features', 'beauty', 'pages', 'Profile.tsx'), 'utf8');
     expect(src).not.toMatch(/disabled=\{save\.isPending \|\| !profileComplete\}/);
+    expect(src).not.toMatch(/disabled=\{!profileComplete\}/);
     // `withMethod(...)` (5 Sep) carries the ₹50 past the five free changes a
     // month; it wraps the payload and locks nothing.
-    expect(src).toMatch(/disabled=\{save\.isPending\} onClick=\{\(\) => save\.mutate\((?:withMethod\()?profilePayload/);
+    //
+    // THE SAVE-IN-FLIGHT LOCK MOVED ON 8 SEP and did not go away. It used to
+    // be `disabled={save.isPending}` written out here; it is the shared
+    // Button's own `state="loading"` now, which disables it, sets `aria-busy`
+    // and shows the spinner — three things the hand-written `disabled` did
+    // one of. `disabled` is gone from this button entirely, which is the
+    // point of the assertion above.
+    expect(src).toMatch(/state=\{save\.isPending \? 'loading' : undefined\} loadingLabel="Saving…"/);
+    expect(src).toMatch(/onClick=\{\(\) => save\.mutate\((?:withMethod\()?profilePayload/);
   });
 });
 

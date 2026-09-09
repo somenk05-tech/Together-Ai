@@ -174,9 +174,7 @@ export function EntryEditor({ entry, kind, chooseKind = false, busy, error, onSa
       {error && <p role="alert" style={{ color: 'var(--danger-ink)', fontSize: 13, margin: 0 }}>{error}</p>}
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <Button variant="accent" size="sm" disabled={busy || nothingSaid} onClick={submit}>
-          {busy ? 'Saving…' : 'Save'}
-        </Button>
+        <Button variant="accent" size="sm" disabled={nothingSaid} onClick={submit} state={busy ? 'loading' : undefined} loadingLabel="Saving…">Save</Button>
         <Button variant="line" size="sm" onClick={onCancel} disabled={busy}>Cancel</Button>
         {nothingSaid && (
           <span className="muted" style={{ fontSize: 12 }}>

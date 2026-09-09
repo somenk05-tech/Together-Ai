@@ -393,8 +393,10 @@ export function Records() {
         {err && <p style={{ fontSize: 12.5, color: 'var(--danger-ink)', marginTop: 8 }}>{err}</p>}
         {ingestNote && <p style={{ fontSize: 12.5, marginTop: 8, padding: '8px 10px', background: 'var(--ok-soft)', borderRadius: 8 }}>✓ {ingestNote}</p>}
         <div style={{ marginTop: 12 }}>
-          <Button type="submit" variant="accent" disabled={busy || add.isPending}>
-            {busy ? (kind === 'blood-test' && file ? 'Reading & analysing…' : 'Uploading…') : add.isPending ? 'Saving…' : file ? (kind === 'blood-test' ? 'Upload & analyse' : 'Upload & save') : 'Add record'}
+          <Button type="submit" variant="accent"
+            state={busy || add.isPending ? 'loading' : undefined}
+            loadingLabel={busy ? (kind === 'blood-test' && file ? 'Reading & analysing…' : 'Uploading…') : 'Saving…'}>
+            {file ? (kind === 'blood-test' ? 'Upload & analyse' : 'Upload & save') : 'Add record'}
           </Button>
         </div>
       </form>

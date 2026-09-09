@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, EmptyState, Spinner } from '@/components/ui';
+import { Button, EmptyState, SavedMark, Spinner } from '@/components/ui';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import {
   TAG_LEN, TAG_MAX,
@@ -181,9 +181,8 @@ function EditForm({ t, onCancel }: { t: Thought; onCancel: () => void }) {
       </div>
       {error && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: 0 }}>{error}</p>}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Button size="sm" variant="accent" disabled={update.isPending || !body.trim()} onClick={save}>
-          {update.isPending ? 'Saving…' : 'Save changes'}
-        </Button>
+        <Button size="sm" variant="accent" disabled={!body.trim()} onClick={save} state={update.isPending ? 'loading' : undefined} loadingLabel="Saving…">Save changes</Button>
+        {update.isSuccess && <SavedMark />}
         <Button size="sm" variant="line" disabled={update.isPending} onClick={onCancel}>Cancel</Button>
         <span className="muted" style={{ fontSize: 11 }}>The date you first wrote this is kept.</span>
       </div>
@@ -331,14 +330,16 @@ export function Thoughts() {
           {!body.trim() && !create.isPending && (
             <span className="muted" style={{ fontSize: 12.5 }}>Write something to save it.</span>
           )}
-          <button
-            type="button" className="btn btn-accent" style={{ marginLeft: 'auto' }}
-            disabled={create.isPending || !body.trim()}
+          <Button
+            variant="accent" style={{ marginLeft: 'auto' }}
+            disabled={!body.trim()}
+            state={create.isPending ? 'loading' : undefined} loadingLabel="Saving…"
             onClick={submit}
           >
             <Icon name="journal" size={16} />
-            {create.isPending ? 'Saving…' : 'Save thought'}
-          </button>
+            Save thought
+          </Button>
+          {create.isSuccess && <SavedMark />}
         </div>
       </div>
 

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Spinner } from '@/components/ui';
+import { SavedMark, Spinner, UnsavedGuard } from '@/components/ui';
+import { useUnsavedGuard } from '@/hooks/useUnsavedGuard';
 import { profileApi, type DeclaredHealthDraft, type MasterProfileView } from '../api';
 import { BLOOD_GROUP_OPTIONS } from '../bloodGroup';
 import { RELATIONSHIP_STATUS_OPTIONS } from '../relationshipStatus';
@@ -248,6 +249,12 @@ export function MasterProfileSections() {
 
   const v = useMemo(() => ({ ...(master.data ?? {}), ...draft }) as MasterProfileView, [master.data, draft]);
   const dirty = Object.keys(draft).length > 0;
+  /* AUTOSAVE ON BLUR IS NOT A GUARANTEE. Every field here writes itself when it
+     loses focus — but the field somebody is still INSIDE has not blurred, and
+     walking off the page with a hub tab takes the last answer with it. That is
+     what `draft` still holding keys means, and it is exactly what the guard
+     asks about. */
+  const guard = useUnsavedGuard(dirty);
 
   if (master.isLoading) return <Spinner label="Opening your profile…" />;
   if (!master.data) return <p className="muted" style={{ padding: 28 }}>We couldn’t load your profile. Reload to try again.</p>;
@@ -458,10 +465,10 @@ export function MasterProfileSections() {
                 <span className="muted" style={{ fontSize: 11.5 }}>{mixTotal(mix)}% assigned · {cuisineSummary(mix)}</span>
                 <button type="button" onClick={() => setMixDraft(balanced(mix))}
                   className="btn btn-line btn-sm">Balance evenly</button>
-                <button type="button" onClick={saveMix} disabled={!mixDirty || updateFoodPref.isPending}
-                  className="btn btn-accent btn-sm">
-                  {updateFoodPref.isPending ? 'Saving…' : 'Save cuisines'}
-                </button>
+                <Button variant="accent" size="sm" onClick={saveMix} disabled={!mixDirty}
+                  state={updateFoodPref.isPending ? 'loading' : undefined} loadingLabel="Saving…">
+                  Save cuisines
+                </Button>
               </div>
             </>
           )}
@@ -559,11 +566,11 @@ export function MasterProfileSections() {
           )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => saveConditions.mutate(health)}
-              disabled={!healthDirty || saveConditions.isPending}
-              className="btn btn-accent btn-sm">
-              {saveConditions.isPending ? 'Saving…' : 'Save conditions'}
-            </button>
+            <Button variant="accent" size="sm" onClick={() => saveConditions.mutate(health)}
+              disabled={!healthDirty}
+              state={saveConditions.isPending ? 'loading' : undefined} loadingLabel="Saving…">
+              Save conditions
+            </Button>
             {!healthDirty && wasAsked(v.healthConditions) && (
               <span className="muted" style={{ fontSize: 11.5 }}>Recorded on your health record.</span>
             )}
@@ -647,14 +654,17 @@ export function MasterProfileSections() {
       {/* Every field autosaves on blur; this flushes anything blur has not seen
           yet, and is disabled when there is nothing left to flush. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '26px 0 8px' }}>
-        <Button variant="accent" disabled={!dirty || closing || save.isPending} onClick={saveAll}>
-          {closing || save.isPending ? 'Saving…' : changePrice > 0 ? `Save changes · ₹${changePrice}` : 'Save changes'}
+        <Button variant="accent" disabled={!dirty}
+          state={closing || save.isPending ? 'loading' : undefined} loadingLabel="Saving…" onClick={saveAll}>
+          {changePrice > 0 ? `Save changes · ₹${changePrice}` : 'Save changes'}
         </Button>
+        {!dirty && save.isSuccess && <SavedMark />}
         <a href="#top" style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-ink)' }}>Back to the document</a>
         <span className="muted" style={{ fontSize: 11.5, flex: 1, minWidth: 200, lineHeight: 1.5 }}>
           {dirty ? 'You have changes that have not been saved yet.' : 'Everything here is saved.'}
         </span>
       </div>
+      <UnsavedGuard guard={guard} what="answers" />
     </div>
   );
 }

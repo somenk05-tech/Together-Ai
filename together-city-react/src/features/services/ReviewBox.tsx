@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button } from '@/components/ui';
+import { Button, useDisclosure } from '@/components/ui';
 import { useReviews, usePostReview, useRemoveReview, stars } from './api';
 
 /**
@@ -23,7 +23,9 @@ export function ReviewBox({ listingId }: { listingId: string }) {
   const drop = useRemoveReview(listingId);
   const [rating, setRating] = useState(0);
   const [body, setBody] = useState('');
-  const [open, setOpen] = useState(false);
+  const d = useDisclosure();
+  const open = d.open;
+  const setOpen = d.setOpen;
 
   const mine = q.data?.mine ?? null;
   const chosen = rating || mine?.rating || 0;
@@ -59,12 +61,13 @@ export function ReviewBox({ listingId }: { listingId: string }) {
             </p>
           )}
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <Button variant="line" size="sm" onClick={() => { setRating(mine.rating); setBody(mine.body ?? ''); setOpen(true); }}>Change it</Button>
+            <Button variant="line" size="sm" {...d.announces}
+              onClick={() => { setRating(mine.rating); setBody(mine.body ?? ''); setOpen(true); }}>Change it</Button>
             <Button variant="line" size="sm" disabled={drop.isPending} onClick={() => drop.mutate()}>Remove</Button>
           </div>
         </div>
       ) : (
-        <div style={{ marginTop: 10 }}>
+        <div id={d.panelProps.id} style={{ marginTop: 10 }}>
           <p className="muted" style={{ fontSize: 12.5, margin: '0 0 8px' }}>
             You can review them because you have spoken to them. It will be signed “{alias}” —
             the name they already know you by — and nothing else about you is shared.
@@ -84,9 +87,10 @@ export function ReviewBox({ listingId }: { listingId: string }) {
               padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 12,
               fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)' }} />
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <Button variant="accent" size="sm" disabled={chosen < 1 || post.isPending}
+            <Button variant="accent" size="sm" disabled={chosen < 1}
+              state={post.isPending ? 'loading' : undefined} loadingLabel="Saving…"
               onClick={() => post.mutate({ rating: chosen, body: body.trim() || undefined }, { onSuccess: () => setOpen(false) })}>
-              {post.isPending ? 'Saving…' : mine ? 'Update review' : 'Leave review'}
+              {mine ? 'Update review' : 'Leave review'}
             </Button>
             {open && <Button variant="line" size="sm" onClick={() => setOpen(false)}>Cancel</Button>}
           </div>

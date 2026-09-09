@@ -160,9 +160,7 @@ export function MemberFinder() {
           <p style={{ fontSize: 12.5, fontWeight: 700, margin: '0 0 8px' }}>Connect modules</p>
           <ModuleToggles relationship={relationship} selected={modules} onChange={setModules} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
-            <Button variant="accent" size="sm" disabled={requestConn.isPending || modules.length === 0} onClick={() => void connect()}>
-              {requestConn.isPending ? 'Sending…' : 'Send Connection Request'}
-            </Button>
+            <Button variant="accent" size="sm" disabled={requestConn.isPending || modules.length === 0} onClick={() => void connect()} state={requestConn.isPending ? 'loading' : undefined} loadingLabel="Sending…">Send Connection Request</Button>
             <span className="muted" style={{ fontSize: 11.5 }}>
               They get ONE request in People — accepted hubs connect everywhere automatically.
             </span>

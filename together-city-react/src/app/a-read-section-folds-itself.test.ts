@@ -156,11 +156,25 @@ describe('the fold itself', () => {
     // exactly one, and — the part that matters — NOWHERE ELSE has any. That
     // last assertion is the one that would have caught the copy this change
     // exists to prevent, and it reads every page in the app.
-    const fold = read('components/ui/Fold.tsx');
-    expect([...c.matchAll(/aria-expanded=\{open\}/g)]).toHaveLength(1);      // the plate
+    //
+    // STRIPPED, SINCE 8 SEP: this file is allowed to explain itself, and the
+    // hook's docblock quotes the very attribute the count is counting — the
+    // same allowance `the beauty display face` below already makes for
+    // layout.css. The count is of CODE, which is what it always meant.
+    const fold = stripTs(read('components/ui/Fold.tsx'));
+    expect([...stripTs(c).matchAll(/aria-expanded=\{open\}/g)]).toHaveLength(1); // the plate
     expect([...fold.matchAll(/aria-expanded=\{open\}/g)]).toHaveLength(1);   // everything else
     expect([...fold.matchAll(/aria-controls=\{id\}/g)]).toHaveLength(1);
     expect([...fold.matchAll(/ id=\{id\}/g)]).toHaveLength(1);
+    // AND THE SAME FOUR LINES FOR THE THINGS THAT ARE NOT SECTIONS. A menu
+    // key, an edit-mode toggle and a combobox are not Folds and must not be
+    // dressed as one — but they are the same contract, and before 8 Sep
+    // eighteen of them were written out by hand while nineteen more announced
+    // nothing at all. `useDisclosure` owns both spellings: `faceProps` when
+    // the control has no handler of its own, `announces` when it does.
+    expect([...fold.matchAll(/'aria-expanded': open/g)]).toHaveLength(2);
+    expect([...fold.matchAll(/'aria-controls': id/g)]).toHaveLength(2);
+    expect(fold).toMatch(/export function useDisclosure/);
     // And the leaf is the Fold rather than a copy of it.
     expect(c).toMatch(/<Fold title=\{title\} meta=\{meta\} defaultOpen=\{defaultOpen\}/);
     expect(c).toMatch(/face="beauty-leaf" panel="beauty-leaf-open"/);
@@ -235,7 +249,14 @@ describe('the fold itself', () => {
       'features/mail/pages/Compose.tsx',
       'features/mail/pages/MessageView.tsx',
       'features/mail/pages/Projects.tsx',
-      'features/nutrition/components/TargetsDisclosure.tsx',
+      // TARGETSDISCLOSURE LEFT ON 8 SEP. The entry above it recorded it as "a
+      // genuine fourth fold, and the one thing on this list that should
+      // probably become a Fold", left alone because it was in another hub and
+      // not what that change was asked to touch. The disclosure audit was
+      // asked to touch it. It is a `Fold` on `.fold-inline` now — a line of
+      // type that opens a panel, because a disclosure hanging off a calorie
+      // number is not a chapter — and it took its `▸`, its missing
+      // `aria-controls` and the app's only height animation with it.
       'features/social/report.tsx',
     ]);
   });

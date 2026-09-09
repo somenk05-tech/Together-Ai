@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useChatRoom } from '@/hooks/useChatRoom';
 import { useScaleLock } from '@/hooks/useScaleLock';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { Card, Button, Spinner, EmptyState } from '@/components/ui';
+import { Button, Card, EmptyState, SavedMark, Spinner } from '@/components/ui';
 import {
   useRevealName, useSendServiceMessage, useServiceInbox, useServiceThread, type ServiceThread,
 } from '../api';
@@ -139,9 +139,8 @@ function NameSwitch({ thread }: { thread: ServiceThread }) {
         </div>
       </div>
       <Button variant={named ? 'line' : 'accent'} size="sm" disabled={reveal.isPending}
-        onClick={() => reveal.mutate(!named)}>
-        {reveal.isPending ? 'Saving…' : named ? 'Go back to a number' : 'Show my name'}
-      </Button>
+        onClick={() => reveal.mutate(!named)} state={reveal.isPending ? 'loading' : undefined} loadingLabel="Saving…">{named ? 'Go back to a number' : 'Show my name'}</Button>
+        {reveal.isSuccess && <SavedMark />}
     </div>
   );
 }

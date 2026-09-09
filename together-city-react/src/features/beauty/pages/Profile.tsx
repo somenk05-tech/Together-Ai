@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Spinner, EmptyState } from '@/components/ui';
+import { Button, SavedMark, Spinner, EmptyState } from '@/components/ui';
 import { profilePayload, saveFailureMessage } from '../profile-payload';
 import { useBeautyBudget, useBeautyProfile, useSaveBeautyProfile, useAnalyzeBeautyPhotos, useBeautyInsights, useBeautyHistory, useConditionSuggestions, useDeleteLatestAssessment, useSaveBreakdown } from '../api';
 import type { BeautyAssessment, BeautyReading, AssessLevel, BeautyProgressEntry } from '../api';
@@ -990,13 +990,14 @@ export function Profile() {
                  answer given so far when the tab closed. A partial profile is
                  saved as it stands; the form folds once the saved copy is
                  complete, and the line beside the button counts what is left. */
-              <Button variant="accent" disabled={save.isPending} onClick={() => save.mutate(withMethod(profilePayload(f as unknown as Record<string, unknown>)), { onSuccess: () => setEditingProfile(false) })}>
-                {save.isPending ? 'Saving…' : changePrice > 0 ? `Save profile · ₹${changePrice}` : 'Save profile'}
+              <Button variant="accent" state={save.isPending ? 'loading' : undefined} loadingLabel="Saving…"
+                onClick={() => save.mutate(withMethod(profilePayload(f as unknown as Record<string, unknown>)), { onSuccess: () => setEditingProfile(false) })}>
+                {changePrice > 0 ? `Save profile · ₹${changePrice}` : 'Save profile'}
               </Button>
             )}
             {editQuotaLine(quota.data) && <span className="muted">{editQuotaLine(quota.data)}</span>}
             {!profileComplete && <span className="muted" style={{ fontSize: 12 }}>{profileTotal - answered} question{profileTotal - answered === 1 ? '' : 's'} left — "Don't know" counts as an answer.</span>}
-            {save.isSuccess && <span style={{ fontSize: 13, color: 'var(--accent-ink)', fontWeight: 700 }}>✓ Saved</span>}
+            {save.isSuccess && <SavedMark />}
           </div>
           {save.isError && (
             <p role="alert" style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600, margin: '-12px 0 22px' }}>

@@ -126,6 +126,7 @@ export function Wellness() {
             type="button"
             className="btn btn-sm btn-line"
             disabled={savingMedical}
+            aria-busy={savingMedical || undefined}
             onClick={() => {
               if (!medicalDraft) { setMedicalDraft({ ...EMPTY_MEDICAL, ...pet.medical }); return; }
               const next = medicalDraft;

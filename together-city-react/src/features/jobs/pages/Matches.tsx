@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, EmptyState, Spinner } from '@/components/ui';
+import { Button, EmptyState, Spinner, useDisclosure } from '@/components/ui';
 import { useJobMatches, useApply, type JobMatch } from '../api';
 import { ShareToChat } from '@/features/chat/share';
 import type { ShareCard } from '@/types';
@@ -31,7 +31,9 @@ function jobShareCard(job: JobMatch): ShareCard {
 
 function JobCard({ job }: { job: JobMatch }) {
   const apply = useApply();
-  const [open, setOpen] = useState(false);
+  const d = useDisclosure();
+  const open = d.open;
+  const setOpen = d.setOpen;
   const [note, setNote] = useState('');
   const [done, setDone] = useState(false);
   const applied = done || job.applied;
@@ -83,7 +85,7 @@ function JobCard({ job }: { job: JobMatch }) {
             ) : applied ? (
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-ink)' }}>✓ Applied · <Link to="/jobs/applications" style={{ color: 'var(--accent-ink)' }}>Track it</Link></span>
             ) : open ? (
-              <div>
+              <div {...d.panelProps}>
                 <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Add a short note to the recruiter (optional)"
                   style={{ width: '100%', padding: '9px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 13, fontFamily: 'inherit', outline: 'none', marginBottom: 8 }} />
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -97,7 +99,7 @@ function JobCard({ job }: { job: JobMatch }) {
               </div>
             ) : (
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <Button variant="accent" size="sm" onClick={() => setOpen(true)}>Apply</Button>
+                <Button variant="accent" size="sm" {...d.faceProps}>Apply</Button>
                 <ShareToChat item={jobShareCard(job)} label="Send" />
               </div>
             )}

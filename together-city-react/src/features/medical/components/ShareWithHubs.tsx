@@ -53,9 +53,7 @@ export function ShareWithHubs({ hasPanel }: { hasPanel: boolean }) {
         until you say so. Your report never leaves Together City either way.
       </p>
       <div className="mh-ask-row">
-        <Button variant="accent" size="sm" disabled={busy} onClick={() => answer(true)}>
-          {busy ? 'Saving…' : 'Turn it on'}
-        </Button>
+        <Button variant="accent" size="sm" disabled={busy} onClick={() => answer(true)} state={busy ? 'loading' : undefined} loadingLabel="Saving…">Turn it on</Button>
         <Button variant="line" size="sm" disabled={busy} onClick={() => answer(false)}>
           Keep it off
         </Button>

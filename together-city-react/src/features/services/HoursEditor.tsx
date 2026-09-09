@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button , Switch} from '@/components/ui';
+import { Button, SavedMark, Switch, useDisclosure } from '@/components/ui';
 import { useUpdateService, type MyServiceCard } from './api';
 import {
   DAY_LONG, DAY_SHORT, blankWeek, clockLabel, openSentence, openStateNow, summarise, todayIdx,
@@ -81,7 +81,9 @@ export function HoursTable({ hours, highlightToday = true }: { hours?: DayHours[
 
 export function HoursEditor({ listing }: { listing: MyServiceCard }) {
   const save = useUpdateService(listing.id);
-  const [open, setOpen] = useState(false);
+  const d = useDisclosure();
+  const open = d.open;
+  const setOpen = d.setOpen;
   const [week, setWeek] = useState<DayHours[]>(listing.hours ?? blankWeek());
   const [err, setErr] = useState<string | null>(null);
 
@@ -118,7 +120,8 @@ export function HoursEditor({ listing }: { listing: MyServiceCard }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <strong style={{ fontSize: 13.5 }}>Hours</strong>
         <OpenBadge hours={listing.hours} />
-        <Button variant="line" size="sm" onClick={() => { setWeek(listing.hours ?? blankWeek()); setOpen((v) => !v); }}>
+        <Button variant="line" size="sm" {...d.faceProps}
+          onClick={() => { setWeek(listing.hours ?? blankWeek()); d.toggle(); }}>
           {open ? 'Cancel' : listing.hours ? 'Edit hours' : 'Set your hours'}
         </Button>
       </div>
@@ -135,7 +138,7 @@ export function HoursEditor({ listing }: { listing: MyServiceCard }) {
       )}
 
       {open && (
-        <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+        <div {...d.panelProps} style={{ display: 'grid', gap: 8, marginTop: 10 }}>
           {week.map((d) => (
             <div key={d.day} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               {/* Open or closed, and it takes effect as it moves — a switch,
@@ -168,9 +171,8 @@ export function HoursEditor({ listing }: { listing: MyServiceCard }) {
           {err && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: 0 }} role="alert">{err}</p>}
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Button variant="accent" size="sm" disabled={save.isPending} onClick={submit}>
-              {save.isPending ? 'Saving…' : 'Save hours'}
-            </Button>
+            <Button variant="accent" size="sm" onClick={submit} state={save.isPending ? 'loading' : undefined} loadingLabel="Saving…">Save hours</Button>
+            {save.isSuccess && <SavedMark />}
             <Button variant="line" size="sm" disabled={save.isPending} onClick={applyToAll}>
               Same times every day
             </Button>

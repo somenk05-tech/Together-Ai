@@ -1487,6 +1487,56 @@
   .fold .s { margin-left: auto; }
 }
 
+/* THE SAME WORD, ON A SECTION THE BROWSER OPENS ITSELF.
+
+   The 8 Sep disclosure audit found one behaviour wearing four faces: the word
+   above, a rotating chevron on the Master Profile panels, a second rotating
+   chevron on the store's order days, and a `▸` on the nutrition targets. The
+   owner kept the WORD — it reads without colour, at any size, on any hub's
+   paper, and it is already what most of the city wears.
+
+   A native <details> needs no script and no aria: the browser announces the
+   state and toggles on Enter, Space and a tap anywhere in the summary. All it
+   ever needed was the paint, so this is one class and two `content` values
+   rather than a component. `aria-hidden` on the span, because the word is the
+   same thing the browser has already said. */
+.fold-state {
+  flex: none; font-size: var(--fs-1); font-weight: 600; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--accent-ink); white-space: nowrap;
+}
+.fold-state::after { content: 'Open +'; }
+details[open] > summary .fold-state::after { content: 'Close −'; }
+
+/* The city's one "saved" confirmation. See components/ui/SavedMark.tsx for why
+   it is a component and not a span with a tick in it. */
+.saved-mark {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  font-size: var(--fs-4); font-weight: 700; color: var(--accent-ink);
+}
+
+/* AN INLINE FOLD — a disclosure that belongs to a NUMBER rather than to a
+   section of the page. "How we calculated this" under a calorie target is not
+   a chapter and must not wear a card face; it is a line of type that opens a
+   panel under itself. Same component, same four lines, third paper.
+
+   Before 8 Sep this was a hand-rolled toggle with a `▸` that rotated — a
+   fourth disclosure language, and the only one in the city that animated its
+   own height. It kept `aria-expanded` and never had `aria-controls`. */
+.fold-inline {
+  display: inline-flex; align-items: center; gap: 9px; width: auto;
+  min-height: 44px; padding: 0; border: 0; background: none; cursor: pointer;
+  font-family: inherit; text-align: left; color: var(--accent-ink);
+}
+.fold-inline .t { font-size: var(--fs-3); font-weight: 600; }
+.fold-inline .m { font-size: var(--fs-2); color: var(--muted); }
+.fold-inline .s {
+  font-size: var(--fs-1); font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+}
+.fold-inline-open {
+  margin-top: 8px; padding: 12px 14px;
+  border: 1px solid var(--line); border-radius: var(--r-2); background: var(--paper);
+}
+
 .beauty-leaf { border-top-color: var(--on-ground-muted); }
 .beauty-index > .beauty-rule:first-child { padding-bottom: 14px; }
 .beauty-lede {
@@ -2616,16 +2666,16 @@
   list-style: none;
 }
 .sf-day-head::-webkit-details-marker { display: none; }
-.sf-day-chev {
-  flex: 0 0 auto;
-  width: 10px;
-  height: 10px;
-  border-right: 2px solid var(--ink);
-  border-bottom: 2px solid var(--ink);
-  transform: rotate(-45deg);
-  margin: 0 6px 0 2px;
+.sf-day-head .fold-state { margin-left: 14px; }
+/* THE WORD IS THE STATE AND DOES NOT SHRINK OUT OF A PHONE. What gives up the
+   room is the date column, which has a second line under it to lose it to —
+   the same trade `.fold` makes at 560px. */
+@media (max-width: 480px) {
+  .sf-day-head { gap: 10px; }
+  .sf-day-head .fold-state { margin-left: 10px; }
+  .sf-day-when { min-width: 0; }
+  .sf-day-date { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
-.sf-day[open] > .sf-day-head .sf-day-chev { transform: rotate(45deg); margin-top: -4px; }
 .sf-day-when { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .sf-day-date { font-size: var(--fs-6); font-weight: 700; letter-spacing: -.02em; color: var(--ink); }
 .sf-day-sub { font-size: 12.5px; color: var(--muted); }

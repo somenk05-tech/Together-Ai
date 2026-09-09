@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Avatar, Button, Card, Spinner, Tag } from '@/components/ui';
+import { Avatar, Button, Card, SavedMark, Spinner, Tag } from '@/components/ui';
 import { SearchSelect } from '@/components/SearchSelect';
 import { useLookups } from '@/api/lookups.api';
 import { useAuth } from '@/hooks/useAuth';
@@ -202,9 +202,8 @@ function PersonalInfoSection() {
             </div>
           </div>
           <div style={{ marginTop: 14 }}>
-            <Button size="sm" variant="accent" disabled={saveM.isPending} onClick={save}>
-              {saveM.isPending ? 'Saving…' : 'Save Personal Info'}
-            </Button>
+            <Button size="sm" variant="accent" onClick={save} state={saveM.isPending ? 'loading' : undefined} loadingLabel="Saving…">Save Personal Info</Button>
+            {saveM.isSuccess && <SavedMark />}
             <span className="muted" style={{ fontSize: 11.5, marginLeft: 10 }}>
               Synchronizes automatically across matchmaking, nutrition, fitness and astrology.
             </span>
@@ -592,9 +591,8 @@ export function AstroProfilePage() {
           )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 18, flexWrap: 'wrap' }}>
-            <Button variant="accent" disabled={save.isPending} onClick={submit}>
-              {save.isPending ? 'Saving…' : 'Save Birth Details'}
-            </Button>
+            <Button variant="accent" onClick={submit} state={save.isPending ? 'loading' : undefined} loadingLabel="Saving…">Save Birth Details</Button>
+            {save.isSuccess && <SavedMark />}
             {chart && (
               <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <Tag>☀️ Sun {chart.sunSign}</Tag>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { EmptyState, Spinner } from '@/components/ui';
+import { EmptyState, Spinner, useDisclosure } from '@/components/ui';
 import { useGroceryPlan } from '../hooks';
 import { ShoppingRange } from './ShoppingRange';
 import { nutritionApi } from '../api';
@@ -27,7 +27,8 @@ const DEFAULT_DAYS = 7;
  *  recipe needs the item, and the pantry have/buy note rides under the
  *  quantity. */
 function SheetRow({ item, checked, onToggle }: { item: GroceryPlanItem; checked: boolean; onToggle: () => void }) {
-  const [open, setOpen] = useState(false);
+  const d = useDisclosure();
+  const open = d.open;
   const multi = item.usedIn.length > 1;
   return (
     <>
@@ -37,7 +38,7 @@ function SheetRow({ item, checked, onToggle }: { item: GroceryPlanItem; checked:
           {checked ? '✓' : ''}
         </button>
         <button type="button" className={`gsheet-name${checked ? ' done' : ''}`}
-          onClick={() => multi && setOpen((o) => !o)}
+          {...(multi ? d.faceProps : {})}
           style={{ cursor: multi ? 'pointer' : 'default' }}>
           {item.name}{multi ? ` · ${item.usedIn.length} recipes` : ''}
         </button>
@@ -54,9 +55,13 @@ function SheetRow({ item, checked, onToggle }: { item: GroceryPlanItem; checked:
           )}
         </span>
       </div>
-      {open && multi && item.usedIn.map((u, i) => (
-        <div key={i} className="gsheet-used"><span>· {u.recipe}</span><span>{u.qtyLabel}</span></div>
-      ))}
+      {open && multi && (
+        <div {...d.panelProps}>
+          {item.usedIn.map((u, i) => (
+            <div key={i} className="gsheet-used"><span>· {u.recipe}</span><span>{u.qtyLabel}</span></div>
+          ))}
+        </div>
+      )}
     </>
   );
 }

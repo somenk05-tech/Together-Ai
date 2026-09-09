@@ -1,5 +1,5 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
-import { Spinner } from '@/components/ui';
+import { Button, SavedMark, Spinner } from '@/components/ui';
 import { useSaveAddress, useSavedAddresses } from '@/features/profile/hooks';
 import type { AddressLabel, DeliveryAddressInput, SavedAddressView } from '@/features/profile/api';
 
@@ -178,9 +178,11 @@ export function DeliveryAddress({ chosen, onChoose }: {
           )}
           {save.isError && <p className="st-error">Couldn’t save that address. Try again in a moment.</p>}
           <div className="sf-door-acts">
-            <button type="submit" className="st-cta" disabled={save.isPending}>
-              {save.isPending ? 'Saving…' : 'Save address'}
-            </button>
+            <Button type="submit" className="st-cta"
+              state={save.isPending ? 'loading' : undefined} loadingLabel="Saving…">
+              Save address
+            </Button>
+            {save.isSuccess && <SavedMark />}
             {doors.length > 0 && (
               <button type="button" className="st-quiet" onClick={() => setEditing(null)}>Cancel</button>
             )}

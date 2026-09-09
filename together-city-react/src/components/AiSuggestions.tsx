@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Card, Button, Spinner } from '@/components/ui';
+import { Card, Button, Spinner, useDisclosure } from '@/components/ui';
 import { useAiSuggestions, type AiKind } from '@/api/ai.api';
 
 const META: Record<AiKind, { icon: string; title: string; cta: string }> = {
@@ -15,7 +14,8 @@ const META: Record<AiKind, { icon: string; title: string; cta: string }> = {
  * without the API key — the backend returns a deterministic fallback when off.
  */
 export function AiSuggestions({ kind }: { kind: AiKind }) {
-  const [open, setOpen] = useState(false);
+  const d = useDisclosure();
+  const open = d.open;
   const q = useAiSuggestions(kind, open);
   const meta = META[kind];
 
@@ -28,12 +28,12 @@ export function AiSuggestions({ kind }: { kind: AiKind }) {
           {q.data?.intro && open && <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>{q.data.intro}</p>}
         </div>
         {q.data?.aiPowered && open && <span className="tag" style={{ alignSelf: 'flex-start' }}>✨ AI</span>}
-        {!open && <Button variant="accent" size="sm" onClick={() => setOpen(true)}>{meta.cta}</Button>}
+        {!open && <Button variant="accent" size="sm" {...d.faceProps}>{meta.cta}</Button>}
         {open && <Button variant="line" size="sm" disabled={q.isFetching} onClick={() => void q.refetch()}>{q.isFetching ? '…' : '↻'}</Button>}
       </div>
 
       {open && (
-        <div style={{ marginTop: 12 }}>
+        <div {...d.panelProps} style={{ marginTop: 12 }}>
           {q.isLoading ? <Spinner /> : q.isError ? (
             <p className="muted" style={{ fontSize: 13 }}>Couldn’t load suggestions — try again.</p>
           ) : (q.data?.items.length ?? 0) === 0 ? (
