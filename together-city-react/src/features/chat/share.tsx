@@ -140,7 +140,7 @@ export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => 
      `content-visibility: auto`, and a fixed overlay rendered INSIDE the card
      would be measured against the card, not the screen. */
   return createPortal(
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 100, display: 'grid', placeItems: 'center', padding: 16 }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 'var(--z-dialog)', display: 'grid', placeItems: 'center', padding: 16 }}>
       <div ref={sheet} role="dialog" aria-modal="true" aria-labelledby="share-sheet-title" tabIndex={-1}
         onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(460px, 96vw)', maxHeight: '88vh', overflow: 'auto' }}>
         {done ? (

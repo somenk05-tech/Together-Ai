@@ -53,7 +53,7 @@ export function Modal({ open, onClose, title, children, footer, width = 460 }: M
   return createPortal(
     <div onMouseDown={onClose}
       style={{ position: 'fixed', top: 'var(--tc-vvt, 0px)', left: 0, right: 0, height: 'var(--tc-vvh, 100dvh)',
-        zIndex: 1300, background: 'rgba(10,10,12,.45)', backdropFilter: 'blur(3px)',
+        zIndex: 'var(--z-dialog)', background: 'rgba(10,10,12,.45)', backdropFilter: 'blur(3px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 18 }}>
       <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
         aria-labelledby={title != null ? titleId : undefined}

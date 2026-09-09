@@ -3227,3 +3227,20 @@ html[data-skin="sanmarino"] {
                 radial-gradient(70% 135% at 80% 30%, #ffd9b0 0%, rgba(255,217,176,0) 82%),
                 radial-gradient(62% 120% at 95% 78%, #cfc4f2 0%, rgba(207,196,242,0) 78%);
 }
+
+/* ══ ONE LAYER FOR EVERY DIALOG (owner, 9 Sep) ═════════════════════════════
+   "The send button needs to send it to chat at Together City."
+
+   It always did — `ShareModal` has posted into a Together City conversation
+   since the day it was written. What it could not do was be SEEN. The sheet
+   carried a hardcoded `z-index: 100` from a time when the tallest thing on
+   screen was a header; the television is `position: fixed; z-index: 1000`, so
+   pressing Send on a video opened the sheet BEHIND the picture and the key
+   read as dead.
+
+   The fix is not a bigger number in that one file — it is the city having ONE
+   name for the layer a dialog opens on. `Modal` was already at 1300 and was
+   right; the share sheet joins it here rather than guessing a fourth number.
+   Anything that must cover the whole screen reads this, and nothing has to
+   know what the television happens to be set to this month. */
+:root { --z-dialog: 1300; }

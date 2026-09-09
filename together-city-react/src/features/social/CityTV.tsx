@@ -168,6 +168,16 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
      same card — postShareCard, so the two surfaces cannot describe one post
      two different ways. */
   const [sendOpen, setSendOpen] = useState(false);
+  /* AND IT HAS TO LEAVE FULL SCREEN TO DO IT. The sheet is portalled to
+     document.body, and a browser in full screen paints ONLY the fullscreen
+     element's subtree — so a sheet opened over a full-screen television is
+     rendered and invisible, which is the same dead key by a second route. The
+     set steps back into the page first; the citizen sent from a picture and
+     lands back on the picture, still playing. */
+  const openSend = useCallback(() => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    setSendOpen(true);
+  }, []);
   const current = videoOf(post);
   /* ANCHORED BY ID. The stream keeps six pages and drops the oldest, so an
      index into it moves twenty places when page seven arrives. The post on
@@ -436,7 +446,7 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
           <button type="button" className="tv-key" onClick={fullScreen} aria-label={fs ? 'Leave full screen' : 'Full screen'} aria-pressed={fs}><Icon name="expand" size={16} /></button>
           {/* Between the picture keys and the navigation keys, because it is
               neither: it is what you do with the video you are watching. */}
-          <button type="button" className="tv-key tv-key-send" onClick={() => setSendOpen(true)}
+          <button type="button" className="tv-key tv-key-send" onClick={openSend}
             aria-label="Send this video to a chat" aria-haspopup="dialog" disabled={!post}>
             {/* The CARD's paper plane, not a second drawing of one: the marks
                 file exists because a copied icon still looks right while the
