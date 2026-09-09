@@ -4,7 +4,9 @@ import { Icon } from '@/components/ui/Icon';
 import { isMuted, setMuted, subscribeMuted, playWithSharedSound, releasePlayback } from '@/lib/mediaState';
 import { onStaleMedia } from '@/lib/remint';
 import { attachVideo } from '@/lib/hls';
-import { Avatar } from './PostCard';
+import { Avatar, postShareCard } from './PostCard';
+import { SendIcon } from './marks';
+import { ShareModal } from '@/features/chat/share';
 import type { Post } from './api';
 import { channelsOf, tuneIndex } from './city-tv';
 
@@ -158,6 +160,14 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
   }, []);
 
   const post = items[at];
+  /* SEND, ON THE TELEVISION (owner, 9 Sep: "add a send button on the videos
+     too"). Every photograph in the city could be sent into a chat from its
+     card; the one place a video actually PLAYS could not, so the only way to
+     pass a clip to somebody was to leave the set, find the post on a wall and
+     send it from there. The key opens the same sheet the card opens, with the
+     same card — postShareCard, so the two surfaces cannot describe one post
+     two different ways. */
+  const [sendOpen, setSendOpen] = useState(false);
   const current = videoOf(post);
   /* ANCHORED BY ID. The stream keeps six pages and drops the oldest, so an
      index into it moves twenty places when page seven arrives. The post on
@@ -424,6 +434,17 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
           <button type="button" className="tv-key" onClick={() => setVol((v) => !v)} aria-label="Volume" aria-pressed={vol} aria-expanded={vol} aria-controls="tv-vol"><Icon name={muted || elMuted || volume === 0 ? 'mute' : 'speak'} size={16} /></button>
           <button type="button" className="tv-key" onClick={() => setRotated((r) => !r)} aria-label={rotated ? 'Turn the video back' : 'Turn the video upright'} aria-pressed={rotated}><Icon name="rotate" size={16} /></button>
           <button type="button" className="tv-key" onClick={fullScreen} aria-label={fs ? 'Leave full screen' : 'Full screen'} aria-pressed={fs}><Icon name="expand" size={16} /></button>
+          {/* Between the picture keys and the navigation keys, because it is
+              neither: it is what you do with the video you are watching. */}
+          <button type="button" className="tv-key tv-key-send" onClick={() => setSendOpen(true)}
+            aria-label="Send this video to a chat" aria-haspopup="dialog" disabled={!post}>
+            {/* The CARD's paper plane, not a second drawing of one: the marks
+                file exists because a copied icon still looks right while the
+                two drift a stroke-width apart. It is drawn at 24 for a card
+                and sized down here, in CSS, where the rest of the remote's
+                geometry lives. */}
+            <SendIcon />
+          </button>
           <button type="button" className="tv-key" onClick={onOpenChannels} aria-label="Together City Channels"><Icon name="grid" size={16} /></button>
           <button type="button" className="tv-key" onClick={() => setQueue((q) => !q)} aria-label={queue ? 'Hide what is next' : "What's next"} aria-pressed={queue} aria-controls="tv-next" aria-expanded={queue}><Icon name="queue" size={16} /></button>
         </div>
@@ -442,6 +463,10 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
         )}
         </div>
       </div>
+      {/* The sheet sits OUTSIDE the remote's own stacking context: the bar is a
+          translucent slab over a full-screen video, and a dialog drawn inside
+          it inherits that ceiling and opens behind the picture. */}
+      {sendOpen && post && <ShareModal item={postShareCard(post)} onClose={() => setSendOpen(false)} />}
     </div>
   );
 }

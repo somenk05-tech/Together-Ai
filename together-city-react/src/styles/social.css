@@ -171,6 +171,10 @@
   background: none; box-shadow: none; color: var(--on-accent); cursor: pointer; font-family: inherit;
 }
 .tv-key.sm { width: 32px; height: 32px; }
+/* The send key wears the card's own paper plane, which is drawn at 24 for a
+   card foot. 17 rather than 16 because a thin outlined plane reads a shade
+   smaller than the filled glyphs beside it at the same box. */
+.tv-key-send svg { width: 17px; height: 17px; }
 .tv-key:not(:disabled):hover { background: var(--scrim-deep); }
 .tv-key:not(:disabled):active, .tv-key[aria-pressed="true"] { background: var(--scrim-deep); box-shadow: none; }
 .tv-key:disabled { opacity: .4; cursor: default; }
@@ -350,12 +354,27 @@
 .sl-post-place { margin-top: 6px; white-space: normal; }
 .sl-post-place .sl-mark-place { display: inline-block; vertical-align: -3px; margin-right: 5px; color: var(--mark-red); }
 .sl-media { position: relative; margin-top: 11px; border-radius: var(--r-2); overflow: hidden; background: var(--media-bg); }
+/* ── THE FIFTH MARK WAS OUTSIDE THE CARD (owner, 9 Sep: "fix the design
+      errors on this page") ────────────────────────────────────────────────
+   The gap was `clamp(16px, 5vw, 56px)`, and `vw` is the WINDOW — but this row
+   lives in a card that is 600px wide however wide the window gets. On a laptop
+   5vw resolves to the 56px ceiling, so four gaps ate 224px of a 600px row and
+   Share was pushed through the right edge: half a green glyph, no word, and
+   "Liked 1" wrapping onto two lines beside it to make room.
+
+   A row of five marks does not need a measured gap at all — it needs to be
+   SPREAD. space-between distributes whatever is left after the words, at any
+   card width, and cannot overflow because there is nothing to overflow with.
+   The marks stay on one line each (`nowrap`), which is what stopped the like
+   count from wrapping under its own word. */
 .sl-acts {
-  display: flex; align-items: center; gap: clamp(16px, 5vw, 56px);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; flex-wrap: nowrap;
   border-top: 1px solid var(--line); padding: 4px 3px 0; margin-top: 0;
 }
 .sl-act {
   display: inline-flex; align-items: center; gap: 10px; min-height: 44px;
+  flex: 0 1 auto; min-width: 0; white-space: nowrap;
   background: none; border: 0; padding: 0; cursor: pointer;
   font-family: var(--sans); font-size: var(--fs-4); font-weight: 600; color: var(--ink);
   font-variant-numeric: tabular-nums;

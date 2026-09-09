@@ -424,6 +424,44 @@ function VideoFrame({ url, poster, isNew, vref, autoInView, onEnded }: { url: st
  *  `manage` shows the author's Edit/Delete menu (used on the profile, not the feed).
  *  `onOpenAuthor` opens the author's profile (the parent owns the modal, so this
  *  component has no dependency on the profile page — avoids a circular import). */
+/**
+ * THE CARD A POST TRAVELS INTO A CHAT AS — one function, because two surfaces
+ * send the same post now: this card's Send, and the television's (owner,
+ * 9 Sep: "add a send button on the videos too"). Two copies of a share card is
+ * two answers to "what does a shared post look like" the first time either is
+ * corrected, and this one has been corrected once already — see `image: null`
+ * below, which is a security decision rather than a design one.
+ */
+export function postShareCard(post: Post): ShareCard {
+  return {
+      kind: 'post',
+      hub: 'Social',
+      title: post.text?.trim() ? (post.text.length > 90 ? post.text.slice(0, 90) + '…' : post.text) : `${post.author.name}'s post`,
+      subtitle: `by ${post.author.name}${post.placeName ? ` · ${post.placeName}` : ''}`,
+      /**
+       * NO PICTURE ON THE CARD, AND THAT IS DELIBERATE (31 Aug audit).
+       *
+       * This read `images[0]?.url`, and social post media is a PRIVATE bucket
+       * key signed on read — so the card carried a presigned URL: an unbound
+       * bearer credential, persisted into a chat message forever, expiring into
+       * a broken image, and shown to a recipient who may not be allowed to see
+       * the post at all. The last of those is the real one: a card carrying the
+       * photograph shows a friends-only picture to a stranger, which is the
+       * repost-audience bug on a different surface.
+       *
+       * `deepLink` is the honest half. It goes to the permalink, and the
+       * permalink runs assertCanView — so the recipient sees the post if they
+       * may, and a 404 if they may not. The API drops a presigned card picture
+       * too; this is the end of the same rule that a client cannot be trusted
+       * to keep on its own.
+       */
+      image: null,
+      // The post, not the feed. "View Post →" used to open the recipient's own
+      // feed, which is not this post and may not contain it (30 Aug audit).
+      deepLink: `/social/p/${post.id}`,
+      };
+  }
+
 export const PostCard = memo(function PostCard({ post, isNew = false, manage = false, onOpenAuthor, onSetCover, coverBusy = false, autoplayVideo = false, onVideoEnded }: {
   post: Post; isNew?: boolean; manage?: boolean; onOpenAuthor?: (handle: string) => void;
   onSetCover?: (timeSec: number) => void; coverBusy?: boolean; autoplayVideo?: boolean;
@@ -476,33 +514,7 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
   const videos = post.media.filter((m) => m.kind === 'video');
   const aud = post.audience ? AUD_ICON[post.audience] : undefined;
 
-  const shareCard: ShareCard = {
-    kind: 'post',
-    hub: 'Social',
-    title: post.text?.trim() ? (post.text.length > 90 ? post.text.slice(0, 90) + '…' : post.text) : `${post.author.name}'s post`,
-    subtitle: `by ${post.author.name}${post.placeName ? ` · ${post.placeName}` : ''}`,
-    /**
-     * NO PICTURE ON THE CARD, AND THAT IS DELIBERATE (31 Aug audit).
-     *
-     * This read `images[0]?.url`, and social post media is a PRIVATE bucket
-     * key signed on read — so the card carried a presigned URL: an unbound
-     * bearer credential, persisted into a chat message forever, expiring into
-     * a broken image, and shown to a recipient who may not be allowed to see
-     * the post at all. The last of those is the real one: a card carrying the
-     * photograph shows a friends-only picture to a stranger, which is the
-     * repost-audience bug on a different surface.
-     *
-     * `deepLink` is the honest half. It goes to the permalink, and the
-     * permalink runs assertCanView — so the recipient sees the post if they
-     * may, and a 404 if they may not. The API drops a presigned card picture
-     * too; this is the end of the same rule that a client cannot be trusted
-     * to keep on its own.
-     */
-    image: null,
-    // The post, not the feed. "View Post →" used to open the recipient's own
-    // feed, which is not this post and may not contain it (30 Aug audit).
-    deepLink: `/social/p/${post.id}`,
-  };
+  const shareCard = postShareCard(post);
 
   const openAuthor = () => onOpenAuthor?.(post.author.handle);
 
