@@ -129,16 +129,11 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
   const statesOf = countries.find((c) => c.name === pick.country)?.states ?? [];
   const citiesOf = statesOf.find((st) => st.name === pick.state)?.cities ?? [];
   const typedPlace = pick.city === '__other';
-  const knownCity = findCityIn(countries, city);
-  const areaParts = areas.split(',').map((a) => a.trim()).filter(Boolean);
-  const areaList = areaParts.map((a) => a.toLowerCase());
-  const toggleArea = (name: string) => {
-    const parts = areas.split(',').map((a) => a.trim()).filter(Boolean);
-    const next = parts.some((a) => a.toLowerCase() === name.toLowerCase())
-      ? parts.filter((a) => a.toLowerCase() !== name.toLowerCase())
-      : [...parts, name];
-    setAreas(next.join(', '));
-  };
+  /* `knownCity`, `areaParts`, `areaList` and `toggleArea` came off with the
+     area picker on 9 Sep. They were the machinery of a question the form no
+     longer asks: which localities do you cover. The pin answers where you are
+     and the radius answers how far you go. `pinned` is declared with the
+     coordinates further down, where they are. */
   const [building, setBuilding] = useState(str(initial?.building));
   const [street, setStreet] = useState(str(initial?.street));
   const [phone, setPhone] = useState(str(initial?.phone));
@@ -492,37 +487,23 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
             choice; the drawer lists only what is not yet picked, each pick
             becomes a removable chip, and the typed box stays for the locality
             no list ever has. */}
-        <div className="svo-gap6">
-          {/* AREAS ARE NO LONGER HOW REACH IS DECIDED (owner, 9 Sep) — the
-              radius below is. They stay because a listing with no map pin has
-              nothing else, and because the directory's area filter reads them;
-              a shop that has dropped a pin can leave them empty. */}
-          <label htmlFor="svc-area-add" style={label}>
-            Areas you cover <span className="muted lf-soft">(optional — your reach is set by the radius below)</span>
-          </label>
-          {knownCity && (
-            <select id="svc-area-add" style={field} value=""
-              onChange={(e) => { if (e.target.value) toggleArea(e.target.value); }}>
-              <option value="">Add an area…</option>
-              {knownCity.city.areas
-                .filter((a) => !areaList.includes(a.toLowerCase()))
-                .map((a) => <option key={a} value={a}>{a}</option>)}
-            </select>
-          )}
-          {areaParts.length > 0 && (
-            <div className="svo-row is-chips">
-              {areaParts.map((a) => (
-                <Button key={a.toLowerCase()} type="button" variant="accent" size="sm"
-                  aria-label={`Remove ${a}`} onClick={() => toggleArea(a)}>
-                  {a} ✕
-                </Button>
-              ))}
-            </div>
-          )}
-          <input id="svc-areas" style={field} value={areas} onChange={(e) => setAreas(e.target.value)}
-            aria-label="Areas you cover, comma-separated"
-            placeholder={knownCity ? 'Or type your own, comma-separated' : 'Bandra, Khar, Santacruz'} maxLength={300} />
-        </div>
+        {/* ── "AREAS YOU COVER" IS GONE, AND THAT IS THE FEATURE ─────────
+            Owner, 9 Sep: "Areas you cover — this needs to be automatic."
+
+            It was a dropdown of thirty-four localities, a row of removable
+            chips and a comma-separated box, and it asked the wrong question in
+            the first place. A shop typed the places it would SERVE — which is
+            the radius's job now — and the answer went stale the moment it
+            moved, spelled Bandra four ways across the city, and left a shop
+            invisible for forgetting one neighbouring name.
+
+            What is automatic is the locality the PIN resolves to, below. Note
+            what is NOT claimed: places.ts carries locality NAMES and no
+            coordinates, so "every area within 3 km of here" is not something
+            this app can work out, and a list of guessed neighbours would be
+            the district inventing facts about a city. The pin says where you
+            are; the radius says how far you go; between them there is nothing
+            left for anybody to type. */}
 
         {/*
           WHERE YOU ACTUALLY ARE.
@@ -572,12 +553,38 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
                 const road = cityAt > 1 ? bits[cityAt - 2] : null;
                 setCity((v) => (v.trim() ? v : canonical ?? v));
                 if (hit) setPick({ country: hit.country, state: hit.state, city: hit.city.name });
-                setAreas((v) => (v.trim() ? v : (area && area !== canonical ? area : v)));
+                /* THE LOCALITY FOLLOWS THE PIN, ALWAYS (9 Sep). Every other
+                   field here fills an EMPTY box and never overwrites a name
+                   the owner typed, because those are their answers. This one
+                   is no longer an answer they give — it is read off the pin,
+                   so a pin that moves and a locality that does not is simply
+                   wrong, and nobody would ever be told. */
+                if (area && area !== canonical) setAreas(area);
                 setStreet((v) => (v.trim() ? v : (road && road !== area ? road : v)));
-                setRadius((v) => (v.trim() ? v : '5'));
               }}
             />
           </div>
+          {/* WHAT THE PIN DECIDED, SHOWN. The machine's answer is never left
+              invisible in this form — the address line under the map prints
+              what it read, and this prints what it kept. A pin with no
+              locality in its address is not an error: the city and the radius
+              still place the shop. */}
+          {pinned && areas.trim() && (
+            <p className="muted lf-reach-say">Locality from your pin: <b>{areas.split(',')[0].trim()}</b> — move the pin and this moves with it.</p>
+          )}
+          {/* NO PIN, NO LOCALITY — so the one escape hatch stays, and only
+              here. A listing with neither coordinates nor an area name is
+              findable by city alone, which in Mumbai is not findable at all.
+              This is the same fallback the schema's own note describes, not a
+              second way to answer a question the pin already answers. */}
+          {!pinned && (
+            <div className="lf-reach">
+              <label htmlFor="svc-areas" style={{ ...label, fontWeight: 500, fontSize: 12 }}>Which locality are you in?</label>
+              <input id="svc-areas" style={field} value={areas} onChange={(e) => setAreas(e.target.value)}
+                aria-label="The locality you are in" placeholder="Bandra" maxLength={300} />
+              <p className="muted lf-reach-say">Only needed because you have not dropped a pin. Drop one and this is read off it.</p>
+            </div>
+          )}
           {/* ── HOW FAR YOU REACH (owner, 9 Sep) ────────────────────────
               "Make this automatic at a radius of 3–5 km per store, and let the
               store owner decide how much they want to cover up to 7 km."
