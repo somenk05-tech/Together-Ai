@@ -57,28 +57,51 @@ describe('the catalogue type the browser holds', () => {
   });
 });
 
-describe('the grouped product tile on the shelf', () => {
+describe('the shelf that is a street of shops', () => {
   const shelf = code('features/ecommerce/store/useGroceryShop.ts');
+  const tile = code('features/ecommerce/store/shopTile.ts');
 
   /**
-   * IT LEFT THE ROOM FOR HALF A DAY (9 Sep) while the shelf was a street of
-   * shops, and came back with the combined menu the owner asked for the same
-   * afternoon. Nothing about the tile changed in between, which is the point:
-   * the rule it holds is about ARITHMETIC, and it applies to any shape that
-   * puts a price on a screen.
+   * THE GROUPED PRODUCT TILE IS GONE, FOR THE SECOND TIME AND FOR GOOD.
+   *
+   * It left the room on 8 Sep when the shelf first became a street, came back
+   * on the morning of 9 Sep with the combined menu the owner asked for, and
+   * left again the same evening: "the grocery store here when clicked should
+   * show individual store names", extended to both trades and both doors.
+   *
+   * The rule that outlived all three turns is the one this file is named for:
+   * A PRICE ON THIS SCREEN IS A SHOPKEEPER'S, never one this app worked out.
+   * The tile that could have broken it no longer exists, so the assertion
+   * moves to the thing that replaced it — a shop tile, which carries NO price
+   * at all. That is the strongest form of the same rule, not a weaker one.
    */
-  it('computes no price of its own — no average, no sum, no markup', () => {
-    // fromInr arrives from the server, chosen among prices shopkeepers typed.
-    expect(shelf).toMatch(/p\.fromInr/);
-    expect(shelf).not.toMatch(/reduce\(|\/\s*(offers|p\.offers)\.length|Math\.round\(.*price/i);
+  it('puts no price on a shop tile, because a shop does not have one', () => {
+    expect(tile).toMatch(/priceInr: 0,/);
+    /* The price slot carries the one number that decides whether a door is
+       worth opening: how much is behind it. */
+    expect(tile).toMatch(/priceLabel: `\$\{shop\.itemCount\} item/);
   });
 
-  it('still says Ask rather than ₹0 when nobody has priced it', () => {
-    expect(shelf).toMatch(/priceLabel:\s*priced\s*\?\s*undefined\s*:/);
+  it('computes nothing of its own — no average, no sum, no markup', () => {
+    /* Held over both files, because the arithmetic ban is about any shape that
+       puts a number on a screen, not about one tile that happens to exist. */
+    for (const src of [shelf, tile]) {
+      expect(src).not.toMatch(/reduce\(|\/\s*(offers|p\.offers)\.length|Math\.round\(.*price/i);
+    }
   });
 
-  it('draws a row inside its product tile or on its own, never both', () => {
-    expect(shelf).toMatch(/filter\(\(row\)\s*=>\s*!row\.productId\)/);
+  it('draws every shop once, off the shops the server sent', () => {
+    /* Not off the rows. Building shop tiles by scanning items and collecting
+       distinct shopIds would silently drop a shop that has published nothing
+       yet — which is exactly the shop most in need of being found. */
+    expect(shelf).toMatch(/\(shelf\.data\?\.shops \?\? \[\]\)\s*\n?\s*\.map\(\(sh\) => shopTileOf\(/);
+  });
+
+  it('no longer carries either row-level builder', () => {
+    /* A second, unreachable way to draw a grocery row is the copy that
+       disagrees the first time either is corrected. Git remembers them. */
+    expect(shelf).not.toMatch(/function productTileOf\(/);
+    expect(shelf).not.toMatch(/function tileOf\(/);
   });
 });
 

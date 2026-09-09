@@ -302,21 +302,25 @@ describe('Three shelves have shops, and one deliberately does not', () => {
    * cart and a real wallet payment on their own page, so every tile is that
    * shop's door — the gem counter's `design` mechanism, for the same reason.
    */
-  it('takes no money of its own, and says whose counter it is', () => {
-    /* THE SHELF IS GOODS AGAIN (owner, 9 Sep: "the store here should show the
-       combined menu of all the local stores in the 3 km radius"), which
-       reverses the street of shops of that morning. What did not change is the
-       thing both shapes were built around: an order is one shop, one basket,
-       one delivery — so this shelf takes no money, and every tile is its
-       shop's own door with that shop's name on it. */
+  it('takes no money of its own, and every tile is a shop', () => {
+    /* THE SHELF IS A STREET OF SHOPS — the third and final turn (owner, 9 Sep
+       evening: "the grocery store here when clicked should show individual
+       store names"), extended to BOTH trades and both doors. It was a street
+       on 8 Sep, a wall of combined goods on the morning of 9 Sep, and is a
+       street again.
+
+       What never moved through any of it is the thing all three shapes were
+       built around: an order is one shop, one basket, one delivery. The wall
+       said so in small type under twenty-five tiles; the street says it by
+       being the shape of the truth. The shelf takes no money either way. */
     const grocery = code('features/ecommerce/store/useGroceryShop.ts');
+    const tile = code('features/ecommerce/store/shopTile.ts');
     expect(grocery).toMatch(/bag: null/);
-    expect(grocery).toMatch(/design: \{/);
-    expect(grocery).toMatch(/path: `\/services\/\$\{where\}`/);
-    // The shop's own name is on every tile: a price on this shelf belongs to
-    // somebody, and a tile that did not say whose would be the store quietly
-    // claiming the stock.
-    expect(grocery).toMatch(/brand: row\.shopName/);
+    expect(tile).toMatch(/design: \{ label: 'Open the shop', path: `\/services\/\$\{shop\.slug \?\? shop\.id\}` \}/);
+    // The shop's own name IS the tile now, rather than small type under a
+    // price — and the trade it registered under is the city's word for it.
+    expect(tile).toMatch(/name: shop\.name,/);
+    expect(tile).toMatch(/brand: shop\.categoryLabel,/);
     // No storefront routes: a pair of routes is what a shop with a BAG earns.
     expect(SHOPS.grocery).toBeUndefined();
   });
@@ -349,17 +353,25 @@ describe('Three shelves have shops, and one deliberately does not', () => {
    * every menu, so a reprice or a sold-out flip has to reach it, or the same
    * edit leaves two screens disagreeing until a cache goes stale on its own.
    */
-  it('carries the directory’s own facts about the shop behind each price', () => {
-    const grocery = code('features/ecommerce/store/useGroceryShop.ts');
+  it('carries the directory’s own facts about the shop on its tile', () => {
+    /* THE FOUR FACTS MOVED FILE, NOT MEANING (9 Sep). They were built inline
+       in useGroceryShop while the tile was a row; both shelves draw shops now,
+       and a second copy of this line is the one that disagrees the first time
+       either is corrected — so `shopLine` is shared and asserted where it
+       lives. */
+    const tile = code('features/ecommerce/store/shopTile.ts');
     for (const fact of [/shop\.trust\?\.label/, /shop\.rating/, /shop\.distanceKm/, /openStateNow/]) {
-      expect(grocery).toMatch(fact);
+      expect(tile).toMatch(fact);
     }
-    // The clock is the reader's, not the server's — one `new Date()` for the
-    // whole shelf, so two tiles about one shop cannot straddle a minute.
-    expect(grocery).toMatch(/const now = new Date\(\);/);
-    expect(grocery.match(/new Date\(\)/g)?.length).toBe(1);
+    // The clock is the reader's, not the server's — one `new Date()` per
+    // shelf, so two tiles about one shop cannot straddle a minute.
+    for (const src of ['features/ecommerce/store/useGroceryShop.ts', 'features/ecommerce/store/useElectronicsShop.ts']) {
+      const shelf = code(src);
+      expect(shelf).toMatch(/const now = new Date\(\);/);
+      expect({ src, clocks: shelf.match(/new Date\(\)/g)?.length }).toEqual({ src, clocks: 1 });
+    }
     // Hours arrive unjudged: no hours is silence, never "Closed".
-    expect(grocery).toMatch(/state\.open === false/);
+    expect(tile).toMatch(/state\.open === false/);
   });
 
   it('is refreshed by the two mutations that change what is on it', () => {
@@ -376,9 +388,15 @@ describe('Three shelves have shops, and one deliberately does not', () => {
    * can say "seasonal"; turning that into ₹0 on a tile is the one answer that
    * would be a lie.
    */
-  it('says “ask” where a shop listed no price, and never a number', () => {
-    const grocery = code('features/ecommerce/store/useGroceryShop.ts');
-    expect(grocery).toMatch(/priceLabel: priced \? undefined : 'Ask the shop'/);
+  it('never prints ₹0, on a shop tile or anywhere else', () => {
+    /* "Ask the shop" was the row's answer when a shopkeeper had listed no
+       price. A SHOP tile has no price to be missing — so the same rule is held
+       one level up: the slot carries a count of what is behind the door, and
+       the shell prints a label over a number wherever one is given. Zero must
+       never reach the screen as a price in either shape. */
+    const tile = code('features/ecommerce/store/shopTile.ts');
+    expect(tile).toMatch(/priceInr: 0,/);
+    expect(tile).toMatch(/priceLabel: `\$\{shop\.itemCount\} item/);
     const front = code('features/ecommerce/store/StoreFront.tsx');
     expect(front).toMatch(/item\.priceLabel \?\? rupees\(item\.priceInr\)/);
   });

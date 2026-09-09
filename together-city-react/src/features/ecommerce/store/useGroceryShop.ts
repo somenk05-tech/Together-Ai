@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useMasterProfile } from '@/features/profile/hooks';
-import { useGroceryShelf, type GroceryItem, type GroceryProductTile, type GroceryShop } from '@/features/services/api';
-import { openSentence, openStateNow, todayIdx } from '@/features/services/hours';
-import type { Shop, ShopItem } from './types';
+import { useGroceryShelf } from '@/features/services/api';
+import type { Shop } from './types';
+import { shopTileOf } from './shopTile';
 import { useNearby } from './useNearby';
 
 /**
@@ -43,144 +43,21 @@ import { useNearby } from './useNearby';
  * holds and says so, rather than showing nothing.
  */
 
-/**
- * ── WHAT THE DIRECTORY KNOWS ABOUT THIS SHOP, IN ONE LINE ───────────────────
- *
- * Owner, 8 Sep: "this grocery store needs to be updated by local services
- * data." A price with a name over it is half a fact — the other half is who
- * that shop is, and Local Market has been holding it all along.
- *
- * FOUR THINGS, IN THE ORDER SOMEBODY DECIDES BY: whether the shop is verified,
- * whether it is open right now, how it is rated, how far away it is. Each is
- * omitted rather than softened when it is not known: no hours is silence, not
- * "closed"; a rating under the directory's three-review floor arrives null and
- * prints nothing, because ★5.0 off one review is a number a shopkeeper gets
- * judged by.
- *
- * THE CLOCK IS THE READER'S. `openStateNow` runs here, on the browser, off
- * hours the server sent unjudged — an "open now" decided on the server is
- * wrong the minute a tab is left open, which is the division the rest of this
- * hub already keeps.
- */
-function shopLine(shop: GroceryShop | undefined, now: Date): string | undefined {
-  if (!shop) return undefined;
-  const bits: string[] = [];
-  if (shop.trust?.label) bits.push(shop.trust.label);
-  const state = openStateNow(shop.hours, now);
-  if (state.open === true) bits.push('Open now');
-  else if (state.open === false) {
-    const next = openSentence(state, todayIdx(now));
-    bits.push(next && next.startsWith('opens') ? `Closed · ${next}` : 'Closed now');
-  }
-  if (shop.rating != null) bits.push(`★ ${shop.rating}`);
-  if (shop.distanceKm != null) bits.push(`${shop.distanceKm} km`);
-  return bits.length ? bits.join(' · ') : undefined;
-}
 
-function tileOf(row: GroceryItem, shop: GroceryShop | undefined, now: Date): ShopItem {
-  const priced = row.priceInr != null;
-  const where = row.shopSlug ?? row.shopId;
-  return {
-    id: row.id,
-    name: row.name,
-    /* The shop, not a manufacturer. On this shelf the thing a citizen needs to
-       know before pressing anything is whose counter it is on. */
-    brand: row.shopName,
-    category: row.aisle,
-    /* AN UNPRICED ROW SAYS "ASK", NEVER ₹0. `ServiceMenuItem.priceInr` is
-       nullable so a shopkeeper can write "seasonal" against a vegetable whose
-       price moves with the market, and turning that into a number would be the
-       store pricing something nobody priced. */
-    priceInr: priced ? (row.priceInr as number) : 0,
-    priceLabel: priced ? undefined : 'Ask the shop',
-    priceNote: priced ? undefined : 'This shop has not listed a price for it.',
-    /* SOLD OUT IS SHOWN, NOT HIDDEN — the same rule the shop's own menu keeps.
-       A row that vanishes when a shop runs out reads as a shelf that shrank. */
-    tier: row.available ? undefined : 'Sold out',
-    /* The shopkeeper's own heading, where they wrote one and it is not simply
-       the aisle's name said again. */
-    role: row.section ?? undefined,
-    /* The shop's own line, under the price, where every other shelf puts the
-       pack size: it is the same kind of fact — what you are actually getting
-       if you press the button. */
-    packLabel: shopLine(shop, now),
-    why: [row.description].filter((s): s is string => !!s).slice(0, 2),
-    image: row.photoUrl ?? undefined,
-    imageAlt: row.photoUrl ? row.name : undefined,
-    group: row.aisle,
-    design: {
-      label: row.available ? `Order at ${row.shopName}` : `See ${row.shopName}`,
-      path: `/services/${where}`,
-    },
-  };
-}
 
-/**
- * ── ONE PACK, ONE TILE, AND THE SHOPS UNDER IT (owner, 8 Sep) ───────────────
- *
- * "Create an online grocery store using the internet, show all the products
- * that's available in an area."
- *
- * The internet half of that is the city's CATALOGUE — what a pack is, read out
- * of Open Food Facts, Open Beauty Facts and the Government's commodity master,
- * with the source printed on the tile. The "available in an area" half is still
- * and only the shops: a product reaches this shelf because a real grocer near
- * you published it, and the price is the one they typed.
- *
- * SO THIS TILE INVENTS NOTHING EITHER. `fromInr` is the cheapest price a shop
- * actually set among those that have it IN STOCK — a cheapest price you cannot
- * buy is worse than no price — and when nobody has priced it the tile says
- * "Ask the shop" exactly as a single row does. There is no average here, no
- * "market price", and no number this file worked out.
- *
- * THE BUTTON GOES TO ONE SHOP, because an order is one shop, one delivery. The
- * cheapest in-stock shop is the one it opens; the others are named on the tile
- * so the choice is visible rather than made for you.
- */
-function productTileOf(p: GroceryProductTile): ShopItem {
-  const priced = p.fromInr != null;
-  /* The offer the button opens: cheapest, in stock. When nothing is in stock
-     the tile still stands (sold out is shown, not hidden) and points at the
-     first shop that carries it. */
-  const lead = p.offers.find((o) => o.available && o.priceInr != null)
-    ?? p.offers.find((o) => o.available)
-    ?? p.offers[0];
-  const anyOpen = p.offers.some((o) => o.available);
+/* THE ROW-LEVEL TILES WENT WITH THE WALL THEY FILLED (owner, 9 Sep evening).
+   `tileOf` drew one shopkeeper's line and, on the grocery shelf,
+   `productTileOf` grouped the same pack across the shops that carry it with
+   the cheapest in-stock offer on the button. Both were answers to "show me
+   everything for sale near me" — the question this room asked between 8 Sep
+   and the morning of 9 Sep. It asks which SHOP now, and the shop's own page
+   answers the rest with a real basket behind it.
 
-  return {
-    id: `product:${p.id}`,
-    name: [p.name, p.loose ? null : p.pack].filter(Boolean).join(' · '),
-    /* The BRAND is the brand here, not the shop — this tile is the product, and
-       the shops are underneath it. A single unlinked row is the other way
-       round, because there the shop is the only thing that identifies it. */
-    brand: p.brand ?? undefined,
-    category: p.aisle,
-    priceInr: priced ? (p.fromInr as number) : 0,
-    priceLabel: priced ? undefined : 'Ask the shops',
-    priceNote: priced
-      ? (p.shopCount > 1 ? `Cheapest of ${p.shopCount} shops near you` : undefined)
-      : 'No shop near you has listed a price for it.',
-    tier: anyOpen ? undefined : 'Sold out',
-    packLabel: p.shopCount === 1
-      ? `At ${lead?.shopName ?? 'one shop'}`
-      : `At ${p.shopCount} shops near you`,
-    /* WHO HAS IT, AND WHAT THEY CHARGE — the reason to group in the first
-       place. Each line is one shop's own price; none of them is combined with
-       any other. */
-    why: p.offers.slice(0, 3).map((o) => {
-      const price = o.priceInr != null ? `₹${o.priceInr}` : 'ask';
-      const far = o.distanceKm != null ? ` · ${o.distanceKm} km` : '';
-      return `${o.shopName} — ${price}${o.available ? '' : ' (sold out)'}${far}`;
-    }),
-    image: p.imageUrl ?? undefined,
-    imageAlt: p.imageUrl ? [p.brand, p.name].filter(Boolean).join(' ') : undefined,
-    group: p.aisle,
-    design: {
-      label: lead ? (lead.available ? `Order at ${lead.shopName}` : `See ${lead.shopName}`) : 'See the shops',
-      path: lead ? `/services/${lead.shopSlug ?? lead.shopId}` : '/services/browse',
-    },
-  };
-}
+   DELETED rather than left unused: a second, unreachable way to draw a row is
+   the copy that disagrees the first time either is corrected, and git
+   remembers them if the wall ever comes back. The reads are untouched — the
+   rows still arrive on the shelf, and the shop's page is where they belong
+   next. */
 
 export function useGroceryShop(
   back: { path: string; label: string } = { path: '/ecommerce/store', label: 'Digital Store' },
@@ -198,30 +75,29 @@ export function useGroceryShop(
      put two different answers about the same shop on one screen. */
   const items = useMemo(() => {
     const now = new Date();
-    const byId = new Map((shelf.data?.shops ?? []).map((sh) => [sh.id, sh]));
-    /* PRODUCT TILES FIRST, then every row that has no product behind it. A row
-       that IS in a product tile is skipped here — showing it twice would put
-       one shop's atta beside the tile that already contains that shop's atta,
-       and a citizen would reasonably read them as two different things. */
-    const products = (shelf.data?.products ?? []).map(productTileOf);
-    const loose = (shelf.data?.items ?? [])
-      .filter((row) => !row.productId)
-      .map((row) => tileOf(row, byId.get(row.shopId), now));
-    return [...products, ...loose];
+    /* WHAT EACH SHOP STOCKS AND WHAT IT LOOKS LIKE, read off the rows the
+       server already sent rather than asked for again: the aisles the shop has
+       lines in, and the first photograph on its shelf. One pass, so a hundred
+       rows do not become a hundred scans. */
+    const aisleLabel = new Map((shelf.data?.aisles ?? []).map((a) => [a.key, a.label]));
+    const stocks = new Map<string, Set<string>>();
+    const photo = new Map<string, string>();
+    for (const row of shelf.data?.items ?? []) {
+      const set = stocks.get(row.shopId) ?? new Set<string>();
+      set.add(aisleLabel.get(row.aisle) ?? row.aisle);
+      stocks.set(row.shopId, set);
+      if (row.photoUrl && !photo.has(row.shopId)) photo.set(row.shopId, row.photoUrl);
+    }
+    return (shelf.data?.shops ?? [])
+      .map((sh) => shopTileOf(sh, now, photo.get(sh.id), [...(stocks.get(sh.id) ?? [])]));
   }, [shelf.data]);
-  /* THE COUNTS COME OFF THE TILES THAT ARE ACTUALLY DRAWN, not off the server's
-     row counts. Since eight shops' rows for one pack became one tile, the
-     server's per-aisle row count is no longer what this screen shows — and a
-     chip reading "42" over twenty tiles is the kind of small wrongness nobody
-     reports and everybody notices. Same rule the server keeps for its own
-     aisles: count the things you are about to draw, never a second list. */
-  const groups = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const it of items) counts.set(it.group as string, (counts.get(it.group as string) ?? 0) + 1);
-    return (shelf.data?.aisles ?? [])
-      .filter((a) => counts.has(a.key))
-      .map((a) => ({ key: a.key, label: a.label, count: counts.get(a.key) as number }));
-  }, [shelf.data, items]);
+
+  /* NO AISLE CHIPS. Aisles sort products, and this room's tiles are shops —
+     a chip row that filtered "Staples" would be filtering shops by something
+     one line on their shelf happens to be, which is not a claim about the shop
+     at all. The aisles a shop stocks are printed ON its tile instead, where
+     they describe rather than filter. */
+  const groups: Shop['groups'] = [];
 
   const shopCount = shelf.data?.shopCount ?? 0;
 

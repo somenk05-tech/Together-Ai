@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { useMasterProfile } from '@/features/profile/hooks';
-import { useElectronicsShelf, type GroceryItem, type GroceryShop } from '@/features/services/api';
-import { openSentence, openStateNow, todayIdx } from '@/features/services/hours';
+import { useElectronicsShelf } from '@/features/services/api';
 import { useNearby } from './useNearby';
-import type { Shop, ShopItem } from './types';
+import type { Shop } from './types';
+import { shopTileOf } from './shopTile';
 
 /**
  * ── THE ELECTRONICS STORE ───────────────────────────────────────────────────
@@ -30,62 +30,20 @@ import type { Shop, ShopItem } from './types';
  * YOU LIVE and stops there — the one thing it can personalise honestly.
  */
 
-/**
- * WHAT THE DIRECTORY KNOWS ABOUT THIS SHOP, IN ONE LINE — the grocery shelf's
- * four facts in the order somebody decides by: verified, open now, rated, how
- * far. Each omitted rather than softened when it is not known; no hours is
- * silence, not "closed", and a rating under the directory's review floor prints
- * nothing at all. The clock is the reader's, off hours the server sent unjudged.
- */
-function shopLine(shop: GroceryShop | undefined, now: Date): string | undefined {
-  if (!shop) return undefined;
-  const bits: string[] = [];
-  if (shop.trust?.label) bits.push(shop.trust.label);
-  const state = openStateNow(shop.hours, now);
-  if (state.open === true) bits.push('Open now');
-  else if (state.open === false) {
-    const next = openSentence(state, todayIdx(now));
-    bits.push(next && next.startsWith('opens') ? `Closed · ${next}` : 'Closed now');
-  }
-  if (shop.rating != null) bits.push(`★ ${shop.rating}`);
-  if (shop.distanceKm != null) bits.push(`${shop.distanceKm} km`);
-  return bits.length ? bits.join(' · ') : undefined;
-}
 
-function tileOf(row: GroceryItem, shop: GroceryShop | undefined, now: Date): ShopItem {
-  const priced = row.priceInr != null;
-  const where = row.shopSlug ?? row.shopId;
-  return {
-    id: row.id,
-    name: row.name,
-    /* The shop, not a manufacturer. Two shops listing the same television are
-       two rows here — there is no electronics catalogue to fold them into one
-       tile — so whose counter it is on is the thing that tells them apart. */
-    brand: row.shopName,
-    category: row.aisle,
-    /* AN UNPRICED ROW SAYS "ASK", NEVER ₹0. A shop that quotes a fridge on
-       the phone rather than printing a price is a normal electronics shop,
-       and turning that into a number would be the store pricing something
-       nobody priced. */
-    priceInr: priced ? (row.priceInr as number) : 0,
-    priceLabel: priced ? undefined : 'Ask the shop',
-    priceNote: priced ? undefined : 'This shop has not listed a price for it.',
-    /* SOLD OUT IS SHOWN, NOT HIDDEN — a row that vanishes when a shop runs out
-       reads as a shelf that shrank. */
-    tier: row.available ? undefined : 'Sold out',
-    /* The shopkeeper's own heading, where they wrote one. */
-    role: row.section ?? undefined,
-    packLabel: shopLine(shop, now),
-    why: [row.description].filter((s): s is string => !!s).slice(0, 2),
-    image: row.photoUrl ?? undefined,
-    imageAlt: row.photoUrl ? row.name : undefined,
-    group: row.aisle,
-    design: {
-      label: row.available ? `Order at ${row.shopName}` : `See ${row.shopName}`,
-      path: `/services/${where}`,
-    },
-  };
-}
+/* THE ROW-LEVEL TILES WENT WITH THE WALL THEY FILLED (owner, 9 Sep evening).
+   `tileOf` drew one shopkeeper's line and, on the grocery shelf,
+   `productTileOf` grouped the same pack across the shops that carry it with
+   the cheapest in-stock offer on the button. Both were answers to "show me
+   everything for sale near me" — the question this room asked between 8 Sep
+   and the morning of 9 Sep. It asks which SHOP now, and the shop's own page
+   answers the rest with a real basket behind it.
+
+   DELETED rather than left unused: a second, unreachable way to draw a row is
+   the copy that disagrees the first time either is corrected, and git
+   remembers them if the wall ever comes back. The reads are untouched — the
+   rows still arrive on the shelf, and the shop's page is where they belong
+   next. */
 
 export function useElectronicsShop(
   back: { path: string; label: string } = { path: '/ecommerce/market', label: 'Open Market' },
@@ -106,19 +64,29 @@ export function useElectronicsShop(
      put two different answers about one shop on one screen. */
   const items = useMemo(() => {
     const now = new Date();
-    const byId = new Map((shelf.data?.shops ?? []).map((sh) => [sh.id, sh]));
-    return (shelf.data?.items ?? []).map((row) => tileOf(row, byId.get(row.shopId), now));
+    /* WHAT EACH SHOP STOCKS AND WHAT IT LOOKS LIKE, read off the rows the
+       server already sent rather than asked for again: the aisles the shop has
+       lines in, and the first photograph on its shelf. One pass, so a hundred
+       rows do not become a hundred scans. */
+    const aisleLabel = new Map((shelf.data?.aisles ?? []).map((a) => [a.key, a.label]));
+    const stocks = new Map<string, Set<string>>();
+    const photo = new Map<string, string>();
+    for (const row of shelf.data?.items ?? []) {
+      const set = stocks.get(row.shopId) ?? new Set<string>();
+      set.add(aisleLabel.get(row.aisle) ?? row.aisle);
+      stocks.set(row.shopId, set);
+      if (row.photoUrl && !photo.has(row.shopId)) photo.set(row.shopId, row.photoUrl);
+    }
+    return (shelf.data?.shops ?? [])
+      .map((sh) => shopTileOf(sh, now, photo.get(sh.id), [...(stocks.get(sh.id) ?? [])]));
   }, [shelf.data]);
 
-  /* THE COUNTS COME OFF THE TILES THAT ARE ACTUALLY DRAWN, never the server's
-     row counts — the rule both other shelves keep. */
-  const groups = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const it of items) counts.set(it.group as string, (counts.get(it.group as string) ?? 0) + 1);
-    return (shelf.data?.aisles ?? [])
-      .filter((a) => counts.has(a.key))
-      .map((a) => ({ key: a.key, label: a.label, count: counts.get(a.key) as number }));
-  }, [shelf.data, items]);
+  /* NO AISLE CHIPS. Aisles sort products, and this room's tiles are shops —
+     a chip row that filtered "Staples" would be filtering shops by something
+     one line on their shelf happens to be, which is not a claim about the shop
+     at all. The aisles a shop stocks are printed ON its tile instead, where
+     they describe rather than filter. */
+  const groups: Shop['groups'] = [];
 
   const shopCount = shelf.data?.shopCount ?? 0;
 
