@@ -11,6 +11,7 @@ import { Throttle } from '@nestjs/throttler';
 import {
   BrowseSchema, type BrowseDto,
   GroceryShelfSchema, type GroceryShelfDto,
+  MarketSearchSchema, type MarketSearchDto,
   CatalogueSearchSchema, type CatalogueSearchDto,
   CreateListingSchema, type CreateListingDto,
   UpdateListingSchema, type UpdateListingDto,
@@ -103,6 +104,18 @@ export class LocalServicesController {
    * the catalogue is the city's, and there is nothing in it that belongs to
    * any one shop — no price, no stock, no shop's name.
    */
+  /**
+   * ONE SEARCH ACROSS EVERY TRADE (owner, 9 Sep). Declared here, above
+   * `@Get(':id')`, for the reason every specific route in this file is: a
+   * path segment that reaches the id route is a listing lookup for a listing
+   * called "search".
+   */
+  @Get('search/items')
+  @UsePipes(new ZodValidationPipe(MarketSearchSchema))
+  searchItems(@CurrentUser() user: JwtUser, @Query() query: MarketSearchDto) {
+    return this.services.searchItems(user.sub, query);
+  }
+
   @Get('catalogue/grocery')
   @UsePipes(new ZodValidationPipe(CatalogueSearchSchema))
   catalogueGrocery(@CurrentUser() _user: JwtUser, @Query() query: CatalogueSearchDto) {

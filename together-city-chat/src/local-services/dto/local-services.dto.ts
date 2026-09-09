@@ -104,6 +104,33 @@ export const GroceryShelfSchema = z.object({
 });
 export type GroceryShelfDto = z.infer<typeof GroceryShelfSchema>;
 
+/**
+ * ── ONE SEARCH ACROSS EVERY TRADE'S OWN LIST (owner, 9 Sep) ─────────────────
+ *
+ * "Also add a search tab for all categories and all stores."
+ *
+ * Every shelf in this hub is bounded to one set of trades — grocery's eight,
+ * electronics' two — because a shelf is a place. A SEARCH is not: somebody
+ * typing "atta" or "phone charger" is asking the city, not an aisle, and the
+ * answer is whichever shop near them published that line, in whatever trade
+ * they registered under.
+ *
+ * TWO CHARACTERS MINIMUM, and that is a load rule rather than a taste one: a
+ * one-letter `contains` matches most rows in the table and the query behind it
+ * has no index that can help.
+ *
+ * `near` + `withinKm` are the same pair every other read here takes, so the
+ * search is bounded by the same radius the shelf is showing — a result you
+ * cannot walk to is not an answer to "what can I buy near me".
+ */
+export const MarketSearchSchema = z.object({
+  q: trimmed(2, 60),
+  near: z.string().trim().max(48).optional(), // "lat,lng"
+  withinKm: z.coerce.number().min(0.1).max(200).optional(),
+  city: z.string().trim().max(60).optional(),
+});
+export type MarketSearchDto = z.infer<typeof MarketSearchSchema>;
+
 export const SendServiceMessageSchema = z.object({
   body: trimmed(1, 4000),
 });

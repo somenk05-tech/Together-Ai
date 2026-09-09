@@ -20,7 +20,7 @@ import { catalogueFor, cleanDetails, isBusinessType, readDetails, sectionsFor } 
 import { normaliseHours, parseHours } from './hours';
 import { VerificationService } from './verification.service';
 import { PostMediaGuard } from '../social/post-media-guard';
-import type { BrowseDto, CatalogueSearchDto, CreateListingDto, GroceryShelfDto, UpdateListingDto, PostOfferDto, SaveMenuDto } from './dto/local-services.dto';
+import type { BrowseDto, CatalogueSearchDto, CreateListingDto, GroceryShelfDto, MarketSearchDto, UpdateListingDto, PostOfferDto, SaveMenuDto } from './dto/local-services.dto';
 import type { PatchMenuItemDto } from './dto/orders.dto';
 
 type ListingRow = {
@@ -1889,6 +1889,113 @@ export class LocalServicesService {
    * SHELF TAKES NO MONEY — one order is one shop, and `/services/:id/order` is
    * already live on every one of these pages.
    */
+  /**
+   * ── SEARCH THE WHOLE MARKET, NOT ONE AISLE (owner, 9 Sep) ────────────────
+   *
+   * "Add a search tab for all categories and all stores."
+   *
+   * Every other read in this file is bounded to a set of trades, because a
+   * shelf is a place. This one is bounded only by the radius: a citizen typing
+   * "atta" or "phone charger" is asking the city, and the honest answer is
+   * whichever approved shop near them published that line — grocer, chemist,
+   * electronics shop or bakery, in whatever trade they registered under.
+   *
+   * THE TRADE IS ON EVERY ROW rather than filtering them. "Coriander" from a
+   * sabzi market and "coriander powder" from a supermarket are both answers,
+   * and the thing that tells them apart is the shop's own name and trade,
+   * which travel with the item.
+   *
+   * IT SEARCHES WHAT THE SHOPKEEPER TYPED, name and description, and nothing
+   * else. Not the catalogue — a citizen searching this city is looking for
+   * something they can buy today, from somebody who has said they have it.
+   *
+   * THE RADIUS IS THE SAME TWO STEPS `browse()` and `groceryShelf()` use: a
+   * bounding box the index can serve, then a haversine trim in memory over the
+   * handful of rows that survives it. A shop that never said where it is is
+   * left out of a distance search rather than assumed to be far away.
+   */
+  async searchItems(viewerId: string, q: MarketSearchDto) {
+    void viewerId;
+    const where: Record<string, unknown> = { moderation: 'approved' };
+    if (q.city) where.city = { equals: q.city, mode: 'insensitive' };
+
+    const centre = parsePoint(q.near);
+    const near = centre && q.withinKm ? { centre, km: q.withinKm } : null;
+    if (near) {
+      const b = boundingBox(near.centre.lat, near.centre.lng, near.km);
+      where.lat = { gte: b.minLat, lte: b.maxLat };
+      where.lng = { gte: b.minLng, lte: b.maxLng };
+    }
+
+    const found = await this.prisma.serviceListing.findMany({
+      where, orderBy: { createdAt: 'desc' }, take: near ? 600 : SHOP_CAP * 4,
+    }) as unknown as ListingRow[];
+
+    const listings = near
+      ? found
+        .map((r) => ({ r, km: haversineKm(near.centre.lat, near.centre.lng, r.lat as number, r.lng as number) }))
+        .filter((x) => x.km <= near.km)
+        .sort((a, b) => a.km - b.km)
+        .map((x) => ({ ...x.r, distanceKm: Math.round(x.km * 100) / 100 }))
+      : found.map((r) => ({ ...r, distanceKm: undefined as number | undefined }));
+
+    if (listings.length === 0) return { items: [], total: 0, shopCount: 0 };
+
+    const byId = new Map(listings.map((l) => [l.id, l]));
+    const rows = await this.prisma.serviceMenuItem.findMany({
+      where: {
+        listingId: { in: listings.map((l) => l.id) },
+        OR: [
+          { name: { contains: q.q, mode: 'insensitive' } },
+          { description: { contains: q.q, mode: 'insensitive' } },
+        ],
+      },
+      orderBy: [{ listingId: 'asc' }, { sortOrder: 'asc' }],
+      take: ITEM_CAP,
+    }) as unknown as Array<{
+      id: string; listingId: string; section: string | null; name: string; description: string | null;
+      priceInr: number | null; available: boolean; veg: string | null; photoUrl: string | null;
+      productId: string | null;
+    }>;
+
+    const items = rows.map((r) => {
+      const shop = byId.get(r.listingId) as ListingRow & { distanceKm?: number };
+      return {
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        /** Null is "ask", never ₹0 — the schema's own rule, carried out. */
+        priceInr: r.priceInr,
+        available: r.available,
+        veg: r.veg,
+        photoUrl: r.photoUrl,
+        section: r.section,
+        aisle: aisleOf(r.section, shop.categoryKey),
+        productId: r.productId,
+        shopId: shop.id,
+        shopSlug: shop.slug,
+        shopName: shop.businessName,
+        shopCategory: categoryLabel(shop.categoryKey),
+        shopCity: shop.city,
+        distanceKm: shop.distanceKm ?? null,
+      };
+    });
+
+    /* IN STOCK FIRST, THEN NEAREST, THEN THE NAME. A sold-out row is shown
+       rather than hidden — the rule every shelf here keeps — but it is not
+       what somebody searching for a thing to buy should read first. */
+    items.sort((a, b) =>
+      Number(b.available) - Number(a.available)
+      || (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity)
+      || a.name.localeCompare(b.name));
+
+    return {
+      items,
+      total: items.length,
+      shopCount: new Set(items.map((i) => i.shopId)).size,
+    };
+  }
+
   async electronicsShelf(viewerId: string, q: GroceryShelfDto) {
     const where: Record<string, unknown> = {
       moderation: 'approved',
