@@ -170,7 +170,10 @@ function ImgCell({ url, adaptive, overlay, alt }: { url: string; adaptive: boole
   const shown = adaptive ? ar : 16 / 9;
   const qc = useQueryClient();
   return (
-    <div style={{ position: 'relative', aspectRatio: String(shown), maxHeight: adaptive ? 720 : undefined, background: 'var(--media-bg)' }}>
+    /* width 100% + minWidth 0 (10 Sep): with an aspect-ratio and a max-height,
+       Safari derives a MINIMUM width from the capped height (720 × the ratio),
+       so one tall photograph pushed the whole column wider than a phone. */
+    <div style={{ position: 'relative', width: '100%', minWidth: 0, aspectRatio: String(shown), maxHeight: adaptive ? 720 : undefined, background: 'var(--media-bg)' }}>
       <img src={url} alt={alt} loading="lazy" decoding="async"
         onError={() => onStaleMedia(qc, ['social'])}
         onLoad={(e) => {
@@ -217,7 +220,7 @@ function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName
           const next = Math.min(images.length - 1, Math.max(0, idx + step));
           el.scrollTo({ left: next * el.clientWidth });
         }}
-        style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', borderRadius: 'var(--r-2)', scrollbarWidth: 'none', aspectRatio: String(shown), maxHeight: 640, background: 'var(--media-bg)' }}>
+        style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', borderRadius: 'var(--r-2)', scrollbarWidth: 'none', width: '100%', minWidth: 0, aspectRatio: String(shown), maxHeight: 640, background: 'var(--media-bg)' }}>
         {images.map((m, i) => (
           <div key={m.id} style={{ flex: '0 0 100%', scrollSnapAlign: 'center', height: '100%' }}>
             {/* contain, so portrait photos are never cropped (letterboxed if the
@@ -411,7 +414,7 @@ function VideoFrame({ url, poster, isNew, vref, autoInView, onEnded }: { url: st
           rememberRatio(url, r);
           setAr(r);
         }}
-        style={{ width: '100%', aspectRatio: String(ar), maxHeight: 720, objectFit: 'contain', background: 'var(--media-bg)', display: 'block' }} />
+        style={{ width: '100%', minWidth: 0, aspectRatio: String(ar), maxHeight: 720, objectFit: 'contain', background: 'var(--media-bg)', display: 'block' }} />
       {/* The one affordance a bare paused video still owes: a play glyph.
           pointer-events: none — the tap lands on the video underneath. */}
       {!ctl && !playing && <span className="vf-play" aria-hidden><Icon name="play" size={22} /></span>}
@@ -520,7 +523,10 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
   const openAuthor = () => onOpenAuthor?.(post.author.handle);
 
   return (
-    <article className="card sl-post" style={isNew ? { boxShadow: '0 0 0 2px var(--accent)', animation: 'tc-pop var(--dur-base) var(--ease-out)' } : undefined}>
+    /* `sl-menu-open` lifts the card's paint containment while its menu is open
+       — `content-visibility: auto` clips to the card, which cut Delete off the
+       bottom of the three-item menu (owner, 10 Sep). */
+    <article className={menuOpen ? 'card sl-post sl-menu-open' : 'card sl-post'} style={isNew ? { boxShadow: '0 0 0 2px var(--accent)', animation: 'tc-pop var(--dur-base) var(--ease-out)' } : undefined}>
       {post.repostedBy && (
         <div className="muted" style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
           <Icon name="share" size={13} /> Shared by {post.repostedBy.name} <span style={{ fontWeight: 400 }}>@{post.repostedBy.handle}</span>
@@ -633,7 +639,7 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
                           onError: () => setActionErr(post.hidden ? 'That post is still hidden — try again.' : 'That post is still showing — try again.'),
                         });
                       }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--ink)' }}><Icon name={post.hidden ? 'eye' : 'eye-off'} size={14} /> {post.hidden ? 'Unhide post' : 'Hide post'}</button>
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--ink)' }}><Icon name={post.hidden ? 'eye' : 'eye-off'} size={14} /> {post.hidden ? 'Show in city' : 'Hide from city'}</button>
                     <button type="button" disabled={del.isPending}
                       onClick={() => { setMenuOpen(false); setActionErr(null); setConfirmDelete(true); }}
                       style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--danger-ink)' }}><Icon name="close" size={14} /> Delete post</button>

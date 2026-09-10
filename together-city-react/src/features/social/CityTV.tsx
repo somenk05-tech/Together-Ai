@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Icon } from '@/components/ui/Icon';
 import { isMuted, setMuted, subscribeMuted, playWithSharedSound, releasePlayback } from '@/lib/mediaState';
@@ -121,6 +121,14 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
   // the middle; turned a quarter it fills the screen. A key on the remote
   // turns it and turns it back; the set turns it back itself on the next video.
   const [rotated, setRotated] = useState(false);
+  /* A SWIPE IS A CHANGE OF CHANNEL (owner, 10 Sep: "give a scroll up feel for
+     the together city tv for mobile"). Which way the last swipe went, so the
+     next video rises from the bottom (up) or drops from the top (down); cleared
+     when that entrance ends, so the remote's own keys change the picture
+     without it. Where the finger went down is a ref: it changes on every move
+     and nothing needs to re-render for it. */
+  const [slide, setSlide] = useState<'up' | 'down' | null>(null);
+  const touch = useRef<{ x: number; y: number } | null>(null);
   // THE SLIDER (owner, 6 Sep): where the video is and how long it is, and a
   // slider to move it. Read off the element four times a second.
   const [clock, setClock] = useState({ time: 0, duration: 0 });
@@ -318,6 +326,35 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
     return [...after, ...before].slice(0, 40);
   }, [items, at, hasNextPage]);
 
+  /* The picture follows the finger while it moves; let go past 60px, mostly
+     vertically, and it is the next video (up) or the last one (down). A turned
+     set keeps its quarter-turn transform, so it changes channel without the
+     follow. Anything shorter or sideways was a tap, and taps wake the remote. */
+  const onTouchStart = (e: TouchEvent) => {
+    const t = e.touches[0];
+    touch.current = { x: t.clientX, y: t.clientY };
+  };
+  const onTouchMove = (e: TouchEvent) => {
+    const from = touch.current;
+    const el = video.current;
+    if (!from || !el || rotated) return;
+    const t = e.touches[0];
+    const dy = t.clientY - from.y;
+    if (Math.abs(dy) > Math.abs(t.clientX - from.x)) el.style.transform = `translateY(${dy}px)`;
+  };
+  const onTouchEnd = (e: TouchEvent) => {
+    const from = touch.current;
+    touch.current = null;
+    if (video.current && !rotated) video.current.style.transform = '';
+    if (!from) return;
+    const t = e.changedTouches[0];
+    const dy = t.clientY - from.y;
+    if (Math.abs(dy) < 60 || Math.abs(dy) < Math.abs(t.clientX - from.x)) return;
+    const step = dy < 0 ? 1 : -1;
+    setSlide(step === 1 ? 'up' : 'down');
+    go(step);
+  };
+
   if (!post || !current) return null;
   const caption = post.text?.trim() ?? '';
   const stale = () => onStaleMedia(qc, ['social']);
@@ -325,7 +362,8 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
   return (
     <div className={awake || paused || queue || vol ? 'tv' : 'tv asleep'} ref={screen}>
       {head}
-      <div className={rotated ? 'tv-screen rotated' : 'tv-screen'} aria-live="off">
+      <div className={rotated ? 'tv-screen rotated' : 'tv-screen'} aria-live="off"
+        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
         {/* ── NO `src` HERE ANY MORE, AND THAT IS THE POINT ──────────────────
             The source is attached in an effect, because there may be a LADDER
             behind this video and `<video src>` cannot express "hand this
@@ -339,7 +377,8 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
             time the remote changes channel. With a ladder attached hls.js does
             its own buffering and this attribute stops mattering; without one it
             is still the whole defence. */}
-        <video key={current.id} ref={video} className="tv-media" poster={current.thumbUrl ?? undefined}
+        <video key={current.id} ref={video} className={slide && !rotated ? `tv-media in-${slide}` : 'tv-media'} poster={current.thumbUrl ?? undefined}
+          onAnimationEnd={() => setSlide(null)}
           playsInline autoPlay muted={muted} preload="metadata"
           onLoadedMetadata={(e) => { setReady(true); setClock({ time: e.currentTarget.currentTime, duration: e.currentTarget.duration || 0 }); }}
           onDurationChange={(e) => {

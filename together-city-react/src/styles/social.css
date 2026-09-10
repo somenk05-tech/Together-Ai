@@ -86,6 +86,18 @@
 .tv.asleep .tv-bar:not(:focus-within), .tv.asleep .tv-room-top:not(:focus-within) { opacity: 0; pointer-events: none; }
 .tv-screen { overflow: hidden; background: var(--media-bg); color: var(--on-accent); }
 .tv-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+/* THE SET SCROLLS LIKE A PHONE (owner, 10 Sep: "give a scroll up feel for
+   the together city tv for mobile"). The screen takes the finger — a swipe up
+   is the next video, down the one before — so the page must not also try to
+   scroll under it. The picture follows the finger while it moves (CityTV.tsx
+   writes the offset), and the next one rises into place from the edge it came
+   from. */
+.tv-screen { touch-action: none; }
+.tv-media.in-up { animation: tv-rise var(--dur-base) var(--ease-out) both; }
+.tv-media.in-down { animation: tv-fall var(--dur-base) var(--ease-out) both; }
+@keyframes tv-rise { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes tv-fall { from { transform: translateY(-100%); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .tv-media.in-up, .tv-media.in-down { animation: none; } }
 /* turned a quarter: the video's width becomes the screen's height, so a wide
    clip fills a tall phone edge to edge */
 .tv-screen.rotated .tv-media { inset: auto; top: 50%; left: 50%; width: 100vh; height: 100vw; transform: translate(-50%, -50%) rotate(90deg); }
@@ -317,8 +329,14 @@
    reference, and it is also what a 12px white border around a print does: the
    card is the mount, the picture is the print, and a print does not have
    rounded corners. */
-.sl-post { padding: 12px; margin-bottom: 16px;
+.sl-post { padding: 12px; margin-bottom: 16px; min-width: 0; max-width: 100%;
   content-visibility: auto; contain-intrinsic-size: auto 640px; }
+/* THE MENU WAS CUT OFF BY ITS OWN CARD (owner, 10 Sep: "where is the delete
+   post button"). `content-visibility: auto` carries paint containment even
+   while the card is on screen, so the ••• menu was clipped at the card's
+   bottom edge and Delete — the third item — was drawn under nothing. While a
+   menu is open the card paints normally and stands above the next one. */
+.sl-post.sl-menu-open { content-visibility: visible; position: relative; z-index: 6; }
 .sl-post .sl-media { margin-top: 0; border-radius: 0; }
 /* Read in two directions, and each half ranged to its own edge — the two
    margins the picture already sets. */

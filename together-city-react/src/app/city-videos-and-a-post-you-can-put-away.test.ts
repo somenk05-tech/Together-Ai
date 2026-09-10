@@ -42,14 +42,14 @@ describe('City Videos', () => {
 describe('a post you can put away', () => {
   const card = code('features/social/PostCard.tsx');
 
-  it('sits in the author’s menu between Edit and Delete, and turns back into Unhide', () => {
+  it('sits in the author’s menu between Edit and Delete as Hide from city, and turns back into Show in city', () => {
     const edit = card.indexOf('Edit post');
-    const hide = card.indexOf("'Hide post'");
+    const hide = card.indexOf("'Hide from city'");
     const del = card.indexOf('Delete post</button>');
     expect(edit).toBeGreaterThan(0);
     expect(hide).toBeGreaterThan(edit);
     expect(del).toBeGreaterThan(hide);
-    expect(card).toMatch(/post\.hidden \? 'Unhide post' : 'Hide post'/);
+    expect(card).toMatch(/post\.hidden \? 'Show in city' : 'Hide from city'/);
   });
 
   it('marks a hidden post on the author’s own wall', () => {
@@ -58,5 +58,35 @@ describe('a post you can put away', () => {
 
   it('asks the server, which owns the rule', () => {
     expect(read('features/social/api.ts')).toMatch(/\/social\/posts\/\$\{postId\}\/visibility/);
+  });
+});
+
+describe('the three items all show (owner, 10 Sep: "where is the delete post button")', () => {
+  it('lifts the card’s paint containment while its menu is open, so Delete is not clipped', () => {
+    expect(code('features/social/PostCard.tsx')).toMatch(/menuOpen \? 'card sl-post sl-menu-open' : 'card sl-post'/);
+    expect(read('styles/social.css')).toMatch(/\.sl-post\.sl-menu-open \{ content-visibility: visible; position: relative; z-index: 6; \}/);
+  });
+});
+
+describe('a phone holds the column (owner, 10 Sep: "fix the layout for photos on mobile phone")', () => {
+  it('never lets a capped, aspect-ratio picture set a minimum width', () => {
+    const card = code('features/social/PostCard.tsx');
+    const boxes = card.match(/aspectRatio: String\((shown|ar)\)/g) ?? [];
+    expect(boxes.length).toBe(3);
+    expect(card.match(/minWidth: 0, aspectRatio: String\((shown|ar)\)/g)?.length).toBe(3);
+  });
+});
+
+describe('the set scrolls like a phone (owner, 10 Sep: "give a scroll up feel for the together city tv")', () => {
+  const tv = code('features/social/CityTV.tsx');
+  it('changes video on a vertical swipe — up is next, down is back', () => {
+    expect(tv).toMatch(/onTouchStart=\{onTouchStart\} onTouchMove=\{onTouchMove\} onTouchEnd=\{onTouchEnd\}/);
+    expect(tv).toMatch(/const step = dy < 0 \? 1 : -1;/);
+    expect(tv).toMatch(/Math\.abs\(dy\) < 60/);
+  });
+  it('brings the next picture in from the edge it came from, and not for reduced motion', () => {
+    const css = read('styles/social.css');
+    expect(css).toMatch(/@keyframes tv-rise \{ from \{ transform: translateY\(100%\); \}/);
+    expect(css).toMatch(/prefers-reduced-motion: reduce\) \{ \.tv-media\.in-up, \.tv-media\.in-down \{ animation: none; \}/);
   });
 });
