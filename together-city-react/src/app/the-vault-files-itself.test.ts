@@ -73,6 +73,22 @@ describe('Health Records is as simple as the Drive', () => {
     expect(page).toMatch(/tag: 'Scan \/ X-ray'/);
   });
 
+  it('holds a report whose name is spelled differently, and asks', () => {
+    expect(page).toMatch(/Is this your report\?/);
+    expect(page).toMatch(/Yes, it’s mine/);
+    expect(read('features/medical/api.ts')).toMatch(/\/medical\/records\/\$\{id\}\/confirm/);
+  });
+
+  it('shows the name on the report and the report\'s date, nothing else, under the test\'s name', () => {
+    expect(page).toMatch(/\[r\.nameOnReport, r\.recordedOn\]\.filter\(Boolean\)\.join\(' · '\)/);
+    expect(page).not.toMatch(/fmtBytes\(r\.sizeBytes\)/);
+  });
+
+  it('reads, once, the files filed before the vault could read', () => {
+    expect(page).toMatch(/r\.read === false/);
+    expect(read('features/medical/api.ts')).toMatch(/\/medical\/records\/\$\{id\}\/read/);
+  });
+
   it('shows no timeline', () => {
     expect(page).not.toMatch(/timeline/i);
   });

@@ -74,7 +74,18 @@ export interface BloodTrends {
   };
   disclaimer: string;
 }
-export interface MedicalRecord { id: string; kind: string; title: string; detail: string | null; hasFile?: boolean; mimeType?: string | null; sizeBytes?: number; bloodTestId?: string | null; analyzed?: boolean; recordedOn: string }
+export interface MedicalRecord {
+  id: string; kind: string; title: string; detail: string | null; hasFile?: boolean; mimeType?: string | null; sizeBytes?: number; bloodTestId?: string | null; analyzed?: boolean;
+  /** The report's own date once the vault has read it; the filing day before. */
+  recordedOn: string;
+  /** The name printed on the report (owner, 10 Sep), null when none is. */
+  nameOnReport?: string | null;
+  /** False for a file filed before the vault could read — the page reads it once. */
+  read?: boolean;
+  /** Held on a name that did not quite match: the folder it goes to once the
+   *  citizen confirms it is theirs. */
+  heldFor?: string | null;
+}
 export interface StorageUsage { quotaBytes: number; usedBytes: number; mailBytes: number; healthBytes: number; usedPct: number; remainingBytes: number }
 export interface ExtractResult { recordId: string; aiEnabled: boolean; extracted: Record<string, number>; markerCount: number; lab: string | null; takenOn: string | null; note: string }
 /** Manual-entry biomarker catalog (comprehensive form). */
@@ -107,7 +118,7 @@ export interface IngestResult {
  *  reader could not tell what it is — the document sits in `unsorted` and the
  *  page asks for a tag. */
 export interface SortedUploadResult {
-  recordId: string; kind: string; sorted: boolean; bloodTestId: string | null; note: string; records: MedicalRecord[];
+  recordId: string; kind: string; sorted: boolean; held?: boolean; bloodTestId: string | null; note: string; records: MedicalRecord[];
 }
 export interface HistoryArea { area: string; status: 'attention' | 'watch' | 'good' | 'unclear'; summary: string; evidence: string[] }
 /** The whole medical record read as one overview — kept server-side until an
@@ -170,6 +181,10 @@ export const medicalApi = {
     api.post<SortedUploadResult>('/medical/uploads', input, { timeout: 180000 }).then((r) => r.data),
   tagRecord: (id: string, kind: string) =>
     api.patch<{ note: string; records: MedicalRecord[] }>(`/medical/records/${id}`, { kind }, { timeout: 180000 }).then((r) => r.data),
+  confirmRecord: (id: string) =>
+    api.post<{ note: string; records: MedicalRecord[] }>(`/medical/records/${id}/confirm`, {}, { timeout: 180000 }).then((r) => r.data),
+  rereadRecord: (id: string) =>
+    api.post<{ note: string; records: MedicalRecord[] }>(`/medical/records/${id}/read`, {}, { timeout: 180000 }).then((r) => r.data),
   wholeHistory: () => api.get<MedicalHistory>('/medical/history', { timeout: 120000 }).then((r) => r.data),
   recordFile: (id: string) => api.get<{ url: string | null; expiresInSec: number }>(`/medical/records/${id}/file`).then((r) => r.data),
   deleteBloodTest: (id: string) => api.delete<{ ok: true }>(`/medical/blood-tests/${id}`).then((r) => r.data),
@@ -287,6 +302,22 @@ export function useTagRecord() {
       qc.setQueryData(['medical', 'records'], res.records);
       syncPanelQueries(qc);
     },
+  });
+}
+/** "Yes, it's mine" — files a document held on a name that did not quite match. */
+export function useConfirmRecord() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => medicalApi.confirmRecord(id),
+    onSuccess: (res) => { qc.setQueryData(['medical', 'records'], res.records); syncPanelQueries(qc); },
+  });
+}
+/** Reads, once, a file filed before the vault could read it. */
+export function useRereadRecord() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => medicalApi.rereadRecord(id),
+    onSuccess: (res) => { qc.setQueryData(['medical', 'records'], res.records); syncPanelQueries(qc); },
   });
 }
 /** The whole-history read. Written once server-side and kept, so the client

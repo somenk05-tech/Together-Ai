@@ -33,14 +33,15 @@ export const isRecordKind = (k: unknown): k is RecordKind =>
 
 export const READ_SYSTEM = [
   'You read ONE medical document a person uploaded to their private health vault, and file it.',
-  'Return ONLY JSON: {"isMedical":boolean,"kind":string,"confidence":number,"title":string,"date":string|null,"source":string|null,"summary":string,"findings":[{"name":string,"value":string|null,"flag":"high"|"low"|"abnormal"|"normal"|null}]}',
+  'Return ONLY JSON: {"isMedical":boolean,"kind":string,"confidence":number,"title":string,"patientName":string|null,"date":string|null,"source":string|null,"summary":string,"findings":[{"name":string,"value":string|null,"flag":"high"|"low"|"abnormal"|"normal"|null}]}',
   `kind is exactly one of: ${RECORD_KINDS.join(', ')} — or "unsure".`,
   'blood-test = any lab panel run on blood (CBC, lipids, HbA1c, glucose, thyroid, liver, kidney, vitamins, hormones). A lab report mixing blood and urine results is blood-test.',
   'imaging = X-ray, ultrasound, CT, MRI, mammogram, DEXA reports. heart-test = ECG, echo, TMT, Holter. lung-test = spirometry/PFT. brain-test = EEG, nerve studies. eye-test = eye examinations and spectacle prescriptions.',
   'prescription = medicines prescribed by a doctor. hospital = admission or discharge summaries and hospital bills. note = a doctor\'s consultation notes. report = any other medical report that fits none of the above. vaccination = vaccine certificates or records.',
   'If you cannot tell which kind with reasonable certainty, use "unsure" — the person will be asked. Never guess. If the file is not a medical document at all, set isMedical false and kind "unsure".',
   'confidence: 0 to 1, how sure you are of kind.',
-  'title: what the person would call it, 60 characters at most, e.g. "Lipid profile", "Chest X-ray", "Prescription — Dr. Rao". Never include the person\'s name.',
+  'title: the name of the test or document as printed on it — the panel or test name the lab gives it, e.g. "Aarogyam C Pro", "Lipid profile", "Fasting blood sugar", "Chest X-ray", "Prescription — Dr. Rao". 60 characters at most. Never include the person\'s name.',
+  'patientName: the name of the person the document is about, exactly as printed on it (without Mr/Mrs/Dr); null if no name is printed.',
   'date: the day the sample was collected, the study performed or the document issued, as YYYY-MM-DD, only if it is printed; otherwise null.',
   'source: the lab, hospital or doctor exactly as printed; otherwise null.',
   'summary: one plain sentence saying what the document is and what it covers. Do not diagnose.',
@@ -57,6 +58,9 @@ export interface Reading {
   /** True only when the model named a real folder and was sure of it. */
   sure: boolean;
   title: string | null;
+  /** The name printed on the document — checked against the account's name
+   *  (owner, 10 Sep) and shown on the file row beside the date. */
+  patientName: string | null;
   date: string | null;
   source: string | null;
   summary: string | null;
@@ -92,6 +96,7 @@ export function cleanReading(raw: unknown, today: string): Reading {
     kind: sure && named ? named : UNSORTED,
     sure,
     title: str(r.title, 60),
+    patientName: str(r.patientName, 120),
     // A date only when it is a real calendar day that has already happened —
     // a misread "2062" would otherwise sort to the top of the vault for ever.
     date: date && /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(Date.parse(date)) && date <= today ? date : null,
@@ -107,11 +112,83 @@ export function cleanReading(raw: unknown, today: string): Reading {
  * citizen reads under the file, and it is what the history read is written
  * from, so the two can never describe the same document differently.
  */
-export function readingDetail(r: Reading): string | null {
+export function readingDetail(r: Reading): string {
   const head = [r.summary, r.source ? `Source: ${r.source}.` : null].filter(Boolean).join(' ');
   const lines = r.findings.map((f) => `• ${f.name}${f.value ? ` — ${f.value}` : ''}${f.flag && f.flag !== 'normal' ? ` (${f.flag})` : ''}`);
-  const out = [head, ...lines].filter(Boolean).join('\n');
-  return out ? out.slice(0, 4000) : null;
+  return [nameLine(r.patientName), head, ...lines].filter(Boolean).join('\n').slice(0, 4000);
+}
+
+// ─────────────── whose report it is (owner, 10 Sep) ───────────────
+/**
+ * "If there is a mismatch in the name spelling in the test, double confirm
+ * with the user if it's their own blood test; if there is a complete change in
+ * name, reject the blood test mentioning name mismatch."
+ *
+ * The name printed on a document is kept as the FIRST line of its detail, so
+ * the file row can show it beside the date and the vault can tell a document
+ * it has read from one it has not. The line always exists on a read document —
+ * "not printed" when there was none — which is what `wasRead` looks for.
+ */
+const NAME_LINE = 'Name on the report: ';
+const NOT_PRINTED = 'not printed';
+export const nameLine = (name: string | null): string => `${NAME_LINE}${name ?? NOT_PRINTED}`;
+export const wasRead = (detail: string | null): boolean => (detail ?? '').startsWith(NAME_LINE);
+export function nameOnReport(detail: string | null): string | null {
+  if (!wasRead(detail)) return null;
+  const v = (detail ?? '').split('\n')[0].slice(NAME_LINE.length).trim();
+  return v && v !== NOT_PRINTED ? v : null;
+}
+/** The detail without its name line — what the history read is written from,
+ *  so no one's name is sent with the whole record. */
+export const withoutName = (detail: string | null): string | null =>
+  wasRead(detail) ? (detail ?? '').split('\n').slice(1).join('\n') || null : detail;
+
+/** A document held until the citizen says it is theirs; the folder it will go
+ *  to rides after the prefix. */
+export const CONFIRM = 'confirm:';
+export const isHeld = (kind: string): boolean => kind.startsWith(CONFIRM);
+export const heldFor = (kind: string): string => kind.slice(CONFIRM.length) || UNSORTED;
+
+const HONORIFICS = new Set(['mr', 'mrs', 'ms', 'miss', 'mstr', 'master', 'dr', 'smt', 'shri', 'sri', 'shrimati', 'kum', 'kumari', 'baby', 'mx', 'prof']);
+export function nameTokens(name: string | null | undefined): string[] {
+  const cut = (name ?? '').toLowerCase().split(/\b[sdwc]\s*\/\s*o\b/)[0]; // "S/O …" names somebody else
+  return cut.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z\s]/g, ' ')
+    .split(/\s+/).filter((t) => t && !HONORIFICS.has(t));
+}
+function distance(a: string, b: string): number {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  }
+  return d[a.length][b.length];
+}
+/** The same name spelled differently, or cut to its initial. */
+function alike(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (a.length === 1 || b.length === 1) return a[0] === b[0];
+  if (Math.min(a.length, b.length) < 3) return false;
+  return distance(a, b) <= (Math.max(a.length, b.length) >= 6 ? 2 : 1);
+}
+
+export type NameVerdict = 'match' | 'close' | 'different' | 'unknown';
+/**
+ * match     — every word of the account's name is printed, or the report
+ *             prints a shorter form that still carries the first name.
+ * close     — the first name is there but spelled differently or cut to an
+ *             initial, or only the surname matches → ask "is this yours?"
+ * different — nothing of the first name on the report → reject.
+ * unknown   — no name printed, or no name on the account → nothing to check.
+ */
+export function compareNames(onReport: string | null, account: string | null): NameVerdict {
+  const r = nameTokens(onReport);
+  const a = nameTokens(account);
+  if (!r.length || !a.length) return 'unknown';
+  if (a.every((t) => r.includes(t))) return 'match';
+  if (r.every((t) => a.includes(t)) && r.includes(a[0])) return 'match';
+  if (r.some((t) => alike(t, a[0]))) return 'close';
+  if (r.every((t) => a.includes(t))) return 'close';
+  return 'different';
 }
 
 // ─────────────── the whole history, read once ───────────────

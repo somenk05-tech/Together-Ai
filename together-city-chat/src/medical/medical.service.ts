@@ -30,8 +30,9 @@ import { panelBand, panelScore, panelScoreBasis } from './panel-score';
 import { basisFor, formatRange, inRangeSummary, panelRangeNote, statusAgainst } from './range-basis';
 import { normalizeReportImage } from './image-normalize';
 import {
-  READ_ASK, READ_SYSTEM, HISTORY_SYSTEM, UNSORTED, cleanHistory, cleanReading, historyPrompt, kindLabel, readingDetail,
-  type HistoryArea, type HistoryDoc, type HistoryPanel, type HistoryRead, type Reading, type RecordKind,
+  READ_ASK, READ_SYSTEM, HISTORY_SYSTEM, UNSORTED, CONFIRM, cleanHistory, cleanReading, compareNames, heldFor, historyPrompt,
+  isHeld, kindLabel, nameOnReport, readingDetail, wasRead, withoutName,
+  type NameVerdict, type HistoryArea, type HistoryDoc, type HistoryPanel, type HistoryRead, type Reading, type RecordKind,
 } from './record-reader';
 
 const cite = (ids: string[]) => ids.map((id) => CITATIONS[id]).filter(Boolean);
@@ -617,12 +618,39 @@ export class MedicalService implements OnModuleInit {
     if (!(await this.storage.healthObjectExists(dto.fileKey))) {
       throw new BadRequestException('Your report didn’t finish uploading — please check your connection and try again.');
     }
+    // The same door the vault uses (owner, 10 Sep): read whose report it is
+    // before anything is filed. A different name is refused and the file
+    // removed; a name spelled differently is held for the citizen to confirm in
+    // Health Records, and nothing is analysed until they do. The reading also
+    // gives the record the test's own name and the report's date.
+    const reading = await this.readDocument(dto.fileKey, dto.mimeType, this.clock.todayIn(await this.clock.timezoneFor(userId)));
+    const who = await this.whoseReport(userId, reading.patientName);
+    if (who.verdict === 'different') {
+      // Refused, so the file goes too. The citizen is told either way; a bucket
+      // that would not delete leaves an object no record points at, and the log
+      // names it with its key.
+      if (!(await this.storage.deleteHealthObject(dto.fileKey))) {
+        this.logger.error(`medical: ${dto.fileKey} is ORPHANED — refused on a name mismatch and the object was not deleted.`);
+      }
+      throw new BadRequestException(this.mismatchNote(reading.patientName, who.account));
+    }
     const rec = await this.prisma.medicalRecord.create({
       data: {
-        userId, kind: 'blood-test', title: dto.title || 'Blood report', detail: dto.detail || 'Uploaded blood report',
-        fileUrl: null, fileKey: dto.fileKey, mimeType: dto.mimeType, sizeBytes: dto.sizeBytes, recordedOn: new Date(),
+        userId, kind: who.verdict === 'close' ? `${CONFIRM}blood-test` : 'blood-test',
+        title: reading.title ?? (dto.title || 'Blood report'), detail: readingDetail(reading),
+        fileUrl: null, fileKey: dto.fileKey, mimeType: dto.mimeType, sizeBytes: dto.sizeBytes,
+        recordedOn: reading.date ? new Date(`${reading.date}T12:00:00Z`) : new Date(),
       },
     });
+    if (who.verdict === 'close') {
+      return {
+        recordId: rec.id, bloodTestId: null as string | null, aiEnabled: this.ai.enabled,
+        extracted: {} as Record<string, number>, markerCount: 0, lab: null as string | null, takenOn: reading.date,
+        analysis: null as Awaited<ReturnType<MedicalService['analyze']>> | null,
+        summary: null as Awaited<ReturnType<MedicalService['healthSummary']>> | null,
+        note: `Is this your report? It is printed for “${reading.patientName}”. Confirm it in Health Records and it is analysed.`,
+      };
+    }
 
     const extracted = await this.readReportFromVault(dto.fileKey, dto.mimeType);
 
@@ -642,7 +670,9 @@ export class MedicalService implements OnModuleInit {
       };
     }
 
-    const takenOnDate = extracted.takenOn ? new Date(extracted.takenOn) : new Date();
+    // The report's date, never the upload's (owner, 10 Sep).
+    const printedOn = extracted.takenOn ?? reading.date;
+    const takenOnDate = printedOn ? new Date(printedOn) : new Date();
     const testId = await this.upsertPanelAndAnalyze(userId, {
       values, ranges: extracted.ranges ?? null, lab: extracted.lab ?? null,
       takenOn: Number.isNaN(takenOnDate.getTime()) ? new Date() : takenOnDate,
@@ -1346,7 +1376,14 @@ export class MedicalService implements OnModuleInit {
         // Health Records can jump straight to the same analysis shown on Blood Test Analysis.
         bloodTestId: rr.bloodTestId ?? null,
         analyzed: Boolean(rr.bloodTestId),
+        // The date is the REPORT's once the vault has read it (owner, 10 Sep).
         recordedOn: this.clock.dayIn(tz, r.recordedOn),
+        // Whose name is printed on it, whether the vault has read it yet, and —
+        // for a document held on a name that did not quite match — the folder
+        // it goes to once the citizen says it is theirs.
+        nameOnReport: nameOnReport(r.detail),
+        read: wasRead(r.detail),
+        heldFor: isHeld(r.kind) ? heldFor(r.kind) : null,
       };
     });
   }
@@ -1383,10 +1420,23 @@ export class MedicalService implements OnModuleInit {
     }
     const today = this.clock.todayIn(await this.clock.timezoneFor(userId));
     const reading = await this.readDocument(dto.fileKey, dto.mimeType, today);
+    // Whose report is it? A different name is refused and the file removed; a
+    // name spelled differently is held until the citizen says it is theirs.
+    const who = await this.whoseReport(userId, reading.patientName);
+    if (who.verdict === 'different') {
+      // Refused, so the file goes too. The citizen is told either way; a bucket
+      // that would not delete leaves an object no record points at, and the log
+      // names it with its key.
+      if (!(await this.storage.deleteHealthObject(dto.fileKey))) {
+        this.logger.error(`medical: ${dto.fileKey} is ORPHANED — refused on a name mismatch and the object was not deleted.`);
+      }
+      throw new BadRequestException(this.mismatchNote(reading.patientName, who.account));
+    }
+    const held = who.verdict === 'close';
     const fromName = (dto.name ?? '').replace(/\.[^.]+$/, '').trim().slice(0, 160);
     const rec = await this.prisma.medicalRecord.create({
       data: {
-        userId, kind: reading.kind, title: reading.title ?? (fromName || 'Medical document'),
+        userId, kind: held ? `${CONFIRM}${reading.kind}` : reading.kind, title: reading.title ?? (fromName || 'Medical document'),
         detail: readingDetail(reading),
         fileUrl: null, fileKey: dto.fileKey, mimeType: dto.mimeType, sizeBytes: dto.sizeBytes,
         // The day printed on the document when there is one: a scan from May
@@ -1397,8 +1447,10 @@ export class MedicalService implements OnModuleInit {
 
     let bloodTestId: string | null = null;
     let note: string;
-    if (reading.kind === 'blood-test') {
-      const blood = await this.readBloodIntoPanel(userId, rec.id, dto.fileKey, dto.mimeType);
+    if (held) {
+      note = `Is this your report? It is printed for “${reading.patientName}”. Confirm it below and it is filed.`;
+    } else if (reading.kind === 'blood-test') {
+      const blood = await this.readBloodIntoPanel(userId, rec.id, dto.fileKey, dto.mimeType, reading.date);
       bloodTestId = blood.bloodTestId;
       note = blood.note;
     } else if (reading.kind === UNSORTED) {
@@ -1408,7 +1460,82 @@ export class MedicalService implements OnModuleInit {
     } else {
       note = `Filed under ${kindLabel(reading.kind)}.`;
     }
-    return { recordId: rec.id, kind: reading.kind, sorted: reading.kind !== UNSORTED, bloodTestId, note, records: await this.records(userId) };
+    return { recordId: rec.id, kind: reading.kind, sorted: !held && reading.kind !== UNSORTED, held, bloodTestId, note, records: await this.records(userId) };
+  }
+
+  /** The account's name against the one printed on the report. */
+  private async whoseReport(userId: string, onReport: string | null): Promise<{ verdict: NameVerdict; account: string | null }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+    return { verdict: compareNames(onReport, user?.name ?? null), account: user?.name ?? null };
+  }
+
+  private mismatchNote(onReport: string | null, account: string | null): string {
+    return `Name mismatch — this report is for “${onReport}”${account ? `, not ${account}` : ''}. It wasn’t saved.`;
+  }
+
+  /**
+   * "Yes, it's mine." A held document goes to the folder the reader chose for
+   * it, loses the hold, and a blood report is read into a panel — dated by
+   * the report, not the upload.
+   */
+  async confirmRecord(userId: string, id: string) {
+    const rec = await this.prisma.medicalRecord.findFirst({ where: { id, userId } }) as
+      ({ id: string; kind: string; fileKey: string | null; mimeType: string | null; bloodTestId: string | null; recordedOn: Date } | null);
+    if (!rec) throw new NotFoundException('record not found');
+    if (!isHeld(rec.kind)) return { note: 'Already filed.', records: await this.records(userId) };
+    const kind = heldFor(rec.kind);
+    await this.prisma.medicalRecord.updateMany({ where: { id, userId }, data: { kind } });
+    let note = `Filed under ${kindLabel(kind)}.`;
+    if (kind === 'blood-test' && rec.fileKey && rec.mimeType && !rec.bloodTestId) {
+      note = (await this.readBloodIntoPanel(userId, rec.id, rec.fileKey, rec.mimeType, rec.recordedOn.toISOString().slice(0, 10))).note;
+    }
+    return { note, records: await this.records(userId) };
+  }
+
+  /**
+   * A document filed before the vault could read — read it once now, so every
+   * file row carries the test's own name, the name printed on it and the
+   * report's date, and the analysis is dated by the report rather than the
+   * upload (owner, 10 Sep). Once read, the name line marks it and this is a
+   * no-op. An old file is never deleted for a name that does not match — it
+   * is held and the citizen is asked, because it has been theirs for a while.
+   */
+  async rereadRecord(userId: string, id: string) {
+    const rec = await this.prisma.medicalRecord.findFirst({ where: { id, userId } }) as
+      ({ id: string; kind: string; title: string; detail: string | null; fileKey: string | null; mimeType: string | null; bloodTestId: string | null; createdAt: Date } | null);
+    if (!rec) throw new NotFoundException('record not found');
+    if (!rec.fileKey || !rec.mimeType || wasRead(rec.detail) || isHeld(rec.kind)) return { note: '', records: await this.records(userId) };
+    const tz = await this.clock.timezoneFor(userId);
+    const reading = await this.readDocument(rec.fileKey, rec.mimeType, this.clock.todayIn(tz));
+    const who = await this.whoseReport(userId, reading.patientName);
+    const kind = rec.kind === UNSORTED ? reading.kind : rec.kind;
+    const held = who.verdict === 'close' || who.verdict === 'different';
+    await this.prisma.medicalRecord.updateMany({
+      where: { id, userId },
+      data: {
+        kind: held ? `${CONFIRM}${kind}` : kind,
+        title: reading.title ?? rec.title,
+        detail: readingDetail(reading),
+        ...(reading.date ? { recordedOn: new Date(`${reading.date}T12:00:00Z`) } : {}),
+      },
+    });
+    let note = held ? `Is this your report? It is printed for “${reading.patientName}”.` : 'Read.';
+    if (!held && kind === 'blood-test') {
+      if (!rec.bloodTestId) {
+        note = (await this.readBloodIntoPanel(userId, rec.id, rec.fileKey, rec.mimeType, reading.date)).note;
+      } else if (reading.date) {
+        // A panel whose date defaulted to the day it was uploaded takes the
+        // report's date instead; a panel that already had the lab's date keeps it.
+        await this.prisma.medicalBloodTest.updateMany({
+          where: {
+            id: rec.bloodTestId, userId,
+            takenOn: { gte: new Date(`${this.clock.dayIn(tz, rec.createdAt)}T00:00:00Z`), lt: new Date(rec.createdAt.getTime() + 36 * 3600_000) },
+          },
+          data: { takenOn: new Date(`${reading.date}T12:00:00Z`) },
+        });
+      }
+    }
+    return { note, records: await this.records(userId) };
   }
 
   /**
@@ -1468,7 +1595,7 @@ export class MedicalService implements OnModuleInit {
 
   /** A filed blood report → its markers → a linked panel, analysed. Never
    *  throws for an unreadable report: the document is already safe. */
-  private async readBloodIntoPanel(userId: string, recordId: string, fileKey: string, mimeType: string): Promise<{ bloodTestId: string | null; note: string }> {
+  private async readBloodIntoPanel(userId: string, recordId: string, fileKey: string, mimeType: string, reportDate?: string | null): Promise<{ bloodTestId: string | null; note: string }> {
     const extracted = await this.readReportFromVault(fileKey, mimeType);
     const values = Object.fromEntries(
       Object.entries(extracted.values).filter(([k, v]) => typeof v === 'number' && !Number.isNaN(v) && biomarkerDef(k)),
@@ -1482,7 +1609,10 @@ export class MedicalService implements OnModuleInit {
           : 'Filed under Blood Tests. We couldn’t read clear values from it — you can type them in on Record Analysis.',
       };
     }
-    const takenOn = extracted.takenOn ? new Date(extracted.takenOn) : new Date();
+    // The report's date — the lab's collection date, else the date the reader
+    // found printed — never the day it happened to be uploaded.
+    const printed = extracted.takenOn ?? reportDate ?? null;
+    const takenOn = printed ? new Date(printed) : new Date();
     try {
       const bloodTestId = await this.upsertPanelAndAnalyze(userId, {
         values, ranges: extracted.ranges ?? null, lab: extracted.lab ?? null,
@@ -1515,14 +1645,17 @@ export class MedicalService implements OnModuleInit {
       this.prisma.medicalBloodTest.findMany({ where: { userId }, orderBy: [{ takenOn: 'desc' }, { id: 'desc' }], take: 12, select: { id: true } }),
     ]);
     const panels = await Promise.all(tests.map((t) => this.analyze(userId, t.id)));
-    const docs: HistoryDoc[] = rows.map((r) => ({ kind: r.kind, title: r.title, date: this.clock.dayIn(tz, r.recordedOn), detail: r.detail }));
-    const folders = [...new Set(rows.map((r) => r.kind))].map((kind) => ({ kind, label: kindLabel(kind), count: rows.filter((r) => r.kind === kind).length }));
+    // Held documents are not the citizen's until they say so; and the name
+    // line stays out of the prompt — the read is about results, not people.
+    const own = rows.filter((r) => !isHeld(r.kind));
+    const docs: HistoryDoc[] = own.map((r) => ({ kind: r.kind, title: r.title, date: this.clock.dayIn(tz, r.recordedOn), detail: withoutName(r.detail) }));
+    const folders = [...new Set(own.map((r) => r.kind))].map((kind) => ({ kind, label: kindLabel(kind), count: own.filter((r) => r.kind === kind).length }));
     const dates = [...docs.map((d) => d.date), ...panels.map((p) => p.takenOn)].sort();
     const base = {
-      hasRecords: rows.length > 0 || panels.length > 0,
-      documents: rows.length, panels: panels.length,
+      hasRecords: own.length > 0 || panels.length > 0,
+      documents: own.length, panels: panels.length,
       from: dates[0] ?? null, to: dates[dates.length - 1] ?? null,
-      folders, needsTag: rows.filter((r) => r.kind === UNSORTED).length,
+      folders, needsTag: rows.filter((r) => r.kind === UNSORTED || isHeld(r.kind)).length,
       aiEnabled: this.ai.enabled, disclaimer,
     };
     if (!base.hasRecords) return { ...base, fromModel: false, overview: '', areas: [] as HistoryArea[], changes: [] as string[], discuss: [] as string[], gaps: [] as string[] };
@@ -1560,7 +1693,7 @@ export class MedicalService implements OnModuleInit {
     const out = latest ? latest.markers.filter((m) => m.status !== 'normal') : [];
     return {
       ...base, fromModel: false,
-      overview: `Your vault holds ${rows.length} document${rows.length === 1 ? '' : 's'} in ${folders.length} folder${folders.length === 1 ? '' : 's'}${base.from ? `, from ${base.from} to ${base.to}` : ''}.`
+      overview: `Your vault holds ${own.length} document${own.length === 1 ? '' : 's'} in ${folders.length} folder${folders.length === 1 ? '' : 's'}${base.from ? `, from ${base.from} to ${base.to}` : ''}.`
         + (latest ? ` Your latest blood panel (${latest.takenOn}) has ${out.length} marker${out.length === 1 ? '' : 's'} outside the reference range.` : ''),
       areas: out.map((m) => ({ area: m.label, status: 'attention' as const, summary: `${m.value} ${m.unit}, reference ${m.range} — ${m.status}.`, evidence: [`Blood panel · ${latest!.takenOn}`] })),
       changes: [] as string[], discuss: [] as string[], gaps: [] as string[],

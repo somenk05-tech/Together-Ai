@@ -286,8 +286,12 @@ export function BloodAnalysis() {
       setSavedFile({ id: res.recordId, name: file.name });
       // If it analysed automatically, collapse the manual form — the analysis is now shown above.
       if (res.bloodTestId) setExpanded(false);
-    } catch {
-      setExtractNote('Saved to your vault, but we couldn’t read the values automatically — please enter them from your report below.');
+    } catch (e) {
+      // A refusal has its own sentence — a name mismatch deletes the file, so
+      // "saved to your vault" would be untrue (owner, 10 Sep).
+      const msg = (e as { response?: { status?: number; data?: { message?: string } } })?.response;
+      if (msg?.status === 400 && msg.data?.message) setUploadErr(msg.data.message);
+      else setExtractNote('Saved to your vault, but we couldn’t read the values automatically — please enter them from your report below.');
     } finally {
       setExtracting(false);
     }

@@ -1,11 +1,11 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Button, Spinner } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { bloodGroupLabel } from '@/features/profile/bloodGroup';
 import { declaredSummary, wasAsked } from '@/features/profile/healthConditions';
-import { useRecords, useStorageUsage, useDeleteRecord, useUploadSorted, useTagRecord, medicalApi, type MedicalRecord } from '../api';
+import { useRecords, useStorageUsage, useDeleteRecord, useUploadSorted, useTagRecord, useConfirmRecord, useRereadRecord, medicalApi, type MedicalRecord } from '../api';
 
 /** The folders. `label` names the folder; `tag` is the word on each file
  *  inside it — "Blood test", "Scan / X-ray" — the one line that says what the
@@ -46,10 +46,6 @@ interface Incoming { id: number; name: string; state: 'reading' | 'done' | 'erro
  *  — record-reader.ts on the server names it the same. */
 const UNSORTED = 'unsorted';
 
-/** The first line the reader wrote under a file — its one-sentence summary. */
-const summaryOf = (detail: string | null) =>
-  (detail ?? '').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('• ')).join(' ');
-
 /** One row of the list — the Drive's row, so the vault reads like the Drive. */
 const rowStyle = { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderTop: '1px solid var(--line)' } as const;
 const linkBtn = { background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', padding: 0 } as const;
@@ -74,6 +70,20 @@ export function Records() {
   const upload = useUploadSorted();
   const tag = useTagRecord();
   const del = useDeleteRecord();
+  const confirm = useConfirmRecord();
+  const reread = useRereadRecord();
+  // Files filed before the vault could read them are read once, one at a
+  // time, so every row gets the test's own name, the name printed on it and
+  // the report's date (owner, 10 Sep). A file tried once this visit is not
+  // tried again, whatever the answer.
+  const tried = useRef(new Set<string>());
+  useEffect(() => {
+    if (reread.isPending) return;
+    const next = (records.data ?? []).find((r) => r.hasFile && r.read === false && !r.heldFor && !tried.current.has(r.id));
+    if (!next) return;
+    tried.current.add(next.id);
+    reread.mutate(next.id);
+  }, [records.data, reread]);
   const picker = useRef<HTMLInputElement>(null);
   // The open folder lives in the address, so Back closes it the way it would
   // in any file browser, and a folder can be linked to.
@@ -148,17 +158,17 @@ export function Records() {
   const s = storage.data;
   const all = records.data ?? [];
   const untagged = all.filter((r) => r.kind === UNSORTED);
+  const held = all.filter((r) => r.heldFor);
   // Folders exist because files are in them — the reader makes them, in the
   // KINDS order; a kind the page does not know goes under Other.
   const known = new Set(KINDS.map((k) => k.key));
   const folders = [
     ...KINDS.map((k) => ({ key: k.key, label: k.label, icon: k.icon, items: all.filter((r) => r.kind === k.key) })),
-    { key: '__other', label: 'Other', icon: '📁', items: all.filter((r) => !known.has(r.kind) && r.kind !== UNSORTED) },
+    { key: '__other', label: 'Other', icon: '📁', items: all.filter((r) => !known.has(r.kind) && r.kind !== UNSORTED && !r.heldFor) },
   ].filter((g) => g.items.length);
   const open = folder ? folders.find((f) => f.key === folder) ?? null : null;
 
   const fileRow = (r: MedicalRecord, untaggedRow = false) => {
-    const summary = summaryOf(r.detail);
     return (
       <div key={r.id} style={{ ...rowStyle, flexWrap: 'wrap' }}>
         <button type="button" onClick={() => r.hasFile && void openFile(r.id)} disabled={!r.hasFile}
@@ -167,7 +177,8 @@ export function Records() {
           <span style={{ minWidth: 0 }}>
             <span style={{ display: 'block', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</span>
             <span className="muted" style={{ display: 'block', fontSize: 11.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {[r.recordedOn, r.sizeBytes ? fmtBytes(r.sizeBytes) : null, summary || null].filter(Boolean).join(' · ')}
+              {/* The name printed on the report and the report's date — nothing else (owner, 10 Sep). */}
+              {[r.nameOnReport, r.recordedOn].filter(Boolean).join(' · ')}
             </span>
           </span>
         </button>
@@ -283,6 +294,27 @@ export function Records() {
         )}
       </div>
 
+      {/* A name spelled differently from the account's: asked, never assumed (owner, 10 Sep). */}
+      {!open && held.length > 0 && (
+        <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 12 }}>
+          <div style={{ padding: '10px 16px', fontSize: 13, fontWeight: 600, background: 'var(--warn-soft)' }}>
+            Is this your report? The name printed on it isn’t spelled the way your account spells it.
+          </div>
+          {held.map((r) => (
+            <div key={r.id} style={{ ...rowStyle, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 20 }}>❔</span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: 14 }}>{r.title}</span>
+                <span className="muted" style={{ display: 'block', fontSize: 11.5 }}>{[r.nameOnReport, r.recordedOn].filter(Boolean).join(' · ')}</span>
+              </span>
+              {r.hasFile && <button type="button" onClick={() => void openFile(r.id)} style={{ ...linkBtn, color: 'var(--accent-ink)' }}>View</button>}
+              <Button size="sm" variant="accent" onClick={() => confirm.mutate(r.id)} state={confirm.isPending && confirm.variables === r.id ? 'loading' : undefined} loadingLabel="Filing…">Yes, it’s mine</Button>
+              <button type="button" onClick={() => del.mutate(r.id)} disabled={del.isPending} style={{ ...linkBtn, color: 'var(--danger-ink)' }}>No — delete it</button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Asked only when the reader could not tell (owner, 10 Sep). */}
       {!open && untagged.length > 0 && (
         <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 12 }}>
@@ -294,7 +326,7 @@ export function Records() {
       )}
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        {!open && folders.length === 0 && (
+        {!open && folders.length === 0 && held.length === 0 && untagged.length === 0 && (
           <div style={{ textAlign: 'center', padding: '48px 24px' }}>
             <div style={{ fontSize: 38, marginBottom: 8 }}>🗂</div>
             <p style={{ fontSize: 15, margin: '0 0 4px' }}>No records yet</p>

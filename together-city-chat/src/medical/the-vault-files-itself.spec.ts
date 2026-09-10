@@ -1,7 +1,8 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
-  KIND_LABEL, RECORD_KINDS, SURE_ENOUGH, UNSORTED, cleanHistory, cleanReading, historyPrompt, kindLabel, readingDetail,
+  CONFIRM, KIND_LABEL, RECORD_KINDS, SURE_ENOUGH, UNSORTED, cleanHistory, cleanReading, compareNames, heldFor, historyPrompt,
+  isHeld, kindLabel, nameOnReport, readingDetail, wasRead, withoutName,
 } from './record-reader';
 
 /**
@@ -53,10 +54,10 @@ describe('when a reading files itself', () => {
 describe('what the citizen reads under the file', () => {
   it('is the summary, then one line per finding, flags only when not normal', () => {
     const d = readingDetail(cleanReading({
-      ...sure, kind: 'blood-test', source: null, summary: 'Lipid profile.',
+      ...sure, kind: 'blood-test', source: null, summary: 'Lipid profile.', patientName: 'Somen Kumar',
       findings: [{ name: 'Triglycerides', value: '395.6 mg/dL', flag: 'high' }, { name: 'HDL', value: '44 mg/dL', flag: 'normal' }],
     }, TODAY));
-    expect(d).toBe('Lipid profile.\n• Triglycerides — 395.6 mg/dL (high)\n• HDL — 44 mg/dL');
+    expect(d).toBe('Name on the report: Somen Kumar\nLipid profile.\n• Triglycerides — 395.6 mg/dL (high)\n• HDL — 44 mg/dL');
   });
 });
 
@@ -93,5 +94,58 @@ describe('one list of folders', () => {
   it('asks the model for nothing but those folders, or unsure', () => {
     const src = readFileSync(join(__dirname, 'record-reader.ts'), 'utf8');
     expect(src).toMatch(/kind is exactly one of: \$\{RECORD_KINDS\.join\(', '\)\} — or "unsure"/);
+  });
+});
+
+/**
+ * WHOSE REPORT IT IS (owner, 10 Sep): "If there is a mismatch in the name
+ * spelling in the test, double confirm with the user if it's their own blood
+ * test; if there is a complete change in name, reject the blood test
+ * mentioning name mismatch."
+ */
+describe('the name on the report', () => {
+  const me = 'Somen Kumar';
+  it('matches the same name, in any order, with a title or a middle name', () => {
+    expect(compareNames('Mr. SOMEN KUMAR', me)).toBe('match');
+    expect(compareNames('Kumar Somen', me)).toBe('match');
+    expect(compareNames('Somen Kumar Singh', me)).toBe('match');
+    expect(compareNames('Somen', me)).toBe('match');
+  });
+
+  it('asks when the spelling differs, or the first name is only an initial', () => {
+    expect(compareNames('Soman Kumar', me)).toBe('close');
+    expect(compareNames('S. Kumar', me)).toBe('close');
+    expect(compareNames('Kumar', me)).toBe('close');
+  });
+
+  it('rejects a completely different name — even one sharing a surname', () => {
+    expect(compareNames('Priya Sharma', me)).toBe('different');
+    expect(compareNames('Rajesh Kumar', me)).toBe('different');
+  });
+
+  it('reads past a guardian printed after S/O', () => {
+    expect(compareNames('Somen Kumar S/O Ramesh Kumar', me)).toBe('match');
+  });
+
+  it('checks nothing when no name is printed or the account has none', () => {
+    expect(compareNames(null, me)).toBe('unknown');
+    expect(compareNames('Somen Kumar', '')).toBe('unknown');
+  });
+
+  it('keeps the printed name as the first line — shown on the row, never sent to the history read', () => {
+    const d = readingDetail(cleanReading({ ...sure, patientName: 'Somen Kumar' }, TODAY));
+    expect(wasRead(d)).toBe(true);
+    expect(nameOnReport(d)).toBe('Somen Kumar');
+    expect(withoutName(d)).not.toMatch(/Somen/);
+    const none = readingDetail(cleanReading({ ...sure, patientName: null }, TODAY));
+    expect(wasRead(none)).toBe(true);
+    expect(nameOnReport(none)).toBeNull();
+    expect(wasRead('Uploaded blood report')).toBe(false);
+  });
+
+  it('holds a document for the folder it will go to', () => {
+    expect(isHeld(`${CONFIRM}blood-test`)).toBe(true);
+    expect(heldFor(`${CONFIRM}blood-test`)).toBe('blood-test');
+    expect(isHeld('blood-test')).toBe(false);
   });
 });

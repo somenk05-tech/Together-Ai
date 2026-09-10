@@ -161,6 +161,22 @@ export class MedicalController {
     return this.medical.tagRecord(user.sub, id, dto.kind);
   }
 
+  // "Yes, it's mine" — a document held on a name that did not quite match.
+  @Room('/medical/records')
+  @Post('records/:id/confirm')
+  @Throttle(MODEL_LIMIT)
+  confirmRecord(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.medical.confirmRecord(user.sub, id);
+  }
+
+  // Read, once, a document filed before the vault could read.
+  @Room('/medical/records')
+  @Post('records/:id/read')
+  @Throttle(MODEL_LIMIT)
+  rereadRecord(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.medical.rereadRecord(user.sub, id);
+  }
+
   // The whole medical record, read as one overview — kept until it changes.
   @Room('/medical/blood')
   @Get('history')
