@@ -131,6 +131,17 @@ export const useAuthStore = create<AuthState>()(
         // one in-flight rotation. Refresh tokens are single-use server-side, so
         // two concurrent rotations meant the loser was told "invalid" and the
         // citizen was signed out of a live session mid-use.
+        /* THE SLOT EMPTIES ON EVERY EXIT (10 Sep). It was emptied in exactly
+           one place — the `finally` of the body-fallback `try` below — so the
+           commonest path of all, a cookie refresh that SUCCEEDED, returned
+           before reaching it and left a settled promise in the slot for the
+           life of the tab. Fifteen minutes later the access token died, every
+           401 asked for a refresh, and was handed the same dead token again:
+           the retry 401'd, the page said "Couldn't load the directory", and
+           only a reload (a fresh module) got it back. The outage path
+           (`return null` on a 5xx) stuck the same way with null. So the
+           rotation is wrapped whole, and the slot is cleared by the promise
+           itself whichever way it leaves. */
         refreshInFlight ??= (async (): Promise<string | null> => {
           /* THE COOKIE FIRST, ALWAYS. It costs one request that fails fast when
              there is no cookie, and it is what keeps the refresh token out of
@@ -171,10 +182,8 @@ export const useAuthStore = create<AuthState>()(
               resetClientState();
             }
             return null;
-          } finally {
-            refreshInFlight = null;
           }
-        })();
+        })().finally(() => { refreshInFlight = null; });
         return refreshInFlight;
       },
 
