@@ -105,7 +105,7 @@
   position: absolute; left: 0; right: 0; bottom: 0; padding: 40px 18px 140px;
   background: linear-gradient(to top, var(--scrim-deep), transparent);
 }
-.tv-caption p { margin: 0; font-size: var(--fs-4); line-height: 1.5; }
+.tv-caption p { margin: 0; font-size: var(--fs-4); line-height: 1.5; overflow-wrap: anywhere; }
 /* how far into the video: a hairline along the foot of the screen, driven by
    --tv-progress (0..1) which the set writes on timeupdate */
 .tv-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--scrim-deep); z-index: 2; }
@@ -365,6 +365,14 @@
 .sl-post-name { font-size: var(--fs-6); font-weight: 700; letter-spacing: -.012em; line-height: 1.25; }
 .sl-post-name .sl-at { font-size: var(--fs-4); font-weight: 400; color: var(--muted); }
 .sl-post-text { margin: 5px 0 0; font-size: var(--fs-5); line-height: 1.5; white-space: pre-wrap; color: var(--ink-soft); }
+/* A WORD LONGER THAN THE PHONE (owner, 10 Sep: "the content is getting cropped
+   on phone and is floating"). A link, a run of hashtags or a long handle has
+   nowhere to break, so it ran past the card's right edge — cropped there, and on
+   an iPhone the page grew as wide as the word and floated sideways. Everything a
+   citizen wrote inside a card may now break anywhere it must; the action row
+   keeps its words whole. */
+.sl-post { overflow-wrap: anywhere; }
+.sl-post .sl-acts { overflow-wrap: normal; }
 .sl-post-meta {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   font-size: 12px; color: var(--muted); margin-top: 2px;

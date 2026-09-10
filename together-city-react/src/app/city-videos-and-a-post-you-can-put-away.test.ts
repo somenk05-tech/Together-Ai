@@ -111,6 +111,12 @@ describe('a phone column that cannot be dragged sideways (owner, 10 Sep)', () =>
     expect(idx).toMatch(/html \{ overflow-x: clip; \}/);
     expect(idx).toMatch(/body \{ overflow-x: clip; \}/);
   });
+  it('lets a word longer than the phone break inside the card and under the TV, but not the action row', () => {
+    const css = read('styles/social.css');
+    expect(css).toMatch(/\.sl-post \{ overflow-wrap: anywhere; \}/);
+    expect(css).toMatch(/\.sl-post \.sl-acts \{ overflow-wrap: normal; \}/);
+    expect(css).toMatch(/\.tv-caption p \{[^}]*overflow-wrap: anywhere;/);
+  });
 });
 
 describe('share says what you feel (owner, 10 Sep)', () => {
