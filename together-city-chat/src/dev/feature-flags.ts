@@ -393,10 +393,11 @@ export const ROOM_FLAGS: RoomFlag[] = [
   ...rooms('social', 'Together TV', [
     ['01', '/social/feed', 'City TV'],
     ['02', '/social/images', 'City Photos'],
-    ['03', '/social/channels', 'Together City Channels'],
-    ['04', '/social/profile', 'My Profile'],
-    ['05', '/social/saved', 'Saved'],
-    ['06', '/entertainment', 'Entertainment'],
+    ['03', '/social/videos', 'City Videos'],
+    ['04', '/social/channels', 'Together City Channels'],
+    ['05', '/social/profile', 'My Profile'],
+    ['06', '/social/saved', 'Saved'],
+    ['07', '/entertainment', 'Entertainment'],
   ]),
   ...rooms('dating', 'Matchmaking', [
     ['01', '/matchmaking/profile', 'My Matchmaking Profile'],

@@ -20,11 +20,25 @@
 
 export const VISIBLE = 'visible';
 export const REMOVED = 'removed';
+/**
+ * HIDDEN BY THE PERSON WHO POSTED IT (owner, 10 Sep): "let users hide posts —
+ * photos, videos and thoughts — along with edit and delete."
+ *
+ * A third state of the same column, and that is the whole design: every list
+ * read of Post already spreads VISIBLE_ONLY (moderation-reach.spec holds it),
+ * so a hidden post leaves the feed, the TV, City Photos, City Videos, other
+ * people's view of the profile, the permalink and the share button at once,
+ * with no new filter to forget. The author still sees it — their own grid does
+ * not filter on moderation — and can bring it back. A moderator's REMOVED
+ * outranks it: an author can hide a visible post and unhide a hidden one, and
+ * nothing else.
+ */
+export const HIDDEN = 'hidden';
 
 /** Spread into any `where` that lists posts for somebody other than the author. */
 export const VISIBLE_ONLY = { moderation: VISIBLE } as const;
 
-export type ModerationState = typeof VISIBLE | typeof REMOVED;
+export type ModerationState = typeof VISIBLE | typeof REMOVED | typeof HIDDEN;
 
 /**
  * Posts a given viewer may see, moderation aside from audience.

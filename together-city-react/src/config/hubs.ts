@@ -392,23 +392,29 @@ export const HUBS: Record<HubKey, HubConfig> = {
          themselves on 01, the city's photographs are read at your own pace on
          02 — and everything below shifted one place to let it. */
       { path: '/social/images', index: '02', label: 'City Photos', sub: 'Photographs and thoughts' },
-      { path: '/social/channels', index: '03', label: 'Together City Channels', sub: 'Every channel is a citizen' },
+      /* 03 IS THE CITY'S VIDEOS READ LIKE A WALL (owner, 10 Sep): "create city
+         video tab on the side bar, and make it in this exact look just with
+         post from all people." The television on 01 plays one clip at a time;
+         this is the same clips as full post cards in a column you scroll,
+         like the reader. After Photos, so 02 stays where its test says it is. */
+      { path: '/social/videos', index: '03', label: 'City Videos', sub: 'Every video, as a post' },
+      { path: '/social/channels', index: '04', label: 'Together City Channels', sub: 'Every channel is a citizen' },
       // The Wall (/social/wall — the old feed with its five lenses) is off
       // the rail for now (owner, 6 Sep: "hide the wall page for now"). The
       // route stays, unlisted, so nothing that links to it breaks.
       // "Post & Earn" and "places" left these two lines (owner, 4 Sep): the
       // rail promises only what exists. The programme is still reachable from
       // the profile chip, labelled not open; places are a caption on a post.
-      { path: '/social/profile', index: '04', label: 'My Profile', sub: 'Story, stats & posts' },
-      { path: '/social/saved', index: '05', label: 'Saved', sub: 'Bookmarked posts' },
-      // 06 IS A DOOR OUT OF THE HUB, WHICH NO OTHER RAIL KEY IS — and that is
+      { path: '/social/profile', index: '05', label: 'My Profile', sub: 'Story, stats & posts' },
+      { path: '/social/saved', index: '06', label: 'Saved', sub: 'Bookmarked posts' },
+      // 07 IS A DOOR OUT OF THE HUB, WHICH NO OTHER RAIL KEY IS — and that is
       // the point rather than an oversight. Entertainment came off the header
       // on 7 Sep (owner) because "what do I watch tonight" is a question this
       // hub already answers with a television; the four rooms behind it —
       // Movies Now, OTT Watch, Curated Movies, Watchlist — are the same
       // question asked about the rest of the week. The rail is where somebody
       // standing in front of the screen looks for them.
-      { path: '/entertainment', index: '06', label: 'Entertainment', sub: 'Movies, OTT & your watchlist' },
+      { path: '/entertainment', index: '07', label: 'Entertainment', sub: 'Movies, OTT & your watchlist' },
       // Thoughts was here because it was "built, tested, and listed nowhere" —
       // a journal boarding in the social hub for want of anywhere else. It has
       // a home of its own now (Personal), and a private journal listed inside

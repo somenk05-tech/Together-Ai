@@ -4,7 +4,7 @@ import { spawn } from 'child_process';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { BlockingService } from '../connections/blocking.service';
 import { connectionGrants } from '../connections/connections.service';
-import { REMOVED, VISIBLE, VISIBLE_ONLY, removedNotice } from './post-visibility';
+import { HIDDEN, REMOVED, VISIBLE, VISIBLE_ONLY, removedNotice } from './post-visibility';
 import { AdminAccessService } from '../admin/admin-access.service';
 import { REACHABLE_USER } from '../admin/account-reach';
 import { ReadCache } from '../shared/cache/read-cache.service';
@@ -1119,6 +1119,26 @@ export class SocialService {
     });
     const u = updated as unknown as { likes: unknown[] };
     return this.shapePost(updated, countsOf(updated), u.likes.length > 0, await this.signMediaOf([updated]));
+  }
+
+  /**
+   * HIDE A POST, OR BRING IT BACK (owner, 10 Sep). Only the author, and only
+   * between the two states that are theirs: visible ⇄ hidden. A post a
+   * moderator removed stays removed — hiding it is not a way to launder it
+   * back, and unhiding it is not a way to overrule the moderator.
+   */
+  async setHidden(userId: string, postId: string, hidden: boolean): Promise<{ id: string; hidden: boolean }> {
+    const post = await this.prisma.post.findUnique({ where: { id: postId }, select: { authorId: true, moderation: true } });
+    if (!post) throw new NotFoundException('post not found');
+    if (post.authorId !== userId) throw new ForbiddenException('not your post');
+    const from = hidden ? VISIBLE : HIDDEN;
+    const now = post.moderation ?? VISIBLE;
+    if (now === REMOVED) throw new ForbiddenException('A moderator removed this post, so it can’t be hidden or shown again.');
+    if (now !== from) return { id: postId, hidden: now === HIDDEN };
+    // Scoped by author AND the state it is leaving, so a removal that lands
+    // between the read and this write is never overwritten.
+    await this.prisma.post.updateMany({ where: { id: postId, authorId: userId, moderation: from }, data: { moderation: hidden ? HIDDEN : VISIBLE } });
+    return { id: postId, hidden };
   }
 
   /** Cursor-paginated feed, newest first. Cursor = last post id of the previous page. */

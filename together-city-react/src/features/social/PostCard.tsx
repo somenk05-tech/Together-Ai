@@ -11,7 +11,7 @@ import { HeartIcon, CommentIcon, SendIcon, SaveIcon, ShareIcon, PlaceIcon } from
 import { ReportMenu } from './report';
 import { Confirm } from './Confirm';
 import {
-  useAddComment, useComments, useDeleteComment, useDeletePost, useUpdatePost, useRepost, useToggleBookmark, useToggleLike,
+  useAddComment, useComments, useDeleteComment, useDeletePost, useUpdatePost, useRepost, useSetHidden, useToggleBookmark, useToggleLike,
   POST_TEXT_MAX, type Post, type PostComment, type PostMedia,
 } from './api';
 
@@ -471,6 +471,7 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
   const like = useToggleLike();
   const del = useDeletePost();
   const upd = useUpdatePost();
+  const hide = useSetHidden();
   const repost = useRepost();
   const [reposted, setReposted] = useState(false);
   const { user } = useAuth();
@@ -622,6 +623,17 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
                   <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 21, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 12, boxShadow: 'var(--e2)', overflow: 'hidden', minWidth: 150, textAlign: 'left' }}>
                     <button type="button" onClick={() => { setDraft(post.text ?? ''); setEditing(true); setMenuOpen(false); }}
                       style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--ink)' }}><Icon name="edit" size={14} /> Edit post</button>
+                    {/* HIDE, BETWEEN EDIT AND DELETE (owner, 10 Sep) — the
+                        reversible one of the three. A hidden post leaves every
+                        city list and stays on the author's own wall, marked. */}
+                    <button type="button" disabled={hide.isPending}
+                      onClick={() => {
+                        setMenuOpen(false); setActionErr(null);
+                        hide.mutate({ postId: post.id, hidden: !post.hidden }, {
+                          onError: () => setActionErr(post.hidden ? 'That post is still hidden — try again.' : 'That post is still showing — try again.'),
+                        });
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--ink)' }}><Icon name={post.hidden ? 'eye' : 'eye-off'} size={14} /> {post.hidden ? 'Unhide post' : 'Hide post'}</button>
                     <button type="button" disabled={del.isPending}
                       onClick={() => { setMenuOpen(false); setActionErr(null); setConfirmDelete(true); }}
                       style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--danger-ink)' }}><Icon name="close" size={14} /> Delete post</button>
@@ -630,6 +642,11 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
               </span>
             )}
           </div>
+          {post.hidden && (
+            <div className="sl-post-place" role="note">
+              <Icon name="eye-off" size={13} /> Hidden · only you can see this
+            </div>
+          )}
           {post.placeName && (
             <div className="sl-post-place">
               <span className="sl-mark-place"><PlaceIcon /></span>{post.placeName}

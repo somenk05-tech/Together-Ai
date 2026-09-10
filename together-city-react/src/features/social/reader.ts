@@ -91,5 +91,6 @@ export function profilePostToPost(
     likedByMe: p.likedByMe ?? false,
     savedByMe: p.savedByMe ?? false,
     createdAt: p.createdAt,
+    hidden: p.hidden ?? false,
   };
 }

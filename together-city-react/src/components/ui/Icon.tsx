@@ -20,6 +20,7 @@ import {
   PawPrint,
   // Together City TV (5 Sep): the transport and the channel dial.
   SkipBack, SkipForward, Maximize2, ChevronUp, ChevronDown, Captions, ListVideo, RotateCw,
+  Eye, EyeOff,
 } from 'lucide-react';
 
 /**
@@ -39,6 +40,8 @@ export type IconName =
   | 'image' | 'reorder' | 'grid' | 'plus' | 'back' | 'next' | 'journal' | 'more'
   | 'music' | 'close' | 'flag' | 'block' | 'sort' | 'locating' | 'warn'
   | 'play' | 'pause' | 'paw'
+  // A post its author has hidden, and the way back (owner, 10 Sep).
+  | 'eye' | 'eye-off'
   // Marks the mail folders derive from a project's name.
   | 'megaphone' | 'doc' | 'chart'
   // Mira reading her replies aloud, and not.
@@ -68,6 +71,7 @@ const MAP: Record<IconName, LucideIcon> = {
   // added for this hub, because every other district already answers with one
   // of the fifty above and a second paw would be a second answer.
   paw: PawPrint,
+  eye: Eye, 'eye-off': EyeOff,
 };
 
 export function Icon({ name, size = 18, strokeWidth = 1.75, className, style }: {

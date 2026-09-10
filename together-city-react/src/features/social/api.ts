@@ -62,6 +62,9 @@ export interface Post {
   repostedBy?: { name: string; handle: string } | null;
   /** Unique key per feed entry (repost id); falls back to id for originals. */
   key?: string;
+  /** Hidden by its author (owner, 10 Sep) — only ever true on the author's own
+   *  wall; nobody else is sent a hidden post at all. */
+  hidden?: boolean;
 }
 export interface FeedPage { items: Post[]; nextCursor: string | null }
 export interface PostComment { id: string; postId: string; text: string; author: PostAuthor; createdAt: string }
@@ -123,6 +126,8 @@ export const socialApi = {
     api.post<Post>('/social/posts', input).then((r) => r.data),
   remove: (postId: string) => api.delete<{ ok: boolean }>(`/social/posts/${postId}`).then((r) => r.data),
   update: (postId: string, text: string) => api.patch<Post>(`/social/posts/${postId}`, { text }).then((r) => r.data),
+  setHidden: (postId: string, hidden: boolean) =>
+    api.patch<{ id: string; hidden: boolean }>(`/social/posts/${postId}/visibility`, { hidden }).then((r) => r.data),
   setCategory: (postId: string, category: 'work' | 'personal' | null) =>
     api.patch<Post>(`/social/posts/${postId}`, { category }).then((r) => r.data),
   like: (postId: string) =>
@@ -261,6 +266,30 @@ export function useCreatePost() {
     },
   });
 }
+/**
+ * Hide a post from everybody but its author, or bring it back (owner, 10 Sep).
+ * Hiding takes it out of every city list at once — the author's own wall is
+ * the one place it stays, marked — so the city lists drop it here without a
+ * refetch, and the wall is asked again for the mark.
+ */
+export function useSetHidden() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { postId: string; hidden: boolean }) => socialApi.setHidden(v.postId, v.hidden),
+    onSuccess: (res) => {
+      if (res.hidden) {
+        qc.setQueriesData<FeedInfinite>({ queryKey: FEED_KEY }, (data) =>
+          mapFeedPosts(data, (items) => items.filter((p) => p.id !== res.id)));
+        qc.setQueriesData<FeedInfinite>({ queryKey: BOOKMARKS_KEY }, (data) =>
+          mapFeedPosts(data, (items) => items.filter((p) => p.id !== res.id)));
+      } else {
+        void qc.invalidateQueries({ queryKey: FEED_KEY });
+      }
+      void qc.invalidateQueries({ queryKey: ['profile', 'posts'] });
+    },
+  });
+}
+
 export function useDeletePost() {
   const qc = useQueryClient();
   return useMutation({

@@ -166,6 +166,13 @@ export class SocialController {
     return this.social.setCover(user.sub, id, time);
   }
 
+  // Hide a post from everybody but its author, or bring it back (owner, 10 Sep).
+  @Patch('posts/:id/visibility')
+  setHidden(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: unknown) {
+    const { hidden } = parseOrThrow(z.object({ hidden: z.boolean() }), body);
+    return this.social.setHidden(user.sub, id, hidden);
+  }
+
   // ─────────────── safety: block & report ───────────────
   @Get('blocks')
   blocks(@CurrentUser() user: JwtUser) {

@@ -161,6 +161,7 @@ const SocPublicProfile = lazy(() => import('@/features/social/pages/Profile').th
 const SocSaved = lazy(() => import('@/features/social/pages/Saved').then((m) => ({ default: m.SocialSaved })));
 const SocPost = lazy(() => import('@/features/social/pages/PostPage').then((m) => ({ default: m.PostPage })));
 const SocImages = lazy(() => import('@/features/social/pages/CityImages').then((m) => ({ default: m.CityImages })));
+const SocVideos = lazy(() => import('@/features/social/pages/CityVideos').then((m) => ({ default: m.CityVideos })));
 const SocReader = lazy(() => import('@/features/social/pages/ReaderPage').then((m) => ({ default: m.ReaderPage })));
 // Medical sub-pages
 const MedTests = lazy(() => import('@/features/medical/pages/Tests').then((m) => ({ default: m.Tests })));
@@ -455,6 +456,7 @@ const ROUTE_BLOCKS: RouteObject[] = [
       /* The still half of what the city uploads (owner, 8 Sep) — City TV's
          counterpart, and rail key 02. */
       { path: '/social/images', element: <RequireAuth>{wrap(<SocImages />)}</RequireAuth> },
+      { path: '/social/videos', element: <RequireAuth>{wrap(<SocVideos />)}</RequireAuth> },
       /* THE READER IS A PAGE (owner, 8 Sep). A tile on a wall opens here
          instead of expanding into an overlay: the post you tapped is the
          first thing on the page and the wall reads on from it. `?of=<handle>`

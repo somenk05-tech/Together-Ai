@@ -521,6 +521,9 @@ export class ProfileService {
           likedByMe: px.likes.length > 0,
           savedByMe: saved.has(p.id),
           category: px.category ?? null,
+          // Hidden by its author (owner, 10 Sep) — shown on their own grid with
+          // "Hidden · only you can see this", invisible to everybody else.
+          hidden: (p as { moderation?: string | null }).moderation === 'hidden',
         };
       }),
       nextCursor: hasMore ? page[page.length - 1].id : null,

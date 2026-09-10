@@ -35,6 +35,8 @@ export interface ProfilePost {
    *  the grids did not, so Save toggled blind (4 Sep). */
   savedByMe?: boolean;
   category?: string | null; // 'work' | 'personal'
+  /** Hidden by the author (owner, 10 Sep): on their own wall only. */
+  hidden?: boolean;
 }
 export interface ProfilePostsPage { items: ProfilePost[]; nextCursor: string | null }
 
