@@ -1550,7 +1550,7 @@ export class SocialService {
    *  viewer's bookmark set for this page, keyed by the post that RENDERS. */
   private shapeFeedRow(row: unknown, signed?: Map<string, string>, saved?: Set<string>) {
     const r = row as {
-      id: string; createdAt: Date; repostOfId?: string | null;
+      id: string; createdAt: Date; repostOfId?: string | null; text?: string | null;
       author: { name: string; handle: string };
       likes: unknown[];
       repostOf?: { id: string; likes: unknown[] } | null;
@@ -1558,7 +1558,9 @@ export class SocialService {
     if (r.repostOfId && r.repostOf) {
       const o = r.repostOf;
       const shaped = this.shapePost(o as never, countsOf(o), (o.likes?.length ?? 0) > 0, signed);
-      return { ...shaped, savedByMe: saved?.has(o.id) ?? false, key: r.id, createdAt: r.createdAt.toISOString(), repostedBy: { name: r.author.name, handle: r.author.handle } };
+      // What the sharer said about it (owner, 10 Sep) — the share row's own
+      // text, printed above the post it carries.
+      return { ...shaped, savedByMe: saved?.has(o.id) ?? false, key: r.id, createdAt: r.createdAt.toISOString(), repostedBy: { name: r.author.name, handle: r.author.handle }, shareNote: r.text ?? null };
     }
     const shaped = this.shapePost(row as never, countsOf(row), (r.likes?.length ?? 0) > 0, signed);
     return { ...shaped, savedByMe: saved?.has(r.id) ?? false, key: r.id, repostedBy: null };
@@ -1632,7 +1634,13 @@ export class SocialService {
 
   /** Repost (share to feed) another citizen's post. Idempotent per user+post.
    *  Appears at the top of the reposter's network feed as "shared by …". */
-  async repost(userId: string, postId: string) {
+  /**
+   * `note` (owner, 10 Sep: "let the user sharing write on top what they feel
+   * about the video they are sharing"): the share row's own text, cleaned like
+   * any caption, shown above the post it carries. Sharing again with a new note
+   * rewrites the note rather than making a second share.
+   */
+  async repost(userId: string, postId: string, note?: string) {
     const original = await this.prisma.post.findFirst({
       where: { id: postId, author: REACHABLE_USER },
       select: { id: true, authorId: true, audience: true, moderation: true, repostOfId: true },
@@ -1667,10 +1675,14 @@ export class SocialService {
     if (original.repostOfId) throw new ForbiddenException('Share the original post rather than a share of it.');
     const inherited = original.audience ?? 'public';
     if (inherited === 'private') throw new ForbiddenException('A post kept to yourself cannot be shared.');
+    const text = this.clean(note);
     const existing = await this.prisma.post.findFirst({ where: { authorId: userId, repostOfId: postId }, select: { id: true } });
-    if (existing) return { reposted: true };
+    if (existing) {
+      if (text) await this.prisma.post.updateMany({ where: { id: existing.id, authorId: userId }, data: { text } });
+      return { reposted: true };
+    }
     const row = await this.prisma.post.create({
-      data: { authorId: userId, repostOfId: postId, audience: inherited },
+      data: { authorId: userId, repostOfId: postId, audience: inherited, text },
       include: {
         author: { select: AUTHOR_SELECT },
         likes: { where: { userId }, select: { id: true } },

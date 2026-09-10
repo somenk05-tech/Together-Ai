@@ -90,3 +90,37 @@ describe('the set scrolls like a phone (owner, 10 Sep: "give a scroll up feel fo
     expect(css).toMatch(/prefers-reduced-motion: reduce\) \{ \.tv-media\.in-up, \.tv-media\.in-down \{ animation: none; \}/);
   });
 });
+
+describe('one speaker on the set (owner, 10 Sep: "remove the extra sound button on top")', () => {
+  it('the volume panel is the slider alone, and its bottom is silence', () => {
+    const tv = code('features/social/CityTV.tsx');
+    const panel = tv.slice(tv.indexOf('id="tv-vol"'), tv.indexOf('</div>', tv.indexOf('id="tv-vol"')));
+    expect(panel).not.toMatch(/<button/);
+    expect(panel).toMatch(/if \(v === 0\) \{ el\.muted = true; setMuted\(true\); \}/);
+  });
+});
+
+describe('a phone column that cannot be dragged sideways (owner, 10 Sep)', () => {
+  it('estimates only the HEIGHT of a card it has not drawn yet', () => {
+    const css = read('styles/social.css');
+    expect(css).toMatch(/contain-intrinsic-block-size: auto 640px;/);
+    expect(css).not.toMatch(/contain-intrinsic-size: auto 640px/);
+  });
+  it('clips sideways overflow at the body as well as the root', () => {
+    const idx = read('index.css');
+    expect(idx).toMatch(/html \{ overflow-x: clip; \}/);
+    expect(idx).toMatch(/body \{ overflow-x: clip; \}/);
+  });
+});
+
+describe('share says what you feel (owner, 10 Sep)', () => {
+  const card = code('features/social/PostCard.tsx');
+  it('opens a line to write in before anything is published', () => {
+    expect(card).toMatch(/onClick=\{\(\) => \{ setActionErr\(null\); setSharing\(\(s\) => !s\); \}\}/);
+    expect(card).toMatch(/placeholder="Say what you feel about this…"/);
+    expect(card).toMatch(/repost\.mutate\(\{ postId: post\.id, text: shareNote\.trim\(\) \|\| undefined \}/);
+  });
+  it('prints what was said above the post it carries', () => {
+    expect(card).toMatch(/post\.repostedBy && post\.shareNote && <p className="sl-post-text sl-share-note">/);
+  });
+});

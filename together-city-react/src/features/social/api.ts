@@ -60,6 +60,8 @@ export interface Post {
   musicTitle?: string | null;
   /** Set when this feed entry is a repost — who shared it. */
   repostedBy?: { name: string; handle: string } | null;
+  /** What the sharer said about it, printed above the post (owner, 10 Sep). */
+  shareNote?: string | null;
   /** Unique key per feed entry (repost id); falls back to id for originals. */
   key?: string;
   /** Hidden by its author (owner, 10 Sep) — only ever true on the author's own
@@ -149,8 +151,8 @@ export const socialApi = {
     api.post<{ reported: boolean }>('/social/report', input).then((r) => r.data),
   setCover: (postId: string, time: number) =>
     api.patch<{ ok: boolean; thumbUrl: string }>(`/social/posts/${postId}/cover`, { time }).then((r) => r.data),
-  repost: (postId: string) =>
-    api.post<{ reposted: boolean }>(`/social/posts/${postId}/repost`, {}).then((r) => r.data),
+  repost: (postId: string, text?: string) =>
+    api.post<{ reposted: boolean }>(`/social/posts/${postId}/repost`, text ? { text } : {}).then((r) => r.data),
   // Saved posts live on the account now. `postId` in the answer is the post
   // that RENDERS — a save on a repost row bookmarks the original.
   bookmark: (postId: string) =>
@@ -518,7 +520,7 @@ export function useReport() {
 export function useRepost() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (postId: string) => socialApi.repost(postId),
+    mutationFn: (v: { postId: string; text?: string }) => socialApi.repost(v.postId, v.text),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: FEED_KEY });
       void qc.invalidateQueries({ queryKey: ['profile', 'me'] });

@@ -442,18 +442,23 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
 
       {vol && (
         <div id="tv-vol" className="tv-vol" role="group" aria-label="Volume">
-          <button type="button" className="tv-key sm" aria-label={muted || elMuted ? 'Turn the sound on' : 'Turn the sound off'} aria-pressed={!(muted || elMuted)}
-            onClick={() => { const on = muted || elMuted; setMuted(!on); const el = video.current; if (el) { el.muted = !on; if (on) void el.play().catch(() => {}); } }}>
-            <Icon name={muted || elMuted ? 'mute' : 'speak'} size={14} />
-          </button>
-          <input type="range" className="tv-vol-r" min={0} max={100} step={1} value={Math.round(volume * 100)} aria-label="Volume level"
+          {/* ONE SPEAKER, AND IT IS ON THE REMOTE (owner, 10 Sep: "remove the
+              extra sound button on top"). The panel carried a second speaker
+              beside its slider, so the set showed two. The slider is the whole
+              panel now, and the bottom of it is silence: 0 mutes, anything above
+              brings the sound back — which is also the only volume control an
+              iPhone honours, since iOS will not let a page set `volume`. */}
+          <input type="range" className="tv-vol-r" min={0} max={100} step={1} value={muted || elMuted ? 0 : Math.round(volume * 100)} aria-label="Volume level"
             onChange={(e) => {
               const v = Math.min(1, Math.max(0, Number(e.currentTarget.value) / 100));
               setVolume(v);
               const el = video.current;
-              if (el) { el.volume = v; if (v > 0 && el.muted) { el.muted = false; setMuted(false); } }
+              if (!el) return;
+              el.volume = v;
+              if (v === 0) { el.muted = true; setMuted(true); }
+              else if (el.muted) { el.muted = false; setMuted(false); void el.play().catch(() => {}); }
             }} />
-          <span className="tv-vol-t">{Math.round(volume * 100)}</span>
+          <span className="tv-vol-t">{muted || elMuted ? 0 : Math.round(volume * 100)}</span>
         </div>
       )}
 

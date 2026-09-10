@@ -477,6 +477,13 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
   const hide = useSetHidden();
   const repost = useRepost();
   const [reposted, setReposted] = useState(false);
+  /* SHARE ASKS WHAT YOU THINK FIRST (owner, 10 Sep: "let the user sharing
+     write on top what they feel about the video they are sharing"). One tap
+     used to publish at once; now it opens a line to write in, and what is
+     written rides above the post in everybody's feed. Empty is allowed — the
+     note is an offer, not a toll. */
+  const [sharing, setSharing] = useState(false);
+  const [shareNote, setShareNote] = useState('');
   const { user } = useAuth();
   const vidRef = useRef<HTMLVideoElement>(null);
   const isMine = Boolean(user && (user.id === post.author.id || user.handle === post.author.handle));
@@ -532,6 +539,7 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
           <Icon name="share" size={13} /> Shared by {post.repostedBy.name} <span style={{ fontWeight: 400 }}>@{post.repostedBy.handle}</span>
         </div>
       )}
+      {post.repostedBy && post.shareNote && <p className="sl-post-text sl-share-note">{post.shareNote}</p>}
 
       {/* THE PICTURE IS FIRST. It used to be third, under a 40px avatar and two
           lines of chrome; nobody scrolls a feed to read a handle. Single image
@@ -691,12 +699,33 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
           <span className="sl-mark"><SaveIcon filled={saved} /></span><span>{saved ? 'Saved' : 'Save'}</span>
         </button>
         <button type="button" className="sl-act sl-mk-share" disabled={repost.isPending || reposted}
-          onClick={() => { setActionErr(null); repost.mutate(post.id, { onSuccess: () => setReposted(true), onError: () => setActionErr('That share didn’t go through — try again.') }); }}>
+          aria-expanded={sharing}
+          onClick={() => { setActionErr(null); setSharing((s) => !s); }}>
           <span className="sl-mark"><ShareIcon /></span><span>{reposted ? 'Shared' : 'Share'}</span>
         </button>
       </div>
 
       {actionErr && <p role="alert" className="sl-fail-alert">{actionErr}</p>}
+
+      {sharing && !reposted && (
+        <form className="sl-share-box" onSubmit={(e) => {
+          e.preventDefault();
+          setActionErr(null);
+          repost.mutate({ postId: post.id, text: shareNote.trim() || undefined }, {
+            onSuccess: () => { setReposted(true); setSharing(false); setShareNote(''); },
+            onError: (err) => setActionErr(
+              (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'That share didn’t go through — try again.',
+            ),
+          });
+        }}>
+          <textarea value={shareNote} onChange={(e) => setShareNote(e.target.value)} maxLength={1000} rows={2} autoFocus
+            placeholder="Say what you feel about this…" aria-label="What you feel about this post" />
+          <div className="sl-share-row">
+            <button type="button" className="btn btn-line btn-sm" onClick={() => { setSharing(false); setShareNote(''); }}>Cancel</button>
+            <button type="submit" className="btn btn-sm" disabled={repost.isPending}>{repost.isPending ? 'Sharing…' : 'Share to the city'}</button>
+          </div>
+        </form>
+      )}
 
       {showComments && <CommentsPanel postId={post.id} canModerate={isMine} />}
       {shareOpen && <ShareModal item={shareCard} onClose={() => setShareOpen(false)} />}

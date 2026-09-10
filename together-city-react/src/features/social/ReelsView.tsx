@@ -342,7 +342,7 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
           {act('share', <ShareIcon />, reposted ? 'Shared' : 'Share', () => {
             if (reposted) return;
             setActErr(null);
-            repost.mutate(post.id, {
+            repost.mutate({ postId: post.id }, {
               onSuccess: () => setReposted(true),
               onError: () => setActErr('That share didn’t go through — try again.'),
             });

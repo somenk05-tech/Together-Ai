@@ -330,7 +330,15 @@
    card is the mount, the picture is the print, and a print does not have
    rounded corners. */
 .sl-post { padding: 12px; margin-bottom: 16px; min-width: 0; max-width: 100%;
-  content-visibility: auto; contain-intrinsic-size: auto 640px; }
+  content-visibility: auto; contain-intrinsic-block-size: auto 640px; }
+/* THE ESTIMATE IS A HEIGHT, AND ONLY A HEIGHT (10 Sep: "the content is
+   getting cropped on phone and is floating"). It was written
+   as the two-axis shorthand with one `auto 640px`, and that one pair sets
+   BOTH axes — so every card still off screen told the layout it was 640px
+   WIDE. A desktop column never asked; Safari on a phone sized the column to
+   it, and the whole page came out ~560px wide on a 390px screen: cropped at
+   both edges and draggable sideways. The block axis is the only one the
+   windowing needs. */
 /* THE MENU WAS CUT OFF BY ITS OWN CARD (owner, 10 Sep: "where is the delete
    post button"). `content-visibility: auto` carries paint containment even
    while the card is on screen, so the ••• menu was clipped at the card's
@@ -896,3 +904,13 @@ textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
 }
 .sl-emoji-b:hover { background: var(--card); }
 .sl-emoji-note { margin: 0; font-size: var(--fs-2); }
+
+/* ── WHAT THE SHARER SAID, AND THE LINE TO SAY IT IN (owner, 10 Sep) ────── */
+.sl-share-note { margin: 0 0 10px; }
+.sl-share-box { display: grid; gap: 8px; padding: 10px 3px 4px; }
+.sl-share-box textarea {
+  width: 100%; min-width: 0; resize: vertical; font: inherit; font-size: 16px; line-height: 1.5;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-1);
+  background: var(--card); color: var(--ink);
+}
+.sl-share-row { display: flex; justify-content: flex-end; gap: 8px; }

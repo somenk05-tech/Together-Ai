@@ -133,8 +133,10 @@ export class SocialController {
 
   // Repost (share to feed) — appears at the top of the reposter's network feed.
   @Post('posts/:id/repost')
-  repost(@CurrentUser() user: JwtUser, @Param('id') id: string) {
-    return this.social.repost(user.sub, id);
+  repost(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: unknown) {
+    // What the sharer says about it, above the post (owner, 10 Sep). Optional.
+    const { text } = parseOrThrow(z.object({ text: z.string().max(1000).optional() }), body ?? {});
+    return this.social.repost(user.sub, id, text);
   }
 
   // ─────────────── saved posts ───────────────

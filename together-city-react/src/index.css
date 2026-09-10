@@ -36,6 +36,11 @@ body {
    scroll container and breaks position: sticky below it; clip only forbids
    the overflow. Vertical scrolling is untouched. */
 html { overflow-x: clip; }
+/* AND THE BODY TOO (10 Sep: "lock the screen for side scroll, only up and
+   down"). Mobile Safari lets the visual viewport pan sideways over content
+   wider than the screen even when the root clips it; clipping the body as
+   well closes that. Still `clip`, never `hidden`, for the sticky reason above. */
+body { overflow-x: clip; }
 h1, h2, h3, h4 { font-family: var(--sans); font-weight: 600; letter-spacing: -.01em; line-height: 1.15; margin: 0; }
 a { color: inherit; text-decoration: none; }
 img { max-width: 100%; }
