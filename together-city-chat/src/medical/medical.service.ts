@@ -1,6 +1,6 @@
 import { swallow } from '../shared/swallow';
 import { ageOn } from '../shared/age';
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, HttpException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { checkCollectionDate } from './collection-date';
 import { pageLimit } from '../shared/paging';
 import { toCanonical, unitChoices } from './units';
@@ -23,11 +23,16 @@ import {
   supplementKit, triggeredConditions, ruleFor,
 } from '../nutrition/clinical-engine';
 import type { SaveBloodTestDto } from './dto/medical.dto';
+import type { SortedUploadDto } from './dto/records.dto';
 import { BIOMARKER_SECTIONS, biomarkerDef } from './biomarker-catalog';
 import { parseReportText, type PrintedRange } from './report-parser';
 import { panelBand, panelScore, panelScoreBasis } from './panel-score';
 import { basisFor, formatRange, inRangeSummary, panelRangeNote, statusAgainst } from './range-basis';
 import { normalizeReportImage } from './image-normalize';
+import {
+  READ_ASK, READ_SYSTEM, HISTORY_SYSTEM, UNSORTED, cleanHistory, cleanReading, historyPrompt, kindLabel, readingDetail,
+  type HistoryArea, type HistoryDoc, type HistoryPanel, type HistoryRead, type Reading, type RecordKind,
+} from './record-reader';
 
 const cite = (ids: string[]) => ids.map((id) => CITATIONS[id]).filter(Boolean);
 
@@ -280,9 +285,6 @@ export class MedicalService implements OnModuleInit {
     }
   }
 
-  /** Record a health document already uploaded to the PRIVATE vault. We store the
-   *  object key only — never a public URL — so it's reachable solely via a
-   *  short-lived signed link handed to the authenticated owner. */
   /**
    * The key comes from the client (it is handed out by the presign route), so
    * it is checked against the caller's own vault prefix before any record is
@@ -294,26 +296,6 @@ export class MedicalService implements OnModuleInit {
     if (!StorageProvider.isOwnHealthKey(userId, fileKey)) {
       throw new BadRequestException('That upload does not belong to your health vault.');
     }
-  }
-
-  async addDocument(userId: string, dto: {
-    kind: string; title: string; detail?: string; fileKey: string; mimeType?: string; sizeBytes: number;
-  }) {
-    await this.assertQuota(userId, dto.sizeBytes);
-    this.assertOwnHealthKey(userId, dto.fileKey);
-    // Never file a record for a file that didn't actually land in the vault —
-    // otherwise the record shows but the document is "missing" when opened.
-    if (!(await this.storage.healthObjectExists(dto.fileKey))) {
-      throw new BadRequestException('Your file didn’t finish uploading — please check your connection and try again.');
-    }
-    await this.prisma.medicalRecord.create({
-      data: {
-        userId, kind: dto.kind, title: dto.title, detail: dto.detail ?? null,
-        fileUrl: null, fileKey: dto.fileKey, mimeType: dto.mimeType ?? null,
-        sizeBytes: dto.sizeBytes, recordedOn: new Date(),
-      },
-    });
-    return this.records(userId);
   }
 
   /** A short-lived signed URL to view one health document (owner-checked). */
@@ -1379,6 +1361,210 @@ export class MedicalService implements OnModuleInit {
       },
     });
     return this.records(userId);
+  }
+
+  // ─────────────── the vault that files itself (owner, 10 Sep) ───────────────
+  /**
+   * ONE UPLOAD, NO QUESTIONS. The citizen hands over a file; the model reads it
+   * and names its folder; a blood report goes on into the panel pipeline so its
+   * analysis is ready without a second upload. The only question ever asked is
+   * the one the model could not answer — the document is filed as `unsorted`
+   * and the page asks for a tag (record-reader.ts holds the rules).
+   *
+   * The file is filed BEFORE anything can fail to be read, the same promise
+   * ingestBloodReport keeps: an unreadable document is an unsorted document,
+   * never a lost one.
+   */
+  async uploadAndSort(userId: string, dto: SortedUploadDto) {
+    await this.assertQuota(userId, dto.sizeBytes);
+    this.assertOwnHealthKey(userId, dto.fileKey);
+    if (!(await this.storage.healthObjectExists(dto.fileKey))) {
+      throw new BadRequestException('Your file didn’t finish uploading — please check your connection and try again.');
+    }
+    const today = this.clock.todayIn(await this.clock.timezoneFor(userId));
+    const reading = await this.readDocument(dto.fileKey, dto.mimeType, today);
+    const fromName = (dto.name ?? '').replace(/\.[^.]+$/, '').trim().slice(0, 160);
+    const rec = await this.prisma.medicalRecord.create({
+      data: {
+        userId, kind: reading.kind, title: reading.title ?? (fromName || 'Medical document'),
+        detail: readingDetail(reading),
+        fileUrl: null, fileKey: dto.fileKey, mimeType: dto.mimeType, sizeBytes: dto.sizeBytes,
+        // The day printed on the document when there is one: a scan from May
+        // uploaded today belongs in May. Noon UTC so no zone moves it a day.
+        recordedOn: reading.date ? new Date(`${reading.date}T12:00:00Z`) : new Date(),
+      },
+    });
+
+    let bloodTestId: string | null = null;
+    let note: string;
+    if (reading.kind === 'blood-test') {
+      const blood = await this.readBloodIntoPanel(userId, rec.id, dto.fileKey, dto.mimeType);
+      bloodTestId = blood.bloodTestId;
+      note = blood.note;
+    } else if (reading.kind === UNSORTED) {
+      note = reading.isMedical
+        ? 'Saved — we couldn’t tell what this is. Tag it and it moves to the right folder.'
+        : 'Saved — this doesn’t look like a medical document. Tag it if it is one, or delete it.';
+    } else {
+      note = `Filed under ${kindLabel(reading.kind)}.`;
+    }
+    return { recordId: rec.id, kind: reading.kind, sorted: reading.kind !== UNSORTED, bloodTestId, note, records: await this.records(userId) };
+  }
+
+  /**
+   * The citizen's tag — an answer to "what is this?", or a re-file of one the
+   * reader put in the wrong folder. Tagging a file as a blood report reads its
+   * markers then and there, so the analysis follows the tag.
+   */
+  async tagRecord(userId: string, id: string, kind: RecordKind) {
+    const rec = await this.prisma.medicalRecord.findFirst({ where: { id, userId } }) as
+      ({ id: string; fileKey: string | null; mimeType: string | null; bloodTestId: string | null } | null);
+    if (!rec) throw new NotFoundException('record not found');
+    await this.prisma.medicalRecord.updateMany({ where: { id, userId }, data: { kind } });
+    let note = `Moved to ${kindLabel(kind)}.`;
+    if (kind === 'blood-test' && rec.fileKey && rec.mimeType && !rec.bloodTestId) {
+      note = (await this.readBloodIntoPanel(userId, rec.id, rec.fileKey, rec.mimeType)).note;
+    }
+    return { note, records: await this.records(userId) };
+  }
+
+  /** What the document is, from the model — or `unsorted` whenever it cannot
+   *  say for sure. Never throws except for the day's budget, which the citizen
+   *  must see. */
+  private async readDocument(fileKey: string, mimeType: string, today: string): Promise<Reading> {
+    const unsure = cleanReading(null, today);
+    try {
+      const obj = await this.storage.getHealthObjectBase64(fileKey);
+      if (!obj) return unsure;
+      const mt = mimeType || obj.contentType;
+      let text = '';
+      if (mt === 'application/pdf') {
+        const pdf = await this.pdfToText(Buffer.from(obj.base64, 'base64'));
+        if (pdf.locked) return unsure; // nothing can read it; the citizen can
+        text = pdf.text.trim();
+      } else if (mt.startsWith('text/')) {
+        text = Buffer.from(obj.base64, 'base64').toString('utf8').trim();
+      }
+      if (this.ai.enabled) {
+        let raw: unknown = null;
+        if (text.length >= 200) raw = await this.ai.readMedical(READ_SYSTEM, { text }, READ_ASK);
+        else if (mt === 'application/pdf') raw = await this.ai.readMedical(READ_SYSTEM, { base64: obj.base64, mediaType: mt }, READ_ASK);
+        else if (mt.startsWith('image/')) {
+          const img = await normalizeReportImage(obj.base64, mt);
+          raw = await this.ai.readMedical(READ_SYSTEM, { base64: img.base64, mediaType: img.mediaType }, READ_ASK);
+        }
+        if (raw) return cleanReading(raw, today);
+      }
+      // No model to ask: the one kind of document the deterministic parser can
+      // recognise on its own is a blood panel. Everything else waits for a tag.
+      if (text && Object.keys(parseReportText(text).values).length >= 2) return { ...unsure, kind: 'blood-test', sure: true };
+      return unsure;
+    } catch (e) {
+      if (e instanceof HttpException) throw e;
+      this.logger.warn(`medical read failed (document still filed): ${(e as Error).message}`);
+      return unsure;
+    }
+  }
+
+  /** A filed blood report → its markers → a linked panel, analysed. Never
+   *  throws for an unreadable report: the document is already safe. */
+  private async readBloodIntoPanel(userId: string, recordId: string, fileKey: string, mimeType: string): Promise<{ bloodTestId: string | null; note: string }> {
+    const extracted = await this.readReportFromVault(fileKey, mimeType);
+    const values = Object.fromEntries(
+      Object.entries(extracted.values).filter(([k, v]) => typeof v === 'number' && !Number.isNaN(v) && biomarkerDef(k)),
+    ) as Record<string, number>;
+    const n = Object.keys(values).length;
+    if (!n) {
+      return {
+        bloodTestId: null,
+        note: extracted.locked
+          ? 'Filed under Blood Tests, but the PDF is password-protected so its values can’t be read. Upload it without the password, or type the values in on Record Analysis.'
+          : 'Filed under Blood Tests. We couldn’t read clear values from it — you can type them in on Record Analysis.',
+      };
+    }
+    const takenOn = extracted.takenOn ? new Date(extracted.takenOn) : new Date();
+    try {
+      const bloodTestId = await this.upsertPanelAndAnalyze(userId, {
+        values, ranges: extracted.ranges ?? null, lab: extracted.lab ?? null,
+        takenOn: Number.isNaN(takenOn.getTime()) ? new Date() : takenOn, recordId,
+      });
+      return {
+        bloodTestId,
+        note: `Filed under Blood Tests and read ${n} marker${n === 1 ? '' : 's'} — the analysis is ready.` + this.needsUnitNote(extracted.needsUnit),
+      };
+    } catch (e) {
+      if (!(e instanceof BadRequestException)) throw e;
+      return { bloodTestId: null, note: `Filed under Blood Tests. ${(e as Error).message} — type that value in on Record Analysis.` };
+    }
+  }
+
+  /**
+   * THE WHOLE RECORD, READ ONCE (owner, 10 Sep): "give the user analysis of
+   * their entire medical history". Every document's reading and every panel
+   * go into one prompt; the answer is kept in Personalisation under
+   * `medical-history`, fingerprinted by that prompt — so it is written again
+   * only when an upload, a delete, a tag or a corrected panel changes what it
+   * was written from (owner rule, 5 Sep: no TTL). Only an answer is kept; the
+   * rule-based fallback is shown, never stored.
+   */
+  async medicalHistory(userId: string) {
+    const disclaimer = 'An educational overview written from your own documents — not a diagnosis. Please review anything flagged with your doctor.';
+    const tz = await this.clock.timezoneFor(userId);
+    const [rows, tests] = await Promise.all([
+      this.prisma.medicalRecord.findMany({ where: { userId }, orderBy: { recordedOn: 'desc' }, take: 60 }),
+      this.prisma.medicalBloodTest.findMany({ where: { userId }, orderBy: [{ takenOn: 'desc' }, { id: 'desc' }], take: 12, select: { id: true } }),
+    ]);
+    const panels = await Promise.all(tests.map((t) => this.analyze(userId, t.id)));
+    const docs: HistoryDoc[] = rows.map((r) => ({ kind: r.kind, title: r.title, date: this.clock.dayIn(tz, r.recordedOn), detail: r.detail }));
+    const folders = [...new Set(rows.map((r) => r.kind))].map((kind) => ({ kind, label: kindLabel(kind), count: rows.filter((r) => r.kind === kind).length }));
+    const dates = [...docs.map((d) => d.date), ...panels.map((p) => p.takenOn)].sort();
+    const base = {
+      hasRecords: rows.length > 0 || panels.length > 0,
+      documents: rows.length, panels: panels.length,
+      from: dates[0] ?? null, to: dates[dates.length - 1] ?? null,
+      folders, needsTag: rows.filter((r) => r.kind === UNSORTED).length,
+      aiEnabled: this.ai.enabled, disclaimer,
+    };
+    if (!base.hasRecords) return { ...base, fromModel: false, overview: '', areas: [] as HistoryArea[], changes: [] as string[], discuss: [] as string[], gaps: [] as string[] };
+
+    const hp: HistoryPanel[] = panels.map((p) => ({ takenOn: p.takenOn, lab: p.lab, markers: p.markers.map((m) => ({ label: m.label, value: m.value, unit: m.unit, range: m.range, status: m.status })) }));
+    const prompt = historyPrompt(docs, hp, kindLabel);
+    const fingerprint = createHash('sha256').update(`${HISTORY_SYSTEM}\n${prompt}`).digest('hex');
+    const store = (this.prisma as unknown as {
+      personalisation?: {
+        findUnique(a: unknown): Promise<{ fingerprint: string; payloadJson: string } | null>;
+        upsert(a: unknown): Promise<unknown>;
+      };
+    }).personalisation;
+    const kind = 'medical-history';
+    const kept = store ? await swallow(store.findUnique({ where: { userId_kind: { userId, kind } } }), 'medical history read', { userId }) : null;
+    if (kept?.fingerprint === fingerprint) {
+      let read: HistoryRead | null = null;
+      try { read = cleanHistory(JSON.parse(kept.payloadJson)); } catch { /* rewritten below */ }
+      if (read) return { ...base, fromModel: true, ...read };
+    }
+    const read = cleanHistory(await this.ai.readMedical(HISTORY_SYSTEM, { text: prompt }, 'Write the overview of these records as JSON.', 3000));
+    if (read) {
+      if (store) {
+        await swallow(store.upsert({
+          where: { userId_kind: { userId, kind } },
+          update: { fingerprint, payloadJson: JSON.stringify(read) },
+          create: { userId, kind, fingerprint, payloadJson: JSON.stringify(read) },
+        }), 'medical history write', { userId });
+      }
+      return { ...base, fromModel: true, ...read };
+    }
+
+    // No model answer: what the record says without one, and nothing more.
+    const latest = panels[0];
+    const out = latest ? latest.markers.filter((m) => m.status !== 'normal') : [];
+    return {
+      ...base, fromModel: false,
+      overview: `Your vault holds ${rows.length} document${rows.length === 1 ? '' : 's'} in ${folders.length} folder${folders.length === 1 ? '' : 's'}${base.from ? `, from ${base.from} to ${base.to}` : ''}.`
+        + (latest ? ` Your latest blood panel (${latest.takenOn}) has ${out.length} marker${out.length === 1 ? '' : 's'} outside the reference range.` : ''),
+      areas: out.map((m) => ({ area: m.label, status: 'attention' as const, summary: `${m.value} ${m.unit}, reference ${m.range} — ${m.status}.`, evidence: [`Blood panel · ${latest!.takenOn}`] })),
+      changes: [] as string[], discuss: [] as string[], gaps: [] as string[],
+    };
   }
 
   // ─────────────── consults (book a doctor → real chat) ───────────────

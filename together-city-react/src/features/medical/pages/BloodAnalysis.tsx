@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, SavedMark, Spinner } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
+import { WholeHistory } from '../components/WholeHistory';
 import { useBloodHistory, useLatestPanel, useSaveBloodTest, useIngestBlood, useHealthSummary, useBloodTrends, useBiomarkerCatalog, useDeleteBloodTest, type BloodTestSummary, type Citation, type TrendKind, type TrendPick, type BiomarkerSection, type UnitChoice } from '../api';
 import { PrivacyNote } from '@/features/privacy/PrivacyNote';
 import { TrendSparkline } from '../components/TrendSparkline';
@@ -233,7 +234,8 @@ function BiomarkerFields({ sections, form, setForm, units, setUnits }: {
   );
 }
 
-/** Blood Test Analysis — Medical Hub owns the record; the cited engine reads it. */
+/** Record Analysis (was Blood Test Analysis, owner 10 Sep) — the whole vault read
+ *  as one overview first, then the blood work the cited engine reads. */
 export function BloodAnalysis() {
   const catalog = useBiomarkerCatalog();
   // The unit each field is being entered in. Only markers the person actually
@@ -318,12 +320,19 @@ export function BloodAnalysis() {
 
   return (
     <div>
-      <div className="eyebrow">Medical Hub · Blood Test Analysis</div>
-      <h1 style={{ fontSize: 26 }}>Your blood work, decoded</h1>
+      <div className="eyebrow">Medical Hub · Record Analysis</div>
+      <h1 style={{ fontSize: 26 }}>Your medical record, analysed</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 0' }}>
-        The Medical Hub is your <strong>source of truth</strong> — panels are stored with dates so you see trends.
-        Interpretation is grounded in established clinical-nutrition guidance; add CRP
-        and we flag markers inflammation can distort. Not a diagnosis.
+        Everything you upload to <Link to="/medical/records" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Health Records</Link> is
+        read and brought together here — your whole history first, then your blood work in detail. Not a diagnosis.
+      </p>
+
+      <WholeHistory />
+
+      <h2 style={{ fontSize: 18, margin: '26px 0 0' }}>Your blood work</h2>
+      <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
+        Panels are stored with dates so you see trends. Interpretation is grounded in established clinical-nutrition
+        guidance; add CRP and we flag markers inflammation can distort.
       </p>
 
       <PrivacyNote hub="medical" style={{ margin: '16px 0 0' }} />

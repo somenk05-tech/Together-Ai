@@ -428,6 +428,59 @@ export class AiService {
   }
 
   /**
+   * READ ONE MEDICAL DOCUMENT, OR A WHOLE HISTORY OF THEM (owner, 10 Sep).
+   *
+   * The Medical hub's vault files itself: a citizen uploads a file and the
+   * model says what it is — blood panel, prescription, scan, discharge
+   * summary — so nobody is asked to pick a category first. And the same door
+   * reads the whole record back as one overview.
+   *
+   * One method for both, because both are the job `extractBloodMarkers`
+   * already does — a read where a misread costs somebody something real — so
+   * both ride the same model and the same metered fallback chain rather than a
+   * new `messages.create` site. Text goes to the blood model; a picture or a
+   * scanned PDF to the vision model.
+   *
+   * Returns the parsed JSON, or null when there is no key or the call fails.
+   * Null is "no answer": the caller files the document as unsorted and asks,
+   * which is the honest outcome, rather than being handed a fallback that looks
+   * like the model spoke.
+   */
+  async readMedical(
+    system: string,
+    input: { text: string } | { base64: string; mediaType: string },
+    ask: string,
+    maxTokens = 2048,
+  ): Promise<unknown> {
+    if (!this.client) return null;
+    try {
+      let content: Anthropic.MessageParam['content'];
+      let model = this.bloodModel;
+      if ('text' in input) {
+        content = `${ask}\n\n${input.text.slice(0, 60000)}`;
+      } else {
+        const isPdf = input.mediaType === 'application/pdf';
+        const source = { type: 'base64', media_type: input.mediaType || 'image/jpeg', data: input.base64 };
+        const block = (isPdf ? { type: 'document', source } : { type: 'image', source }) as unknown as Anthropic.ContentBlockParam;
+        content = [block, { type: 'text', text: ask }];
+        model = this.visionModel;
+      }
+      const res = await this.createWithFallback({
+        model, max_tokens: maxTokens,
+        system: `${system}\n\nRespond with ONLY valid JSON — no prose, no markdown fences.`,
+        messages: [{ role: 'user', content }],
+      });
+      const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('');
+      return this.extractJson(text);
+    } catch (e) {
+      // A 429 from the day's budget is an answer the citizen must see.
+      if (e instanceof HttpException) throw e;
+      this.logger.warn(`Medical read failed: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
    * Read a meal — from a photo, a sentence, or both — into per-item nutrition
    * ESTIMATES for the Food Journal. Same honesty contract as the blood
    * extraction: the AI identifies and estimates, it never measures. Every item

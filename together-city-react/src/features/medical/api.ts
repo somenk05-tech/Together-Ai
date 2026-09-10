@@ -103,8 +103,22 @@ export interface IngestResult {
   extracted: Record<string, number>; markerCount: number; lab: string | null; takenOn: string | null;
   analysis: BloodAnalysis | null; summary: HealthSummary | null; note: string;
 }
+/** One upload, filed by the server (owner, 10 Sep). `sorted` false means the
+ *  reader could not tell what it is — the document sits in `unsorted` and the
+ *  page asks for a tag. */
+export interface SortedUploadResult {
+  recordId: string; kind: string; sorted: boolean; bloodTestId: string | null; note: string; records: MedicalRecord[];
+}
+export interface HistoryArea { area: string; status: 'attention' | 'watch' | 'good' | 'unclear'; summary: string; evidence: string[] }
+/** The whole medical record read as one overview — kept server-side until an
+ *  upload, delete, tag or corrected panel changes what it was written from. */
+export interface MedicalHistory {
+  hasRecords: boolean; documents: number; panels: number; from: string | null; to: string | null;
+  folders: { kind: string; label: string; count: number }[]; needsTag: number;
+  aiEnabled: boolean; fromModel: boolean; disclaimer: string;
+  overview: string; areas: HistoryArea[]; changes: string[]; discuss: string[]; gaps: string[];
+}
 export interface DoctorCard { id: string; name: string; handle: string; specialty: string; hospital: string | null; languages: string[]; rating: number; priceInr: number }
-export interface ConsultSummary { id: string; doctorName: string; specialty: string; reason: string | null; status: string; conversationId: string | null; scheduledAt: string | null; createdAt: string }
 export interface ConsentRow {
   hub: string; label: string; reads: string; granted: boolean;
   /** false = the citizen has never answered, and `granted` is the default
@@ -116,9 +130,6 @@ export interface ConsentRow {
 
 export const medicalApi = {
   records: () => api.get<MedicalRecord[]>('/medical/records').then((r) => r.data),
-  addRecord: (input: { kind: string; title: string; detail?: string; recordedOn?: string }) =>
-    api.post<MedicalRecord[]>('/medical/records', input).then((r) => r.data),
-  consults: () => api.get<ConsultSummary[]>('/medical/consults').then((r) => r.data),
   consents: () => api.get<ConsentRow[]>('/medical/consents').then((r) => r.data),
   setConsent: (hub: string, granted: boolean) =>
     api.patch<ConsentRow[]>('/medical/consents', { hub, granted }).then((r) => r.data),
@@ -153,8 +164,13 @@ export const medicalApi = {
   summary: () => api.get<HealthSummary>('/medical/summary', { timeout: 90000 }).then((r) => r.data),
   storage: () => api.get<StorageUsage>('/medical/storage').then((r) => r.data),
   deleteRecord: (id: string) => api.delete<MedicalRecord[]>(`/medical/records/${id}`).then((r) => r.data),
-  uploadDocument: (input: { kind: string; title: string; detail?: string; fileKey: string; mimeType?: string; sizeBytes: number }) =>
-    api.post<MedicalRecord[]>('/medical/documents', input).then((r) => r.data),
+  // A model read of the document (vision for a photo or a scan) — the same
+  // room the blood ingest is given, for the same reason.
+  uploadSorted: (input: { fileKey: string; mimeType: string; sizeBytes: number; name?: string }) =>
+    api.post<SortedUploadResult>('/medical/uploads', input, { timeout: 180000 }).then((r) => r.data),
+  tagRecord: (id: string, kind: string) =>
+    api.patch<{ note: string; records: MedicalRecord[] }>(`/medical/records/${id}`, { kind }, { timeout: 180000 }).then((r) => r.data),
+  wholeHistory: () => api.get<MedicalHistory>('/medical/history', { timeout: 120000 }).then((r) => r.data),
   recordFile: (id: string) => api.get<{ url: string | null; expiresInSec: number }>(`/medical/records/${id}/file`).then((r) => r.data),
   deleteBloodTest: (id: string) => api.delete<{ ok: true }>(`/medical/blood-tests/${id}`).then((r) => r.data),
 };
@@ -201,7 +217,7 @@ export function useBloodHistory(limit?: number) {
 /** After any panel change, refresh every surface that reads the panel so Blood
  *  Test Analysis and Health Records stay in lockstep (shared query cache). */
 function syncPanelQueries(qc: ReturnType<typeof useQueryClient>) {
-  for (const key of ['latest', 'history', 'summary', 'supplements', 'records', 'storage', 'trends']) {
+  for (const key of ['latest', 'history', 'summary', 'supplements', 'records', 'storage', 'trends', 'whole']) {
     void qc.invalidateQueries({ queryKey: ['medical', key] });
   }
 }
@@ -250,15 +266,34 @@ export function useHealthSummary() {
 export function useRecords() {
   return useQuery({ queryKey: ['medical', 'records'], queryFn: () => medicalApi.records() });
 }
-export function useAddRecord() {
+/** Upload one file and let the server file it. Every surface that reads a
+ *  record or a panel is refreshed, because a blood report produces a panel. */
+export function useUploadSorted() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { kind: string; title: string; detail?: string }) => medicalApi.addRecord(input),
-    onSuccess: (recs) => qc.setQueryData(['medical', 'records'], recs),
+    mutationFn: (input: { fileKey: string; mimeType: string; sizeBytes: number; name?: string }) => medicalApi.uploadSorted(input),
+    onSuccess: (res) => {
+      qc.setQueryData(['medical', 'records'], res.records);
+      syncPanelQueries(qc);
+    },
   });
 }
-export function useConsults() {
-  return useQuery({ queryKey: ['medical', 'consults'], queryFn: () => medicalApi.consults() });
+/** The citizen's tag — or a re-file of a document in the wrong folder. */
+export function useTagRecord() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; kind: string }) => medicalApi.tagRecord(v.id, v.kind),
+    onSuccess: (res) => {
+      qc.setQueryData(['medical', 'records'], res.records);
+      syncPanelQueries(qc);
+    },
+  });
+}
+/** The whole-history read. Written once server-side and kept, so the client
+ *  holds it as long as nothing changes (syncPanelQueries drops it when
+ *  something does). */
+export function useMedicalHistory() {
+  return useQuery({ queryKey: ['medical', 'whole'], queryFn: () => medicalApi.wholeHistory(), staleTime: Infinity, retry: 1 });
 }
 export function useConsents() {
   return useQuery({ queryKey: ['medical', 'consents'], queryFn: () => medicalApi.consents() });

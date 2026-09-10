@@ -9,11 +9,12 @@ import { Mira } from '../mira/mira.decorator';
 import { Throttle } from '@nestjs/throttler';
 import {
   AddRecordSchema, type AddRecordDto,
-  UploadDocSchema, type UploadDocDto,
   ExtractBloodSchema, type ExtractBloodDto,
   IngestBloodSchema, type IngestBloodDto,
   BookConsultSchema, type BookConsultDto,
   ConsentSchema, type ConsentDto,
+  SortedUploadSchema, type SortedUploadDto,
+  TagRecordSchema, type TagRecordDto,
 } from './dto/records.dto';
 import { MODEL_LIMIT } from '../shared/throttles';
 import { Room } from '../dev/room.decorator';
@@ -141,11 +142,31 @@ export class MedicalController {
     return this.medical.storageUsage(user.sub);
   }
 
+  // ── the vault that files itself (owner, 10 Sep) ──
+  // Upload with no category: the server reads the document, names its folder,
+  // and asks only when it cannot tell. Metered — it is a model read.
   @Room('/medical/records')
-  @Post('documents')
-  @UsePipes(new ZodValidationPipe(UploadDocSchema))
-  uploadDoc(@CurrentUser() user: JwtUser, @Body() dto: UploadDocDto) {
-    return this.medical.addDocument(user.sub, dto);
+  @Post('uploads')
+  @Throttle(MODEL_LIMIT)
+  @UsePipes(new ZodValidationPipe(SortedUploadSchema))
+  uploadAndSort(@CurrentUser() user: JwtUser, @Body() dto: SortedUploadDto) {
+    return this.medical.uploadAndSort(user.sub, dto);
+  }
+
+  // The citizen's tag (or a re-file). Tagging a blood report reads it.
+  @Room('/medical/records')
+  @Patch('records/:id')
+  @Throttle(MODEL_LIMIT)
+  tagRecord(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body(new ZodValidationPipe(TagRecordSchema)) dto: TagRecordDto) {
+    return this.medical.tagRecord(user.sub, id, dto.kind);
+  }
+
+  // The whole medical record, read as one overview — kept until it changes.
+  @Room('/medical/blood')
+  @Get('history')
+  @Throttle(MODEL_LIMIT)
+  wholeHistory(@CurrentUser() user: JwtUser) {
+    return this.medical.medicalHistory(user.sub);
   }
 
   // ── consults ──

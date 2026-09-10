@@ -378,6 +378,12 @@ const NAV_REF = /(?:to=|navigate\(|path:\s*|href:\s*|deepLink:\s*)["'`](\/[A-Za-
 
 /** Routes with no way in, on purpose. Each needs a reason, not just a line. */
 const UNREACHABLE_ON_PURPOSE = new Map([
+  // /medical/connections lost its only door on 10 Sep, when the Health Timeline
+  // came off the Medical rail (owner) — its "Share with a doctor" card was the
+  // one link in. The page is the same consent switches Privacy & Consent (rail
+  // 06) already shows, so no second door is added; the route stays so a saved
+  // link still opens.
+  ['/medical/connections', 'the consent switches under an older name. Its only link was the Health Timeline, retired 10 Sep; Privacy & Consent on the Medical rail is the door to the same switches.'],
   // /profile/master came OFF this list on 2 Aug because the Medical record page
   // linked to it, and it is BACK on 28 Aug for the opposite reason: the fields
   // it served now live on /profile beneath the passport that prints them, and

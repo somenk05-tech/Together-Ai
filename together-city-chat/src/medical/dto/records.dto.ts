@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { RECORD_KINDS } from '../record-reader';
 
 // kind is a category slug the frontend controls (blood-test, imaging, prescription, …).
 export const AddRecordSchema = z.object({
@@ -9,18 +10,6 @@ export const AddRecordSchema = z.object({
   recordedOn: z.string().datetime().optional(),
 });
 export type AddRecordDto = z.infer<typeof AddRecordSchema>;
-
-/** Record a health document already uploaded to the PRIVATE vault (bytes hit the
- *  shared 10 GB). We store the object key only — never a public URL. */
-export const UploadDocSchema = z.object({
-  kind: z.string().min(1).max(40),
-  title: z.string().min(1).max(160),
-  detail: z.string().max(2000).optional(),
-  fileKey: z.string().min(1).max(300),
-  mimeType: z.string().max(120).optional(),
-  sizeBytes: z.number().int().nonnegative().max(52428800),
-});
-export type UploadDocDto = z.infer<typeof UploadDocSchema>;
 
 /** Extract markers from an uploaded blood report (already in the private vault). */
 export const ExtractBloodSchema = z.object({
@@ -41,6 +30,24 @@ export const IngestBloodSchema = z.object({
   detail: z.string().max(2000).optional(),
 });
 export type IngestBloodDto = z.infer<typeof IngestBloodSchema>;
+
+/** Upload with no category: the server reads the document and files it
+ *  (owner, 10 Sep). `name` is the file's own name, kept only as the title of
+ *  last resort when the document cannot be read. */
+export const SortedUploadSchema = z.object({
+  fileKey: z.string().min(1).max(300),
+  mimeType: z.string().min(3).max(120),
+  sizeBytes: z.number().int().nonnegative().max(52428800),
+  name: z.string().max(200).optional(),
+});
+export type SortedUploadDto = z.infer<typeof SortedUploadSchema>;
+
+/** The citizen's answer when the vault asks what a document is — and the
+ *  same move when they re-file one the reader put in the wrong folder. */
+export const TagRecordSchema = z.object({
+  kind: z.enum(RECORD_KINDS),
+});
+export type TagRecordDto = z.infer<typeof TagRecordSchema>;
 
 export const BookConsultSchema = z.object({
   doctorId: z.string().uuid(),

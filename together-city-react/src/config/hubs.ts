@@ -511,18 +511,22 @@ export const HUBS: Record<HubKey, HubConfig> = {
   medical: {
     key: 'medical', name: 'Medical', tag: 'Your health, one secure place', backPath: '/medical',
     items: [
-      { path: '/medical/blood', index: '01', label: 'Blood Test Analysis', sub: 'Cited, trend-aware panel' },
-      { path: '/medical/tests', index: '02', label: 'Order Blood Tests', sub: 'Not yet — upload a report today' },
-      { path: '/medical/records', index: '03', label: 'Health Records', sub: 'Reports, analysis & documents' },
+      // OWNER, 10 Sep: the vault first, its analysis second. Health Records is
+      // where a file goes in (one Upload button, sorted by the server) and
+      // Record Analysis reads the whole of it back. The Health Timeline is gone
+      // — it repeated the vault's own list in date order — and
+      // /medical/timeline now lands on the vault.
+      { path: '/medical/records', index: '01', label: 'Health Records', sub: 'Upload once — we sort it' },
+      { path: '/medical/blood', index: '02', label: 'Record Analysis', sub: 'Your whole history, read' },
+      { path: '/medical/tests', index: '03', label: 'Order Blood Tests', sub: 'Not yet — upload a report today' },
       { path: '/medical/consults', index: '04', label: 'Talk to a Doctor', sub: 'Not yet — analyse a report today' },
-      { path: '/medical/timeline', index: '05', label: 'Health Timeline', sub: 'Longitudinal history' },
-      { path: '/medical/family', index: '06', label: 'Family Profiles', sub: 'Household health at a glance' },
-      { path: '/medical/consent', index: '07', label: 'Privacy & Consent', sub: 'Consent controls' },
+      { path: '/medical/family', index: '05', label: 'Family Profiles', sub: 'Household health at a glance' },
+      { path: '/medical/consent', index: '06', label: 'Privacy & Consent', sub: 'Consent controls' },
       // Prescriptions, dose reminders and the allergies you have recorded. This
       // menu has never listed it: the page was reachable only by typing the URL,
       // or by following a reminder notification you could not receive without
       // having been there first.
-      { path: '/medical/medicines', index: '08', label: 'Medicines & Reminders', sub: 'Prescriptions, doses & your allergies' },
+      { path: '/medical/medicines', index: '07', label: 'Medicines & Reminders', sub: 'Prescriptions, doses & your allergies' },
     ],
   },
   realestate: {

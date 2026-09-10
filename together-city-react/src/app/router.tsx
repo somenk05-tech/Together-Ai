@@ -165,7 +165,6 @@ const SocReader = lazy(() => import('@/features/social/pages/ReaderPage').then((
 // Medical sub-pages
 const MedTests = lazy(() => import('@/features/medical/pages/Tests').then((m) => ({ default: m.Tests })));
 const MedConnections = lazy(() => import('@/features/medical/pages/Connections').then((m) => ({ default: m.Connections })));
-const MedTimeline = lazy(() => import('@/features/medical/pages/Timeline').then((m) => ({ default: m.Timeline })));
 const MedFamily = lazy(() => import('@/features/medical/pages/Family').then((m) => ({ default: m.Family })));
 // Dating sub-pages
 const DatingChats = lazy(() => import('@/features/dating/pages/DatingChats').then((m) => ({ default: m.DatingChats })));
@@ -527,7 +526,7 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/medical/tests', element: <RequireAuth>{wrap(<MedTests />)}</RequireAuth> },
       { path: '/medical/booking', element: <Navigate to="/medical/consults" replace /> },
       { path: '/medical/connections', element: <RequireAuth>{wrap(<MedConnections />)}</RequireAuth> },
-      { path: '/medical/timeline', element: <RequireAuth>{wrap(<MedTimeline />)}</RequireAuth> },
+      { path: '/medical/timeline', element: <Navigate to="/medical/records" replace /> },
       { path: '/medical/family', element: <RequireAuth>{wrap(<MedFamily />)}</RequireAuth> },
       { path: '/medical/medicines', element: <RequireAuth>{wrap(<Medicines />)}</RequireAuth> },
     ],
