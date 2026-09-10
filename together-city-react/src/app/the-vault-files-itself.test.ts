@@ -61,6 +61,18 @@ describe('Health Records is as simple as the Drive', () => {
     expect(page).toMatch(/Tell us what these are/);
   });
 
+  it('opens folders the way the Drive does — a row each, a breadcrumb back', () => {
+    expect(page).toMatch(/openFolder\(f\.key\)/);
+    expect(page).toMatch(/useSearchParams/);
+    expect(page).toMatch(/Health Records\s*<\/button>/);
+  });
+
+  it('gives every file one tag and no "Move to…" (owner, 10 Sep: "just keep the tag")', () => {
+    expect(page).not.toMatch(/Move to/);
+    expect(page).toMatch(/\{tagFor\(r\.kind\)\}/);
+    expect(page).toMatch(/tag: 'Scan \/ X-ray'/);
+  });
+
   it('shows no timeline', () => {
     expect(page).not.toMatch(/timeline/i);
   });

@@ -1,34 +1,38 @@
 import { useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Button, EmptyState, Fold, Spinner } from '@/components/ui';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Button, Spinner } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { bloodGroupLabel } from '@/features/profile/bloodGroup';
 import { declaredSummary, wasAsked } from '@/features/profile/healthConditions';
 import { useRecords, useStorageUsage, useDeleteRecord, useUploadSorted, useTagRecord, medicalApi, type MedicalRecord } from '../api';
 
-const KINDS: { key: string; label: string; icon: string }[] = [
-  { key: 'blood-test', label: 'Blood Tests', icon: '🩸' },
-  { key: 'urine-test', label: 'Urine Tests', icon: '🧫' },
-  { key: 'stool-test', label: 'Stool Tests', icon: '🔬' },
-  { key: 'imaging', label: 'Scans & Imaging', icon: '🩻' },
-  { key: 'heart-test', label: 'Heart Tests', icon: '❤️' },
-  { key: 'lung-test', label: 'Lung Tests', icon: '🫁' },
-  { key: 'brain-test', label: 'Brain Tests', icon: '🧠' },
-  { key: 'eye-test', label: 'Eye Tests', icon: '👁️' },
-  { key: 'bone-joint', label: 'Bone & Joint Tests', icon: '🦴' },
-  { key: 'genetic', label: 'Genetic Tests', icon: '🧬' },
-  { key: 'womens-health', label: "Women's Health", icon: '♀️' },
-  { key: 'mens-health', label: "Men's Health", icon: '♂️' },
-  { key: 'prescription', label: 'Prescriptions', icon: '💊' },
-  { key: 'report', label: 'Medical Reports', icon: '📄' },
-  { key: 'condition', label: 'Medical Conditions', icon: '🩺' },
-  { key: 'allergy', label: 'Allergies', icon: '⚠️' },
-  { key: 'vaccination', label: 'Vaccinations', icon: '💉' },
-  { key: 'hospital', label: 'Hospital Records', icon: '🏥' },
-  { key: 'note', label: 'Doctor Notes', icon: '📝' },
+/** The folders. `label` names the folder; `tag` is the word on each file
+ *  inside it — "Blood test", "Scan / X-ray" — the one line that says what the
+ *  reader decided the file is (owner, 10 Sep: "just keep the tag"). */
+const KINDS: { key: string; label: string; icon: string; tag: string }[] = [
+  { key: 'blood-test', label: 'Blood Tests', icon: '🩸', tag: 'Blood test' },
+  { key: 'urine-test', label: 'Urine Tests', icon: '🧫', tag: 'Urine test' },
+  { key: 'stool-test', label: 'Stool Tests', icon: '🔬', tag: 'Stool test' },
+  { key: 'imaging', label: 'Scans & Imaging', icon: '🩻', tag: 'Scan / X-ray' },
+  { key: 'heart-test', label: 'Heart Tests', icon: '❤️', tag: 'Heart test' },
+  { key: 'lung-test', label: 'Lung Tests', icon: '🫁', tag: 'Lung test' },
+  { key: 'brain-test', label: 'Brain Tests', icon: '🧠', tag: 'Brain test' },
+  { key: 'eye-test', label: 'Eye Tests', icon: '👁️', tag: 'Eye test' },
+  { key: 'bone-joint', label: 'Bone & Joint Tests', icon: '🦴', tag: 'Bone & joint' },
+  { key: 'genetic', label: 'Genetic Tests', icon: '🧬', tag: 'Genetic test' },
+  { key: 'womens-health', label: "Women's Health", icon: '♀️', tag: "Women's health" },
+  { key: 'mens-health', label: "Men's Health", icon: '♂️', tag: "Men's health" },
+  { key: 'prescription', label: 'Prescriptions', icon: '💊', tag: 'Prescription' },
+  { key: 'report', label: 'Medical Reports', icon: '📄', tag: 'Medical report' },
+  { key: 'condition', label: 'Medical Conditions', icon: '🩺', tag: 'Condition' },
+  { key: 'allergy', label: 'Allergies', icon: '⚠️', tag: 'Allergy' },
+  { key: 'vaccination', label: 'Vaccinations', icon: '💉', tag: 'Vaccination' },
+  { key: 'hospital', label: 'Hospital Records', icon: '🏥', tag: 'Hospital record' },
+  { key: 'note', label: 'Doctor Notes', icon: '📝', tag: 'Doctor note' },
 ];
 const iconFor = (k: string) => KINDS.find((x) => x.key === k)?.icon ?? '📁';
+const tagFor = (k: string) => KINDS.find((x) => x.key === k)?.tag ?? 'Other';
 const fmtBytes = (n: number) => {
   if (!n) return '0 B';
   const u = ['B', 'KB', 'MB', 'GB']; const i = Math.min(u.length - 1, Math.floor(Math.log(n) / Math.log(1024)));
@@ -42,22 +46,25 @@ interface Incoming { id: number; name: string; state: 'reading' | 'done' | 'erro
  *  — record-reader.ts on the server names it the same. */
 const UNSORTED = 'unsorted';
 
-/** The reading the server wrote under a file: the summary, then "• " lines. */
-const splitDetail = (detail: string | null) => {
-  const lines = (detail ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
-  return { summary: lines.filter((l) => !l.startsWith('• ')).join(' '), findings: lines.filter((l) => l.startsWith('• ')).map((l) => l.slice(2)) };
-};
+/** The first line the reader wrote under a file — its one-sentence summary. */
+const summaryOf = (detail: string | null) =>
+  (detail ?? '').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('• ')).join(' ');
+
+/** One row of the list — the Drive's row, so the vault reads like the Drive. */
+const rowStyle = { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderTop: '1px solid var(--line)' } as const;
+const linkBtn = { background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', padding: 0 } as const;
 
 /**
  * Health Records — the vault, as simple as the Drive (owner, 10 Sep).
  *
  * One button. The citizen uploads files — any number, any kind — and the
  * server reads each one and files it in its folder: a blood report, a
- * prescription, a scan. Nobody is asked what a file is unless the reader could
- * not tell, and then it waits at the top under "Tell us what these are" with a
- * tag to pick. The folders below are the sort, the way the Blood Tests group
- * always looked. The analysis of the whole record lives next door, on Record
- * Analysis; the timeline that repeated this list is gone.
+ * prescription, a scan. The folders are the Drive's folders: a row each, open
+ * one to see its files, a breadcrumb back. Every file carries one tag saying
+ * what it is; there is no "Move to…" (owner, 10 Sep — "just keep the tag").
+ * Nobody is asked what a file is unless the reader could not tell, and then
+ * it waits at the top under "Tell us what these are" with a tag to pick. The
+ * analysis of the whole record lives next door, on Record Analysis.
  */
 export function Records() {
   const records = useRecords();
@@ -68,6 +75,11 @@ export function Records() {
   const tag = useTagRecord();
   const del = useDeleteRecord();
   const picker = useRef<HTMLInputElement>(null);
+  // The open folder lives in the address, so Back closes it the way it would
+  // in any file browser, and a folder can be linked to.
+  const [params, setParams] = useSearchParams();
+  const folder = params.get('folder');
+  const openFolder = (k: string | null) => setParams(k ? { folder: k } : {});
   const [incoming, setIncoming] = useState<Incoming[]>([]);
   const busy = incoming.some((f) => f.state === 'reading');
 
@@ -136,63 +148,49 @@ export function Records() {
   const s = storage.data;
   const all = records.data ?? [];
   const untagged = all.filter((r) => r.kind === UNSORTED);
-  // Sorted records under their folder heads, in the folder order below.
+  // Folders exist because files are in them — the reader makes them, in the
+  // KINDS order; a kind the page does not know goes under Other.
   const known = new Set(KINDS.map((k) => k.key));
-  const groups = [
+  const folders = [
     ...KINDS.map((k) => ({ key: k.key, label: k.label, icon: k.icon, items: all.filter((r) => r.kind === k.key) })),
     { key: '__other', label: 'Other', icon: '📁', items: all.filter((r) => !known.has(r.kind) && r.kind !== UNSORTED) },
   ].filter((g) => g.items.length);
+  const open = folder ? folders.find((f) => f.key === folder) ?? null : null;
 
-  const tagSelect = (r: MedicalRecord, placeholder: string) => (
-    <select value="" disabled={tag.isPending} aria-label={`${placeholder} — ${r.title}`}
-      onChange={(e) => { if (e.target.value) tag.mutate({ id: r.id, kind: e.target.value }); }}
-      style={{ fontSize: 12.5, fontFamily: 'inherit', padding: '4px 8px', borderRadius: 'var(--r-full)', border: '1.5px solid var(--line)', background: 'transparent', color: 'var(--ink-soft)' }}>
-      <option value="">{placeholder}</option>
-      {KINDS.filter((k) => k.key !== r.kind).map((k) => <option key={k.key} value={k.key}>{k.icon} {k.label}</option>)}
-    </select>
-  );
-
-  const card = (r: MedicalRecord, untaggedRow = false) => {
-    const { summary, findings } = splitDetail(r.detail);
-    const flagged = findings.filter((f) => /\((high|low|abnormal)\)$/.test(f)).length;
+  const fileRow = (r: MedicalRecord, untaggedRow = false) => {
+    const summary = summaryOf(r.detail);
     return (
-      <article key={r.id} className="card" style={{ marginBottom: 10, display: 'flex', gap: 12 }}>
-        <span style={{ fontSize: 20 }}>{untaggedRow ? '❔' : iconFor(r.kind)}</span>
-        <div className="flex-min" style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <strong style={{ fontSize: 14 }}>{r.title}</strong>
-            <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>{r.recordedOn}</span>
-          </div>
-          {summary && <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '4px 0 0' }}>{summary}</p>}
-          {findings.length > 0 && (
-            <div style={{ marginTop: 6 }}>
-              <Fold title="What it says" meta={flagged ? `${flagged} flagged` : `${findings.length} item${findings.length === 1 ? '' : 's'}`}>
-                <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 12.5, lineHeight: 1.6 }}>
-                  {findings.map((f, i) => <li key={i}>{f}</li>)}
-                </ul>
-              </Fold>
-            </div>
-          )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
-            {r.hasFile && (
-              <button type="button" onClick={() => void openFile(r.id)}
-                style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, fontSize: 12.5, fontWeight: 600, color: 'var(--accent-ink)', fontFamily: 'inherit' }}>
-                View file{r.sizeBytes ? ` · ${fmtBytes(r.sizeBytes)}` : ''} ↗
-              </button>
-            )}
-            {r.analyzed && (
-              <Link to="/medical/blood" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ok-ink)' }}>
-                Analysis ready →
-              </Link>
-            )}
-            {tagSelect(r, untaggedRow ? 'Tag it…' : 'Move to…')}
-            <button type="button" onClick={() => del.mutate(r.id)} disabled={del.isPending}
-              style={{ marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', color: 'var(--danger-ink)', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit' }}>
-              Delete
-            </button>
-          </div>
-        </div>
-      </article>
+      <div key={r.id} style={{ ...rowStyle, flexWrap: 'wrap' }}>
+        <button type="button" onClick={() => r.hasFile && void openFile(r.id)} disabled={!r.hasFile}
+          style={{ ...linkBtn, display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0, textAlign: 'left', color: 'var(--ink)' }}>
+          <span style={{ fontSize: 20 }}>{untaggedRow ? '❔' : iconFor(r.kind)}</span>
+          <span style={{ minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</span>
+            <span className="muted" style={{ display: 'block', fontSize: 11.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {[r.recordedOn, r.sizeBytes ? fmtBytes(r.sizeBytes) : null, summary || null].filter(Boolean).join(' · ')}
+            </span>
+          </span>
+        </button>
+        {untaggedRow ? (
+          <select value="" disabled={tag.isPending} aria-label={`What is ${r.title}?`}
+            onChange={(e) => { if (e.target.value) tag.mutate({ id: r.id, kind: e.target.value }); }}
+            style={{ fontSize: 12.5, fontFamily: 'inherit', padding: '4px 8px', borderRadius: 'var(--r-full)', border: '1.5px solid var(--line)', background: 'transparent', color: 'var(--ink-soft)' }}>
+            <option value="">Tag it…</option>
+            {KINDS.map((k) => <option key={k.key} value={k.key}>{k.icon} {k.tag}</option>)}
+          </select>
+        ) : (
+          <span style={{ fontSize: 11.5, fontWeight: 600, borderRadius: 'var(--r-full)', padding: '3px 10px', background: 'var(--accent-soft)', color: 'var(--accent-ink)', whiteSpace: 'nowrap' }}>
+            {tagFor(r.kind)}
+          </span>
+        )}
+        {r.analyzed && (
+          <Link to="/medical/blood" style={{ fontSize: 13, color: 'var(--ok-ink)', whiteSpace: 'nowrap' }}>Analysis ready →</Link>
+        )}
+        {r.hasFile && (
+          <button type="button" onClick={() => void openFile(r.id)} style={{ ...linkBtn, color: 'var(--accent-ink)' }}>View</button>
+        )}
+        <button type="button" onClick={() => del.mutate(r.id)} disabled={del.isPending} style={{ ...linkBtn, color: 'var(--danger-ink)' }}>Delete</button>
+      </div>
     );
   };
 
@@ -271,38 +269,62 @@ export function Records() {
         </div>
       )}
 
+      {/* Breadcrumb — the Drive's. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', margin: '18px 0 10px', fontSize: 13 }}>
+        <button type="button" onClick={() => openFolder(null)}
+          style={{ ...linkBtn, color: open ? 'var(--accent)' : 'var(--ink)', fontWeight: 600 }}>
+          Health Records
+        </button>
+        {open && (
+          <>
+            <span className="muted">/</span>
+            <span style={{ fontWeight: 600 }}>{open.label}</span>
+          </>
+        )}
+      </div>
+
       {/* Asked only when the reader could not tell (owner, 10 Sep). */}
-      {untagged.length > 0 && (
-        <div style={{ marginTop: 18 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 2px 8px' }}>
-            <span style={{ fontSize: 16 }}>❔</span>
-            <h3 style={{ fontSize: 15, margin: 0 }}>Tell us what these are</h3>
-            <span className="muted" style={{ fontSize: 12 }}>({untagged.length})</span>
+      {!open && untagged.length > 0 && (
+        <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 12 }}>
+          <div style={{ padding: '10px 16px', fontSize: 13, fontWeight: 600, background: 'var(--warn-soft)' }}>
+            Tell us what these are — we couldn’t tell, so pick a tag and they move into the right folder.
           </div>
-          {untagged.map((r) => card(r, true))}
+          {untagged.map((r) => fileRow(r, true))}
         </div>
       )}
 
-      {groups.length === 0 && untagged.length === 0 ? (
-        <div style={{ marginTop: 18 }}>
-          <EmptyState icon="🗂️" title="No records yet" hint="Upload a report, prescription or scan — it's read and filed in the right folder for you." />
-        </div>
-      ) : (
-        <div style={{ marginTop: 18 }}>
-          {groups.map((g) => (
-            <div key={g.key} style={{ marginBottom: 18 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 2px 8px' }}>
-                <span style={{ fontSize: 16 }}>{g.icon}</span>
-                <h3 style={{ fontSize: 15, margin: 0 }}>{g.label}</h3>
-                <span className="muted" style={{ fontSize: 12 }}>({g.items.length})</span>
-              </div>
-              {g.items.map((r) => card(r))}
-            </div>
-          ))}
-          <p className="muted" style={{ fontSize: 12.5 }}>
-            What does it all say? <Link to="/medical/blood" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Read the analysis of your whole history →</Link>
-          </p>
-        </div>
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        {!open && folders.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+            <div style={{ fontSize: 38, marginBottom: 8 }}>🗂</div>
+            <p style={{ fontSize: 15, margin: '0 0 4px' }}>No records yet</p>
+            <p className="muted" style={{ fontSize: 13, margin: 0 }}>Upload a report, prescription or scan — it’s read and filed in the right folder for you.</p>
+          </div>
+        )}
+
+        {!open && folders.map((f, i) => (
+          <div key={f.key} style={i === 0 ? { ...rowStyle, borderTop: 'none' } : rowStyle}>
+            <button type="button" onClick={() => openFolder(f.key)}
+              style={{ ...linkBtn, display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0, textAlign: 'left', color: 'var(--ink)' }}>
+              <span style={{ fontSize: 20 }}>📁</span>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>{f.icon} {f.label}</span>
+            </button>
+            <span className="muted" style={{ fontSize: 12.5 }}>{f.items.length} file{f.items.length === 1 ? '' : 's'}</span>
+          </div>
+        ))}
+
+        {open && open.items.map((r) => fileRow(r))}
+        {folder && !open && (
+          <div style={{ textAlign: 'center', padding: '32px 24px' }}>
+            <p className="muted" style={{ fontSize: 13, margin: 0 }}>This folder is empty.</p>
+          </div>
+        )}
+      </div>
+
+      {all.length > 0 && (
+        <p className="muted" style={{ fontSize: 12.5, marginTop: 14 }}>
+          What does it all say? <Link to="/medical/blood" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Read the analysis of your whole history →</Link>
+        </p>
       )}
     </div>
   );
