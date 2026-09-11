@@ -14,6 +14,7 @@ import {
   aisleRank as electronicsAisleRank,
 } from './electronics';
 import { SHOPS_PER_PRODUCT, citation, searchTerms } from './catalogue';
+import { stockPhotoForName, stockPhotoForRef, type StockPhoto } from './loose-goods-photos';
 import { boundingBox, haversineKm, parsePoint } from './geo';
 import { looksLikeId, normaliseSlug, slugProblem, SLUG_MESSAGES, suggestSlug } from './slug';
 import { catalogueFor, cleanDetails, isBusinessType, readDetails, sectionsFor } from './business-types';
@@ -53,6 +54,12 @@ type CatalogueRow = {
  * whole reason this catalogue is allowed to exist is that it never does that.
  */
 function catalogueTile(r: CatalogueRow) {
+  /* A LOOSE GOOD HAS NO PACK SHOT (owner, 11 Sep: "add the items photos").
+     The barcode databases photograph packs; the commodity list photographs
+     nothing. So a row the source left blank may draw the bank's stock
+     photograph of the kind of thing — cited on the tile as that, under its
+     own licence — and a row the source DID photograph keeps the source's. */
+  const stock = r.imageUrl ? null : stockPhotoForRef(r.sourceKey, r.sourceRef);
   return {
     id: r.id,
     aisle: r.aisle,
@@ -60,10 +67,31 @@ function catalogueTile(r: CatalogueRow) {
     name: r.name,
     pack: r.pack,
     gtin: r.gtin,
-    imageUrl: r.imageUrl,
+    imageUrl: r.imageUrl ?? stock?.url ?? null,
+    imageCredit: stock?.credit ?? null,
     loose: r.loose,
     source: citation(r.sourceKey, r.sourceRef),
   };
+}
+
+/**
+ * ── WHICH PHOTOGRAPH A MENU LINE SHOWS, AND WHOSE IT IS ─────────────────────
+ *
+ * Three in order, and the first that exists wins:
+ *   1. the shop's own upload      — theirs; no credit line, it is their shelf
+ *   2. the catalogue's pack shot  — the source database's, cited
+ *   3. a stock photo by exact name — Wikimedia Commons, cited
+ * `credit` is null ONLY for the shop's own picture. A card that prints a
+ * photograph the shop did not take says where it came from, every time.
+ */
+function resolveMenuPhoto(
+  own: string | null, name: string,
+  product: { imageUrl: string | null; sourceKey: string; sourceRef: string } | null,
+): { photoUrl: string | null; photoCredit: StockPhoto['credit'] | null } {
+  if (own) return { photoUrl: own, photoCredit: null };
+  if (product?.imageUrl) return { photoUrl: product.imageUrl, photoCredit: citation(product.sourceKey, product.sourceRef) };
+  const stock = product ? stockPhotoForRef(product.sourceKey, product.sourceRef) ?? stockPhotoForName(name) : stockPhotoForName(name);
+  return stock ? { photoUrl: stock.url, photoCredit: stock.credit } : { photoUrl: null, photoCredit: null };
 }
 type ReviewRow = {
   id: string; listingId: string; reviewerId: string; alias: string;
@@ -2171,9 +2199,20 @@ export class LocalServicesService {
         id: string; section: string | null; name: string; description: string | null; priceInr: number | null;
         available: boolean; veg: string | null; spice: number | null; photoUrl: string | null;
         prepMinutes: number | null; variantsJson: string | null; addonsJson: string | null;
+        productId?: string | null;
       }>>,
       this.prisma.serviceListing.findUnique({ where: { id: listingId } }) as unknown as Promise<{ menuScanUrl: string | null; ownerId: string; moderation: string } | null>,
     ]);
+    /* THE PACK SHOTS, for the lines that came off the catalogue and carry no
+       photo of the shop's own. Bounded by the menu read above (MENU_CAP). */
+    const wantProduct = [...new Set(rows.filter((r) => !r.photoUrl && r.productId).map((r) => r.productId as string))];
+    const products = new Map<string, CatalogueRow>();
+    if (wantProduct.length) {
+      // unbounded: bounded by the id list, which the capped menu read produced
+      const found = await this.catalogue.findMany({ where: { id: { in: wantProduct } } })
+        .catch(swallowed('services.menu: read pack shots', [] as CatalogueRow[], { listingId }));
+      for (const p of found ?? []) products.set(p.id, p);
+    }
     // The same visibility rule as the listing page it hangs off: a menu belongs
     // to a business, and a business that is closed or waiting on moderation is
     // visible to nobody but the person who wrote it. Reading the menu must not
@@ -2198,7 +2237,9 @@ export class LocalServicesService {
     const shaped = rows.map((r) => ({
       id: r.id, section: r.section, name: r.name, description: r.description, priceInr: r.priceInr,
       available: r.available,
-      veg: r.veg, spice: r.spice, photoUrl: r.photoUrl, prepMinutes: r.prepMinutes,
+      veg: r.veg, spice: r.spice,
+      ...resolveMenuPhoto(r.photoUrl, r.name, r.productId ? products.get(r.productId) ?? null : null),
+      prepMinutes: r.prepMinutes,
       variants: namedList(r.variantsJson),
       addons: namedList(r.addonsJson),
     }));

@@ -3197,6 +3197,36 @@ html[data-skin="sanmarino"] {
   --mp-on-gold: #ffffff;
 }
 
+/* ── THE GROCERY STOREFRONT'S INKS (11 Sep) ─────────────────────────────────
+   What a kirana's stock list wears on its business page — see
+   grocery-store.css for the argument. Scoped to .gstore and, like the menu
+   paper, theme-blind: a grocer's shelf is white in a dark room too. The green
+   is the reference's; the ink is the reference's slate; the five tints are
+   the pastel grounds its category tiles sit on. THE REFERENCE'S GREEN IS
+   DECORATION ONLY: white on #3bb77e measures 2.5:1, so `--gs-green` paints
+   hover washes and the selected tile's ring and never carries a word; every
+   word on green sits on `--gs-green-deep` (white on it 5.9:1, it on the mint
+   5.3:1, on the plate 5.4:1). Ink on paper 11.3:1; muted on paper 5.7:1 and
+   on the palest tint 5.2:1. */
+.gstore {
+  --gs-ink: #253d4e;
+  --gs-on-ink: #ffffff;
+  --gs-muted: #5f6870;
+  --gs-line: #e6e9ec;
+  --gs-paper: #ffffff;
+  --gs-plate: #f4f6f6;
+  --gs-mint: #def9ec;
+  --gs-green: #3bb77e;
+  --gs-green-deep: #17734b;
+  --gs-on-green: #ffffff;
+  --gs-out: #a03d2e;
+  --gs-tint-1: #fff3eb;
+  --gs-tint-2: #fde6e9;
+  --gs-tint-3: #f2fce4;
+  --gs-tint-4: #ecffec;
+  --gs-tint-5: #fef8e6;
+}
+
 /* ══ THE BLOOM UNDER THE FOUR DOORS (owner, 7 Sep) ═════════════════════════
    The reference the owner sent is a white pill with a soft colour bloom
    burning through it from behind — glass with a light behind the glass, not a

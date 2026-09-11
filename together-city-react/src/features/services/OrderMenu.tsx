@@ -339,8 +339,12 @@ function Waiter({ listingId, onAdd }: { listingId: string; onAdd: (r: RecommendR
  * only for delivery, "save this as my address" is a tick and never a default,
  * and a delivery order will not go without the browser's own location — the
  * pin is how the kitchen checks the address is findable.
+ *
+ * Exported for the grocery storefront (GroceryStore.tsx), which draws a
+ * different shelf and the SAME checkout — one place in the city where the
+ * promise is made.
  */
-function Checkout({ listingId, picks, onBack, onPlaced }: {
+export function Checkout({ listingId, picks, onBack, onPlaced }: {
   listingId: string;
   picks: OrderPick[];
   onBack: () => void;

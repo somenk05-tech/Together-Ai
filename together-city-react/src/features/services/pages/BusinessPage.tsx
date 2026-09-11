@@ -4,6 +4,8 @@ import { SlippyMap } from '@/components/SlippyMap';
 import { Button, Card, Spinner, EmptyState } from '@/components/ui';
 import { MenuView } from '../MenuView';
 import { OrderMenu } from '../OrderMenu';
+import { GroceryStore } from '../GroceryStore';
+import { isGroceryTrade } from '../grocery-trades';
 import { HoursTable, OpenBadge } from '../HoursEditor';
 import { TrustBadge, TrustNote } from '../Verification';
 import { Gallery, Reviews } from '../ListingPanel';
@@ -302,7 +304,13 @@ export function BusinessPage() {
           a taxi stand's fares take a question. The kind comes from the type
           and the trade on the server, so this page and the owner's editor
           cannot disagree. */}
-      {(s.catalogue?.orderable ?? s.categoryGroup === 'Food & Daily Needs') ? (
+      {/* A GROCER'S STOCK LIST IS A SHOP, NOT A MENU (owner, 11 Sep): the eight
+          grocery trades draw the storefront — hero, aisles, photographed
+          product cards — on the same cart and the same checkout. */}
+      {s.catalogue?.kind === 'stock' && isGroceryTrade(s.categoryKey) ? (
+        <GroceryStore listingId={s.id} businessName={s.businessName} logoUrl={s.logoUrl ?? s.photos[0]?.url ?? null}
+          onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
+      ) : (s.catalogue?.orderable ?? s.categoryGroup === 'Food & Daily Needs') ? (
         <OrderMenu listingId={s.id} businessName={s.businessName} logoUrl={s.logoUrl ?? s.photos[0]?.url ?? null}
           onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
       ) : (

@@ -290,7 +290,12 @@ export interface MenuItem {
   veg: string | null;
   /** 0–3 chillies, or null for unsaid. */
   spice: number | null;
+  /** Already resolved by the server: the shop's own upload, else the catalogue
+   *  pack shot, else a stock photograph of the kind of thing — or null. */
   photoUrl: string | null;
+  /** Null for the shop's own picture. For either fallback, who it belongs to
+   *  and under what licence — printed under the picture, every time. */
+  photoCredit: { name: string; licence: string; url: string } | null;
   prepMinutes: number | null;
   /** Sizes of the same dish (Half/Full). Empty when it comes one way. */
   variants: MenuOption[];
@@ -326,6 +331,9 @@ export interface CatalogueProduct {
   pack: string | null;
   gtin: string | null;
   imageUrl: string | null;
+  /** Set when `imageUrl` is a stock photograph rather than the source's own
+   *  pack shot — a loose good the commodity list never photographed. */
+  imageCredit?: { name: string; licence: string; url: string } | null;
   /** Weighed out of a sack or a crate — so the shop names the unit, not the pack. */
   loose: boolean;
   source: { name: string; licence: string; url: string } | null;

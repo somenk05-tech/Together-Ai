@@ -25,6 +25,7 @@ import './styles/babycare.css';
 import './styles/mira.css';
 // The one menu design every kitchen wears — see the file's own head note.
 import './styles/menu-paper.css';
+import './styles/grocery-store.css';
 
 const container = document.getElementById('root');
 if (!container) throw new Error('#root not found');
