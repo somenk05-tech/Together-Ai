@@ -15,7 +15,7 @@ import { classify, explain, type SenderRule, type Verdict, type DocumentVerdict,
 import { gateAttachment } from './attachment-gate';
 import {
   CATEGORY_LABEL, CATEGORY_TO_RECORD_KIND, MAX_MEDICAL_ATTACHMENTS, MAX_MEDICAL_ATTACHMENT_BYTES, MAX_MEDICAL_BODY_CHARS,
-  medicalRecipient, mintMedicalAddress, type MedicalCategory,
+  medicalDigitsOf, medicalPartsOf, medicalRecipient, mintMedicalAddress, mintMedicalDigits, type MedicalCategory,
 } from './medical-mail.constants';
 import { medicalMailDb, type AttachmentRow, type EmailRow, type MailboxRow, type MedicalMailDb } from './medical-mail.db';
 import type { FlagEmailDto, ListEmailsDto, ReclassifyDto, SenderRuleDto, SettingsDto } from './dto/medical-mail.dto';
@@ -67,18 +67,32 @@ export class MedicalMailService {
 
   // ─────────────────────────── the mailbox ───────────────────────────
 
-  /** The citizen's medical mailbox — made once, on the first ask. */
+  /** The citizen's medical mailbox — made once, on the first ask; its handle
+   *  half kept current across a rename, its digits kept for ever. */
   async ensureMailbox(userId: string): Promise<MailboxRow> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { handle: true } });
+    if (!user) throw new NotFoundException('account not found');
     const have = await this.db.medicalMailbox.findUnique({ where: { userId } });
-    if (have) return have;
-    // A random address can collide only in theory; three tries says so in code.
+    if (have) {
+      const digits = medicalDigitsOf(have.address) ?? mintMedicalDigits();
+      const address = mintMedicalAddress(user.handle, digits);
+      if (have.address === address) return have;
+      // The handle changed (or the row predates this shape): the address
+      // follows the handle and keeps its number. Mail to the old spelling is
+      // refused from now on, as mail to the old ordinary address is.
+      await this.db.medicalMailbox.updateMany({ where: { userId }, data: { address } });
+      await this.audit(userId, 'system', 'address_renamed', 'mailbox', have.id);
+      return { ...have, address };
+    }
+    // The digits can collide with nothing but the same handle's own earlier
+    // row, which does not exist; the loop is for the unique index all the same.
     for (let i = 0; ; i++) {
       try {
-        return await this.db.medicalMailbox.create({ data: { userId, address: mintMedicalAddress() } });
+        return await this.db.medicalMailbox.create({ data: { userId, address: mintMedicalAddress(user.handle) } });
       } catch (e) {
         const again = await this.db.medicalMailbox.findUnique({ where: { userId } });
         if (again) return again; // two requests raced; the first one won
-        if (i >= 2) throw e;
+        if (i >= 4) throw e;
       }
     }
   }
@@ -94,15 +108,19 @@ export class MedicalMailService {
     let delivered = 0; let errors = 0;
     const seen = new Set<string>();
     for (const raw of addresses) {
+      const parts = medicalPartsOf(raw);
       const address = medicalRecipient(raw);
-      if (!address || seen.has(address)) continue;
+      if (!parts || !address || seen.has(address)) continue;
       seen.add(address);
       try {
-        const box = await this.db.medicalMailbox.findUnique({ where: { address } });
-        if (!box) { this.logger.warn('medical mail: no mailbox for an address on the medical prefix'); continue; }
+        // Resolved by the HANDLE, the way ordinary mail is — so a citizen who
+        // has never opened the Medical Hub, or renamed since, still receives —
+        // and then the whole address is checked, so the digits are the key.
+        const user = await this.prisma.user.findUnique({ where: { handle: parts.handle }, select: { id: true, deletedAt: true } });
+        if (!user || user.deletedAt) { this.logger.warn('medical mail: no citizen for an address on the medical prefix'); continue; }
+        const box = await this.ensureMailbox(user.id);
+        if (box.address !== address) { this.logger.warn(`medical mail: wrong digits for mailbox ${box.id}, message refused`); continue; }
         if (box.status !== 'active') { this.logger.warn(`medical mail: mailbox ${box.id} is paused, message not taken`); continue; }
-        const user = await this.prisma.user.findUnique({ where: { id: box.userId }, select: { id: true, deletedAt: true } });
-        if (!user || user.deletedAt) continue;
         if (await this.deliver(box, mail, fetch)) delivered++;
       } catch (e) {
         errors++;

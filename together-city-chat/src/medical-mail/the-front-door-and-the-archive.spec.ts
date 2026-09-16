@@ -60,7 +60,7 @@ function build() {
   const events: any[] = [];
   const put: string[] = [];
   const prisma: any = {
-    user: { findUnique: async () => ({ id: 'u1', deletedAt: null }) },
+    user: { findUnique: async ({ where }: any) => (where.handle && where.handle !== 'somen' ? null : { id: 'u1', handle: 'somen', deletedAt: null }) },
     medicalRecord: { findFirst: async ({ where }: any) => ({ id: where.id, title: `Record ${where.id}`, recordedOn: new Date('2026-09-16T12:00:00Z') }), findMany: async () => [] },
     medicalMailbox: t.table('medicalMailbox'), medicalEmail: t.table('medicalEmail'), medicalEmailAttachment: t.table('medicalEmailAttachment'),
     medicalSenderRule: t.table('medicalSenderRule'), medicalMailHint: t.table('medicalMailHint'), medicalTimelineEvent: t.table('medicalTimelineEvent'), medicalAuditEvent: t.table('medicalAuditEvent'),
@@ -89,7 +89,7 @@ const fetchOf = (files: Record<string, Buffer>, fail: string[] = []) => ({
   attachments: async () => Object.keys(files).map((name, i) => ({ id: `a${i}`, filename: name, contentType: 'application/pdf', size: files[name].length, downloadUrl: `https://r/${name}` })),
   download: async (url: string) => { const name = url.split('/').pop()!; return fail.includes(name) ? null : files[name]; },
 });
-const ADDR = 'medical.0123456789abcdef0123@togethercity.app';
+const ADDR = 'medical.somen4821@togethercity.app';
 const mailOf = (over: any = {}) => ({
   to: [ADDR], from: { addr: 'hospital@example.com', name: 'City Hospital' },
   subject: 'Your Blood Test Report', text: '', providerMessageId: `<m${Math.random()}@x>`, emailId: 'e1',
@@ -133,13 +133,27 @@ describe('§45 · a blood test report arrives', () => {
     expect(b.t.store.medicalEmail).toHaveLength(1);
   });
 
-  it('an unknown address and a paused mailbox take nothing', async () => {
+  it('an unknown citizen, the wrong digits and a paused mailbox take nothing', async () => {
     const b = build();
-    expect(await b.svc.ingest(mailOf() as any, [ADDR], fetchOf({}) as any)).toEqual({ delivered: 0, errors: 0 });
+    expect(await b.svc.ingest(mailOf() as any, ['medical.nobody4821@togethercity.app'], fetchOf({}) as any)).toEqual({ delivered: 0, errors: 0 });
     const box = await withBox(b);
+    expect(await b.svc.ingest(mailOf() as any, ['medical.somen0000@togethercity.app'], fetchOf({}) as any)).toEqual({ delivered: 0, errors: 0 });
+    // the digits are the key: a guess at somebody's handle is not their address
+    expect(b.t.store.medicalEmail).toHaveLength(0);
     await b.prisma.medicalMailbox.update({ where: { id: box.id }, data: { status: 'paused' } });
     expect(await b.svc.ingest(mailOf() as any, [ADDR], fetchOf({}) as any)).toEqual({ delivered: 0, errors: 0 });
     expect(b.t.store.medicalEmail).toHaveLength(0);
+  });
+});
+
+describe('the address follows the handle and keeps its number', () => {
+  it('a renamed citizen keeps the digits; the old spelling stops working', async () => {
+    const b = build(); await withBox(b);
+    b.prisma.user.findUnique = async ({ where }: any) => (where.handle && where.handle !== 'somen_k' ? null : { id: 'u1', handle: 'somen_k', deletedAt: null });
+    const box = await b.svc.ensureMailbox('u1');
+    expect(box.address).toBe('medical.somen_k4821@togethercity.app');
+    expect(await b.svc.ingest(mailOf({ attachments: [] }) as any, ['medical.somen_k4821@togethercity.app'], fetchOf({}) as any)).toEqual({ delivered: 1, errors: 0 });
+    expect(await b.svc.ingest(mailOf({ attachments: [] }) as any, [ADDR], fetchOf({}) as any)).toEqual({ delivered: 0, errors: 0 });
   });
 });
 

@@ -39,7 +39,7 @@ export function MedicalMailSettings() {
         <div className="mm-eyebrow">Medical email address</div>
         <CopyAddress address={s.address} />
         <p className="muted mm-fine">
-          Yours for the life of your account, made {new Date(s.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}. It carries no part of your name, cannot be guessed, and belongs to exactly one account.
+          Yours for the life of your account, made {new Date(s.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}. Your handle, then four digits only you know — a doctor can read it back to you, and nobody can work it out from your name. If you rename your handle, the address follows and keeps its number.
         </p>
       </div>
 

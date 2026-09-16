@@ -1,4 +1,4 @@
-import { randomBytes } from 'crypto';
+import { randomInt } from 'crypto';
 import { CITY_DOMAINS, MAIL_DOMAIN } from '../mail/mail.constants';
 
 /**
@@ -6,32 +6,50 @@ import { CITY_DOMAINS, MAIL_DOMAIN } from '../mail/mail.constants';
  *
  * "A permanent digital address for a user's healthcare life." One per citizen,
  * on the city's own mail domain, so it rides the inbound webhook Together City
- * Mail already has — but it is NOT the handle with a tag on it. `somen@` says
- * who you are; a doctor's office, a lab portal and an insurer's mail-merge all
- * get to keep this address on file for years, and a name-shaped address is
- * one that can be guessed, mistyped into somebody else's inbox, or scraped.
- * So the local part is `medical.` and twenty random hex characters: unique,
- * stable, opaque, and tied to exactly one account by a table lookup.
+ * Mail already has. The owner's final shape:
+ *
+ *     medical.somen4821@togethercity.app   — medical.<handle><4 digits>
+ *
+ * The handle, so a doctor can read it back to the patient; four digits that
+ * only the citizen knows, so `@somen` alone does not reach it. The number is
+ * minted once and never changes; the handle half FOLLOWS a rename
+ * (ensureMailbox refreshes the row, keeping the digits), and inbound mail is
+ * resolved by the handle in the address and then checked against the stored
+ * address, so a wrong number is refused. A handle may not begin with
+ * `medical.` (auth/admin.ts), so an ordinary mailbox never shares a name
+ * with a medical one.
  */
 export const MEDICAL_LOCAL_PREFIX = 'medical.';
-export const MEDICAL_TOKEN_LENGTH = 20;
+/** The handle grammar auth accepts (auth.service.ts), then the four digits. */
+const LOCAL = /^([a-z0-9_.]{3,30})([0-9]{4})$/;
 
-export const mintMedicalAddress = (): string =>
-  `${MEDICAL_LOCAL_PREFIX}${randomBytes(MEDICAL_TOKEN_LENGTH / 2).toString('hex')}@${MAIL_DOMAIN}`;
+export const mintMedicalDigits = (): string => String(randomInt(1000, 10000));
 
-/**
- * The medical address an inbound To names, normalised to the current domain,
- * or null when the address is not a medical one (a handle, a project tag, an
- * outside domain). A legacy-domain spelling resolves to the same mailbox.
- */
-export const medicalRecipient = (raw: string): string | null => {
+export const mintMedicalAddress = (handle: string, digits: string = mintMedicalDigits()): string =>
+  `${MEDICAL_LOCAL_PREFIX}${handle.trim().toLowerCase()}${digits}@${MAIL_DOMAIN}`;
+
+/** The handle and the digits a medical address names, or null when it is
+ *  not one (a handle, a project tag, an outside domain). */
+export const medicalPartsOf = (raw: string): { handle: string; digits: string } | null => {
   const v = (raw || '').trim().toLowerCase();
   const [local, domain] = v.split('@');
   if (!local || !domain || !CITY_DOMAINS.includes(domain)) return null;
   if (!local.startsWith(MEDICAL_LOCAL_PREFIX)) return null;
-  const token = local.slice(MEDICAL_LOCAL_PREFIX.length).split('+')[0];
-  if (!/^[a-f0-9]{20}$/.test(token)) return null;
-  return `${MEDICAL_LOCAL_PREFIX}${token}@${MAIL_DOMAIN}`;
+  const m = LOCAL.exec(local.slice(MEDICAL_LOCAL_PREFIX.length).split('+')[0]);
+  return m ? { handle: m[1], digits: m[2] } : null;
+};
+
+/** The digits on an address the city already holds. */
+export const medicalDigitsOf = (address: string): string | null => medicalPartsOf(address)?.digits ?? null;
+
+/**
+ * The medical address an inbound To names, normalised to the current domain,
+ * or null when the address is not a medical one. A legacy-domain spelling
+ * resolves to the same mailbox.
+ */
+export const medicalRecipient = (raw: string): string | null => {
+  const p = medicalPartsOf(raw);
+  return p ? mintMedicalAddress(p.handle, p.digits) : null;
 };
 
 /** Medical Mail's own ceilings — the same as Together City Mail's inbound. */

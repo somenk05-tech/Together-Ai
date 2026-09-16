@@ -1,6 +1,6 @@
 import { classify, explain, ruleFor } from './classify';
 import { gateAttachment, resolveMime } from './attachment-gate';
-import { medicalRecipient, mintMedicalAddress, MEDICAL_CATEGORIES } from './medical-mail.constants';
+import { medicalDigitsOf, medicalPartsOf, medicalRecipient, mintMedicalAddress, MEDICAL_CATEGORIES } from './medical-mail.constants';
 
 /**
  * ── IF IT IS MEDICAL, IT COMES HERE (owner, 16 Sep) ──────────────────────────
@@ -13,21 +13,25 @@ import { medicalRecipient, mintMedicalAddress, MEDICAL_CATEGORIES } from './medi
 const none = { rules: [], authenticated: null as boolean | null, attachments: [] as Array<{ filename: string; contentType: string }> };
 
 describe('the address', () => {
-  it('is medical.<20 hex>@togethercity.app — opaque, never the handle', () => {
-    const a = mintMedicalAddress();
-    expect(a).toMatch(/^medical\.[a-f0-9]{20}@togethercity\.app$/);
-    expect(mintMedicalAddress()).not.toBe(a);
+  it('is medical.<handle><4 digits>@togethercity.app — the handle a doctor can read back, digits only the citizen knows', () => {
+    const a = mintMedicalAddress('Somen');
+    expect(a).toMatch(/^medical\.somen[0-9]{4}@togethercity\.app$/);
+    expect(mintMedicalAddress('somen', '4821')).toBe('medical.somen4821@togethercity.app');
+    expect(medicalDigitsOf('medical.somen4821@togethercity.app')).toBe('4821');
   });
   it('is recognised on the wire, case and legacy domain notwithstanding', () => {
-    expect(medicalRecipient('Medical.0123456789abcdef0123@TogetherCity.app')).toBe('medical.0123456789abcdef0123@togethercity.app');
-    expect(medicalRecipient('medical.0123456789abcdef0123@togethercity.tech')).toBe('medical.0123456789abcdef0123@togethercity.app');
-    expect(medicalRecipient('medical.0123456789abcdef0123+lab@togethercity.app')).toBe('medical.0123456789abcdef0123@togethercity.app');
+    expect(medicalRecipient('Medical.Somen4821@TogetherCity.app')).toBe('medical.somen4821@togethercity.app');
+    expect(medicalRecipient('medical.somen4821@togethercity.tech')).toBe('medical.somen4821@togethercity.app');
+    expect(medicalRecipient('medical.somen4821+lab@togethercity.app')).toBe('medical.somen4821@togethercity.app');
+    // a handle that itself ends in digits still splits at the last four
+    expect(medicalPartsOf('medical.somen20244821@togethercity.app')).toEqual({ handle: 'somen2024', digits: '4821' });
   });
-  it('is not a handle, a project tag, or anybody off-domain', () => {
+  it('is not a handle, a project tag, a bare medical.<handle>, or anybody off-domain', () => {
     expect(medicalRecipient('somen@togethercity.app')).toBeNull();
     expect(medicalRecipient('somen+medical@togethercity.app')).toBeNull();
-    expect(medicalRecipient('medical.short@togethercity.app')).toBeNull();
-    expect(medicalRecipient('medical.0123456789abcdef0123@gmail.com')).toBeNull();
+    expect(medicalRecipient('medical.somen@togethercity.app')).toBeNull();
+    expect(medicalRecipient('medical.so4821@togethercity.app')).toBeNull();
+    expect(medicalRecipient('medical.somen4821@gmail.com')).toBeNull();
   });
 });
 

@@ -44,7 +44,7 @@ const payload = (to: string[], over: any = {}) => ({
   type: 'email.received',
   data: { to, from: 'City Hospital <hospital@example.com>', subject: 'Your Blood Test Report', text: 'attached', message_id: `<${Math.random()}@x>`, ...over },
 });
-const MED = 'medical.0123456789abcdef0123@togethercity.app';
+const MED = 'medical.somen4821@togethercity.app';
 
 describe('the one webhook, two inboxes', () => {
   it('a medical address goes to Medical Mail and writes nothing in Together City Mail', async () => {
