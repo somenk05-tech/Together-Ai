@@ -8,6 +8,9 @@ import { DevService } from './dev.service';
 import { DevPasswordGuard } from './dev-password.guard';
 import { FeatureFlagGuard } from './feature-flag.guard';
 import { RoomRoutesRegistry } from './room-routes.registry';
+import { ReleaseController } from '../release/release.controller';
+import { ReleaseService } from '../release/release.service';
+import { PendingController } from '../release/pending.controller';
 
 /**
  * The developer page, and the kill switches it operates.
@@ -30,9 +33,12 @@ import { RoomRoutesRegistry } from './room-routes.registry';
   // VisibilityController is PUBLIC and lives here anyway: it reads the same
   // FeatureFlagGuard instance, and a door-state reader three modules away
   // from the list it reports is one somebody edits without seeing the other.
-  controllers: [DevController, VisibilityController],
+  // ReleaseController is the Go live button (owner, 16 Sep): same page, same
+  // locks, and it reads the same release list VisibilityController applies.
+  controllers: [DevController, VisibilityController, ReleaseController, PendingController],
   providers: [
     DevService,
+    ReleaseService,
     DevPasswordGuard,
     FeatureFlagGuard,
     RoomRoutesRegistry,

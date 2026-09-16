@@ -4,8 +4,8 @@
 removing a route. It is produced from the same parse the security guards in
 `src/security/` use, so it cannot describe a route that does not exist.
 
-Every path below is prefixed with `/api`. **568 routes** across
-**44 controllers**; **12** are reachable without a token.
+Every path below is prefixed with `/api`. **610 routes** across
+**48 controllers**; **15** are reachable without a token.
 
 ## Conventions
 
@@ -29,6 +29,9 @@ _messages/messages.controller.ts_
 | GET | `/api/messages/:id/info` | 🔒 |
 | POST | `/api/messages/:id/pin` | 🔒 |
 | POST | `/api/messages/:id/react` | 🔒 |
+| POST | `/api/messages/:id/snap/keep` | 🔒 |
+| POST | `/api/messages/:id/snap/screenshot` | 🔒 |
+| GET | `/api/messages/:id/snap` | 🔒 |
 | POST | `/api/messages/:id/star` | 🔒 |
 | DELETE | `/api/messages/:id` | 🔒 |
 | PUT | `/api/messages/:id` | 🔒 |
@@ -73,10 +76,9 @@ _astrology/astrology.controller.ts_
 |---|---|---|
 | GET | `/api/astrology/ask` | 🔒 |
 | POST | `/api/astrology/ask` | 🔒 |
-| GET | `/api/astrology/daily/history` | 🔒 |
 | GET | `/api/astrology/daily` | 🔒 |
 | DELETE | `/api/astrology/gem-cart/:gemId` | 🔒 |
-| POST | `/api/astrology/gem-cart/checkout` | 🔒 |
+| POST | `/api/astrology/gem-cart/quote` | 🔒 |
 | GET | `/api/astrology/gem-cart` | 🔒 |
 | PUT | `/api/astrology/gem-cart` | 🔒 |
 | GET | `/api/astrology/gem-catalog` | token |
@@ -104,6 +106,7 @@ _auth/auth.controller.ts_
 
 | Method | Path | Auth |
 |---|---|---|
+| POST | `/api/auth/change-password` | 🔒 |
 | POST | `/api/auth/delete-account` | 🔒 |
 | GET | `/api/auth/email-available` | **public** |
 | POST | `/api/auth/forgot` | **public** |
@@ -137,6 +140,17 @@ _avatars/avatars.controller.ts_
 | POST | `/api/avatars` | 🔒 |
 | POST | `/api/avatars/preview` | token |
 
+## /babycare
+
+_babycare/babycare.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| DELETE | `/api/babycare/children/:id` | 🔒 |
+| PATCH | `/api/babycare/children/:id` | 🔒 |
+| GET | `/api/babycare/children` | 🔒 |
+| POST | `/api/babycare/children` | 🔒 |
+
 ## /beauty
 
 _beauty/beauty.controller.ts_
@@ -158,6 +172,7 @@ _beauty/beauty.controller.ts_
 | GET | `/api/beauty/orders` | 🔒 |
 | POST | `/api/beauty/orders` | 🔒 |
 | POST | `/api/beauty/photos/analyze` | token |
+| POST | `/api/beauty/photos/breakdown` | 🔒 |
 | GET | `/api/beauty/products` | 🔒 |
 | GET | `/api/beauty/profile` | 🔒 |
 | PUT | `/api/beauty/profile` | 🔒 |
@@ -174,7 +189,7 @@ _calls/calls.controller.ts_
 | POST | `/api/calls/:id/leave` | 🔒 |
 | GET | `/api/calls/:id` | 🔒 |
 | GET | `/api/calls` | 🔒 |
-| GET | `/api/calls/ice` | token |
+| GET | `/api/calls/ice` | 🔒 |
 | POST | `/api/calls` | 🔒 |
 | GET | `/api/calls/reach/:conversationId` | 🔒 |
 | GET | `/api/calls/ringing` | 🔒 |
@@ -293,6 +308,16 @@ _dev/dev.controller.ts_
 | GET | `/api/dev/flags` | token |
 | POST | `/api/dev/flags` | 🔒 |
 
+## /dev/release
+
+_release/release.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| GET | `/api/dev/release` | token |
+| POST | `/api/dev/release/go-live` | 🔒 |
+| GET | `/api/dev/release/runs` | token |
+
 ## /drive
 
 _drive/drive.controller.ts_
@@ -366,12 +391,17 @@ _fitness/fitness.controller.ts_
 | PATCH | `/api/fitness/log/:id` | 🔒 |
 | GET | `/api/fitness/log` | 🔒 |
 | POST | `/api/fitness/log` | 🔒 |
+| GET | `/api/fitness/multivitamins` | 🔒 |
 | GET | `/api/fitness/plan` | 🔒 |
 | GET | `/api/fitness/profile` | 🔒 |
 | PUT | `/api/fitness/profile` | 🔒 |
+| PUT | `/api/fitness/programme/today` | 🔒 |
+| PUT | `/api/fitness/programme/week` | 🔒 |
+| GET | `/api/fitness/programme` | 🔒 |
 | GET | `/api/fitness/session` | 🔒 |
 | GET | `/api/fitness/store/bag` | 🔒 |
 | PUT | `/api/fitness/store/bag` | 🔒 |
+| PUT | `/api/fitness/store/budget` | 🔒 |
 | GET | `/api/fitness/store/orders` | 🔒 |
 | POST | `/api/fitness/store/orders` | 🔒 |
 | GET | `/api/fitness/store` | 🔒 |
@@ -429,6 +459,8 @@ _jobs/jobs.controller.ts_
 | PUT | `/api/jobs/preferences` | 🔒 |
 | GET | `/api/jobs/profile` | 🔒 |
 | PUT | `/api/jobs/profile` | 🔒 |
+| GET | `/api/jobs/resume/link` | 🔒 |
+| POST | `/api/jobs/resume/presign` | 🔒 |
 | DELETE | `/api/jobs/resume` | 🔒 |
 | POST | `/api/jobs/resume` | 🔒 |
 | PUT | `/api/jobs/visibility` | 🔒 |
@@ -469,6 +501,7 @@ _mail/mail-inbound.controller.ts_
 | GET | `/api/mail/thread/:threadId/attachments` | 🔒 |
 | GET | `/api/mail/thread/:threadId` | 🔒 |
 | DELETE | `/api/mail/trash` | 🔒 |
+| POST | `/api/mail/unsubscribe` | **public** |
 
 ## /media
 
@@ -477,7 +510,9 @@ _media/media-status.controller.ts_
 | Method | Path | Auth |
 |---|---|---|
 | GET | `/api/media/cors-status` | token |
+| POST | `/api/media/upload-post` | 🔒 |
 | POST | `/api/media/upload-private` | 🔒 |
+| POST | `/api/media/upload-snap` | 🔒 |
 | POST | `/api/media/upload` | 🔒 |
 
 ## /medical
@@ -501,15 +536,19 @@ _medical/medical.controller.ts_
 | GET | `/api/medical/consults` | 🔒 |
 | POST | `/api/medical/consults` | 🔒 |
 | GET | `/api/medical/doctors` | token |
-| POST | `/api/medical/documents` | 🔒 |
+| GET | `/api/medical/history` | 🔒 |
+| POST | `/api/medical/records/:id/confirm` | 🔒 |
 | GET | `/api/medical/records/:id/file` | 🔒 |
+| POST | `/api/medical/records/:id/read` | 🔒 |
 | DELETE | `/api/medical/records/:id` | 🔒 |
+| PATCH | `/api/medical/records/:id` | 🔒 |
 | GET | `/api/medical/records` | 🔒 |
 | POST | `/api/medical/records` | 🔒 |
 | GET | `/api/medical/shared-biomarkers/:hub` | 🔒 |
 | GET | `/api/medical/storage` | 🔒 |
 | GET | `/api/medical/summary` | 🔒 |
 | GET | `/api/medical/supplement-plan` | 🔒 |
+| POST | `/api/medical/uploads` | 🔒 |
 
 ## /medicines
 
@@ -722,8 +761,11 @@ _profile/profile.controller.ts_
 | Method | Path | Auth |
 |---|---|---|
 | DELETE | `/api/profile/addresses/:label` | 🔒 |
+| PUT | `/api/profile/addresses/:label` | 🔒 |
 | GET | `/api/profile/addresses` | 🔒 |
+| GET | `/api/profile/city` | 🔒 |
 | GET | `/api/profile/completion` | 🔒 |
+| GET | `/api/profile/edit-quota` | 🔒 |
 | GET | `/api/profile/health-score` | 🔒 |
 | GET | `/api/profile/master` | 🔒 |
 | PATCH | `/api/profile/master` | token |
@@ -766,6 +808,14 @@ _realestate/realestate.controller.ts_
 | POST | `/api/realestate/properties` | 🔒 |
 | GET | `/api/realestate/under-construction` | 🔒 |
 
+## /release
+
+_release/pending.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| GET | `/api/release/pending` | token |
+
 ## /services
 
 _local-services/local-services.controller.ts_
@@ -785,9 +835,11 @@ _local-services/local-services.controller.ts_
 | POST | `/api/services/:id/order` | 🔒 |
 | DELETE | `/api/services/:id/regular` | 🔒 |
 | POST | `/api/services/:id/regular` | 🔒 |
+| POST | `/api/services/:id/reopen` | 🔒 |
 | DELETE | `/api/services/:id/reviews` | 🔒 |
 | GET | `/api/services/:id/reviews` | 🔒 |
 | POST | `/api/services/:id/reviews` | 🔒 |
+| POST | `/api/services/:id/verification/video/presign` | 🔒 |
 | POST | `/api/services/:id/verification/video` | 🔒 |
 | GET | `/api/services/:id/verification` | 🔒 |
 | POST | `/api/services/:id/verification` | 🔒 |
@@ -795,9 +847,12 @@ _local-services/local-services.controller.ts_
 | GET | `/api/services/:id` | 🔒 |
 | PATCH | `/api/services/:id` | 🔒 |
 | GET | `/api/services/business-types` | token |
+| GET | `/api/services/catalogue/grocery` | 🔒 |
 | GET | `/api/services/categories` | token |
+| GET | `/api/services/electronics/shelf` | 🔒 |
 | GET | `/api/services/facets` | token |
 | GET | `/api/services` | 🔒 |
+| GET | `/api/services/grocery/shelf` | 🔒 |
 | GET | `/api/services/inbox` | 🔒 |
 | GET | `/api/services/mine` | 🔒 |
 | DELETE | `/api/services/offers/:offerId` | 🔒 |
@@ -814,6 +869,7 @@ _local-services/local-services.controller.ts_
 | POST | `/api/services` | 🔒 |
 | GET | `/api/services/regulars` | 🔒 |
 | POST | `/api/services/reviews/:reviewId/reply` | 🔒 |
+| GET | `/api/services/search/items` | 🔒 |
 | GET | `/api/services/slug/available` | 🔒 |
 | POST | `/api/services/threads/:id/close` | 🔒 |
 | POST | `/api/services/threads/:id/messages` | 🔒 |
@@ -829,18 +885,24 @@ _social/social.controller.ts_
 | DELETE | `/api/social/block/:userId` | 🔒 |
 | POST | `/api/social/block` | 🔒 |
 | GET | `/api/social/blocks` | 🔒 |
+| POST | `/api/social/bookmarks/sync` | 🔒 |
+| GET | `/api/social/bookmarks` | 🔒 |
 | GET | `/api/social/feed` | 🔒 |
 | DELETE | `/api/social/follow/:userId` | 🔒 |
 | GET | `/api/social/followers` | 🔒 |
 | GET | `/api/social/following` | 🔒 |
 | POST | `/api/social/follow` | 🔒 |
 | GET | `/api/social/map` | 🔒 |
+| POST | `/api/social/posts/:id/bookmark` | 🔒 |
+| DELETE | `/api/social/posts/:id/comments/:commentId` | 🔒 |
 | GET | `/api/social/posts/:id/comments` | 🔒 |
 | POST | `/api/social/posts/:id/comments` | 🔒 |
 | PATCH | `/api/social/posts/:id/cover` | 🔒 |
 | POST | `/api/social/posts/:id/like` | 🔒 |
 | POST | `/api/social/posts/:id/repost` | 🔒 |
+| PATCH | `/api/social/posts/:id/visibility` | 🔒 |
 | DELETE | `/api/social/posts/:id` | 🔒 |
+| GET | `/api/social/posts/:id` | 🔒 |
 | PATCH | `/api/social/posts/:id` | 🔒 |
 | POST | `/api/social/posts` | 🔒 |
 | POST | `/api/social/report` | 🔒 |
@@ -881,7 +943,6 @@ _users/users.controller.ts_
 | Method | Path | Auth |
 |---|---|---|
 | POST | `/api/users/avatar` | 🔒 |
-| POST | `/api/users/device-token` | 🔒 |
 | GET | `/api/users/lookup` | 🔒 |
 | GET | `/api/users/me` | 🔒 |
 | GET | `/api/users/online` | 🔒 |
@@ -893,6 +954,15 @@ _dev/visibility.controller.ts_
 | Method | Path | Auth |
 |---|---|---|
 | GET | `/api/visibility` | **public** |
+
+## /visits
+
+_analytics/visits.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| POST | `/api/visits` | **public** |
+| GET | `/api/visits/stats` | **public** |
 
 ## Errors
 

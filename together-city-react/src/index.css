@@ -1844,6 +1844,24 @@ html.tc-immersive .csdock { margin-bottom: calc(var(--safe-bottom) + 12px); }
 .dk-stat span { display: block; margin-top: 6px; font-size: var(--fs-2); font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
 .rev .dk-stat span { color: var(--card); opacity: .62; }
 
+/* ── THE LIVE COUNT AND THE LOCK (owner, 16 Sep) ─────────────────────────────
+   The counter sits on slide 01 under the disclaimer, so its figures are a
+   step smaller than the stats a slide is built around: the disclaimer is
+   still what that slide says first. The lock in front of the deck is laid out
+   as a slide without being one — it is not `.dk-slide`, because the deck's
+   test counts those and the lock is not page fourteen. */
+.dk-live { display: grid; gap: clamp(8px, 1.4vh, 16px); padding-top: clamp(10px, 1.8vh, 22px); border-top: 1px solid var(--line); }
+.dk-live .dk-stat b { font-size: clamp(28px, 3.6vw, 56px); font-variant-numeric: tabular-nums; }
+.dk-gate {
+  min-height: 100dvh;
+  display: flex; flex-direction: column; justify-content: space-between;
+  gap: clamp(18px, 3vh, 44px);
+  padding: clamp(26px, 4.4vw, 84px) clamp(20px, 5vw, 96px)
+           calc(clamp(26px, 4.4vw, 84px) + var(--safe-bottom));
+}
+.dk-key { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; max-width: 34em; }
+.dk-key input { flex: 1 1 14em; min-width: 0; }
+
 /* A photograph fills whatever the type has left, and no more. `flex: 1 1 0`
    rather than `auto` is deliberate: a replaced element's flex-basis of `auto`
    is its intrinsic height, so a 1600x686 render would claim 686px of a 900px

@@ -4,6 +4,7 @@ import { Button, Card, EmptyState, Spinner, Switch } from '@/components/ui';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Fold } from '@/components/ui/Fold';
 import { tabIcon } from '@/nav/registry';
+import { GoLive } from '../GoLive';
 import type { TabKey } from '@/config/hubs';
 import { useDiagnostics, useFlags, useSetFlag, type EnvRow, type FlagRow, type VisibilityRow, type RoomRow } from '../api';
 import { routeIndex } from '../routeIndex';
@@ -568,6 +569,10 @@ export function DevPage() {
           database {d.database.reachable ? `answering in ${d.database.ms}ms` : 'NOT ANSWERING'}
         </p>
       )}
+
+      {/* The Go live button (owner, 16 Sep) — above the tabs, because it is the
+          one thing on this page that changes the live site. */}
+      <GoLive password={password} />
 
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--line)', margin: '16px 0 18px' }}>
         {([['config', `Configuration${notSet.length ? ` (${notSet.length} unset)` : ''}`],

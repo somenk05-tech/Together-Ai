@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { MiraDock } from './MiraDock';
+import { GoLiveDock } from '@/features/dev/GoLiveDock';
 import { useMiraShown } from '@/hooks/useCityDesign';
 import { useUiStore } from '@/store/ui.store';
 
@@ -76,6 +77,10 @@ export function RootChrome() {
           list lives with her rather than here. */}
       {/* Hidden when the operator's Mira switch is off. Her door, not her voice: /api/mira is untouched and an open conversation keeps working. */}
       {miraShown && <MiraDock />}
+      {/* The owner's Go live button, on every page of the developer copy that
+          has changes the live site lacks (owner, 16 Sep). Draws nothing
+          anywhere else — see GoLiveDock. */}
+      <GoLiveDock />
     </>
   );
 }

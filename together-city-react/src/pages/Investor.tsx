@@ -1,5 +1,8 @@
-import { Fragment, useEffect } from 'react';
+import { Fragment, useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { isServerUnreachable, SERVER_UNREACHABLE_MSG } from '@/api';
+import { Button } from '@/components/ui';
+import { readVisitStats, useVisitStats } from '@/api/visits.api';
 
 /**
  * ── THE SEED DECK, AS A PAGE YOU SCROLL ────────────────────────────────────
@@ -62,6 +65,114 @@ const SHELVES = [
   { key: 'fitness', label: 'Fitness & supplements' },
 ];
 
+/**
+ * ── THE PAGE IS LOCKED, AND IT COUNTS THE CITY (owner, 16 Sep) ─────────────
+ *
+ * "Add a counter for number of website visits, number of unique visits and
+ * number of city members, let this be live counting ... mention start date
+ * too — also password protect this page and keep the password Togethercity."
+ *
+ * THE PASSWORD IS CHECKED ON THE SERVER, not here: what the visitor types is
+ * sent with the counter's own request, and the page opens only when the server
+ * answers it. The typed word is kept in sessionStorage, so a reload in the
+ * same tab does not ask again and closing the tab does.
+ *
+ * WHAT THE LOCK DOES NOT DO, said plainly: the deck's words are part of the
+ * web bundle and its pictures sit in public/investor, so somebody who reads
+ * the bundle can read the deck. The lock keeps the page and the numbers from
+ * a person following the link; it is not a vault.
+ */
+const KEY_STORE = 'tc:investor-key';
+
+function rememberedKey(): string | null {
+  try { return sessionStorage.getItem(KEY_STORE); } catch { return null; }
+}
+function rememberKey(v: string | null): void {
+  try {
+    if (v) sessionStorage.setItem(KEY_STORE, v);
+    else sessionStorage.removeItem(KEY_STORE);
+  } catch { /* a reload will ask again */ }
+}
+
+const statusOf = (err: unknown): number | undefined =>
+  (err as { response?: { status?: number } } | null)?.response?.status;
+
+const count = (n: number) => n.toLocaleString('en-IN');
+const day = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+/** The live counter printed on slide 01. */
+function LiveCount({ password, onLocked }: { password: string; onLocked: () => void }) {
+  const { data, isError, error } = useVisitStats(password);
+  /* A remembered password the server no longer accepts puts the lock back. */
+  const refused = statusOf(error) === 403;
+  useEffect(() => { if (refused) onLocked(); }, [refused, onLocked]);
+  const since = data?.countingSince ? day(data.countingSince) : null;
+  return (
+    <div className="dk-live" aria-live="polite">
+      <div className="dk-cap">
+        Live{since ? ` \u00b7 counting since ${since}` : ' \u00b7 counting from the first visit'}
+        {isError ? ' \u00b7 reconnecting' : ''}
+      </div>
+      <div className="dk-stats">
+        <div className="dk-stat"><b>{data ? count(data.visits) : '\u2014'}</b><span>Website visits</span></div>
+        <div className="dk-stat"><b>{data ? count(data.uniqueVisitors) : '\u2014'}</b><span>Unique visitors</span></div>
+        <div className="dk-stat"><b>{data ? count(data.members) : '\u2014'}</b><span>City members</span></div>
+      </div>
+    </div>
+  );
+}
+
+/** What stands in front of the deck until the password is given. */
+function Gate({ onOpen }: { onOpen: (password: string) => void }) {
+  const [value, setValue] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!value || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await readVisitStats(value);
+      rememberKey(value);
+      onOpen(value);
+    } catch (err) {
+      setError(isServerUnreachable(err) ? SERVER_UNREACHABLE_MSG
+        : statusOf(err) === 429 ? 'Too many tries. Wait a minute and try again.'
+        : 'Wrong password.');
+      setBusy(false);
+    }
+  };
+
+  return (
+    <main className="dk">
+      <div className="dk-gate">
+        <div className="dk-lab">
+          <span>[ Seed round ]</span>
+          <Link className="dk-back" to="/">Back to the city</Link>
+        </div>
+        <form className="dk-body" onSubmit={(e) => { void submit(e); }}>
+          <div className="dk-cap">Private</div>
+          <h2 className="dk-h2">This deck is for the people we sent it to.</h2>
+          <label className="dk-lede" htmlFor="dk-key">Enter the password to open it.</label>
+          <div className="dk-key">
+            <input id="dk-key" type="password" autoComplete="current-password" autoFocus
+              placeholder="Password"
+              value={value} onChange={(e) => setValue(e.target.value)}
+              aria-invalid={!!error} aria-describedby={error ? 'dk-key-error' : undefined} />
+            <Button type="submit" disabled={!value} state={busy ? 'loading' : undefined}
+              loadingLabel={'Opening\u2026'}>Open</Button>
+          </div>
+          {error && <p id="dk-key-error" className="dk-note" role="alert">{error}</p>}
+        </form>
+        <div className="dk-foot"><span>Together City</span><span>togethercity.app</span></div>
+      </div>
+    </main>
+  );
+}
+
 export function Investor() {
   /* The tab is the deck while the deck is open, and the city again after. */
   useEffect(() => {
@@ -70,6 +181,13 @@ export function Investor() {
     return () => { document.title = was; };
   }, []);
 
+  const [password, setPassword] = useState<string | null>(rememberedKey);
+  const lock = useCallback(() => { rememberKey(null); setPassword(null); }, []);
+  if (!password) return <Gate onOpen={setPassword} />;
+  return <Deck password={password} onLocked={lock} />;
+}
+
+function Deck({ password, onLocked }: { password: string; onLocked: () => void }) {
   return (
     <main className="dk">
       {/* ============ 01 · DISCLAIMER ============ */}
@@ -96,6 +214,7 @@ export function Investor() {
             What&rsquo;s left is the vision, the platform and where this can go &mdash; thirteen
             slides, no imaginary numbers. Still here? Good.
           </p>
+          <LiveCount password={password} onLocked={onLocked} />
         </div>
         <div className="dk-foot"><span>Together City</span><span>Welcome to Together City</span></div>
       </section>

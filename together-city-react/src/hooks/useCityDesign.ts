@@ -84,7 +84,21 @@ export function useCitySwitches() {
    * citizen watch it fill with 503s one card at a time.
    */
   const closedPages = new Set<string>(q.data?.closedPages ?? []);
+  /**
+   * ── AND THE HUBS THE LIVE SITE HOLDS BACK (owner, 16 Sep) ─────────────────
+   *
+   * The addresses of districts the Go live button did not choose. Their doors
+   * are already in `off`; this is for somebody who TYPES the address. Empty on
+   * the developer site, and — like every list here — empty when the request
+   * has not answered, so a slow switch list never hides a room.
+   */
+  const release = q.data as { channel?: 'live' | 'dev'; notLive?: string[] } | undefined;
+  const notLive = release?.notLive ?? [];
   return {
+    /** Which city this is: 'dev' is the developer copy. Unknown until asked. */
+    channel: release?.channel ?? null,
+    /** Has this address gone live? False only for a held district's pages. */
+    live: (path: string): boolean => !notLive.some((p) => path === p || path.startsWith(`${p}/`)),
     /** Is this sector drawn at all, for anybody? */
     shown: (key: string): boolean => !off.has(key),
     /** Is this ROOM drawn — the rail entry, and the hub door that opens on it? */

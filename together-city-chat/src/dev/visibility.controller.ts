@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { Public } from '../shared/public.decorator';
 import { FeatureFlagGuard } from './feature-flag.guard';
+import { heldHubs, heldPaths, releaseChannel, underPath, type ReleaseChannel } from '../release/release';
 
 /**
  * WHAT THE APP IS ALLOWED TO DRAW. (27 Aug.)
@@ -46,14 +47,34 @@ export class VisibilityController {
    */
   @Public()
   @Get()
-  async doors(): Promise<{ off: string[]; offPages: string[]; closedPages: string[] }> {
+  async doors(): Promise<{
+    off: string[]; offPages: string[]; closedPages: string[];
+    channel: ReleaseChannel; notLive: string[];
+  }> {
     const [snap, rooms] = await Promise.all([
       this.flags.visibilitySnapshot(),
       this.flags.roomSnapshot(),
     ]);
+    /**
+     * ── AND THE HUBS THE LIVE SITE HOLDS BACK (owner, 16 Sep) ─────────────
+     *
+     * On the live city, a district the Go live button did not choose is
+     * folded into `off` (so every door-drawer already hides it) and its rooms
+     * into `offPages` (so a live hub's rail does not point into it — Together
+     * TV's Entertainment key is the case). `notLive` names its ADDRESSES, so
+     * the app can answer a typed URL with "opening soon". All empty on the
+     * developer city. See release/release.ts.
+     */
+    const channel = releaseChannel();
+    const held = heldHubs(channel);
+    const notLive = heldPaths(held);
     return {
-      off: snap.filter((s) => !s.visible).map((s) => s.key),
-      offPages: rooms.filter((r) => !r.visible).map((r) => r.key),
+      channel,
+      notLive,
+      off: [...new Set([...snap.filter((s) => !s.visible).map((s) => s.key), ...held])],
+      offPages: rooms
+        .filter((r) => !r.visible || notLive.some((p) => underPath(r.key, p)))
+        .map((r) => r.key),
       /**
        * ── AND THE ROOMS THAT ARE CLOSED (owner, 9 Sep) ────────────────────
        *

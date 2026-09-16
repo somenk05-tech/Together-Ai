@@ -251,6 +251,9 @@ export const ENV_MANIFEST: EnvEntry[] = [
   { name: 'PANCHDHATU_INR_PER_G', group: 'Operations', purpose: 'Rupees per gram of panchdhatu, for the same quotes.', whenMissing: 'The counter quotes the ₹900/g fallback dated 1 Aug 2026.' },
   { name: 'METAL_RATES_AS_OF', group: 'Operations', purpose: 'The date the three rates above are good for, carried with them so staleness is visible to us.', whenMissing: 'Corrected rates are still recorded as good for 1 Aug 2026, so nothing tells a rate refreshed this morning from the one that shipped.' },
 
+  // ── Two cities: the developer site and the live site (owner, 16 Sep) ────
+  { name: 'RELEASE_CHANNEL', group: 'Operations', purpose: '"dev" on the developer environment (dev.togethercity.app), "live" on the live one. The live city shows only the hubs the Go live button chose; the developer city shows every hub.', whenMissing: 'In production this deployment is the LIVE city \u2014 the lean one. That is the safe way to forget it: a developer site that forgot looks lean, a live site can never show unfinished hubs by accident.' },
+  { name: 'GITHUB_RELEASE_TOKEN', group: 'Operations', purpose: 'A fine-grained GitHub token (repository somenk05-tech/Together-Ai, Actions: read and write) that lets the Go live button run the go-live workflow. Set it on the DEVELOPER environment only.', whenMissing: 'The Go live button is greyed out. On the live environment that is correct \u2014 the live site must never be able to release itself.', secret: true, needs: 'a fine-grained personal access token from github.com/settings/tokens' },
   { name: 'TEST_DATABASE_URL', group: 'Operations', purpose: 'A throwaway database for the cross-user isolation tests.', whenMissing: 'Those tests SKIP rather than fail — the static guards still run, but nothing is proven against a live database.', secret: true, expectUnset: true },
 ];
 
