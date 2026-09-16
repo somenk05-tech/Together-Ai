@@ -159,7 +159,10 @@ export function Records() {
   const all = records.data ?? [];
   const untagged = all.filter((r) => r.kind === UNSORTED);
   const held = all.filter((r) => r.heldFor);
-  const fromMail = all.filter((r) => r.source === 'medical-mail' && !r.heldFor && r.kind !== UNSORTED).slice(0, 3);
+  // Newest ARRIVAL first — the vault's own order is the report's date, and a
+  // report dated last year that arrived this morning is still "recent" here.
+  const fromMail = all.filter((r) => r.source === 'medical-mail' && !r.heldFor && r.kind !== UNSORTED)
+    .sort((a, b) => (b.receivedOn ?? '').localeCompare(a.receivedOn ?? '')).slice(0, 3);
   // Folders exist because files are in them — the reader makes them, in the
   // KINDS order; a kind the page does not know goes under Other.
   const known = new Set(KINDS.map((k) => k.key));
