@@ -7,7 +7,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useDialog } from '@/hooks/useDialog';
 import { Avatar } from '../PostCard';
 import { Confirm } from '../Confirm';
-import { POST_TEXT_MAX, useCreatePost } from '../api';
+import { POST_TEXT_MAX, useCreatePost, usePopularTags } from '../api';
+import { normaliseTag } from '../captionTags';
 import { MUSIC_LIBRARY, type Track } from '../musicLibrary';
 
 // `file` is kept for media that uploads to storage (video) — the `src` is only a
@@ -557,6 +558,7 @@ export function CreatePost() {
   const [geoStat, setGeoStat] = useState('');
   const [hashtags, setHashtags] = useState<string[]>(() => savedDraft()?.hashtags ?? []);
   const [tagInput, setTagInput] = useState('');
+  const [tagDraft, setTagDraft] = useState('');
   const [tagged, setTagged] = useState<Array<{ id: string; name: string; handle: string }>>(() => savedDraft()?.tagged ?? []);
   const [audience, setAudience] = useState<AudienceKey>(() => (savedDraft()?.audience as AudienceKey) ?? 'public');
   const [category, setCategory] = useState<'' | 'work' | 'personal'>(() => (savedDraft()?.category as '' | 'work' | 'personal') ?? '');
@@ -1135,27 +1137,29 @@ export function CreatePost() {
         )}
         {open === 'hashtags' && (
           <div style={{ marginTop: 12 }}>
-            {/* WHAT A TAG ACTUALLY DOES HERE (30 Aug audit). There is no tag
-                index and no tag search, so a chip that looked like a filing
-                system was promising a room that does not exist. Tags are
-                appended to the caption — which is useful, and is the whole of
-                it. Saying so costs one line and stops the promise. */}
+            {/* WHAT A TAG DOES HERE (owner, 16 Sep — it was only words until
+                then). A tag is added to the end of the caption, and on the post
+                it becomes a link to every post carrying it. The picks below are
+                the tags the city is already using, so a new post joins a
+                conversation rather than starting a spelling of its own. */}
             <p className="sl-hint" style={{ margin: '0 0 8px' }}>
-              Tags are added to the end of your caption. There’s no tag search yet — they read as words, not links.
+              Tags are added to the end of your caption. On your post each one is a link to every post with the same tag.
             </p>
             <input
               placeholder="Type a tag and press Enter — e.g. sunset"
+              value={tagDraft}
+              onChange={(e) => setTagDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key !== 'Enter') return;
                 e.preventDefault();
-                const raw = (e.target as HTMLInputElement).value.trim().replace(/^#/, '');
-                if (!raw) return;
-                const tag = '#' + raw.replace(/\s+/g, '');
-                if (!hashtags.includes(tag)) setHashtags((x) => [...x, tag]);
-                (e.target as HTMLInputElement).value = '';
+                const tag = normaliseTag(tagDraft.replace(/\s+/g, ''));
+                if (tag && !hashtags.includes(`#${tag}`)) setHashtags((x) => [...x, `#${tag}`]);
+                setTagDraft('');
               }}
               style={inputStyle}
             />
+            <TagPicks prefix={tagDraft} chosen={hashtags}
+              onPick={(tag) => { setHashtags((x) => (x.includes(`#${tag}`) ? x : [...x, `#${tag}`])); setTagDraft(''); }} />
           </div>
         )}
       </div>
@@ -1262,6 +1266,22 @@ export function CreatePost() {
           {(phase === 'idle' || phase === 'error') && (<><Icon name="plus" size={16} /> Share with my city</>)}
         </button>
       </div>
+    </div>
+  );
+}
+
+/** The tags the city already uses that start with what is typed (owner, 16 Sep). */
+function TagPicks({ prefix, chosen, onPick }: { prefix: string; chosen: string[]; onPick: (tag: string) => void }) {
+  const q = usePopularTags(prefix);
+  const picks = (q.data ?? []).filter((t) => !chosen.includes(`#${t.tag}`)).slice(0, 8);
+  if (!picks.length) return null;
+  return (
+    <div className="sl-tag-picks" aria-label="Tags people use">
+      {picks.map((t) => (
+        <button key={t.tag} type="button" className="sl-chipv" onClick={() => onPick(t.tag)}>
+          #{t.tag} <span className="muted">{t.posts}</span>
+        </button>
+      ))}
     </div>
   );
 }

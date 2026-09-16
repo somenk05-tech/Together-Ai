@@ -1084,6 +1084,8 @@ model Post {
   bookmarks Bookmark[]
   repostOf Post?       @relation("PostReposts", fields: [repostOfId], references: [id], onDelete: Cascade)
   reposts  Post[]      @relation("PostReposts")
+  /// The #tags in its caption (social/tags.ts). A tag is a door: /social/tags/:tag.
+  tags     PostTag[]
 
   @@index([createdAt])
   @@index([authorId])
@@ -1112,6 +1114,27 @@ model Post {
   /// rows rather than sorting every post any of them ever wrote.
   @@index([authorId, moderation, createdAt(sort: Desc), id(sort: Desc)])
   @@index([repostOfId])
+}
+
+/**
+ * ── A TAG IS A DOOR (owner, 16 Sep) ─────────────────────────────────────────
+ *
+ * "Add tags for Together City social life." One row per #tag per post, read
+ * from the caption when it is written or edited (social/tags.ts), so a tag's
+ * page and the popular-tags list are an index read rather than a LIKE over
+ * every caption in the city. Stored without the '#', lower-case.
+ *
+ * `createdAt` is the POST's, copied in, so "posts tagged x, newest first" and
+ * "what has been tagged this month" both read the one index below.
+ */
+model PostTag {
+  postId    String
+  tag       String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tag])
+  @@index([tag, createdAt(sort: Desc)])
 }
 
 model PostMedia {

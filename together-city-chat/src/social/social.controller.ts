@@ -12,7 +12,7 @@ import { Room } from '../dev/room.decorator';
 import {
   CreateCommentSchema, type CreateCommentDto,
   CreatePostSchema, type CreatePostDto,
-  FeedQuerySchema, ListQuerySchema, BookmarkSyncSchema,
+  FeedQuerySchema, ListQuerySchema, BookmarkSyncSchema, TagQuerySchema,
   POST_TEXT_MAX,
 } from './dto/social.dto';
 
@@ -35,6 +35,12 @@ export class SocialController {
   @Get('feed')
   feed(@CurrentUser() user: JwtUser, @Query() query: Record<string, unknown>) {
     return this.social.feed(user.sub, parseOrThrow(FeedQuerySchema, query));
+  }
+
+  /** The #tags the city is using (owner, 16 Sep) — counted over public posts only. */
+  @Get('tags')
+  tags(@Query() query: Record<string, unknown>) {
+    return this.social.popularTags(parseOrThrow(TagQuerySchema, query));
   }
 
   // Behind a removed tab: the City Map page was removed by the review (p18).

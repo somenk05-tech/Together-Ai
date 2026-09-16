@@ -922,3 +922,22 @@ textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
   background: var(--card); color: var(--ink);
 }
 .sl-share-row { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ── A TAG IS A DOOR (owner, 16 Sep) ─────────────────────────────────────── */
+.sl-tag, .sl-mention { color: var(--accent-ink); font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
+.sl-tag:hover, .sl-mention:hover { text-decoration: underline; }
+.sl-tags { display: grid; gap: var(--s-3); }
+.sl-tags-search { display: flex; gap: var(--s-2); align-items: center; }
+.sl-tags-search input {
+  flex: 1; min-width: 0; min-height: 44px; padding: 10px 12px; font: inherit; font-size: 16px;
+  border: 1px solid var(--line); border-radius: var(--r-1); background: var(--card); color: var(--ink);
+}
+.sl-tags-h { margin: 0; font-size: var(--fs-3); font-weight: 700; letter-spacing: var(--track-display); text-transform: uppercase; }
+.sl-tags-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
+.sl-tags-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-2);
+  min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r-1);
+  background: var(--card); color: var(--ink); text-decoration: none; font-size: var(--fs-4);
+}
+.sl-tags-posts { display: grid; gap: var(--s-3); }
+.sl-tag-picks { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-2); }

@@ -18,7 +18,15 @@ import { StorageProvider } from '../media/storage.provider';
 import { ladderKeysOf } from '../media/hls-ladder';
 import { TranscodeService } from '../media/transcode.service';
 import { shownName } from '../dating/matching';
-import type { CreateCommentDto, CreatePostDto, FeedQueryDto } from './dto/social.dto';
+import type { CreateCommentDto, CreatePostDto, FeedQueryDto, TagQueryDto } from './dto/social.dto';
+import { normaliseTag, tagsIn } from './tags';
+
+/** The PostTag table (a tag is a door, 16 Sep), typed where it is used. */
+type TagRows = {
+  deleteMany(a: unknown): Promise<unknown>;
+  createMany(a: unknown): Promise<unknown>;
+  groupBy(a: unknown): Promise<Array<{ tag: string; _count: { tag: number } }>>;
+};
 
 const AUTHOR_SELECT = { id: true, handle: true, name: true, profileImage: true } as const;
 
@@ -1002,6 +1010,7 @@ export class SocialService {
       },
       include: { author: { select: AUTHOR_SELECT }, media: true },
     });
+    await this.writeTags(post.id, post.text, post.createdAt);
     for (const m of post.media) {
       if (m.kind === 'video' && this.transcode) {
         void this.transcode.enqueue(m.id).catch(swallowed('social.createPost.transcode', undefined, { mediaId: m.id }));
@@ -1117,6 +1126,8 @@ export class SocialService {
       data: data,
       include: { author: { select: AUTHOR_SELECT }, media: true, likes: { where: { userId }, select: { id: true } } },
     });
+    // An edited caption is re-read: a tag taken out leaves its page.
+    if (dto.text !== undefined) await this.writeTags(postId, updated.text, updated.createdAt);
     const u = updated as unknown as { likes: unknown[] };
     return this.shapePost(updated, countsOf(updated), u.likes.length > 0, await this.signMediaOf([updated]));
   }
@@ -1145,6 +1156,14 @@ export class SocialService {
   async feed(userId: string, query: FeedQueryDto) {
     const { cursor, limit } = query;
     const filter = (query as { filter?: string }).filter ?? 'foryou';
+    /* A TAG IS A DOOR (owner, 16 Sep). A tag's page is the For You lens
+       narrowed to posts carrying it: city-wide for public posts, your circle
+       for the rest, blocked and closed accounts out — every gate below, none
+       restated. A string that is not a tag is refused rather than widened into
+       "every post". */
+    const rawTag = (query as { tag?: string }).tag;
+    const tag = rawTag === undefined ? null : normaliseTag(rawTag);
+    if (rawTag !== undefined && !tag) throw new BadRequestException('That is not a tag.');
     // ONE read of the graph, three sets out of it — see graphOf.
     const graph = await this.graphOf(userId);
     // ONE call, three sets. This ran fromGraph twice and threw away two
@@ -1201,7 +1220,7 @@ export class SocialService {
      * city-wide one pixel away. The bounded view is what Friends and Following
      * are FOR; these two are lenses on the same city For You shows.
      */
-    const cityWide = filter === 'videos' || filter === 'foryou' || filter === 'photos' || filter === 'thoughts' || filter === 'stills';
+    const cityWide = tag !== null || filter === 'videos' || filter === 'foryou' || filter === 'photos' || filter === 'thoughts' || filter === 'stills';
     /* The two gates are a value shared with the Saved page's read — see
        `viewerGates` for the rules and their history. */
     const { blockedSet, audienceGate, repostWhere } = this.viewerGates(userId, circle, familySet, graph.blocked);
@@ -1250,6 +1269,7 @@ export class SocialService {
            promising no videos would have served one. `repostOfId: null` is
            what closes that, the same way it closes it for thoughts. */
         ...(filter === 'stills' ? { media: { none: { kind: 'video' } }, repostOfId: null } : {}),
+        ...(tag ? ({ tags: { some: { tag } } } as object) : {}),
         // Two ORs cannot share one object literal — the second would replace
         // the first — so the audience gate and the repost gate are ANDed by name.
         AND: [audienceGate, repostWhere],
@@ -1285,6 +1305,52 @@ export class SocialService {
       items: page.map((p) => this.shapeFeedRow(p, signed, saved)),
       nextCursor: hasMore ? page[page.length - 1].id : null,
     };
+  }
+
+  private get tagRows(): TagRows {
+    return (this.prisma as unknown as { postTag: TagRows }).postTag;
+  }
+
+  /**
+   * A caption's tags, written down (owner, 16 Sep). Replaced whole on every
+   * write, so an edit that removes a tag removes the post from that tag's
+   * page. The post's own time is copied in: a tag's page and its counts then
+   * read one index (PostTag @@index([tag, createdAt])). Best-effort — a post
+   * is never refused because its tags could not be filed.
+   */
+  private async writeTags(postId: string, text: string | null, createdAt: Date): Promise<void> {
+    const tags = tagsIn(text);
+    await swallow((async () => {
+      await this.tagRows.deleteMany({ where: { postId } });
+      if (tags.length) {
+        await this.tagRows.createMany({ data: tags.map((tag) => ({ postId, tag, createdAt })), skipDuplicates: true });
+      }
+    })(), 'social: write post tags', { postId, count: tags.length });
+  }
+
+  /**
+   * THE TAGS THE CITY IS USING (owner, 16 Sep) — for the tags page, the
+   * search and the composer's suggestions. Counted over the last thirty days
+   * of PUBLIC, visible posts by reachable accounts only: a tag that lives only
+   * on friends-only or hidden posts is nobody else's business, and a count
+   * would tell a stranger it exists. `q` is a prefix, with or without '#'.
+   */
+  async popularTags(query: TagQueryDto): Promise<{ items: Array<{ tag: string; posts: number }> }> {
+    const prefix = query.q ? query.q.trim().replace(/^#/, '').normalize('NFC').toLowerCase() : '';
+    if (prefix && !normaliseTag(prefix) && !/^\d+$/.test(prefix)) return { items: [] };
+    const since = new Date(Date.now() - 30 * 24 * 3600 * 1000);
+    const rows = await swallow(this.tagRows.groupBy({
+      by: ['tag'],
+      where: {
+        createdAt: { gte: since },
+        ...(prefix ? { tag: { startsWith: prefix } } : {}),
+        post: { ...VISIBLE_ONLY, audience: 'public', author: REACHABLE_USER },
+      },
+      _count: { tag: true },
+      orderBy: [{ _count: { tag: 'desc' } }, { tag: 'asc' }],
+      take: query.limit,
+    }), 'social: popular tags', { prefix });
+    return { items: (rows ?? []).map((r) => ({ tag: r.tag, posts: r._count.tag })) };
   }
 
   /**

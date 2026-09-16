@@ -14,6 +14,7 @@ import {
   useAddComment, useComments, useDeleteComment, useDeletePost, useUpdatePost, useRepost, useSetHidden, useToggleBookmark, useToggleLike,
   POST_TEXT_MAX, type Post, type PostComment, type PostMedia,
 } from './api';
+import { RichText } from './RichText';
 
 /**
  * The date as the owner's card reference prints it: `26-nov-2016`, lowercase.
@@ -599,7 +600,7 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
                 </div>
               </div>
             ) : (
-              post.text && <p className="sl-post-text">{post.text}</p>
+              post.text && <p className="sl-post-text"><RichText text={post.text} /></p>
             )}
             {/* Who it was written for, how they felt, and who was there. Not in
                 the reference, and not invented either — it is what the composer
