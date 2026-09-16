@@ -2615,6 +2615,57 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     return set;
   }
 
+  /**
+   * ── THE CHATS TAB PRINTS THE SAME NUMBER AS THE CARD (owner, 16 Sep) ──────
+   *
+   * "Fix the percentage issue": Shruti was 79% on Curated Matches and 66% on
+   * Matchmaking Chats. Every other surface works the number out when it is
+   * asked (Potential, Curated, the detail page), with the one formula below.
+   * This tab read the CompatibilityScore row instead — written when the like
+   * was made and never again — so once either profile changed, the chat list
+   * showed a number from weeks ago.
+   *
+   * Now it works the number out too, from the same inputs, in one batch (one
+   * astro read for the whole list; the natal charts are cached an hour). The
+   * cached row stays as the fallback for a pair that cannot be scored here —
+   * never an invented number. And nothing is written back: the row is the
+   * ledger the "new match" push reads to see a threshold crossed, and a list
+   * read moving it would swallow that push (see cachePairScore).
+   */
+  private async liveChatScores(
+    userId: string,
+    mine: { birthDate?: Date | null; interests?: string | null; extras?: string | null } | null,
+    theirs: Array<{ userId: string; birthDate?: Date | null; interests?: string | null; extras?: string | null } | undefined>,
+  ): Promise<Map<string, number>> {
+    const out = new Map<string, number>();
+    if (!mine || !(mine.birthDate instanceof Date)) return out;
+    const myBirth = mine.birthDate;
+    const others = theirs.filter((p): p is { userId: string; birthDate: Date; interests?: string | null; extras?: string | null } =>
+      Boolean(p && p.birthDate instanceof Date));
+    if (!others.length) return out;
+    const natal = (await swallow(this.natalSigns([
+      { userId, birthDate: myBirth },
+      ...others.map((p) => ({ userId: p.userId, birthDate: p.birthDate })),
+    ]), 'dating chats: natal signs', { userId, count: others.length })) ?? new Map<string, NatalSigns>();
+    const myD = this.parseDX(mine.extras ?? null);
+    const myInterests = this.splitInterests(mine.interests ?? '');
+    for (const p of others) {
+      try {
+        const candD = this.parseDX(p.extras ?? null);
+        const theirInterests = this.splitInterests(p.interests ?? '');
+        const { score: astro } = compatibilityScore(
+          { userId, birthDate: myBirth, interests: myInterests, natal: natal.get(userId) },
+          { userId: p.userId, birthDate: p.birthDate, interests: theirInterests, natal: natal.get(p.userId) },
+        );
+        const breakdown = factorScores(astro, myInterests, theirInterests, myD, candD);
+        out.set(p.userId, overallScore(breakdown, pairMultiplier(myD, candD, myInterests, theirInterests)));
+      } catch {
+        /* this pair keeps its cached number */
+      }
+    }
+    return out;
+  }
+
   /** Best-effort precompute cache of a pair's factor scores. Stored under the
    *  SORTED pair key so there's exactly one row per pair (also the ledger that
    *  live re-matching reads to detect threshold crossings). */
@@ -3825,7 +3876,9 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
      * ungated — and the sentence is the same one Browse shows, with the
      * appeal path in it.
      */
-    const mine = await this.prisma.datingProfile.findUnique({ where: { userId }, select: { moderation: true } });
+    // The whole row, not just `moderation`: the scores below are worked out
+    // from it (16 Sep).
+    const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
     if (mine?.moderation === 'rejected') {
       throw new ForbiddenException('Your matchmaking profile has not been approved, so you cannot browse yet. You can appeal in the Safety Centre.');
     }
@@ -3916,6 +3969,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         .compatibilityScore.findMany({ where: { OR: pairKeys.map(([a, b]) => ({ userA: a, userB: b })) }, select: { userA: true, userB: true, overall: true } });
     } catch { /* no cache is "no score", same as readPairScore */ }
     const scoreOf = new Map(scoreRows.map((r) => [`${r.userA}:${r.userB}`, r.overall]));
+    const live = await this.liveChatScores(userId, mine, otherIds.map((id) => profileOf.get(id)));
 
     const convIds = matches.map((m) => m.conversationId).filter((c): c is string => Boolean(c));
     const summaries = await this.conversations.summariesFor(convIds, userId);
@@ -3961,7 +4015,8 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       // on a list whose length stopped being capped when the conversation cap
       // was removed on 27 Aug. The key is derivable from the row itself, so
       // nothing has to be looked up positionally at all. (Fourth audit.)
-      const score = scoreOf.get([userId, otherId].sort().join(':')) ?? null;
+      // LIVE FIRST (owner, 16 Sep): the cached row is only the fallback.
+      const score = live.get(otherId) ?? scoreOf.get([userId, otherId].sort().join(':')) ?? null;
 
       out.push({
         conversationId: m.conversationId,
