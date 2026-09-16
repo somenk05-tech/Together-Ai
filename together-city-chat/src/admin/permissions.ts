@@ -50,7 +50,7 @@ export const PERMISSIONS = {
 
   'ops.health': 'See system health and error rates',
   'ops.flags': 'Turn features on and off',
-  'ops.deploy': 'See deployment and job history',
+  'ops.deploy': 'See deployment and job history, and press Go live',
 
   'cms.write': 'Edit help pages, policies and announcements',
   'notify.send': 'Send a push, email or announcement',

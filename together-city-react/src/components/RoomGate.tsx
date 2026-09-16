@@ -36,8 +36,37 @@ import { useCitySwitches } from '@/hooks/useCityDesign';
 export function RoomGate({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const switches = useCitySwitches();
+  /* A district the live site has not launched yet (owner, 16 Sep) — checked
+     first, because "opening soon" is the truer sentence for a hub that has
+     never been open here than "closed just now". */
+  if (!switches.live(pathname)) return <OpeningSoon />;
   if (switches.pageOpen(pathname)) return <>{children}</>;
   return <RoomClosed />;
+}
+
+/**
+ * ── A DISTRICT THAT IS NOT LIVE YET (owner, 16 Sep) ─────────────────────────
+ *
+ * The live site shows the hubs the Go live button chose; the rest are still
+ * being built on the developer copy. Somebody who types their address meets
+ * this rather than an unfinished room. Nothing here says "closed" or "error":
+ * it has not opened, and it will.
+ */
+function OpeningSoon() {
+  return (
+    <div className="page">
+      <div className="card" style={{ maxWidth: '52ch', margin: '48px auto', textAlign: 'center', display: 'grid', gap: 10, padding: '30px 26px' }}>
+        <div aria-hidden style={{ fontSize: 26 }}>◌</div>
+        <h1 style={{ fontSize: 20, margin: 0 }}>Opening soon</h1>
+        <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.6, margin: 0 }}>
+          This part of Together City is still being built and is not open yet.
+        </p>
+        <p style={{ fontSize: 13.5, margin: '4px 0 0' }}>
+          <Link to="/" style={{ color: 'var(--accent-ink)', fontWeight: 700 }}>Back to your city</Link>
+        </p>
+      </div>
+    </div>
+  );
 }
 
 /**
