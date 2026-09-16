@@ -42,13 +42,15 @@ export interface MedicalMailSettings {
 export type Folder = 'inbox' | 'archived' | 'starred' | 'trash' | 'attachments' | 'all';
 
 /** The chips on the page: a label and the categories it groups. */
-export const CATEGORY_CHIPS: Array<{ key: string; label: string; categories: string[] }> = [
+export const CATEGORY_CHIPS: Array<{ key: string; label: string; categories: string[]; documents?: true }> = [
   { key: 'all', label: 'All', categories: [] },
   { key: 'doctors', label: 'Doctors', categories: ['doctor'] },
   { key: 'hospitals', label: 'Hospitals', categories: ['hospital'] },
   { key: 'labs', label: 'Labs', categories: ['laboratory', 'blood-test', 'pathology'] },
   { key: 'prescriptions', label: 'Prescriptions', categories: ['prescription', 'pharmacy'] },
-  { key: 'reports', label: 'Reports', categories: ['diagnostic-report', 'radiology', 'vaccination'] },
+  // Reports = every email that produced a document, plus the report-shaped
+  // categories — the same thing the "recent reports" tile counts.
+  { key: 'reports', label: 'Reports', categories: ['diagnostic-report', 'radiology', 'pathology', 'vaccination'], documents: true },
   { key: 'insurance', label: 'Insurance', categories: ['insurance'] },
   { key: 'appointments', label: 'Appointments', categories: ['appointment'] },
   { key: 'bills', label: 'Bills', categories: ['medical-bill'] },
@@ -76,7 +78,7 @@ export const STATUS_LABEL: Record<AttachmentStatus, string> = {
 export const medicalMailApi = {
   home: () => api.get<MedicalMailHome>('/medical/mail').then((r) => r.data),
   badge: () => api.get<{ unread: number }>('/medical/mail/badge').then((r) => r.data),
-  list: (p: { folder: Folder; category?: string; q?: string; cursor?: string }) =>
+  list: (p: { folder: Folder; category?: string; documents?: '1'; q?: string; cursor?: string }) =>
     api.get<{ items: MedicalEmailItem[]; nextCursor: string | null }>('/medical/mail/messages', { params: { limit: 25, ...p } }).then((r) => r.data),
   get: (id: string) => api.get<MedicalEmail>(`/medical/mail/messages/${id}`).then((r) => r.data),
   flag: (id: string, body: { read?: boolean; starred?: boolean; archived?: boolean }) => api.patch<{ ok: true }>(`/medical/mail/messages/${id}`, body).then((r) => r.data),
@@ -109,9 +111,9 @@ export function useMedicalMailHome() {
 export function useMedicalMailBadge(enabled: boolean) {
   return useQuery({ queryKey: [...KEY, 'badge'], queryFn: medicalMailApi.badge, enabled, staleTime: 60_000 });
 }
-export function useMedicalMailList(p: { folder: Folder; category?: string; q?: string }) {
+export function useMedicalMailList(p: { folder: Folder; category?: string; documents?: '1'; q?: string }) {
   return useInfiniteQuery({
-    queryKey: [...KEY, 'list', p.folder, p.category ?? '', p.q ?? ''],
+    queryKey: [...KEY, 'list', p.folder, p.category ?? '', p.documents ?? '', p.q ?? ''],
     queryFn: ({ pageParam }) => medicalMailApi.list({ ...p, cursor: pageParam || undefined }),
     initialPageParam: '',
     getNextPageParam: (last) => last.nextCursor ?? undefined,

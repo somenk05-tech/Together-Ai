@@ -159,14 +159,19 @@ export function Records() {
   const all = records.data ?? [];
   const untagged = all.filter((r) => r.kind === UNSORTED);
   const held = all.filter((r) => r.heldFor);
-  // Newest ARRIVAL first — the vault's own order is the report's date, and a
-  // report dated last year that arrived this morning is still "recent" here.
+  // MEDICAL MAIL IS A FOLDER HERE (owner, 16 Sep: "keep health records
+  // collapsed and create a medical email folder"): every document that
+  // arrived by email, newest ARRIVAL first — the vault's own order is the
+  // report's date, and last year's report that arrived this morning is still
+  // the newest here. A window, not a copy: each file is also in its kind's
+  // folder below.
   const fromMail = all.filter((r) => r.source === 'medical-mail' && !r.heldFor && r.kind !== UNSORTED)
-    .sort((a, b) => (b.receivedOn ?? '').localeCompare(a.receivedOn ?? '')).slice(0, 3);
+    .sort((a, b) => (b.receivedOn ?? '').localeCompare(a.receivedOn ?? ''));
   // Folders exist because files are in them — the reader makes them, in the
   // KINDS order; a kind the page does not know goes under Other.
   const known = new Set(KINDS.map((k) => k.key));
   const folders = [
+    { key: '__mail', label: 'Medical Mail', icon: '✉', items: fromMail },
     ...KINDS.map((k) => ({ key: k.key, label: k.label, icon: k.icon, items: all.filter((r) => r.kind === k.key) })),
     { key: '__other', label: 'Other', icon: '📁', items: all.filter((r) => !known.has(r.kind) && r.kind !== UNSORTED && !r.heldFor) },
   ].filter((g) => g.items.length);
@@ -319,33 +324,6 @@ export function Records() {
               {r.hasFile && <button type="button" onClick={() => void openFile(r.id)} style={{ ...linkBtn, color: 'var(--accent-ink)' }}>View</button>}
               <Button size="sm" variant="accent" onClick={() => confirm.mutate(r.id)} state={confirm.isPending && confirm.variables === r.id ? 'loading' : undefined} loadingLabel="Filing…">Yes, it’s mine</Button>
               <button type="button" onClick={() => del.mutate(r.id)} disabled={del.isPending} style={{ ...linkBtn, color: 'var(--danger-ink)' }}>No — delete it</button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* FROM MEDICAL MAIL (owner, 16 Sep): the newest documents that arrived
-          by email, each with its document, its email and its analysis. Every
-          one is also in its folder below — this is a window, not a copy. */}
-      {!open && fromMail.length > 0 && (
-        <div className="card mm-list" style={{ marginBottom: 12 }}>
-          <div className="mm-from-head">
-            <span className="mm-eyebrow">From Medical Mail</span>
-            <span className="mm-sub">Recent medical documents</span>
-            <Link to="/medical/mail" className="mm-link">Medical Mail →</Link>
-          </div>
-          {fromMail.map((r) => (
-            <div key={r.id} className="mm-row">
-              <span className="mm-glyph-sm">{iconFor(r.kind)}</span>
-              <span className="mm-main">
-                <span className="mm-title">{r.title}</span>
-                <span className="mm-sub">Received {r.receivedOn ?? r.recordedOn} · {tagFor(r.kind)}</span>
-              </span>
-              {r.hasFile && <button type="button" className="mm-linkbtn" onClick={() => void openFile(r.id)}>View document</button>}
-              {r.sourceEmailId && <Link to={`/medical/mail/${r.sourceEmailId}`} className="mm-link-plain">Open email</Link>}
-              {r.analyzed
-                ? <Link to="/medical/blood" className="mm-link-ok">Analysis ready →</Link>
-                : <Link to="/medical/blood" className="mm-link-plain">Analyze</Link>}
             </div>
           ))}
         </div>
