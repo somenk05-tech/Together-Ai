@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
 import { clearChunkReloadFlag } from './app/ChunkBoundary';
+import { countThisVisit } from './api/visits.api';
 import './index.css';
 // LAST, and that is the point. Relief overrides the ported component library
 // rather than being merged into it, so the old rules stay readable as what they
@@ -38,3 +39,7 @@ createRoot(container).render(
 // App booted OK → clear the one-shot chunk-reload guard so a genuine future
 // deploy can auto-recover again (and we never get stuck in a reload loop).
 clearChunkReloadFlag();
+
+// Every opening of the city is counted once per tab, for the Investor page's
+// live counter (owner, 16 Sep). Fire and forget: see api/visits.api.ts.
+countThisVisit();

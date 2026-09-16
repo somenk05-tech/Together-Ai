@@ -1358,6 +1358,21 @@ model AppEvent {
 }
 
 /**
+ * ONE BROWSER THAT HAS OPENED THE CITY (owner, 16 Sep), and how many times.
+ * The Investor page's live counter reads this table: COUNT(*) is unique
+ * visitors, SUM(visits) is visits, MIN(firstAt) is the day counting began.
+ * `id` is "v:<the browser's random id>" or "h:<a one-way hash>" — nothing
+ * personal. No relation to User: most visitors have no account. See
+ * analytics/visits.service.ts.
+ */
+model SiteVisitor {
+  id      String   @id
+  visits  Int      @default(1)
+  firstAt DateTime @default(now())
+  lastAt  DateTime @default(now())
+}
+
+/**
  * A citizen's appeal against a moderation decision on their own dating
  * profile or photo. One open appeal per target; a moderator upholds or
  * overturns it with a written reason, through the console's act().

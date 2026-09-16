@@ -59,6 +59,15 @@ const PUBLIC_ALLOWLIST = [
   // path stands in for the session. It is the ONLY id-taking public route in
   // the API, and the exception is written down below rather than waved through.
   'dating GET photo/:token',
+  // The visit counter (owner, 16 Sep). The beacon is public because most
+  // people who open the city have no account; it writes one row keyed by a
+  // random browser id, never anything a citizen owns, and is held to the
+  // city's own pages by VisitOriginGuard (see the mutation list below). The
+  // stats read is public because an investor opening /investor has no
+  // account — it is locked by the page password instead, checked in the
+  // handler, and returns three totals and a date, nothing about anybody.
+  'visits POST',
+  'visits GET stats',
 ].sort();
 
 /**
@@ -74,6 +83,7 @@ const PUBLIC_ALLOWLIST = [
 const GUARDED_PUBLIC_MUTATIONS: Record<string, string> = {
   'mail POST inbound': 'InboundSecretGuard',
   'mail POST unsubscribe': 'UnsubscribeTokenGuard',
+  'visits POST': 'VisitOriginGuard',
 };
 
 /**
