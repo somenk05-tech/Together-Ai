@@ -4765,3 +4765,182 @@ model Child {
 
   @@index([userId])
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── MEDICAL MAIL (owner, 16 Sep) ─────────────────────────────────────────────
+//
+// "A permanent digital address for a user's healthcare life." Every citizen
+// has one medical mailbox — medical.<opaque>@togethercity.app — separate from
+// Together City Mail, and everything that arrives there is read, filed in the
+// health vault (MedicalRecord) and kept linked to the email it came in. No
+// relation to User on purpose: these rows purge by userId (privacy/purge-plan)
+// like Notification and AppEvent, and the schema block is appended whole.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// One per citizen, made the first time anything asks for it and never made
+/// twice. The address is a random token, not the handle — it cannot be
+/// guessed from a name, and it stays the same for the life of the account.
+model MedicalMailbox {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  /// medical.<12 base32 chars>@togethercity.app — unique, stable, opaque.
+  address   String   @unique
+  /// active | paused — paused keeps the address and refuses new mail.
+  status    String   @default("active")
+  /// The citizen's switches (Privacy & Consent · Medical Mail settings).
+  processDocuments Boolean @default(true)
+  aiAnalysis       Boolean @default(true)
+  autoLink         Boolean @default(true)
+  classifyEmails   Boolean @default(true)
+  notify           Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// One arriving message in one medical mailbox.
+model MedicalEmail {
+  id           String    @id @default(uuid())
+  mailboxId    String
+  userId       String
+  /// The Message-ID header — the inbound dedupe key, per mailbox.
+  externalMessageId String?
+  /// The provider's own id (Resend email_id) — what attachments are fetched by.
+  providerEmailId   String?
+  threadId     String?
+  fromAddr     String
+  fromName     String
+  toAddr       String
+  subject      String
+  body         String
+  snippet      String    @default("")
+  sizeBytes    Int       @default(0)
+  /// medical | likely-medical | unknown | personal | spam | blocked
+  classification String  @default("unknown")
+  /// doctor | hospital | laboratory | pharmacy | insurance | appointment |
+  /// prescription | diagnostic-report | blood-test | radiology | pathology |
+  /// vaccination | medical-bill | other-medical — or null when not medical.
+  category     String?
+  confidence   Float     @default(0)
+  /// "Why is this here?" — the classifier's reasons, one per line.
+  classificationReason String @default("")
+  /// The sender's DMARC/DKIM verdict: true passed, false failed, null unknown.
+  authenticated Boolean?
+  receivedAt   DateTime  @default(now())
+  readAt       DateTime?
+  starred      Boolean   @default(false)
+  archivedAt   DateTime?
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  attachments MedicalEmailAttachment[]
+
+  @@index([userId, receivedAt])
+  @@index([userId, externalMessageId])
+  @@index([userId, archivedAt, deletedAt, receivedAt])
+  @@index([userId, category, receivedAt])
+  @@index([userId, readAt])
+}
+
+/// One file that arrived on one medical email. The bytes live in the health
+/// vault as a MedicalRecord (recordId); a second copy of the same file — same
+/// sha256, same citizen — is a second row pointing at the FIRST record, so a
+/// document is stored once however many emails carry it.
+model MedicalEmailAttachment {
+  id         String   @id @default(uuid())
+  emailId    String
+  userId     String
+  filename   String
+  mimeType   String
+  sizeBytes  Int      @default(0)
+  sha256     String
+  /// The health-vault object, when this row is the one that stored it.
+  storageKey String?
+  /// The MedicalRecord this file is filed as (shared by duplicates).
+  recordId   String?
+  /// The vault reader's folder for it (record-reader RECORD_KINDS), or null.
+  documentType String?
+  /// processing | stored | analyzed | needs_review | duplicate | failed
+  status     String   @default("processing")
+  /// What went wrong, in the pipeline's own words. Never the document.
+  error      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  email MedicalEmail @relation(fields: [emailId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sha256])
+  @@index([userId, recordId])
+  @@index([emailId])
+  @@index([userId, status])
+}
+
+/// "Always medical" / "Always personal" — the citizen's own word on a sender
+/// or a domain, which outranks every other signal the classifier reads.
+model MedicalSenderRule {
+  id        String   @id @default(uuid())
+  userId    String
+  /// A whole address or a bare domain, lower-case.
+  pattern   String
+  /// address | domain
+  kind      String
+  /// medical | personal
+  rule      String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, pattern])
+  @@index([userId])
+}
+
+/// A mail arriving in Together City Mail that the classifier believes is
+/// medical. Nothing is moved: the message stays where it was addressed and the
+/// reader is offered "Move to Medical Mail" with the reason. One row per
+/// message, deleted when the citizen answers either way.
+model MedicalMailHint {
+  id            String   @id @default(uuid())
+  userId        String
+  mailMessageId String   @unique
+  category      String
+  confidence    Float
+  reason        String
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// The chronological health history, one row per thing that happened —
+/// a document received, a report read, a record confirmed. References, never
+/// copies: recordId and emailId point at the rows that hold the substance.
+model MedicalTimelineEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  recordId  String?
+  emailId   String?
+  /// document_received | record_filed | panel_read | record_confirmed | email_received
+  eventType String
+  title     String
+  /// medical-mail | upload
+  source    String
+  eventDate DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, eventDate])
+  @@index([userId, recordId])
+}
+
+/// Who did what to a medical document — the answer to "who accessed it".
+/// Actions and ids only; never a body, a value or a name off a report.
+model MedicalAuditEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  actorId   String
+  /// email_received | attachment_stored | record_linked | email_opened |
+  /// document_viewed | document_analyzed | email_moved | rule_set | deleted
+  action    String
+  /// email | attachment | record | rule | mailbox
+  subject   String
+  subjectId String
+  at        DateTime @default(now())
+
+  @@index([userId, at])
+  @@index([subject, subjectId])
+}

@@ -159,6 +159,7 @@ export function Records() {
   const all = records.data ?? [];
   const untagged = all.filter((r) => r.kind === UNSORTED);
   const held = all.filter((r) => r.heldFor);
+  const fromMail = all.filter((r) => r.source === 'medical-mail' && !r.heldFor && r.kind !== UNSORTED).slice(0, 3);
   // Folders exist because files are in them — the reader makes them, in the
   // KINDS order; a kind the page does not know goes under Other.
   const known = new Set(KINDS.map((k) => k.key));
@@ -177,8 +178,10 @@ export function Records() {
           <span style={{ minWidth: 0 }}>
             <span style={{ display: 'block', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</span>
             <span className="muted" style={{ display: 'block', fontSize: 11.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {/* The name printed on the report and the report's date — nothing else (owner, 10 Sep). */}
+              {/* The name printed on the report and the report's date — nothing else (owner, 10 Sep)
+                  — and, for a file that arrived by Medical Mail, where it came from (owner, 16 Sep). */}
               {[r.nameOnReport, r.recordedOn].filter(Boolean).join(' · ')}
+              {r.source === 'medical-mail' && <> · Source: Medical Mail{r.receivedOn ? ` · Received ${r.receivedOn}` : ''}</>}
             </span>
           </span>
         </button>
@@ -199,6 +202,9 @@ export function Records() {
         )}
         {r.hasFile && (
           <button type="button" onClick={() => void openFile(r.id)} style={{ ...linkBtn, color: 'var(--accent-ink)' }}>View</button>
+        )}
+        {r.sourceEmailId && (
+          <Link to={`/medical/mail/${r.sourceEmailId}`} className="mm-link-plain">Open email</Link>
         )}
         <button type="button" onClick={() => del.mutate(r.id)} disabled={del.isPending} style={{ ...linkBtn, color: 'var(--danger-ink)' }}>Delete</button>
       </div>
@@ -254,7 +260,7 @@ export function Records() {
             <div style={{ width: `${Math.max(1, s.usedPct)}%`, height: '100%', background: s.usedPct > 90 ? 'var(--danger-ink)' : 'var(--accent)' }} />
           </div>
           <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
-            Health {fmtBytes(s.healthBytes)} · Mail {fmtBytes(s.mailBytes)}
+            Medical documents {fmtBytes(s.healthBytes)} · Medical email {fmtBytes(s.medicalMailBytes ?? 0)} · Mail {fmtBytes(s.mailBytes)} · Available {fmtBytes(s.remainingBytes)}
           </p>
         </div>
       )}
@@ -310,6 +316,33 @@ export function Records() {
               {r.hasFile && <button type="button" onClick={() => void openFile(r.id)} style={{ ...linkBtn, color: 'var(--accent-ink)' }}>View</button>}
               <Button size="sm" variant="accent" onClick={() => confirm.mutate(r.id)} state={confirm.isPending && confirm.variables === r.id ? 'loading' : undefined} loadingLabel="Filing…">Yes, it’s mine</Button>
               <button type="button" onClick={() => del.mutate(r.id)} disabled={del.isPending} style={{ ...linkBtn, color: 'var(--danger-ink)' }}>No — delete it</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* FROM MEDICAL MAIL (owner, 16 Sep): the newest documents that arrived
+          by email, each with its document, its email and its analysis. Every
+          one is also in its folder below — this is a window, not a copy. */}
+      {!open && fromMail.length > 0 && (
+        <div className="card mm-list" style={{ marginBottom: 12 }}>
+          <div className="mm-from-head">
+            <span className="mm-eyebrow">From Medical Mail</span>
+            <span className="mm-sub">Recent medical documents</span>
+            <Link to="/medical/mail" className="mm-link">Medical Mail →</Link>
+          </div>
+          {fromMail.map((r) => (
+            <div key={r.id} className="mm-row">
+              <span className="mm-glyph-sm">{iconFor(r.kind)}</span>
+              <span className="mm-main">
+                <span className="mm-title">{r.title}</span>
+                <span className="mm-sub">Received {r.receivedOn ?? r.recordedOn} · {tagFor(r.kind)}</span>
+              </span>
+              {r.hasFile && <button type="button" className="mm-linkbtn" onClick={() => void openFile(r.id)}>View document</button>}
+              {r.sourceEmailId && <Link to={`/medical/mail/${r.sourceEmailId}`} className="mm-link-plain">Open email</Link>}
+              {r.analyzed
+                ? <Link to="/medical/blood" className="mm-link-ok">Analysis ready →</Link>
+                : <Link to="/medical/blood" className="mm-link-plain">Analyze</Link>}
             </div>
           ))}
         </div>

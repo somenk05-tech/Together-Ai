@@ -22,10 +22,13 @@ const code = (p: string) =>
 describe('the Medical rail', () => {
   const rail = HUBS.medical.items;
 
-  it('opens on the vault, then its analysis', () => {
-    expect(rail.slice(0, 2).map((i) => [i.index, i.path, i.label])).toEqual([
+  it('opens on the vault, then Medical Mail, then its analysis', () => {
+    /* Owner, 16 Sep: Medical Mail is a first-class room at 02 — the front door
+       of the vault at 01 — and the analysis moves to 03. */
+    expect(rail.slice(0, 3).map((i) => [i.index, i.path, i.label])).toEqual([
       ['01', '/medical/records', 'Health Records'],
-      ['02', '/medical/blood', 'Record Analysis'],
+      ['02', '/medical/mail', 'Medical Mail'],
+      ['03', '/medical/blood', 'Record Analysis'],
     ]);
   });
 

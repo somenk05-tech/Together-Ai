@@ -354,6 +354,26 @@ const BACKGROUND_JOB_QUERIES = [
   // made; it writes one column, `status`, and returns a count. See the
   // paragraph above about provider callbacks.
   'mail/mail.service.ts  EmailDelivery.updateMany x1',
+  // MedicalMailService.ingest() — the inbound webhook resolving WHICH citizen
+  // a medical address belongs to. There is no user yet: the address is the
+  // only thing on the wire, it is a unique random token minted by the city,
+  // and the row it returns is what supplies the userId every query after it
+  // is scoped by. A provider callback, like EmailDelivery above.
+  'medical-mail/medical-mail.service.ts  MedicalMailbox.findUnique x1',
+  // MedicalMailService.ops() — the founder's counters behind the developer
+  // lock (DevPasswordGuard + JWT): how many mailboxes, how many emails and
+  // attachments over a window, grouped by classification and by pipeline
+  // state, and how many hints. Numbers, no rows — shape 4 — and the one
+  // findMany reads a single column, the pipeline's own failure sentence,
+  // never a subject, a sender, a filename or a citizen. Scoping a system
+  // health count to one user would make it a count of nobody.
+  'medical-mail/medical-mail.service.ts  MedicalEmail.count x1',
+  'medical-mail/medical-mail.service.ts  MedicalEmail.groupBy x1',
+  'medical-mail/medical-mail.service.ts  MedicalEmailAttachment.count x1',
+  'medical-mail/medical-mail.service.ts  MedicalEmailAttachment.findMany x1',
+  'medical-mail/medical-mail.service.ts  MedicalEmailAttachment.groupBy x1',
+  'medical-mail/medical-mail.service.ts  MedicalMailHint.count x1',
+  'medical-mail/medical-mail.service.ts  MedicalMailbox.count x1',
 ].sort();
 
 const ALL_REVIEWED = [...REVIEWED_UNSCOPED, ...BACKGROUND_JOB_QUERIES].sort();

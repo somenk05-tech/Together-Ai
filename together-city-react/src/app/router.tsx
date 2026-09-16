@@ -111,6 +111,11 @@ const MedSupplementPlan = lazy(() => import('@/features/medical/pages/Supplement
 const MedRecords = lazy(() => import('@/features/medical/pages/Records').then((m) => ({ default: m.Records })));
 const MedConsults = lazy(() => import('@/features/medical/pages/Consults').then((m) => ({ default: m.Consults })));
 const MedConsent = lazy(() => import('@/features/medical/pages/Consent').then((m) => ({ default: m.Consent })));
+const MedMail = lazy(() => import('@/features/medical/mail/MedicalMail').then((m) => ({ default: m.MedicalMail })));
+const MedMailMessage = lazy(() => import('@/features/medical/mail/MedicalMailMessage').then((m) => ({ default: m.MedicalMailMessage })));
+const MedMailSettings = lazy(() => import('@/features/medical/mail/MedicalMailSettings').then((m) => ({ default: m.MedicalMailSettings })));
+const MedMailTimeline = lazy(() => import('@/features/medical/mail/MedicalMailTimeline').then((m) => ({ default: m.MedicalMailTimeline })));
+const MedMailOps = lazy(() => import('@/features/medical/mail/MedicalMailOps').then((m) => ({ default: m.MedicalMailOps })));
 const BeautyProfile = lazy(() => import('@/features/beauty/pages/Profile').then((m) => ({ default: m.Profile })));
 const BeautyMarket = lazy(() => import('@/features/beauty/pages/Market').then((m) => ({ default: m.Market })));
 const BeautyOrders = lazy(() => import('@/features/beauty/pages/Orders').then((m) => ({ default: m.Orders })));
@@ -383,6 +388,7 @@ const ROUTE_BLOCKS: RouteObject[] = [
       // existing is not access, and the API refuses every request that does not
       // carry the password regardless of what this app renders.
       { path: '/dev', element: <RequireAuth>{wrap(<DevPage />)}</RequireAuth> },
+      { path: '/dev/medical-mail', element: <RequireAuth>{wrap(<MedMailOps />)}</RequireAuth> },
       { path: '/profile', element: <RequireAuth>{wrap(<Profile />)}</RequireAuth> },
       { path: '/profile/master', element: <MasterProfileMoved /> },
       { path: '/profile/avatar', element: <RequireAuth>{wrap(<Avatars />)}</RequireAuth> },
@@ -531,6 +537,11 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/medical/records', element: <RequireAuth>{wrap(<MedRecords />)}</RequireAuth> },
       { path: '/medical/consults', element: <RequireAuth>{wrap(<MedConsults />)}</RequireAuth> },
       { path: '/medical/consent', element: <RequireAuth>{wrap(<MedConsent />)}</RequireAuth> },
+      // Medical Mail (owner, 16 Sep): the inbox, one message, the timeline, the settings.
+      { path: '/medical/mail', element: <RequireAuth>{wrap(<MedMail />)}</RequireAuth> },
+      { path: '/medical/mail/settings', element: <RequireAuth>{wrap(<MedMailSettings />)}</RequireAuth> },
+      { path: '/medical/mail/timeline', element: <RequireAuth>{wrap(<MedMailTimeline />)}</RequireAuth> },
+      { path: '/medical/mail/:id', element: <RequireAuth>{wrap(<MedMailMessage />)}</RequireAuth> },
       { path: '/medical/tests', element: <RequireAuth>{wrap(<MedTests />)}</RequireAuth> },
       { path: '/medical/booking', element: <Navigate to="/medical/consults" replace /> },
       { path: '/medical/connections', element: <RequireAuth>{wrap(<MedConnections />)}</RequireAuth> },

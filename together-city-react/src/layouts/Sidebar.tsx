@@ -6,6 +6,8 @@ import { MailProjectsRail, MailProjectSideRail } from '@/features/mail/ProjectRa
 import { useMailMessage, useMailProjects } from '@/features/mail/api';
 import { DrawerScrim, useSwipeClose } from './drawerDismiss';
 import { useCitySwitches } from '@/hooks/useCityDesign';
+import { useAuthed } from '@/store/useAuthed';
+import { useMedicalMailBadge, useMedicalMailLive } from '@/features/medical/mail/api';
 
 const PersonIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -73,6 +75,16 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
    */
   const switches = useCitySwitches();
   const items = hub.items.filter((it) => switches.pageShown(it.path));
+  /* MEDICAL MAIL'S BADGE (owner, 16 Sep): unread medical messages, on the
+     Medical Hub's rail and nowhere else — a number on a door inside the hub,
+     never a subject in a header every page shares. Read only while standing
+     in the hub and signed in; refreshed the moment a medical notification
+     lands on the bell's socket, so no polling. */
+  const authed = useAuthed();
+  const inMedical = hub.key === 'medical' && authed;
+  const medicalBadge = useMedicalMailBadge(inMedical);
+  useMedicalMailLive(inMedical);
+  const unreadMedical = inMedical ? medicalBadge.data?.unread ?? 0 : 0;
   const open = useUiStore((s) => s.sidebarOpen);
   const toggle = useUiStore((s) => s.toggleSidebar);
   const close = () => toggle(false);
@@ -132,7 +144,9 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
               <NavLink key={it.path} to={it.path} onClick={() => toggle(false)}
                 className={({ isActive }) => (isActive ? 'active' : undefined)}>
                 <span className="n">{it.index}</span>
-                <span><span className="l">{it.label}</span><span className="s">{it.sub}</span></span>
+                <span><span className="l">{it.label}{it.path === '/medical/mail' && unreadMedical > 0 && (
+                  <span className="mm-badge" aria-label={`${unreadMedical} unread`}>{unreadMedical}</span>
+                )}</span><span className="s">{it.sub}</span></span>
               </NavLink>
             ))}
           </nav>

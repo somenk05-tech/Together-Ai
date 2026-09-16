@@ -202,6 +202,14 @@ const UNPROBED = [
   // (daybook.service.ts:207, 284, 292). Giving those routes a create that
   // returns an id would make this hub probeable, and is worth doing.
   'daybook',
+  // Medical Mail (16 Sep) takes ids for its own emails, attachments and
+  // rules, and none can be created from a bare account: an email exists only
+  // once the inbound webhook has delivered one from the provider, which this
+  // harness has no key for. Every write names the owner in the WHERE —
+  // updateMany / deleteMany({ id, userId }) throughout medical-mail.service.ts
+  // — and the reads are findFirst({ id, userId }); the-front-door-and-the-
+  // archive.spec.ts drives the pipeline against an in-memory table set.
+  'medical/mail',
   // Operate on the caller's own record only — there is no other citizen's id to pass.
   'auth', 'users', 'profile', 'privacy', 'notifications', 'push', 'health', 'hub',
   'astrology', 'financial', 'fitness', 'ai', 'admin', '',
