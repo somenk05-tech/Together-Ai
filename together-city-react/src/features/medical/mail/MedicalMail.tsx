@@ -112,7 +112,9 @@ export function MedicalMail() {
         {!list.isLoading && !list.isError && items.length === 0 && (
           <div className="mm-empty">
             <div className="mm-glyph">✉</div>
-            <p>{q ? 'Nothing matches that search' : folder === 'inbox' ? 'No medical emails yet' : `Nothing in ${FOLDERS.find((f) => f.key === folder)?.label}`}</p>
+            <p>{q ? 'Nothing matches that search'
+              : chip.key !== 'all' ? `Nothing under ${chip.label}${folder === 'inbox' ? '' : ` in ${FOLDERS.find((f) => f.key === folder)?.label}`}`
+              : folder === 'inbox' ? 'No medical emails yet' : `Nothing in ${FOLDERS.find((f) => f.key === folder)?.label}`}</p>
             {plain && <p className="mm-hint">Share your medical address with a doctor, lab or hospital — the first report they send lands here and files itself.</p>}
           </div>
         )}
