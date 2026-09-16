@@ -46,4 +46,13 @@ clearChunkReloadFlag();
 
 // Every opening of the city is counted once per tab, for the Investor page's
 // live counter (owner, 16 Sep). Fire and forget: see api/visits.api.ts.
-countThisVisit();
+// AFTER the first paint and the first real requests, not beside them: the
+// counter shared the API connection with the calls that draw the page, and
+// a beacon nobody is waiting for should not queue in front of them.
+const idle = (fn: () => void): void => {
+  // Safari has no requestIdleCallback; read it off `window` as an optional so
+  // the fallback branch keeps its type.
+  const ric = (window as { requestIdleCallback?: (cb: () => void, o: { timeout: number }) => number }).requestIdleCallback;
+  if (ric) ric(fn, { timeout: 4000 }); else window.setTimeout(fn, 2500);
+};
+idle(countThisVisit);

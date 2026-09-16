@@ -75,7 +75,7 @@ function resolveSocketUrl(): string {
   const api = import.meta.env.VITE_API_URL;
   if (api && /^https?:\/\//.test(api)) return api.replace(/\/api\/?$/, '').replace(/\/+$/, '');
   // Fall back to the live backend origin (never localhost in a production bundle).
-  return import.meta.env.DEV ? 'http://localhost:3000' : 'https://together-ai-production.up.railway.app';
+  return import.meta.env.DEV ? 'http://localhost:3000' : 'https://api.togethercity.app';
 }
 
 const SOCKET_URL: string = resolveSocketUrl();

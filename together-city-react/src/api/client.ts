@@ -1,11 +1,20 @@
 import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
-import { useAuthStore } from '@/store/auth.store';
+import { useAuthStore, isTokenExpired } from '@/store/auth.store';
 
 // Prefer the configured API URL; fall back to the live backend (never localhost
 // in a production bundle) so a missing env var can't silently break the app.
+/**
+ * THE API IS SAME-SITE (16 Sep). `api.togethercity.app` has been a domain on
+ * the Railway service all along; the bundle kept talking to the
+ * `up.railway.app` host instead. Two things hung on that: the refresh cookie
+ * was cross-site (so Safari refused it and the localStorage fallback stayed),
+ * and the browser could not preconnect to a host it learned about only after
+ * the JS parsed. On the custom host the cookie is first-party in every
+ * browser and index.html opens the connection before the script arrives.
+ */
 const API_URL: string =
   import.meta.env.VITE_API_URL ??
-  (import.meta.env.DEV ? 'http://localhost:3000/api' : 'https://together-ai-production.up.railway.app/api');
+  (import.meta.env.DEV ? 'http://localhost:3000/api' : 'https://api.togethercity.app/api');
 
 /** Shared axios instance — the ONLY place HTTP is issued. Components never call fetch(). */
 export const http: AxiosInstance = axios.create({
@@ -53,15 +62,33 @@ export function isServerUnreachable(err: unknown): boolean {
 export const SERVER_UNREACHABLE_MSG =
   "Can't reach the Together City server right now — please check your connection and try again in a moment.";
 
-http.interceptors.request.use((cfg: InternalAxiosRequestConfig) => {
-  const token = useAuthStore.getState().tokens?.accessToken;
-  if (token) cfg.headers.Authorization = `Bearer ${token}`;
-  return cfg;
-});
-
 // Never try to refresh on the auth endpoints themselves (a 401 there IS the
 // signal that the session is dead) — that would loop.
 const isAuthEndpoint = (url?: string) => !!url && /\/auth\/(refresh|login|register|logout)/.test(url);
+
+/**
+ * A DEAD TOKEN IS REFRESHED BEFORE THE REQUEST, NOT AFTER IT (16 Sep).
+ *
+ * Measured on the live site: a signed-in citizen opening the home page fired
+ * the boot burst (master profile, notifications, unread count, ringing call)
+ * with a fifteen-minute token that had expired, every one of them 401'd, the
+ * response interceptor below refreshed once, and the whole burst went out a
+ * second time — twenty-four requests and three serial round trips to Railway
+ * for a page that needed one refresh and eight. The hooks behind those calls
+ * mount before `hydrate()` has decided anything, so the store cannot gate
+ * them; the request door can. Expired (or absent, on a cookie session) →
+ * await the single-flight `refresh()` first, then send once with the new
+ * token. The 401 path stays for the token that dies mid-flight.
+ */
+http.interceptors.request.use(async (cfg: InternalAxiosRequestConfig) => {
+  const st = useAuthStore.getState();
+  let token = st.tokens?.accessToken;
+  if (!isAuthEndpoint(cfg.url) && ((token && isTokenExpired(token)) || (!token && st.cookieSession))) {
+    token = (await st.refresh()) ?? undefined;
+  }
+  if (token) cfg.headers.Authorization = `Bearer ${token}`;
+  return cfg;
+});
 
 http.interceptors.response.use(
   (res) => res,
