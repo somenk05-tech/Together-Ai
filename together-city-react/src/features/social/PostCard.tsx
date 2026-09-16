@@ -14,7 +14,7 @@ import {
   useAddComment, useComments, useDeleteComment, useDeletePost, useUpdatePost, useRepost, useSetHidden, useToggleBookmark, useToggleLike,
   POST_TEXT_MAX, type Post, type PostComment, type PostMedia,
 } from './api';
-import { RichText } from './RichText';
+import { RichText, TaggedPeople } from './RichText';
 
 /**
  * The date as the owner's card reference prints it: `26-nov-2016`, lowercase.
@@ -609,7 +609,7 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
             {(post.feeling || aud || (post.tagged?.length ?? 0) > 0) && (
               <div className="sl-post-meta">
                 {post.feeling && <span>feeling {post.feeling}</span>}
-                {(post.tagged?.length ?? 0) > 0 && <span>with {post.tagged!.map((t) => t.name).join(', ')}</span>}
+                {(post.tagged?.length ?? 0) > 0 && <TaggedPeople people={post.tagged!} />}
                 {aud && <span title={post.audience} style={{ display: 'inline-flex' }}><Icon name={aud} size={13} /></span>}
               </div>
             )}
