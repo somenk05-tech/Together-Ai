@@ -5,15 +5,20 @@
 #   main    -> togethercity.app      (the live site, the hubs chosen below)
 #
 # Nothing reaches `main` except through this workflow. The button on the
-# developer site's /dev page runs it (release.service.ts); it can also be run
-# by hand from the Actions tab. It:
+# developer site runs it (release.service.ts); it can also be run by hand from
+# the Actions tab. It:
 #   1. writes the chosen hubs into live-hubs.ts on develop,
-#   2. merges develop into main in this runner,
-#   3. proves the MERGED tree applies its migrations to an empty database,
+#   2. builds the release on top of main - everything on develop, or only the
+#      changes named in `commits` (owner, 16 Sep: "give an option to select
+#      what can go live now"),
+#   3. proves that tree applies its migrations to an empty database,
 #      type-checks and builds both packages from a clean checkout,
 #   4. and only then pushes develop and main together (atomic).
 # A failure at any step pushes nothing, and the live site keeps what it had.
 # Vercel and Railway deploy main on push, as they always have.
+#
+# Steps 1, 2 and 4 are release/go-live.sh, read from main - so how a release
+# is made can change without editing this file.
 name: Go live
 run-name: "Go live - ${{ inputs.hubs }}"
 
@@ -27,6 +32,11 @@ on:
       reason:
         description: "Why - a sentence for the history"
         required: true
+        type: string
+      commits:
+        description: "Only these changes (commit ids on develop, space-separated). Empty sends everything."
+        required: false
+        default: ''
         type: string
 
 permissions:
@@ -59,6 +69,7 @@ jobs:
     env:
       HUBS: ${{ inputs.hubs }}
       REASON: ${{ inputs.reason }}
+      COMMITS: ${{ inputs.commits }}
       DATABASE_URL: postgres://city:city@localhost:5432/together_city_release
 
     steps:
@@ -67,49 +78,14 @@ jobs:
           ref: develop
           fetch-depth: 0
 
-      - name: Write the live hubs onto develop
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          node - <<'JS'
-          const fs = require('fs');
-          const allowed = ['personalize', 'ecommerce', 'services', 'social', 'astrology', 'babycare',
-            'beauty', 'dating', 'entertainment', 'family', 'financial', 'fitness', 'jobs', 'medical',
-            'nutrition', 'pets', 'realestate', 'travel'];
-          const asked = (process.env.HUBS || '').split(',').map((s) => s.trim()).filter(Boolean);
-          const unknown = asked.filter((k) => !allowed.includes(k));
-          if (unknown.length) { console.error(`No such hub: ${unknown.join(', ')}`); process.exit(1); }
-          const hubs = allowed.filter((k) => asked.includes(k));
-          if (!hubs.length) { console.error('Choose at least one hub.'); process.exit(1); }
-          const file = 'together-city-chat/src/release/live-hubs.ts';
-          const src = fs.readFileSync(file, 'utf8');
-          const at = src.indexOf('export const LIVE_HUBS');
-          if (at < 0) { console.error(`${file} has lost its LIVE_HUBS export`); process.exit(1); }
-          fs.writeFileSync(file, src.slice(0, at)
-            + 'export const LIVE_HUBS: readonly string[] = [\n'
-            + hubs.map((k) => `  '${k}',\n`).join('')
-            + '];\n');
-          console.log(`Live hubs: ${hubs.join(', ')}`);
-          JS
-          git add together-city-chat/src/release/live-hubs.ts
-          if git diff --cached --quiet; then
-            echo "Live hubs unchanged."
-          else
-            git commit -q -m "release: the live site shows ${HUBS}"
-          fi
-          echo "DEV_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-
-      - name: Merge develop into main
-        run: |
-          git checkout -q -B release origin/main
-          printf 'go live: %s\n\nHubs: %s\n' "$REASON" "$HUBS" > "$RUNNER_TEMP/msg"
-          git merge --no-ff --no-edit -F "$RUNNER_TEMP/msg" "$DEV_SHA" \
-            || { echo "::error::develop does not merge cleanly into main. Nothing was released."; exit 1; }
-          git log --oneline -1
-
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Write the hubs onto develop, then build the release on main
+        run: |
+          git show origin/main:release/go-live.sh > "$RUNNER_TEMP/go-live.sh"
+          bash "$RUNNER_TEMP/go-live.sh" prepare
 
       - name: API - migrations apply, types, build
         working-directory: together-city-chat
@@ -127,8 +103,4 @@ jobs:
           npm run build -- --base=/
 
       - name: Move main (and develop) together
-        run: |
-          git push --atomic origin "$DEV_SHA:refs/heads/develop" HEAD:main
-          echo "### Live" >> "$GITHUB_STEP_SUMMARY"
-          echo "main is now \`$(git rev-parse --short HEAD)\`; Vercel and Railway deploy it now." >> "$GITHUB_STEP_SUMMARY"
-          echo "Hubs on the live site: ${HUBS}" >> "$GITHUB_STEP_SUMMARY"
+        run: bash "$RUNNER_TEMP/go-live.sh" push

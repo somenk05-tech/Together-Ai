@@ -116,4 +116,18 @@ bash land-<name>.sh && git push
 
 Landing scripts written from now on land on `develop` (`CLAUDE.md` says so). Look at the change on `dev.togethercity.app`, then press **Go live** when it should be public.
 
-**An urgent fix** goes the same way: land it on `develop`, press Go live. If `develop` holds unfinished work you do not want public yet, land the fix, switch the unfinished hub to "Developer only", and press.
+**An urgent fix** goes the same way: land it on `develop`, press Go live. If `develop` holds unfinished work you do not want public yet, untick everything except the fix and send only that (below), or switch the unfinished hub to "Developer only" and send everything.
+
+### Choosing what goes live
+
+The Go live button (corner of every developer page, and on `/dev`) lists every change waiting on `develop`: its title, where it lands ("Beauty", "Whole site: look and shared parts", "Database change"), and what it changes behind **What it changes**. All are ticked to start with.
+
+- **Everything ticked** sends all of `develop`; `main` becomes exactly the developer copy.
+- **Some unticked** sends only the ticked changes, oldest first, on top of what is live. Each keeps a "cherry picked from" line, so the list stops showing it. The unticked ones stay waiting.
+- A ticked change that touches the same files as an unticked older one is flagged in red. If it really needs that one, the release stops before anything goes live ("builds on a change you did not choose") — tick both, or send everything.
+
+The steps are in `release/go-live.sh`, which the workflow reads from `main`. Changing how releases work is an ordinary change: land it on `develop`, send it live, and the next press uses it. Only a change to `.github/workflows/` has to be pushed to `main` by you (GitHub will not let the release push one).
+
+### Has it gone live?
+
+After a press the button follows the release: **Building…** (GitHub is building it; nothing has changed yet), **Deploying…** (main has moved; Vercel and Railway are deploying), then **Live now**, with each of Website (Vercel) and Server (Railway) marked deployed. **Release stopped** means either the build stopped (nothing changed on the live site) or a deploy failed — the panel says which and links to the reason. This is what Vercel and Railway report to GitHub under the repository's Deployments.
