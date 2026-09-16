@@ -12,6 +12,7 @@ import { HeartIcon, CommentIcon, SendIcon, SaveIcon, ShareIcon } from './marks';
 import {
   useAddComment, useComments, useToggleBookmark, useToggleLike, useRepost, type Post,
 } from './api';
+import { RichText } from './RichText';
 
 const ChevronIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -265,7 +266,7 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
             <span className="sl-reel-handle">@{post.author.handle}</span>
           </button>
           <div>
-            {post.text && <p className="sl-reel-note">{post.text}</p>}
+            {post.text && <p className="sl-reel-note"><RichText text={post.text} /></p>}
             {post.repostedBy && <div className="sl-reel-meta">Shared by {post.repostedBy.name}</div>}
             {/* The track and the sound toggle share one line at the caption's
                 right edge. The toggle is HERE and not on the picture because
@@ -310,7 +311,7 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
               schema to read out, so the honest alt is who it is from — the
               same wording the feed card uses. */}
           {photo && <img className="sl-reel-media" src={photo.url} alt={`Photo shared by ${post.author.name}`} loading="lazy" />}
-          {!video && !photo && <p className="sl-reel-said">{post.text}</p>}
+          {!video && !photo && <p className="sl-reel-said"><RichText text={post.text} /></p>}
           {/* Gated on `near` like the video beside it. Rendered unconditionally,
             forty reels with music opened forty audio connections at once —
             precisely the problem the note on the video's src describes. */}

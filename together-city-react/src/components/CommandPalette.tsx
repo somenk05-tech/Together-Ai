@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DESTINATIONS, type Dest } from '@/nav/registry';
 import { useRecentStore } from '@/store/recent.store';
@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { http } from '@/api/client';
 import { Icon } from '@/components/ui/Icon';
 import { useCitySwitches } from '@/hooks/useCityDesign';
+import { normaliseTag, tagPath } from '@/features/social/captionTags';
 
 /** Lightweight subsequence + token score — good enough for a nav palette. */
 function score(d: Dest, q: string): number {
@@ -25,6 +26,15 @@ function score(d: Dest, q: string): number {
 }
 
 const KIND_LABEL: Record<Dest['kind'], string> = { hub: 'Hub', page: 'Page', account: 'Account', action: 'Quick action' };
+
+/* The server-backed sections share one row shape; written once. */
+const hitHead: CSSProperties = { fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', padding: '10px 10px 4px' };
+const hitRow: CSSProperties = { display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', border: 'none',
+  borderRadius: 'var(--r-1)', padding: '10px 12px', cursor: 'pointer', fontFamily: 'inherit', background: 'transparent' };
+const hitIcon: CSSProperties = { width: 30, height: 30, borderRadius: 8, background: 'var(--paper)', display: 'grid', placeItems: 'center', flexShrink: 0 };
+const hitGlyph: CSSProperties = { color: 'var(--accent-ink)' };
+const hitTitle: CSSProperties = { display: 'block', fontSize: 13.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+const hitSub: CSSProperties = { display: 'block', fontSize: 12 };
 
 /**
  * Global command palette (⌘K / Ctrl+K) — the super-app's "jump to anything".
@@ -61,6 +71,29 @@ export function CommandPalette() {
    * and already returns only approved listings, so there is nothing to filter
    * here and no second search implementation to keep in step with the first.
    */
+  /* A TAG IS A DOOR (owner, 16 Sep). "#citylife" — or any word that is a
+     tag the city uses — offers the tag's page. Counted over public posts
+     only, server-side; the typed tag itself is always offered after a '#'. */
+  const [tagHits, setTagHits] = useState<Array<{ tag: string; posts: number | null }>>([]);
+  useEffect(() => {
+    const kw = q.trim();
+    const typed = kw.startsWith('#') ? normaliseTag(kw) : null;
+    const prefix = kw.replace(/^#/, '');
+    if (!open || !authed || prefix.length < 2 || !normaliseTag(prefix)) { setTagHits([]); return; }
+    const t = setTimeout(() => {
+      http.get<{ items?: Array<{ tag?: string; posts?: number }> }>('/social/tags', { params: { q: prefix, limit: 4 } })
+        .then((r) => {
+          const rows = (Array.isArray(r.data?.items) ? r.data.items : [])
+            .map((x) => ({ tag: String(x.tag ?? ''), posts: typeof x.posts === 'number' ? x.posts : null }))
+            .filter((x) => x.tag);
+          const own = typed && !rows.some((x) => x.tag === typed) ? [{ tag: typed, posts: null }] : [];
+          setTagHits([...own, ...rows].slice(0, 4));
+        })
+        .catch(() => setTagHits(typed ? [{ tag: typed, posts: null }] : []));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [q, open, authed]);
+
   const [bizHits, setBizHits] = useState<Array<{ id: string; businessName: string; categoryLabel: string; city: string }>>([]);
   useEffect(() => {
     const kw = q.trim();
@@ -223,21 +256,37 @@ export function CommandPalette() {
             </button>
           ))}
 
+          {tagHits.length > 0 && (
+            <>
+              <div className="muted" style={hitHead}>Tags on Together TV</div>
+              {tagHits.map((t) => (
+                <button key={t.tag} type="button" onClick={() => { setOpen(false); nav(tagPath(t.tag)); }} style={hitRow}>
+                  <span style={hitIcon}><Icon name="hash" size={16} style={hitGlyph} /></span>
+                  <span className="flex-min">
+                    <span style={hitTitle}>#{t.tag}</span>
+                    <span className="muted" style={hitSub}>
+                      {t.posts === null ? 'Open this tag' : `${t.posts} public ${t.posts === 1 ? 'post' : 'posts'} this month`}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </>
+          )}
+
           {bizHits.length > 0 && (
             <>
-              <div className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', padding: '10px 10px 4px' }}>
+              <div className="muted" style={hitHead}>
                 Local businesses
               </div>
               {bizHits.map((b) => (
                 <button key={b.id} type="button" onClick={() => { setOpen(false); nav('/services/browse'); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', border: 'none',
-                    borderRadius: 'var(--r-1)', padding: '10px 12px', cursor: 'pointer', fontFamily: 'inherit', background: 'transparent' }}>
-                  <span style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--paper)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                    <Icon name="connection" size={16} style={{ color: 'var(--accent-ink)' }} />
+                  style={hitRow}>
+                  <span style={hitIcon}>
+                    <Icon name="connection" size={16} style={hitGlyph} />
                   </span>
                   <span className="flex-min">
-                    <span style={{ display: 'block', fontSize: 13.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.businessName}</span>
-                    <span className="muted" style={{ display: 'block', fontSize: 12 }}>{b.categoryLabel}{b.city ? ` · ${b.city}` : ''}</span>
+                    <span style={hitTitle}>{b.businessName}</span>
+                    <span className="muted" style={hitSub}>{b.categoryLabel}{b.city ? ` · ${b.city}` : ''}</span>
                   </span>
                 </button>
               ))}
@@ -246,19 +295,18 @@ export function CommandPalette() {
 
           {msgHits.length > 0 && (
             <>
-              <div className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', padding: '10px 10px 4px' }}>
+              <div className="muted" style={hitHead}>
                 In your messages
               </div>
               {msgHits.map((m) => (
                 <button key={m.id} type="button" onClick={() => { setOpen(false); nav(`/chats?c=${m.conversationId}`); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', border: 'none',
-                    borderRadius: 'var(--r-1)', padding: '10px 12px', cursor: 'pointer', fontFamily: 'inherit', background: 'transparent' }}>
-                  <span style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--paper)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                    <Icon name="comment" size={16} style={{ color: 'var(--accent-ink)' }} />
+                  style={hitRow}>
+                  <span style={hitIcon}>
+                    <Icon name="comment" size={16} style={hitGlyph} />
                   </span>
                   <span className="flex-min">
-                    <span style={{ display: 'block', fontSize: 13.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.text ?? 'Attachment'}</span>
-                    {m.senderName && <span className="muted" style={{ display: 'block', fontSize: 12 }}>{m.senderName}</span>}
+                    <span style={hitTitle}>{m.text ?? 'Attachment'}</span>
+                    {m.senderName && <span className="muted" style={hitSub}>{m.senderName}</span>}
                   </span>
                 </button>
               ))}

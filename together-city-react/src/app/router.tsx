@@ -160,6 +160,8 @@ const SocProfile = lazy(() => import('@/features/social/pages/Profile').then((m)
 const SocPublicProfile = lazy(() => import('@/features/social/pages/Profile').then((m) => ({ default: m.PublicProfilePage })));
 const SocSaved = lazy(() => import('@/features/social/pages/Saved').then((m) => ({ default: m.SocialSaved })));
 const SocPost = lazy(() => import('@/features/social/pages/PostPage').then((m) => ({ default: m.PostPage })));
+const SocTags = lazy(() => import('@/features/social/pages/Tags').then((m) => ({ default: m.TagsPage })));
+const SocTag = lazy(() => import('@/features/social/pages/Tags').then((m) => ({ default: m.TagPage })));
 const SocImages = lazy(() => import('@/features/social/pages/CityImages').then((m) => ({ default: m.CityImages })));
 const SocVideos = lazy(() => import('@/features/social/pages/CityVideos').then((m) => ({ default: m.CityVideos })));
 const SocReader = lazy(() => import('@/features/social/pages/ReaderPage').then((m) => ({ default: m.ReaderPage })));
@@ -470,6 +472,9 @@ const ROUTE_BLOCKS: RouteObject[] = [
       /* The destination of every shared card's link. It used to be /social/feed. */
       { path: '/social/p/:id', element: <RequireAuth>{wrap(<SocPost />)}</RequireAuth> },
       { path: '/social/saved', element: <RequireAuth>{wrap(<SocSaved />)}</RequireAuth> },
+      /* A TAG IS A DOOR (owner, 16 Sep): every #tag in a caption links here. */
+      { path: '/social/tags', element: <RequireAuth>{wrap(<SocTags />)}</RequireAuth> },
+      { path: '/social/tags/:tag', element: <RequireAuth>{wrap(<SocTag />)}</RequireAuth> },
       /* The journal moved out with Personal (15 Aug). It rendered here because
          the Social Life menu listed it — a private journal on the social
          shelf, which was always the wrong shelf. It is a city-level page now,

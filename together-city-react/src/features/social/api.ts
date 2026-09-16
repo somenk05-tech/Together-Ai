@@ -69,6 +69,8 @@ export interface Post {
   hidden?: boolean;
 }
 export interface FeedPage { items: Post[]; nextCursor: string | null }
+/** A #tag and how many public posts carried it this month (owner, 16 Sep). */
+export interface TagCount { tag: string; posts: number }
 export interface PostComment { id: string; postId: string; text: string; author: PostAuthor; createdAt: string }
 
 /** One page of a cursor-paginated list. Same shape the feed already returns. */
@@ -110,8 +112,11 @@ export interface CreatePostInput {
 }
 
 export const socialApi = {
-  feed: (cursor?: string, filter?: string) =>
-    api.get<FeedPage>('/social/feed', { params: { cursor, limit: 20, ...(filter ? { filter } : {}) } }).then((r) => r.data),
+  feed: (cursor?: string, filter?: string, tag?: string) =>
+    api.get<FeedPage>('/social/feed', { params: { cursor, limit: 20, ...(filter ? { filter } : {}), ...(tag ? { tag } : {}) } }).then((r) => r.data),
+  /** The #tags in use this month over public posts, most used first; `q` is a prefix. */
+  tags: (q?: string, limit = 12) =>
+    api.get<{ items: TagCount[] }>('/social/tags', { params: { ...(q ? { q } : {}), limit } }).then((r) => r.data.items ?? []),
   followers: (cursor?: string) =>
     api.get<Page<FollowPerson> | FollowPerson[]>('/social/followers', { params: { cursor, limit: 30 } }).then((r) => asPage(r.data)),
   following: (cursor?: string) =>
@@ -209,6 +214,36 @@ export function useFeed(filter = 'foryou') {
     maxPages: 6,
   });
 }
+/**
+ * A TAG'S PAGE (owner, 16 Sep): every post carrying the tag, newest first,
+ * under the feed's gates. Kept under the feed's key so a like, an edit or a
+ * delete made anywhere patches it too.
+ */
+export function useTagFeed(tag: string | null) {
+  return useInfiniteQuery({
+    queryKey: [...FEED_KEY, 'tag', tag ?? ''],
+    queryFn: ({ pageParam }) => socialApi.feed(pageParam, undefined, tag ?? undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    enabled: Boolean(tag),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    maxPages: 6,
+  });
+}
+
+/** The tags the city is using, or those starting with `q`. */
+export function usePopularTags(q = '', enabled = true) {
+  const prefix = q.trim().replace(/^#/, '');
+  return useQuery({
+    queryKey: ['social', 'tags', prefix.toLowerCase()],
+    queryFn: () => socialApi.tags(prefix || undefined),
+    enabled,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+}
+
 /** Cursor-paginated: a citizen with ten thousand followers used to load all of
  *  them to render the first screenful. */
 export function useFollowers() {

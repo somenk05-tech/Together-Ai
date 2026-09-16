@@ -9,6 +9,7 @@ import { SendIcon } from './marks';
 import { ShareModal } from '@/features/chat/share';
 import type { Post } from './api';
 import { channelsOf, tuneIndex } from './city-tv';
+import { RichText } from './RichText';
 
 /**
  * TOGETHER CITY TV — owner, 5 Sep: "create Together City TV instead of the
@@ -408,7 +409,7 @@ export function CityTV({ items, startAt = 0, hasNextPage, fetchNextPage, onOpenC
         <div className="tv-progress" aria-hidden><span /></div>
         {(caption || post.placeName) && (
           <div className="tv-caption">
-            {caption && <p>{caption}</p>}
+            {caption && <p><RichText text={caption} /></p>}
             {post.placeName && <p className="tv-caption-p"><Icon name="place" size={13} /> {post.placeName}</p>}
           </div>
         )}

@@ -129,8 +129,19 @@ export const FeedQuerySchema = z.object({
      the correct newest-first order across both kinds, where merging two lenses
      in the client would have been two cursors interleaved by hand. */
   filter: z.enum(['foryou', 'friends', 'following', 'photos', 'videos', 'thoughts', 'stills']).optional(),
+  /* A TAG IS A DOOR (owner, 16 Sep): every post carrying this #tag, city-wide
+     under the same audience gates as For You. Written with or without the '#';
+     social/tags.ts decides what a tag is. */
+  tag: z.string().trim().min(1).max(51).optional(),
 });
 export type FeedQueryDto = z.infer<typeof FeedQuerySchema>;
+
+/** The tags in use this month, for the composer, the search and the tags page. */
+export const TagQuerySchema = z.object({
+  q: z.string().trim().max(51).optional(),
+  limit: z.coerce.number().int().min(1).max(30).default(12),
+});
+export type TagQueryDto = z.infer<typeof TagQuerySchema>;
 
 /**
  * ── THE THREE LISTS THAT READ EVERYTHING ────────────────────────────────────
