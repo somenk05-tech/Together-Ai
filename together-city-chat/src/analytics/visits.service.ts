@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import type { VisitOrigin } from './visit-origin';
 import { timingSafeEqualStr } from '../mail/mail-inbound';
 
 /**
@@ -77,9 +78,12 @@ export class VisitsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** One visit. Idempotent per key only in the sense that it adds one. */
-  async record(key: string): Promise<void> {
+  async record(key: string, origin: VisitOrigin | null = null): Promise<void> {
+    const o = origin;
     await this.prisma.$executeRaw`
-      INSERT INTO "SiteVisitor" ("id") VALUES (${key})
+      INSERT INTO "SiteVisitor" ("id", "source", "utmSource", "medium", "campaign", "content", "term", "referrer", "device")
+      VALUES (${key}, ${o?.source ?? null}, ${o?.utmSource ?? null}, ${o?.medium ?? null}, ${o?.campaign ?? null},
+              ${o?.content ?? null}, ${o?.term ?? null}, ${o?.referrer ?? null}, ${o?.device ?? null})
       ON CONFLICT ("id") DO UPDATE
         SET "visits" = "SiteVisitor"."visits" + 1, "lastAt" = CURRENT_TIMESTAMP`;
   }

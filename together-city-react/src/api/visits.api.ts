@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { useQuery } from '@tanstack/react-query';
 import { http } from './client';
+import { firstTouch } from './origin';
 import { apiGet } from './http';
 
 /**
@@ -38,7 +39,10 @@ export function countThisVisit(): void {
   const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? stored(() => localStorage, VISITOR_KEY, () => crypto.randomUUID())
     : null;
-  http.post('/visits', { id }).catch(() => undefined);
+  // Where the visit came from travels with it (owner, 16 Sep); see origin.ts.
+  const t = firstTouch();
+  http.post('/visits', { id, ...(t ? { src: t.src, med: t.med, cmp: t.cmp, cnt: t.cnt, trm: t.trm, ref: t.ref } : {}) })
+    .catch(() => undefined);
 }
 
 const VisitStatsSchema = z.object({
@@ -64,4 +68,9 @@ export function useVisitStats(password: string | null) {
     refetchIntervalInBackground: false,
     staleTime: 0,
   });
+}
+
+/** This browser's visitor id, if it has one (read only). */
+export function visitorId(): string | null {
+  return stored(() => localStorage, VISITOR_KEY);
 }

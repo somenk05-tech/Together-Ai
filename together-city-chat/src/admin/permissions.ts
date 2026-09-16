@@ -55,6 +55,7 @@ export const PERMISSIONS = {
   'cms.write': 'Edit help pages, policies and announcements',
   'notify.send': 'Send a push, email or announcement',
 
+  'analytics.read': 'Read the product and investor analytics (aggregates only)',
   'audit.read': 'Read the audit log',
   'admin.grant': 'Give or take away an admin role',
 } as const;
@@ -95,6 +96,9 @@ export const ROLES = {
   moderator: ['moderation.read', 'moderation.act', 'business.read', 'users.read'],
   engineering: ['ops.health', 'ops.flags', 'ops.deploy', 'audit.read'],
   business_success: ['business.read', 'business.approve', 'business.feature', 'business.verify', 'support.read', 'support.reply'],
+  // An investor with an account of their own (owner, 16 Sep): the analytics
+  // aggregates and nothing else — no citizen, no listing, no ticket.
+  investor: ['analytics.read'],
 } as const satisfies Record<string, readonly Permission[]>;
 
 export type AdminRole = keyof typeof ROLES;

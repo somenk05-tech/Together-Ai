@@ -4,8 +4,8 @@
 removing a route. It is produced from the same parse the security guards in
 `src/security/` use, so it cannot describe a route that does not exist.
 
-Every path below is prefixed with `/api`. **612 routes** across
-**48 controllers**; **15** are reachable without a token.
+Every path below is prefixed with `/api`. **615 routes** across
+**49 controllers**; **16** are reachable without a token.
 
 ## Conventions
 
@@ -433,6 +433,16 @@ _connections/hub-members.controller.ts_
 |---|---|---|
 | GET | `/api/hub/:hub/members` | 🔒 |
 | PATCH | `/api/hub/:hub/members` | 🔒 |
+
+## /insights
+
+_insights/insights.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| GET | `/api/insights` | 🔒 |
+| GET | `/api/insights/investor` | **public** |
+| POST | `/api/insights/origin` | 🔒 |
 
 ## /jobs
 

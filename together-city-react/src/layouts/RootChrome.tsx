@@ -4,6 +4,9 @@ import { MiraDock } from './MiraDock';
 import { GoLiveDock } from '@/features/dev/GoLiveDock';
 import { useMiraShown } from '@/hooks/useCityDesign';
 import { useUiStore } from '@/store/ui.store';
+import { useAuthStore } from '@/store/auth.store';
+import { sendOrigin } from '@/api/origin';
+import { visitorId } from '@/api/visits.api';
 
 /**
  * ── THE CHROME THAT IS TRUE OF THE APPLICATION, NOT OF ONE LAYOUT ───────────
@@ -57,6 +60,10 @@ export function RootChrome() {
      those); a PUSH to a new pathname goes to the top and focus moves to the
      main landmark, which is where a reader begins reading. The hash is left
      alone: an anchor link is asking for a place. */
+  /* Where this member first came from, sent once per account per browser
+     (owner, 16 Sep — the investor dashboard's acquisition table). */
+  const signedInId = useAuthStore((st) => st.user?.id ?? null);
+  useEffect(() => { if (signedInId) sendOrigin(signedInId, visitorId()); }, [signedInId]);
   const lastPath = useRef(pathname);
   useEffect(() => {
     if (lastPath.current === pathname) return;

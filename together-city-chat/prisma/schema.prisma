@@ -1393,6 +1393,63 @@ model SiteVisitor {
   visits  Int      @default(1)
   firstAt DateTime @default(now())
   lastAt  DateTime @default(now())
+  /// Where the FIRST visit came from (owner, 16 Sep): direct | google |
+  /// instagram | youtube | referral | paid_social | other, and the campaign
+  /// tags it carried. The referrer is a host, never an address. `device` is
+  /// phone | tablet | desktop. See insights/insights-math.ts.
+  source    String?
+  utmSource String?
+  medium    String?
+  campaign  String?
+  content   String?
+  term      String?
+  referrer  String?
+  device    String?
+
+  @@index([firstAt])
+}
+
+/**
+ * ── ONE ROW A DAY PER MEMBER (owner, 16 Sep) ─────────────────────────────────
+ *
+ * Which city days a member used the signed-in app, and which of the eight
+ * personal systems they used on each (insights/member-day.service.ts). What
+ * active-today / this-week / this-month, retention and activation are counted
+ * from. `day` is YYYY-MM-DD in Asia/Kolkata. No path, body or address is kept.
+ * No relation to User, like UsageDay: the history of a day stays a count
+ * after the account goes.
+ */
+model MemberDay {
+  userId  String
+  day     String
+  systems String[] @default([])
+  firstAt DateTime @default(now())
+
+  @@id([userId, day])
+  @@index([day])
+}
+
+/**
+ * ── WHERE A MEMBER CAME FROM (owner, 16 Sep) ─────────────────────────────────
+ *
+ * The first campaign tags and referring host a member's browser arrived with,
+ * sent once after sign-in (insights/member-origin.service.ts). The first
+ * answer is kept. `source` is the same classification SiteVisitor uses.
+ */
+model MemberOrigin {
+  userId    String    @id
+  visitor   String?
+  source    String
+  utmSource String?
+  medium    String?
+  campaign  String?
+  content   String?
+  term      String?
+  referrer  String?
+  landedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([source])
 }
 
 /**
