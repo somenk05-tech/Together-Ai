@@ -61,16 +61,16 @@ interface Pavilion { to: string; img: string; title: string; }
 const PAVILIONS: Pavilion[] = [
   // Travel's tile went with its tab (owner, 15 Aug) — the hub is alive, it is
   // just not being advertised here.
-  { to: '/astrology', img: 'astrology-hub.webp', title: 'Your Personal Astrologer' },
-  { to: '/nutrition', img: 'nutrition-and-groceies.webp', title: 'Your Private Nutritionist' },
+  { to: '/astrology', img: 'astrology-hub.webp', title: 'Personal Astrologer' },
+  { to: '/nutrition', img: 'nutrition-and-groceies.webp', title: 'Private Nutritionist' },
   { to: '/social', img: 'social-life.webp', title: 'Together TV' },
   { to: '/dating', img: 'dating-hub.webp', title: 'Find Your Perfect Match' },
   { to: '/entertainment', img: 'entertainment.webp', title: 'Entertainment' },
   { to: '/realestate', img: 'real-estate.webp', title: 'Real Estate' },
   { to: '/jobs', img: 'jobs-hub.webp', title: 'Jobs Hub' },
-  { to: '/medical', img: 'medical-hub.webp', title: 'Your Secure Medical Records' },
-  { to: '/beauty', img: 'beautymarket.webp', title: 'Your Personal Hair & Skin Specialist' },
-  { to: '/fitness', img: 'fitness-hero.webp', title: 'Your Personal Trainer' },
+  { to: '/medical', img: 'medical-hub.webp', title: 'Secure Medical Records' },
+  { to: '/beauty', img: 'beautymarket.webp', title: 'Personal Hair & Skin Specialist' },
+  { to: '/fitness', img: 'fitness-hero.webp', title: 'Personal Trainer' },
   { to: '/financial', img: 'financial-district.webp', title: 'Financial District' },
   // Personalize joins the foot grid on the day it joins the street (owner,
   // 7 Sep). It is the door onto the ten districts that read a profile, so it
@@ -113,15 +113,15 @@ const DISTRICT_COPY: Partial<Record<HubKey, { name: string; line: string }>> = {
      THE FOUR NOT ON THE LIST KEEP WHAT THEY HAD — Beauty, Entertainment, Jobs
      and Pets were not mentioned, and a line nobody asked to change is a line
      that is working. */
-  nutrition: { name: 'Your Private Nutritionist', line: 'Your body. Your data. Your nutrition. Personalized exclusively for you.' },
+  nutrition: { name: 'Private Nutritionist', line: 'Your body. Your data. Your nutrition. Personalized exclusively for you.' },
   dating: { name: 'Find Your Perfect Match', line: 'Compatibility first. Attraction next. Intention follows.' },
   entertainment: { name: 'Entertainment', line: 'Your world of things you love.' },
   jobs: { name: 'Jobs', line: 'Your career, your next move.' },
-  medical: { name: 'Your Secure Medical Records', line: 'All your medical records. One place. Personalized nutrition & fitness, informed by your health.' },
+  medical: { name: 'Secure Medical Records', line: 'All your medical records. One place. Personalized nutrition & fitness, informed by your health.' },
   financial: { name: 'Financial', line: 'Your money. All in one place. From everyday spending to insurance & investments.' },
   realestate: { name: 'Real Estate', line: 'Find your next home. Connect directly with the owner.' },
-  fitness: { name: 'Your Personal Trainer', line: 'Your personal trainer, nutritionist & friend — all in one.' },
-  beauty: { name: 'Your Personal Hair & Skin Specialist', line: 'Your look, your way.' },
+  fitness: { name: 'Personal Trainer', line: 'Your personal trainer, nutritionist & friend — all in one.' },
+  beauty: { name: 'Personal Hair & Skin Specialist', line: 'Your look, your way.' },
   /* THE NAME STAYS TOGETHER CITY TV. The owner's list heads this one SOCIAL,
      which is what the district IS — but the hub was renamed on 5 Sep and the
      tab bar, the rail and the breadcrumb all say Together TV (shortened from
@@ -142,7 +142,7 @@ const DISTRICT_COPY: Partial<Record<HubKey, { name: string; line: string }>> = {
      district's name is not enough on its own: the picture says "Talk to
      ASTRA", so a card labelled only Astrology is a label beside a name it
      never explains. Both, in the owner's order. */
-  astrology: { name: 'Your Personal Astrologer', line: 'Billions of patterns. One future. Yours.' },
+  astrology: { name: 'Personal Astrologer', line: 'Billions of patterns. One future. Yours.' },
   /* THE DISTRICT WHOSE PLATE IS NOT ITS HUB'S NAME, and the override exists
      for exactly that: the hub is Pet Care in the tab bar, the rail and the
      breadcrumb, because that is what the district IS. On the walk it says Pet
@@ -150,7 +150,7 @@ const DISTRICT_COPY: Partial<Record<HubKey, { name: string; line: string }>> = {
      plate reading Pet Products says what is behind it more usefully than one
      reading Pet Care. Nothing else moves: this map is read by the home run
      alone. */
-  pets: { name: 'Care for Your Pets', line: 'Your pets are your babies. Everything they need, all in one place.' },
+  pets: { name: 'For Your Pets', line: 'Your pets are your babies. Everything they need, all in one place.' },
   /* BABY CARE HAS A LINE AND NO PLATE (owner, 8 Sep). The billboard copy lives
      here for every district, whether or not the district is currently on the
      walk — Entertainment, Financial and Personalize all keep theirs. Baby Care
