@@ -68,6 +68,12 @@ const PUBLIC_ALLOWLIST = [
   // handler, and returns three totals and a date, nothing about anybody.
   'visits POST',
   'visits GET stats',
+  // The investor dashboard (owner, 16 Sep), for the same reason as the stats
+  // read above: an investor has no account. Locked by the same page password,
+  // checked in the handler; it returns aggregates only — groups under three
+  // members folded away, no name, no record — and takes no id (the section
+  // is a query value naming a report).
+  'insights GET investor',
 ].sort();
 
 /**

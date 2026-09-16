@@ -28,6 +28,15 @@ export const EVENT_NAMES = [
   'dating.photo.rejected',
   'dating.appeal',
   'dating.auto_held', // a card taken out of Browse by a pattern of reports (5 Sep)
+  /* MEDICAL MAIL (owner, 16 Sep) — counts only. The props on these carry
+     ids and a category at most: never a subject, a body, a filename, a value
+     off a report or a diagnosis. That is the whole separation between
+     product analytics and medical data, and it is enforced by what the
+     service passes, not by anything here. */
+  'medical_email_received',
+  'medical_document_stored',
+  'medical_record_created',
+  'medical_document_viewed',
 ] as const;
 export type EventName = (typeof EVENT_NAMES)[number];
 

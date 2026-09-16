@@ -67,7 +67,11 @@ export const PROJECT_CAP = 50;
  *  that is not a draft: a message in a thread reads its files through the
  *  thread route, which checks participation. */
 export interface DraftFile { id: string; name: string; mimeType: string | null; sizeBytes: number }
-export interface MailMessage extends MailItem { body: string; attachments?: DraftFile[] }
+export interface MailMessage extends MailItem {
+  body: string; attachments?: DraftFile[];
+  /** "Looks medical — move it?" Left by the inbound path, answered by the reader (Medical Mail, 16 Sep). */
+  medicalHint?: { category: string; confidence: number; why: string } | null;
+}
 export interface DirectoryEntry { handle: string; name: string; address: string }
 
 /**

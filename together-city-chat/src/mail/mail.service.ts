@@ -184,6 +184,8 @@ import {
 } from './mail.constants';
 import { createMessagingProvider, messagingConfigured, type Channel } from './messaging-provider';
 import { cityFromHeader, normalizeInbound, type InboundMail } from './mail-inbound';
+import { MedicalMailService } from '../medical-mail/medical-mail.service';
+import { medicalRecipient } from '../medical-mail/medical-mail.constants';
 import type {
   FlagDto, FolderQueryDto, SaveDraftDto, SendMailDto,
   CreateProjectDto, UpdateProjectDto, FileThreadDto,
@@ -203,6 +205,11 @@ export class MailService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageProvider,
+    /** Medical Mail (owner, 16 Sep): the inbound webhook is one door, and a
+     *  message addressed to a citizen's medical address goes through it to
+     *  its own inbox, never to this one. Optional so the specs that build
+     *  this service bare still run; the module always provides it. */
+    private readonly medicalMail?: MedicalMailService,
   ) {}
 
   /** Drive files the sender chose are linked to the THREAD, so both the Sent and
@@ -815,7 +822,11 @@ export class MailService {
     // `attachments` is the resume path for a DRAFT and empty on everything
     // else — a message in a thread reads its files through the thread route,
     // which checks participation. See draftFiles.
-    return { ...this.shape({ ...m, read: true }), body: m.body, attachments: await this.draftFiles(userId, m) };
+    return {
+      ...this.shape({ ...m, read: true }), body: m.body, attachments: await this.draftFiles(userId, m),
+      // "Looks medical — move it?" The hint the inbound path left, if any.
+      medicalHint: this.medicalMail ? await this.medicalMail.hintFor(userId, m.id) : null,
+    };
   }
 
   /**
@@ -1792,11 +1803,32 @@ export class MailService {
       return { ok: false, reason: 'from-is-a-city-address' };
     }
 
+    /**
+     * ── MEDICAL MAIL IS ITS OWN DOOR (owner, 16 Sep) ─────────────────────────
+     *
+     * A To on the medical prefix (medical.<token>@) names a citizen's medical
+     * mailbox and nothing in Together City Mail. It is handed to Medical Mail
+     * here and taken OUT of the handle list below, so the same message can
+     * never land in both inboxes — and a medical local part is not a handle,
+     * so nothing below could deliver it anyway. Medical Mail reads the body
+     * and the attachments with the fetches this service already has.
+     */
+    const medicalTo = mail.to.filter((a) => medicalRecipient(a));
+    let medical: { delivered: number; errors: number } = { delivered: 0, errors: 0 };
+    if (medicalTo.length && this.medicalMail) {
+      const provider = createMessagingProvider('email');
+      medical = await this.medicalMail.ingest(mail, medicalTo, {
+        body: () => this.inboundBody(mail),
+        attachments: () => (mail.emailId && provider.fetchReceivedAttachments ? provider.fetchReceivedAttachments(mail.emailId) : Promise.resolve(null)),
+        download: (url, cap) => this.download(url, cap),
+      });
+    }
+
     // The reply is addressed to one or more city handles; deliver a copy to each
     // matching citizen. An address we don't recognise is ignored — it was never
     // ours to receive. handleFromAddress returns null for any domain outside
     // CITY_DOMAINS, so a stranger's address cannot name a mailbox here.
-    const recipients = mail.to.map(cityRecipient).filter((r): r is { handle: string; tag: string | null } => Boolean(r));
+    const recipients = mail.to.filter((a) => !medicalRecipient(a)).map(cityRecipient).filter((r): r is { handle: string; tag: string | null } => Boolean(r));
     // One copy per mailbox, keeping the FIRST tag seen for it. Two addresses
     // naming the same citizen is one delivery, and the tag that came with it
     // is a hint about filing, never a reason to deliver twice.
@@ -1812,6 +1844,7 @@ export class MailService {
       );
     }
     if (!handles.length) {
+      if (medicalTo.length && this.medicalMail) return { ok: true, delivered: medical.delivered, ...(medical.errors ? { errors: medical.errors } : {}) };
       this.logger.warn('inbound mail: no city recipient in To');
       return { ok: false, reason: 'no-city-recipient' };
     }
@@ -1889,7 +1922,7 @@ export class MailService {
       const projectId = inherited ?? tagged;
       const filed = await this.fileInboundAttachments(user.id, threadId, mail, quota - used - size);
       const bodyWithNote = filed.note ? `${body}\n\n${filed.note}` : body;
-      await this.prisma.mailMessage.create({
+      const created = await this.prisma.mailMessage.create({
         data: {
           ownerId: user.id, boxUserId: user.id, folder: 'inbox', read: false, system: false, projectId,
           fromAddr: mail.from.addr, fromName: mail.from.name || mail.from.addr,
@@ -1899,12 +1932,14 @@ export class MailService {
         },
       });
       delivered++;
+      // Looks medical? Flagged for the reader, never moved (owner, 16 Sep, §8).
+      if (this.medicalMail) await this.medicalMail.hintInbound(user.id, created.id, mail, subject, body);
      } catch (e) {
       errors++;
       this.logger.error(`inbound mail: delivery to ${handle} failed - ${(e as Error).message}`);
      }
     }
-    return { ok: true, delivered, ...(errors ? { errors } : {}) };
+    return { ok: true, delivered: delivered + medical.delivered, ...(errors + medical.errors ? { errors: errors + medical.errors } : {}) };
   }
 
   /**

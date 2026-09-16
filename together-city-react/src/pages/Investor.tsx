@@ -119,6 +119,9 @@ function LiveCount({ password, onLocked }: { password: string; onLocked: () => v
         <div className="dk-stat"><b>{data ? count(data.uniqueVisitors) : '\u2014'}</b><span>Unique visitors</span></div>
         <div className="dk-stat"><b>{data ? count(data.members) : '\u2014'}</b><span>City members</span></div>
       </div>
+      {/* The full numbers, one page on (owner, 16 Sep): growth, activity,
+          retention, reach, AI and money — same password, aggregates only. */}
+      <Link className="dk-more" to="/investor/analytics">See the full numbers</Link>
     </div>
   );
 }

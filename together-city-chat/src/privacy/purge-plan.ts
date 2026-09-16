@@ -122,6 +122,18 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'BloodAnalysis', by: 'userId', action: 'purge', reason: 'Cached interpretations of a panel.' },
   { model: 'BloodMarker', by: 'userId', action: 'purge', reason: 'Individual marker values.' },
   { model: 'MedicalConsent', by: 'userId', action: 'purge', reason: 'Consent records for a person who no longer exists here.' },
+  /* ── MEDICAL MAIL (owner, 16 Sep) — all of it goes. ───────────────────── */
+  { model: 'MedicalMailbox', by: 'userId', action: 'purge', reason: 'Their permanent medical address. Deleting the account retires the address; mail sent to it afterwards is refused at the webhook because the mailbox is gone.' },
+  { model: 'MedicalEmail', by: 'userId', action: 'purge', reason: 'Every email that arrived at their medical address — sender, subject, body. Health data by definition, and only ever theirs.' },
+  { model: 'MedicalEmailAttachment', by: 'userId', action: 'purge', storageKey: 'storageKey', reason: 'The files that arrived on those emails. A filed one is also a MedicalRecord (purged above with its object); an unfiled one holds its own vault key, named here so the bytes go with the row.' },
+  { model: 'MedicalSenderRule', by: 'userId', action: 'purge', reason: 'Their "always medical / always personal" senders — a list of their doctors, labs and insurers.' },
+  { model: 'MedicalMailHint', by: 'userId', action: 'purge', reason: 'Classifier notes on their ordinary mail saying which messages looked medical.' },
+  { model: 'MedicalTimelineEvent', by: 'userId', action: 'purge', reason: 'Their health history in date order — titles of reports and prescriptions.' },
+  { model: 'MedicalAuditEvent', by: 'userId', action: 'purge', reason: 'Who opened which medical document and when. It exists for the citizen to audit access to their own records; with the records gone it names nothing.' },
+  /* The control room (b17e2705, 16 Sep) added these two and landed without
+     the privacy suite in its gates; classified here so the plan is whole. */
+  { model: 'MemberDay', by: 'userId', action: 'purge', reason: 'Which days a citizen was active and which systems they touched — a per-person activity log for the founder’s counters. The counts are read live; a deleted citizen is not a member.' },
+  { model: 'MemberOrigin', by: 'userId', action: 'purge', reason: 'Where a citizen came from — visitor id, UTM source, campaign, referrer. Marketing attribution tied to one person; it goes with them.' },
   { model: 'Prescription', by: 'userId', action: 'purge', storageKey: 'fileKey', reason: 'Uploaded prescriptions, with the scanned file.' },
   { model: 'Medicine', by: 'userId', action: 'purge', reason: 'What they were taking.' },
   { model: 'MedicineSchedule', by: 'userId', action: 'purge', reason: 'When and how much they were told to take.' },

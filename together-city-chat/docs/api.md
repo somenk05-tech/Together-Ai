@@ -4,8 +4,8 @@
 removing a route. It is produced from the same parse the security guards in
 `src/security/` use, so it cannot describe a route that does not exist.
 
-Every path below is prefixed with `/api`. **612 routes** across
-**48 controllers**; **15** are reachable without a token.
+Every path below is prefixed with `/api`. **637 routes** across
+**51 controllers**; **16** are reachable without a token.
 
 ## Conventions
 
@@ -308,6 +308,14 @@ _dev/dev.controller.ts_
 | GET | `/api/dev/flags` | token |
 | POST | `/api/dev/flags` | 🔒 |
 
+## /dev/medical-mail
+
+_medical-mail/medical-mail.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| GET | `/api/dev/medical-mail` | token |
+
 ## /dev/release
 
 _release/release.controller.ts_
@@ -434,6 +442,16 @@ _connections/hub-members.controller.ts_
 | GET | `/api/hub/:hub/members` | 🔒 |
 | PATCH | `/api/hub/:hub/members` | 🔒 |
 
+## /insights
+
+_insights/insights.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| GET | `/api/insights` | 🔒 |
+| GET | `/api/insights/investor` | **public** |
+| POST | `/api/insights/origin` | 🔒 |
+
 ## /jobs
 
 _jobs/jobs.controller.ts_
@@ -549,6 +567,34 @@ _medical/medical.controller.ts_
 | GET | `/api/medical/summary` | 🔒 |
 | GET | `/api/medical/supplement-plan` | 🔒 |
 | POST | `/api/medical/uploads` | 🔒 |
+
+## /medical/mail
+
+_medical-mail/medical-mail.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| GET | `/api/medical/mail/badge` | 🔒 |
+| POST | `/api/medical/mail/from-mail` | 🔒 |
+| GET | `/api/medical/mail` | 🔒 |
+| POST | `/api/medical/mail/hints/:mailMessageId/dismiss` | 🔒 |
+| POST | `/api/medical/mail/messages/:id/attachments/:attachmentId/analyze` | 🔒 |
+| POST | `/api/medical/mail/messages/:id/attachments/:attachmentId/save` | 🔒 |
+| GET | `/api/medical/mail/messages/:id/attachments/:attachmentId/url` | 🔒 |
+| POST | `/api/medical/mail/messages/:id/classify` | 🔒 |
+| POST | `/api/medical/mail/messages/:id/restore` | 🔒 |
+| POST | `/api/medical/mail/messages/:id/to-mail` | 🔒 |
+| DELETE | `/api/medical/mail/messages/:id` | 🔒 |
+| GET | `/api/medical/mail/messages/:id` | 🔒 |
+| PATCH | `/api/medical/mail/messages/:id` | 🔒 |
+| GET | `/api/medical/mail/messages` | 🔒 |
+| GET | `/api/medical/mail/records/:recordId/provenance` | 🔒 |
+| DELETE | `/api/medical/mail/rules/:id` | 🔒 |
+| POST | `/api/medical/mail/rules` | 🔒 |
+| GET | `/api/medical/mail/settings` | 🔒 |
+| PATCH | `/api/medical/mail/settings` | 🔒 |
+| GET | `/api/medical/mail/timeline` | 🔒 |
+| POST | `/api/medical/mail/trash/empty` | 🔒 |
 
 ## /medicines
 

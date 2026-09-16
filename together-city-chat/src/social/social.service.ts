@@ -19,7 +19,7 @@ import { ladderKeysOf } from '../media/hls-ladder';
 import { TranscodeService } from '../media/transcode.service';
 import { shownName } from '../dating/matching';
 import type { CreateCommentDto, CreatePostDto, FeedQueryDto, TagQueryDto } from './dto/social.dto';
-import { normaliseTag, tagsIn } from './tags';
+import { handlesIn, normaliseTag, tagsIn } from './tags';
 
 /** The PostTag table (a tag is a door, 16 Sep), typed where it is used. */
 type TagRows = {
@@ -957,9 +957,13 @@ export class SocialService {
     await this.verifyMedia(userId, dto.media);
     await this.screenMedia(userId, dto.media);
     const audience = dto.audience ?? 'public';
-    const tagged = dto.tagged?.length
-      ? dto.tagged.map((t) => ({ id: t.id, name: this.clean(t.name) ?? '', handle: this.clean(t.handle) ?? '' }))
-      : null;
+    /* WHO IS TAGGED IS CHECKED, NOT TAKEN (owner, 16 Sep: "the tag is not
+       working"). The composer sent ids, names and handles and the server
+       stored them as given — so a tag could name anybody, under any name. Now
+       only the author's own accepted connections can be tagged, and their name
+       and handle are read from their account. */
+    const checked = await this.checkedTags(userId, dto.tagged);
+    const tagged = checked.length ? checked : null;
     /* THE NEWEST POST IS THE FIRST POST (owner, 8 Sep), and it has to be
        WRITTEN DOWN rather than left to the sort.
 
@@ -1018,6 +1022,8 @@ export class SocialService {
     }
     const shaped = this.shapePost(post, { likes: 0, comments: 0 }, false, await this.signMediaOf([post]));
     this.broadcast(userId, audience, (r) => this.gateway.postNew(shaped, r));
+    void this.tellTagged(userId, post.id, post.text, audience, checked)
+      .catch(swallowed('social.notify.tagged', undefined, { postId: post.id }));
     /* EVERY NOTIFICATION ABOUT A POST NOW POINTS AT THAT POST.
        They all read `href: '/social/feed'`, so "Priya liked your post" opened
        the feed and left the citizen to find which post — on a wall that had
@@ -1305,6 +1311,81 @@ export class SocialService {
       items: page.map((p) => this.shapeFeedRow(p, signed, saved)),
       nextCursor: hasMore ? page[page.length - 1].id : null,
     };
+  }
+
+  /** The people a post may tag: the author's accepted connections, as their accounts name them. */
+  private async checkedTags(
+    userId: string,
+    asked: Array<{ id: string }> | undefined,
+  ): Promise<Array<{ id: string; name: string; handle: string }>> {
+    const ids = [...new Set((asked ?? []).map((t) => t.id).filter((id) => id && id !== userId))].slice(0, 20);
+    if (!ids.length) return [];
+    const [conns, blocked] = await Promise.all([
+      this.prisma.connection.findMany({
+        where: { status: 'ACCEPTED', OR: [
+          { userOneId: userId, userTwoId: { in: ids } },
+          { userTwoId: userId, userOneId: { in: ids } },
+        ] },
+        select: { userOneId: true, userTwoId: true },
+      }),
+      this.blockedWith(userId),
+    ]);
+    const ok = new Set(conns.map((c) => (c.userOneId === userId ? c.userTwoId : c.userOneId)).filter((id) => !blocked.has(id)));
+    if (!ok.size) return [];
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: [...ok] }, deletedAt: null },
+      select: { id: true, name: true, handle: true },
+    });
+    const byId = new Map(users.map((u) => [u.id, u]));
+    return ids.flatMap((id) => {
+      const u = byId.get(id);
+      return u ? [{ id: u.id, name: u.name ?? '', handle: u.handle ?? '' }] : [];
+    });
+  }
+
+  /**
+   * "SOMEN TAGGED YOU" (owner, 16 Sep). The people tagged on a post, and the
+   * @handles in its caption, are told — but only those who can open it: on a
+   * public post anyone the author has not blocked (either way); on a friends
+   * or family post only the circle that audience admits; on an only-me post
+   * nobody. A notification to somebody who then meets "not available" would
+   * tell them a post about them exists that they may not see.
+   *
+   * At most twenty people per post, once each, never the author.
+   */
+  private async tellTagged(
+    authorId: string,
+    postId: string,
+    text: string | null,
+    audience: string,
+    tagged: Array<{ id: string }>,
+  ): Promise<void> {
+    if (audience === 'private') return;
+    const handles = handlesIn(text).slice(0, 20);
+    const mentioned = handles.length
+      ? await this.prisma.user.findMany({ where: { handle: { in: handles }, deletedAt: null }, select: { id: true } })
+      : [];
+    const taggedIds = new Set(tagged.map((t) => t.id));
+    const who = [...new Set([...tagged.map((t) => t.id), ...mentioned.map((m) => m.id)])]
+      .filter((id) => id !== authorId)
+      .slice(0, 20);
+    if (!who.length) return;
+    let allowed: Set<string>;
+    if (audience === 'public') {
+      const blocked = await this.blockedWith(authorId);
+      allowed = new Set(who.filter((id) => !blocked.has(id)));
+    } else {
+      allowed = new Set(await this.postRecipients(authorId, audience));
+    }
+    const name = await this.actorName(authorId);
+    for (const id of who) {
+      if (!allowed.has(id)) continue;
+      await this.notifications.create({
+        userId: id, actorId: authorId, kind: 'mention',
+        title: taggedIds.has(id) ? `${name} tagged you in a post` : `${name} mentioned you in a post`,
+        href: `/social/p/${postId}`, entityId: postId,
+      }).catch(swallowed('social.notify.mention', undefined, { postId }));
+    }
   }
 
   private get tagRows(): TagRows {

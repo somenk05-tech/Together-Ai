@@ -13,6 +13,7 @@ import { expandedByDefault, previewOf } from '../collapse';
 import { quoteBlock, withQuote } from '../replyQuote';
 import { MoveToProject } from '../MoveToProject';
 import { DrivePicker } from '../DrivePicker';
+import { MedicalHint } from '@/features/medical/mail/MedicalHint';
 import {
   useMailMessage, useMailThread, useMailAccount, useFlagMail, useRemoveMail, useSendMail,
   humanBytes, initials, avatarHue, mailError, type MailMessage,
@@ -605,6 +606,7 @@ export function MessageView() {
           </span>
         </div>
       )}
+      {m.medicalHint && m.folder === 'inbox' && <MedicalHint id={m.id} hint={m.medicalHint} />}
       {mishap && (
         <div className="mail-mishap" role="alert" style={{ marginTop: 12 }}>
           <span>⚠ {mishap}</span> <span className="muted">This message is exactly as it was.</span>

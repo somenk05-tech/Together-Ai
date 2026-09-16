@@ -1,5 +1,6 @@
 import { Spinner, EmptyState } from '@/components/ui';
 import { useConsents, useSetConsent } from '../api';
+import { MedicalMailConsent } from '../mail/MedicalMailConsent';
 
 function Toggle({ on, disabled, onClick }: { on: boolean; disabled?: boolean; onClick: () => void }) {
   return (
@@ -46,6 +47,10 @@ export function Consent() {
       <p className="muted" style={{ fontSize: 11.5, marginTop: 14 }}>
         🔒 Enforced server-side — a hub without permission is refused, not just hidden.
       </p>
+
+      {/* Medical Mail (owner, 16 Sep): what the city may do with mail at your
+          medical address — the same switches as its settings page. */}
+      <MedicalMailConsent />
     </div>
   );
 }

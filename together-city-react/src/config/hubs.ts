@@ -533,17 +533,21 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // Record Analysis reads the whole of it back. The Health Timeline is gone
       // — it repeated the vault's own list in date order — and
       // /medical/timeline now lands on the vault.
-      { path: '/medical/records', index: '01', label: 'Health Records', sub: 'Upload once — we sort it' },
-      { path: '/medical/blood', index: '02', label: 'Record Analysis', sub: 'Your whole history, read' },
-      { path: '/medical/tests', index: '03', label: 'Order Blood Tests', sub: 'Not yet — upload a report today' },
-      { path: '/medical/consults', index: '04', label: 'Talk to a Doctor', sub: 'Not yet — analyse a report today' },
-      { path: '/medical/family', index: '05', label: 'Family Profiles', sub: 'Household health at a glance' },
-      { path: '/medical/consent', index: '06', label: 'Privacy & Consent', sub: 'Consent controls' },
+      // OWNER, 16 Sep: Medical Mail is a first-class room at 02 — the front
+      // door of a citizen's healthcare life, permanently connected to the
+      // vault at 01. Everything after it moves down one.
+      { path: '/medical/records', index: '01', label: 'Health Records', sub: 'Your medical history' },
+      { path: '/medical/mail', index: '02', label: 'Medical Mail', sub: 'All medical emails & attachments' },
+      { path: '/medical/blood', index: '03', label: 'Record Analysis', sub: 'Understand your health history' },
+      { path: '/medical/tests', index: '04', label: 'Order Blood Tests', sub: 'Not yet — upload a report today' },
+      { path: '/medical/consults', index: '05', label: 'Talk to a Doctor', sub: 'Not yet — analyse a report today' },
+      { path: '/medical/family', index: '06', label: 'Family Profiles', sub: 'Household health at a glance' },
+      { path: '/medical/consent', index: '07', label: 'Privacy & Consent', sub: 'Control your health data' },
       // Prescriptions, dose reminders and the allergies you have recorded. This
       // menu has never listed it: the page was reachable only by typing the URL,
       // or by following a reminder notification you could not receive without
       // having been there first.
-      { path: '/medical/medicines', index: '07', label: 'Medicines & Reminders', sub: 'Prescriptions, doses & your allergies' },
+      { path: '/medical/medicines', index: '08', label: 'Medicines & Reminders', sub: 'Prescriptions, doses & allergies' },
     ],
   },
   realestate: {

@@ -85,8 +85,12 @@ export interface MedicalRecord {
   /** Held on a name that did not quite match: the folder it goes to once the
    *  citizen confirms it is theirs. */
   heldFor?: string | null;
+  /** Where it came from (Medical Mail, 16 Sep): the email it arrived in, and the day it did. */
+  source?: 'medical-mail' | 'upload';
+  sourceEmailId?: string | null;
+  receivedOn?: string | null;
 }
-export interface StorageUsage { quotaBytes: number; usedBytes: number; mailBytes: number; healthBytes: number; usedPct: number; remainingBytes: number }
+export interface StorageUsage { quotaBytes: number; usedBytes: number; mailBytes: number; healthBytes: number; usedPct: number; remainingBytes: number; medicalMailBytes?: number }
 export interface ExtractResult { recordId: string; aiEnabled: boolean; extracted: Record<string, number>; markerCount: number; lab: string | null; takenOn: string | null; note: string }
 /** Manual-entry biomarker catalog (comprehensive form). */
 /**

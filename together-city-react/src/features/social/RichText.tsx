@@ -11,6 +11,23 @@ import { pieces, tagPath } from './captionTags';
  * A tap on a link never reaches the card underneath: the TV pauses on a tap,
  * and a card opens on one.
  */
+/** "with Priya, Rahul" — each name opens that person's channel (owner, 16 Sep). */
+export function TaggedPeople({ people }: { people: Array<{ id: string; name: string; handle: string }> }) {
+  return (
+    <span>
+      with{' '}
+      {people.map((t, i) => (
+        <Fragment key={t.id}>
+          {i > 0 && ', '}
+          {t.handle
+            ? <Link to={`/social/u/${encodeURIComponent(t.handle)}`} className="sl-mention" onClick={(e) => e.stopPropagation()}>{t.name}</Link>
+            : t.name}
+        </Fragment>
+      ))}
+    </span>
+  );
+}
+
 export function RichText({ text }: { text: string | null | undefined }) {
   return (
     <>

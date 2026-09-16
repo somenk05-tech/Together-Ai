@@ -43,7 +43,7 @@ describe('where the doors are', () => {
     expect(src('features/social/CityTV.tsx')).toMatch(/<RichText text=\{caption\} \/>/);
     expect(src('features/social/ReelsView.tsx').match(/<RichText text=\{post\.text\} \/>/g)).toHaveLength(2);
     // A tap on a link never reaches the card or the TV under it.
-    expect(src('features/social/RichText.tsx').match(/e\.stopPropagation\(\)/g)).toHaveLength(2);
+    expect(src('features/social/RichText.tsx').match(/e\.stopPropagation\(\)/g)).toHaveLength(3);
   });
 
   it('has a page for every tag and one for all of them', () => {
@@ -62,4 +62,13 @@ describe('where the doors are', () => {
   it('the search offers tags', () => {
     expect(src('components/CommandPalette.tsx')).toMatch(/Tags on Together TV/);
   });
+
+  it('the @ in a caption finds people, and a tag shows and links the whole name', () => {
+    const composer = src('features/social/pages/CreatePost.tsx');
+    expect(composer).toContain('{mentionAt && mentionOptions.length > 0 && (');
+    expect(composer).toContain("{tagged.length > 0 && <>with {tagged.map((t) => t.name).join(', ')}</>}");
+    expect(composer).not.toMatch(/t\.name\.split\(' '\)\[0\]/);
+    expect(src('features/social/PostCard.tsx')).toContain('<TaggedPeople people={post.tagged!} />');
+  });
 });
+

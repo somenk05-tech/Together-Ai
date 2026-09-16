@@ -38,6 +38,11 @@ export const FOUNDER_HANDLES: readonly string[] = (process.env.CONSOLE_FOUNDERS 
 export function isReservedAdminHandle(handle: string, currentHandle?: string | null): boolean {
   const h = handle.trim().toLowerCase().replace(/^@/, '');
   if (currentHandle && h === currentHandle.trim().toLowerCase()) return false; // keeping your own name
+  // `medical.<handle>@` is every citizen's Medical Mail address (16 Sep), so a
+  // handle that begins with the prefix would give somebody's ordinary mailbox
+  // the same name as somebody else's medical one. Refused at sign-up and at
+  // rename, with the same "taken" sentence as the names above.
+  if (h.startsWith('medical.')) return true;
   return ADMIN_HANDLES.includes(h) || FOUNDER_HANDLES.includes(h);
 }
 

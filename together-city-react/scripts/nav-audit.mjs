@@ -378,6 +378,11 @@ const NAV_REF = /(?:to=|navigate\(|path:\s*|href:\s*|deepLink:\s*)["'`](\/[A-Za-
 
 /** Routes with no way in, on purpose. Each needs a reason, not just a line. */
 const UNREACHABLE_ON_PURPOSE = new Map([
+  // /dev/medical-mail is the operator's counters for Medical Mail (16 Sep),
+  // behind the developer page's lock. Its door belongs on /dev, and Dev.tsx
+  // was in another session's hands the day this landed; the link goes in with
+  // that session's work. Until then it is reached the way /dev itself is.
+  ['/dev/medical-mail', 'the operator’s Medical Mail counters, behind the developer lock; its link on /dev waits for the other session’s Dev.tsx to land.'],
   // /medical/connections lost its only door on 10 Sep, when the Health Timeline
   // came off the Medical rail (owner) — its "Share with a doctor" card was the
   // one link in. The page is the same consent switches Privacy & Consent (rail

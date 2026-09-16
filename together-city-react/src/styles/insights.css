@@ -1,0 +1,267 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   /investor/analytics — THE CONTROL ROOM BEHIND THE CITY (owner, 16 Sep)
+
+   The deck's paper and ink, and its tracked capitals, calmed down for reading
+   numbers: one ink for every mark, hairline grids, generous space. Sizes are
+   the city's own steps (--fs-*) and the deck's two display clamps; no new
+   size, colour or breakpoint enters the system here.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.ix {
+  min-height: 100dvh; background: var(--paper); color: var(--ink);
+  padding: 0 clamp(20px, 5vw, 96px) calc(var(--s-3) + var(--safe-bottom));
+}
+.ix-center { display: grid; place-items: center; }
+
+/* ── the bar across the top ─────────────────────────────────────────────── */
+.ix-top {
+  position: sticky; top: 0; z-index: 5; background: var(--paper);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2);
+  padding: var(--s-2) 0; border-bottom: 1px solid var(--line);
+}
+.ix-brand { display: grid; gap: 2px; }
+.ix-wordmark {
+  font-size: var(--fs-4); font-weight: 800; letter-spacing: var(--track-display); text-transform: uppercase;
+  color: var(--ink); text-decoration: none;
+}
+.ix-eyebrow, .ix-label {
+  font-size: var(--fs-2); font-weight: 700; letter-spacing: var(--track-display); text-transform: uppercase; color: var(--muted);
+}
+.ix-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ix-live { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-2); color: var(--muted); }
+.ix-live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok-ink); }
+.ix-live.busy .ix-live-dot { background: var(--muted); }
+.ix-seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-full); overflow: hidden; }
+.ix-seg button, .ix-btn {
+  min-height: 36px; padding: 0 12px; border: 0; background: none; color: var(--ink);
+  font: inherit; font-size: var(--fs-2); font-weight: 700; letter-spacing: var(--track-display); text-transform: uppercase; cursor: pointer;
+}
+.ix-seg button.on { background: var(--ink); color: var(--card); }
+.ix-btn { border: 1px solid var(--line); border-radius: var(--r-full); display: inline-flex; align-items: center; gap: 6px; }
+.ix-btn:hover, .ix-seg button:hover:not(.on) { background: var(--wash); }
+.ix-btn[aria-pressed='true'] { background: var(--ink); color: var(--card); }
+.ix-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-2); font-weight: 700; letter-spacing: var(--track-display); text-transform: uppercase; }
+.ix-menu { position: relative; }
+.ix-menu > summary { list-style: none; }
+.ix-menu > summary::-webkit-details-marker { display: none; }
+.ix-menu > summary::after { content: '\25BE'; margin-left: 6px; }
+.ix-menu-list {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 6; min-width: 260px;
+  display: grid; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-1); box-shadow: var(--e3);
+}
+.ix-menu-list button {
+  min-height: 44px; padding: 0 10px; border: 0; border-radius: var(--r-1); background: none; color: var(--ink);
+  font: inherit; font-size: var(--fs-3); text-align: left; cursor: pointer;
+}
+.ix-menu-list button:hover { background: var(--wash); }
+
+.ix-banner {
+  margin: var(--s-2) 0 0; padding: 10px 14px; border: 1px solid var(--warn-line); border-radius: var(--r-1);
+  background: var(--warn-soft); color: var(--warn-ink); font-size: var(--fs-3); font-weight: 700;
+}
+.ix-counting { margin: var(--s-2) 0 0; font-size: var(--fs-2); font-weight: 700; letter-spacing: var(--track-display); text-transform: uppercase; color: var(--muted); }
+
+/* ── sections ───────────────────────────────────────────────────────────── */
+.ix-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-3); padding-top: var(--s-3); }
+.ix-sec { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-2); padding-bottom: var(--s-3); border-bottom: 1px solid var(--line); scroll-margin-top: 90px; }
+.ix-sec-head { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s-2); flex-wrap: wrap; }
+.ix-h1 { margin: 0; font-weight: 800; line-height: .98; letter-spacing: -.03em; font-size: clamp(30px, 5.6vw, 92px); }
+.ix-h2 { margin: 0; font-size: var(--fs-6); font-weight: 800; letter-spacing: var(--track-display); text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+.ix-h3 { margin: var(--s-2) 0 8px; font-size: var(--fs-3); font-weight: 700; letter-spacing: var(--track-display); text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+.ix-sub { margin: 4px 0 0; font-size: var(--fs-3); line-height: 1.55; color: var(--muted); max-width: 70ch; }
+.ix-note { margin: 8px 0 0; font-size: var(--fs-2); line-height: 1.55; color: var(--muted); }
+.ix-loading { padding: var(--s-2) 0; font-size: var(--fs-3); color: var(--muted); }
+.ix-stale { opacity: .55; transition: opacity var(--dur-base) var(--ease); }
+.ix-gap-top { margin-top: var(--s-2); }
+.ix-vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ix-link { border: 0; background: none; padding: 0; color: var(--ink); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+
+.ix-sample {
+  display: inline-block; padding: 2px 6px; border-radius: var(--r-full); background: var(--warn-soft); color: var(--warn-ink);
+  font-size: var(--fs-1); font-weight: 800; letter-spacing: var(--track-display); text-transform: uppercase;
+}
+
+/* ── cards and figures ──────────────────────────────────────────────────── */
+.ix-grid { display: grid; gap: var(--s-2); }
+.ix-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ix-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ix-card, .ix-stat {
+  display: grid; align-content: start; gap: 6px; min-width: 0;
+  padding: var(--s-2); border: 1px solid var(--line); border-radius: var(--r-2); background: var(--card);
+}
+.ix-card-top { display: flex; align-items: flex-start; gap: 6px; }
+.ix-card-top .ix-label { min-width: 0; }
+.ix-card-top .ix-tip { flex: none; }
+.ix-num { font-weight: 800; letter-spacing: -.03em; line-height: 1; font-size: var(--fs-8); font-variant-numeric: tabular-nums; }
+.ix-card.big .ix-num { font-size: var(--fs-9); }
+.ix-card.missing .ix-num { color: var(--muted); }
+/* Invented numbers wear a dashed edge; the section title carries the word. */
+.ix-card.not-real { border-style: dashed; border-color: var(--warn-line); }
+.ix-stat b { font-size: var(--fs-7); font-weight: 800; letter-spacing: -.03em; line-height: 1; overflow-wrap: anywhere; }
+.ix-skel { color: var(--muted); }
+.ix-hero { display: grid; gap: 4px; align-content: center; }
+.ix-hero b { font-size: var(--fs-9); font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+.ix-hero > span { font-size: var(--fs-3); color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.ix-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-3); align-items: start; }
+
+.ix-trend { font-size: var(--fs-2); font-weight: 700; line-height: 1.4; color: var(--muted); }
+.ix-trend.up { color: var(--ok-ink); }
+.ix-trend.down { color: var(--danger-ink); }
+.ix-trend-vs { font-weight: 500; color: var(--muted); }
+
+/* The (i): a real button, and the words appear on hover and on focus. */
+.ix-tip { position: relative; display: inline-flex; }
+.ix-tip-b {
+  width: 18px; height: 18px; padding: 0; border: 1px solid var(--line); border-radius: 50%;
+  background: var(--card); color: var(--muted); font: inherit; font-size: var(--fs-1); font-weight: 800; line-height: 1; cursor: help;
+}
+.ix-tip-b::after { content: ''; position: absolute; inset: -13px; }
+.ix-tip .ix-tip-t {
+  position: absolute; left: 50%; top: calc(100% + 8px); z-index: 7; width: min(280px, 70vw);
+  transform: translateX(calc(-50% + var(--tip-shift, 0px))); padding: 10px 12px; border-radius: var(--r-1);
+  background: var(--ink); color: var(--card); box-shadow: var(--e3);
+  font-size: var(--fs-2); font-weight: 500; letter-spacing: normal; text-transform: none; line-height: 1.5;
+  display: none;
+}
+.ix-tip:hover .ix-tip-t, .ix-tip .ix-tip-b:focus-visible + .ix-tip-t { display: block; }
+
+/* ── what changed, the journey, the feed ────────────────────────────────── */
+.ix-changes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--s-2); }
+.ix-changes li { display: grid; gap: 4px; min-width: 0; }
+.ix-changes .ix-trend { font-size: var(--fs-6); }
+
+.ix-funnel { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.ix-stage { display: grid; gap: 6px; }
+.ix-stage-row { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; align-items: baseline; gap: var(--s-2); }
+.ix-stage-n { font-size: var(--fs-7); font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.ix-stage-bar { width: 100%; height: 6px; display: block; min-width: 0; overflow: hidden; }
+.ix-stage-bar svg, .ix-bar-svg svg, .ix-timeline svg { width: 100%; height: 100%; display: block; }
+.ix-conv { font-size: var(--fs-2); font-weight: 700; color: var(--muted); padding-left: 110px; }
+
+.ix-feed { list-style: none; margin: 0; padding: 0; display: grid; }
+.ix-feed li { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: var(--s-2); padding: 10px 0; border-top: 1px solid var(--line); font-size: var(--fs-3); }
+.ix-feed time { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.ix-status { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: var(--fs-4); font-weight: 800; letter-spacing: var(--track-display); text-transform: uppercase; }
+.ix-status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ok-ink); }
+.ix-status.degraded .ix-status-dot { background: var(--warn-ink); }
+.ix-status.incident .ix-status-dot { background: var(--danger-ink); }
+.ix-status.degraded { color: var(--warn-ink); }
+.ix-status.incident { color: var(--danger-ink); }
+
+.ix-empty { padding: var(--s-2); border: 1px dashed var(--line); border-radius: var(--r-2); }
+.ix-empty strong { display: block; font-size: var(--fs-3); font-weight: 800; letter-spacing: var(--track-display); text-transform: uppercase; }
+.ix-empty p { margin: 6px 0 0; font-size: var(--fs-3); color: var(--muted); line-height: 1.5; }
+
+/* ── charts: one ink, hairlines, a wash under the line ──────────────────── */
+.ix-chart { margin: 0; display: grid; gap: 8px; min-width: 0; }
+.ix-chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.ix-chart svg:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; border-radius: var(--r-1); }
+.ix-grid line, line.ix-grid { stroke: var(--line); stroke-width: 1; }
+.ix-axis { fill: var(--muted); font-size: var(--fs-1); }
+.ix-line { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.ix-area { fill: var(--ink); opacity: .08; }
+.ix-dot { fill: var(--ink); stroke: var(--card); stroke-width: 2; }
+.ix-end { fill: var(--ink); font-size: var(--fs-2); font-weight: 700; }
+.ix-cross, .ix-mark-line { stroke: var(--muted); stroke-width: 1; }
+.ix-mark-text { fill: var(--muted); font-size: var(--fs-1); font-weight: 700; }
+.ix-tipbox { fill: var(--card); stroke: var(--line); }
+.ix-tipval { fill: var(--ink); font-size: var(--fs-3); font-weight: 800; }
+.ix-tiplab { fill: var(--muted); font-size: var(--fs-1); }
+.ix-col { fill: var(--ink); opacity: .85; }
+.ix-col.on { opacity: 1; }
+.ix-hit { fill: transparent; }
+.ix-err { fill: var(--danger-ink); }
+.ix-timeline { width: 100%; height: 64px; display: block; min-width: 0; }
+.ix-track { fill: var(--wash); }
+.ix-fill { fill: var(--ink); }
+
+.ix-bars { display: grid; gap: 6px; }
+.ix-bar { display: grid; grid-template-columns: 150px minmax(0, 1fr) 90px; align-items: center; gap: var(--s-2); min-height: 32px; }
+.ix-bar-l { font-size: var(--fs-3); overflow-wrap: anywhere; }
+.ix-bar-svg { width: 100%; height: 8px; display: block; min-width: 0; overflow: hidden; }
+.ix-bar-v { font-size: var(--fs-3); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.ix-bar-n { font-weight: 500; color: var(--muted); }
+.ix-bar.on .ix-fill { opacity: .8; }
+
+/* ── tables ─────────────────────────────────────────────────────────────── */
+.ix-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.ix-table { width: 100%; border-collapse: collapse; font-size: var(--fs-3); font-variant-numeric: tabular-nums; }
+.ix-table caption { text-align: left; font-size: var(--fs-2); color: var(--muted); padding-bottom: 6px; }
+.ix-table th, .ix-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.ix-table th:first-child { text-align: left; }
+.ix-table thead th { font-size: var(--fs-2); font-weight: 700; letter-spacing: var(--track-display); text-transform: uppercase; color: var(--muted); }
+.ix-table thead th .ix-tip { vertical-align: middle; }
+.ix-table-fold summary { cursor: pointer; font-size: var(--fs-2); font-weight: 700; letter-spacing: var(--track-display); text-transform: uppercase; color: var(--muted); min-height: 32px; display: flex; align-items: center; gap: 8px; }
+
+/* Retention cells: one ink, deeper for more members back. */
+.ix-heat { text-align: center; }
+.ix-heat.hna { color: var(--muted); }
+.ix-heat.h0 { background: color-mix(in srgb, var(--ink) 4%, var(--card)); }
+.ix-heat.h1 { background: color-mix(in srgb, var(--ink) 12%, var(--card)); }
+.ix-heat.h2 { background: color-mix(in srgb, var(--ink) 24%, var(--card)); }
+.ix-heat.h3 { background: color-mix(in srgb, var(--ink) 40%, var(--card)); color: var(--card); }
+.ix-heat.h4 { background: color-mix(in srgb, var(--ink) 62%, var(--card)); color: var(--card); }
+.ix-heat.h5 { background: color-mix(in srgb, var(--ink) 85%, var(--card)); color: var(--card); }
+
+.ix-defs { margin: 8px 0 0; display: grid; gap: 10px; }
+.ix-defs div { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--s-2); }
+.ix-defs dt { font-size: var(--fs-2); font-weight: 700; letter-spacing: var(--track-display); text-transform: uppercase; }
+.ix-defs dd { margin: 0; font-size: var(--fs-3); color: var(--muted); line-height: 1.5; }
+
+.ix-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s-2); padding: var(--s-3) 0 0; font-size: var(--fs-2); font-weight: 700; letter-spacing: var(--track-display); text-transform: uppercase; color: var(--muted); }
+
+/* ── the password gate ──────────────────────────────────────────────────── */
+.ix-gate { display: grid; gap: var(--s-2); width: min(520px, 100%); }
+.ix-gate input { min-height: 48px; padding: 0 14px; border: 1px solid var(--line); border-radius: var(--r-1); background: var(--card); color: var(--ink); font: inherit; font-size: 16px; }
+.ix-error { margin: 0; color: var(--danger-ink); font-size: var(--fs-3); }
+
+/* ── presentation: large numbers, no controls but the way out ──────────── */
+.ix-present .ix-controls > :not(:nth-last-child(2)) { display: none; }
+.ix-present .ix-top { border-bottom: 0; }
+.ix-present .ix-card.big .ix-num { font-size: clamp(46px, 11vw, 172px); }
+.ix-present .ix-h2 { font-size: var(--fs-7); }
+.ix-present .ix-table-fold, .ix-present .ix-tip { display: none; }
+
+/* ── print and PDF ──────────────────────────────────────────────────────── */
+@media print {
+  .ix { padding: 0; }
+  .ix-top { position: static; }
+  .ix-controls, .ix-foot, .ix-table-fold, .ix-tip { display: none; }
+  .ix-sec { break-inside: avoid; }
+  .ix-stale { opacity: 1; }
+}
+
+/* ── narrower screens ───────────────────────────────────────────────────── */
+@media (max-width: 899px) {
+  .ix-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ix-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ix-changes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ix-split { grid-template-columns: minmax(0, 1fr); }
+  .ix-top { position: static; }
+}
+@media (max-width: 560px) {
+  .ix-bar { grid-template-columns: 96px minmax(0, 1fr) 64px; gap: 8px; }
+  .ix-stage-row { grid-template-columns: 72px minmax(0, 1fr); }
+  .ix-stage-row .ix-trend { grid-column: 2; }
+  .ix-conv { padding-left: 72px; }
+  .ix-feed li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .ix-defs div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .ix-seg button, .ix-btn { padding: 0 10px; }
+  .ix-card-top .ix-label { letter-spacing: .06em; }
+  /* The systems table becomes one small card per system. */
+  .ix-systems thead { display: none; }
+  .ix-systems, .ix-systems tbody { display: block; }
+  .ix-systems tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px var(--s-2); padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .ix-systems th, .ix-systems td { padding: 0; border: 0; white-space: normal; text-align: left; }
+  .ix-systems th { grid-column: 1 / -1; font-size: var(--fs-4); }
+  .ix-systems td::before { content: attr(data-label); display: block; font-size: var(--fs-1); font-weight: 700; letter-spacing: var(--track-display); text-transform: uppercase; color: var(--muted); }
+}
+
+/* The door from the deck's live counter to this page. */
+.dk-more {
+  display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px;
+  font-size: var(--fs-2); font-weight: 700; letter-spacing: var(--track-display); text-transform: uppercase;
+  color: inherit; text-decoration: none;
+}
+.dk-more::after { content: ' \2192'; }
+.dk-more:hover { text-decoration: underline; }

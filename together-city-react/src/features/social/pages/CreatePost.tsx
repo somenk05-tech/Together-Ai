@@ -559,6 +559,14 @@ export function CreatePost() {
   const [hashtags, setHashtags] = useState<string[]>(() => savedDraft()?.hashtags ?? []);
   const [tagInput, setTagInput] = useState('');
   const [tagDraft, setTagDraft] = useState('');
+  /* THE @ IN THE CAPTION FINDS PEOPLE (owner, 16 Sep: "the tag is not
+     working"). Typing @ and a few letters offers your connections; picking one
+     writes their handle and tags them, so they are told and the name links. */
+  const [caret, setCaret] = useState(0);
+  const mentionAt = useMemo(() => {
+    const m = /(^|[\s(])@([A-Za-z0-9_.]{0,30})$/.exec(text.slice(0, caret));
+    return m ? { from: caret - m[2].length - 1, q: m[2].toLowerCase() } : null;
+  }, [text, caret]);
   const [tagged, setTagged] = useState<Array<{ id: string; name: string; handle: string }>>(() => savedDraft()?.tagged ?? []);
   const [audience, setAudience] = useState<AudienceKey>(() => (savedDraft()?.audience as AudienceKey) ?? 'public');
   const [category, setCategory] = useState<'' | 'work' | 'personal'>(() => (savedDraft()?.category as '' | 'work' | 'personal') ?? '');
@@ -868,6 +876,11 @@ export function CreatePost() {
     { key: 'personal', label: 'Personal' },
     { key: 'work', label: 'Work' },
   ] as const;
+  const mentionOptions = mentionAt
+    ? (connections.data ?? [])
+      .filter((c) => !mentionAt.q || c.user.handle.toLowerCase().startsWith(mentionAt.q) || c.user.name.toLowerCase().includes(mentionAt.q))
+      .slice(0, 6)
+    : [];
   const connectionOptions = (connections.data ?? [])
     .filter((c) => !tagged.some((t) => t.id === c.user.id))
     .filter((c) => !tagInput.trim() || c.user.name.toLowerCase().includes(tagInput.toLowerCase()) || c.user.handle.includes(tagInput.toLowerCase()));
@@ -915,7 +928,9 @@ export function CreatePost() {
           <div className="sl-wrap" style={{ flex: '1 1 auto', minWidth: 0 }}>
             <textarea
               ref={box}
-              value={text} onChange={(e) => setText(e.target.value)} rows={4} disabled={busy} maxLength={TEXT_MAX}
+              value={text} rows={4} disabled={busy} maxLength={TEXT_MAX}
+              onChange={(e) => { setText(e.target.value); setCaret(e.target.selectionStart ?? e.target.value.length); }}
+              onSelect={(e) => setCaret(e.currentTarget.selectionStart ?? 0)}
               aria-label="What's happening today?"
               placeholder="What's happening today?"
               style={{ ...inputStyle, border: 'none', padding: '6px 0 22px', resize: 'vertical', fontSize: 16, lineHeight: 1.6, background: 'none', boxShadow: 'none' }}
@@ -928,11 +943,30 @@ export function CreatePost() {
           </div>
         </div>
 
+        {mentionAt && mentionOptions.length > 0 && (
+          <div className="sl-tag-picks" aria-label="Tag someone">
+            {mentionOptions.map((c) => (
+              <button key={c.id} type="button" className="sl-chipv"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  const next = `${text.slice(0, mentionAt.from)}@${c.user.handle} ${text.slice(caret)}`;
+                  setText(next);
+                  const at = mentionAt.from + c.user.handle.length + 2;
+                  setCaret(at);
+                  setTagged((t) => (t.some((x) => x.id === c.user.id) ? t : [...t, { id: c.user.id, name: c.user.name, handle: c.user.handle }]));
+                  requestAnimationFrame(() => { box.current?.focus(); box.current?.setSelectionRange(at, at); });
+                }}>
+                {c.user.name} <span className="muted">@{c.user.handle}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {(feeling || placeName || tagged.length > 0) && (
           <p className="sl-said">
             {feeling && <>feeling {feeling}&nbsp;&nbsp;</>}
             {placeName && <><Icon name="place" size={13} /> {placeName}&nbsp;&nbsp;</>}
-            {tagged.length > 0 && <>with {tagged.map((t) => t.name.split(' ')[0]).join(', ')}</>}
+            {tagged.length > 0 && <>with {tagged.map((t) => t.name).join(', ')}</>}
           </p>
         )}
 

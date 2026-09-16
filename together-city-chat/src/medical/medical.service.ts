@@ -15,6 +15,7 @@ import { ConversationsService } from '../conversations/conversations.service';
 import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
 import { StorageProvider } from '../media/storage.provider';
+import { medicalMailDb } from '../medical-mail/medical-mail.db';
 // The Medical Hub is the source of truth for health data, but the *interpretation*
 // logic is the shared, cited clinical engine — so Nutrition, Beauty and Fitness all
 // reason from the same evidence base.
@@ -267,13 +268,26 @@ export class MedicalService implements OnModuleInit {
     const mailBytes = mail.reduce((s, m) => s + (m.sizeBytes ?? 0), 0);
     const healthBytes = docs.reduce((s, d) => s + (d.sizeBytes ?? 0), 0);
     const driveBytes = drive._sum.sizeBytes ?? 0;
-    const usedBytes = mailBytes + healthBytes + driveBytes;
+    /* MEDICAL MAIL'S SHARE (owner, 16 Sep): the emails themselves, plus any
+       attachment held with its email but not filed as a record (a file the
+       reader did not think was medical, kept for the citizen to decide). An
+       attachment that WAS filed is a MedicalRecord row and is counted above,
+       once — a duplicate points at the same record and has no bytes of its
+       own, so the same physical file is never counted twice. */
+    const mm = medicalMailDb(this.prisma);
+    const [medEmails, medHeld] = await Promise.all([
+      swallow(Promise.resolve().then(() => mm.medicalEmail.aggregate({ where: { userId, deletedAt: null }, _sum: { sizeBytes: true } })), 'storage meter: medical mail', { userId }),
+      swallow(Promise.resolve().then(() => mm.medicalEmailAttachment.aggregate({ where: { userId, recordId: null, storageKey: { not: null } }, _sum: { sizeBytes: true } })), 'storage meter: medical mail attachments', { userId }),
+    ]);
+    const medicalMailBytes = (medEmails?._sum.sizeBytes ?? 0) + (medHeld?._sum.sizeBytes ?? 0);
+    const usedBytes = mailBytes + healthBytes + driveBytes + medicalMailBytes;
     return {
       quotaBytes: this.quotaBytes,
       usedBytes,
       mailBytes,
       healthBytes,
       driveBytes,
+      medicalMailBytes,
       usedPct: Math.min(100, +((usedBytes / this.quotaBytes) * 100).toFixed(2)),
       remainingBytes: Math.max(0, this.quotaBytes - usedBytes),
     };
@@ -411,6 +425,17 @@ export class MedicalService implements OnModuleInit {
         await tx.medicalBloodTest.deleteMany({ where: { id: rec.bloodTestId, userId } });
       }
     });
+    /* A document that arrived by Medical Mail: the email stays, its attachment
+       row stays, and the row now says the document was deleted here — so the
+       thread view prints "Deleted from Health Records" rather than a View
+       button on a file that is gone. Best-effort, and the timeline entry that
+       pointed at the record goes with it. */
+    const mm = medicalMailDb(this.prisma);
+    await swallow(Promise.resolve().then(() => mm.medicalEmailAttachment.updateMany({
+      where: { userId, recordId: id },
+      data: { recordId: null, storageKey: null, status: 'failed', error: 'Deleted from Health Records.' },
+    })), 'medical: unlink mailed attachments', { userId });
+    await swallow(Promise.resolve().then(() => mm.medicalTimelineEvent.deleteMany({ where: { userId, recordId: id } })), 'medical: timeline of a deleted record', { userId });
     return this.records(userId);
   }
 
@@ -1364,10 +1389,31 @@ export class MedicalService implements OnModuleInit {
     // recordedOn is when the document was FILED — an instant, so which day it
     // falls on depends on the citizen's zone, not the server's.
     const tz = await this.clock.timezoneFor(userId);
+    /* WHERE A DOCUMENT CAME FROM (owner, 16 Sep). A record filed from Medical
+       Mail keeps its email: one read over the attachment table for these
+       rows, so every file row can say "Source: Medical Mail · received …" and
+       open the email it arrived in. A failed read leaves the source blank
+       rather than the list empty. */
+    const fromMail = new Map<string, { emailId: string; receivedAt: Date; attachmentId: string }>();
+    if (rows.length) {
+      const links = (await swallow(Promise.resolve().then(() => medicalMailDb(this.prisma).medicalEmailAttachment.findMany({
+        where: { userId, recordId: { in: rows.map((r) => r.id) } },
+        select: { id: true, recordId: true, createdAt: true, email: { select: { id: true, receivedAt: true } } },
+        orderBy: { createdAt: 'asc' },
+      })), 'medical: record sources', { userId })) ?? [];
+      for (const l of links as unknown as Array<{ id: string; recordId: string; createdAt: Date; email: { id: string; receivedAt: Date } }>) {
+        if (!fromMail.has(l.recordId)) fromMail.set(l.recordId, { emailId: l.email.id, receivedAt: l.email.receivedAt, attachmentId: l.id });
+      }
+    }
     return rows.map((r) => {
       const rr = r as typeof r & { fileKey?: string | null; mimeType?: string | null; sizeBytes?: number | null; bloodTestId?: string | null };
+      const via = fromMail.get(r.id);
       return {
         id: r.id, kind: r.kind, title: r.title, detail: r.detail,
+        // Source: Medical Mail — the email it arrived in, and the day it did.
+        source: via ? 'medical-mail' : 'upload',
+        sourceEmailId: via?.emailId ?? null,
+        receivedOn: via ? this.clock.dayIn(tz, via.receivedAt) : null,
         // Health docs are private: expose only whether a file exists, not a URL.
         // The client fetches a short-lived signed link from /records/:id/file.
         hasFile: Boolean(rr.fileKey || r.fileUrl),
@@ -1418,12 +1464,42 @@ export class MedicalService implements OnModuleInit {
     if (!(await this.storage.healthObjectExists(dto.fileKey))) {
       throw new BadRequestException('Your file didn’t finish uploading — please check your connection and try again.');
     }
+    const filed = await this.fileDocument(userId, dto, { onMismatch: 'refuse', requireMedical: false });
+    return { recordId: filed.recordId, kind: filed.kind, sorted: filed.sorted, held: filed.held, bloodTestId: filed.bloodTestId, note: filed.note, records: await this.records(userId) };
+  }
+
+  /**
+   * THE ONE FILING PATH, shared by the upload button and Medical Mail (owner,
+   * 16 Sep). A document that arrived by email is filed exactly as one the
+   * citizen uploaded — read by the model, named a folder, checked for whose
+   * name is on it, read into a panel when it is a blood report — with two
+   * differences the caller chooses:
+   *
+   *   · `onMismatch: 'hold'` — a report printed for a different name is HELD
+   *     for the citizen to confirm rather than refused and deleted, because a
+   *     file that arrived at their medical address was sent to them and the
+   *     original must survive (owner, §14). The upload button keeps 'refuse'.
+   *   · `requireMedical: true` — a file the reader is sure is NOT a medical
+   *     document is not filed at all (`recordId` null, `reason` 'not-medical'),
+   *     because a doctor's email about dinner must not become a health record
+   *     (owner, §47). The upload button files it as unsorted and asks.
+   *
+   * The object is already in the health vault when this runs; nothing here
+   * deletes it except the upload button's own refusal.
+   */
+  async fileDocument(userId: string, dto: SortedUploadDto, opts: { onMismatch: 'refuse' | 'hold'; requireMedical: boolean }): Promise<{
+    recordId: string | null; kind: string; sorted: boolean; held: boolean; bloodTestId: string | null; note: string;
+    reason: 'filed' | 'not-medical'; reading: Reading;
+  }> {
     const today = this.clock.todayIn(await this.clock.timezoneFor(userId));
     const reading = await this.readDocument(dto.fileKey, dto.mimeType, today);
+    if (opts.requireMedical && reading.isMedical === false && reading.kind === UNSORTED) {
+      return { recordId: null, kind: UNSORTED, sorted: false, held: false, bloodTestId: null, reason: 'not-medical', reading, note: 'Doesn’t read as a medical document — kept with the email, not filed.' };
+    }
     // Whose report is it? A different name is refused and the file removed; a
     // name spelled differently is held until the citizen says it is theirs.
     const who = await this.whoseReport(userId, reading.patientName);
-    if (who.verdict === 'different') {
+    if (who.verdict === 'different' && opts.onMismatch === 'refuse') {
       // Refused, so the file goes too. The citizen is told either way; a bucket
       // that would not delete leaves an object no record points at, and the log
       // names it with its key.
@@ -1432,7 +1508,7 @@ export class MedicalService implements OnModuleInit {
       }
       throw new BadRequestException(this.mismatchNote(reading.patientName, who.account));
     }
-    const held = who.verdict === 'close';
+    const held = who.verdict === 'close' || who.verdict === 'different';
     const fromName = (dto.name ?? '').replace(/\.[^.]+$/, '').trim().slice(0, 160);
     const rec = await this.prisma.medicalRecord.create({
       data: {
@@ -1460,7 +1536,7 @@ export class MedicalService implements OnModuleInit {
     } else {
       note = `Filed under ${kindLabel(reading.kind)}.`;
     }
-    return { recordId: rec.id, kind: reading.kind, sorted: !held && reading.kind !== UNSORTED, held, bloodTestId, note, records: await this.records(userId) };
+    return { recordId: rec.id, kind: reading.kind, sorted: !held && reading.kind !== UNSORTED, held, bloodTestId, note, reason: 'filed', reading };
   }
 
   /** The account's name against the one printed on the report. */
