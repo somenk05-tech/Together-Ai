@@ -240,8 +240,11 @@ export function HubLanding({ hub }: { hub: HubKey }) {
               way in standing on it. "Explore now" became "Explore Astrology"
               for the reason it did on the home page — a verb alone does not
               say which door it is. */}
+          {/* A hub whose name is already a sentence ("Your Personal Trainer",
+              "Find Your Perfect Match" — owner, 16 Sep) is its own invitation;
+              "Explore" in front of it would read twice. One word keeps it. */}
           <Link to={firstInner} className="hub-plate-go">
-            Explore <i>{cfg.name}</i>
+            {cfg.name.includes(' ') ? <i>{cfg.name}</i> : <>Explore <i>{cfg.name}</i></>}
           </Link>
         </article>
       </div>

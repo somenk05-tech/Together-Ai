@@ -1,6 +1,9 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Button, Switch } from '@/components/ui';
-import { useGoLive, useReleaseRuns, useReleaseState, type ReleaseRun } from './release.api';
+import {
+  useGoLive, usePendingChanges, useReleaseRuns, useReleaseState, useReleaseStatus, type ReleaseRun,
+} from './release.api';
+import { ChangePicker, ReleaseProgress } from './ChangePicker';
 
 /**
  * ── THE GO LIVE BUTTON (owner, 16 Sep) ──────────────────────────────────────
@@ -9,9 +12,11 @@ import { useGoLive, useReleaseRuns, useReleaseState, type ReleaseRun } from './r
  * work, while a leaner version is launched. Anything I work on stays on the
  * developer site until I press the Go live button."
  *
- * On the developer site (dev.togethercity.app) this panel sends everything on
- * `develop` to the live site, and says which hubs the live site shows. On the
- * live site it only reports — the live site cannot release itself.
+ * On the developer site (dev.togethercity.app) this panel sends `develop` to
+ * the live site — everything, or only the changes ticked in the list — says
+ * which hubs the live site shows, and follows the release until Vercel and
+ * Railway have deployed it. On the live site it only reports — the live site
+ * cannot release itself.
  *
  * It follows the page's own two-step pattern: choose, write a reason, then
  * press. The press is recorded with who and why like every switch on /dev.
@@ -30,6 +35,10 @@ export function GoLive({ password }: { password: string }) {
   const s = state.data;
   const runs = useReleaseRuns(password, Boolean(s?.tokenSet));
   const goLive = useGoLive(password);
+  const onDevCopy = s?.channel === 'dev';
+  const pending = usePendingChanges(onDevCopy);
+  const status = useReleaseStatus(onDevCopy);
+  const [off, setOff] = useState<Set<string>>(new Set());
 
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [arming, setArming] = useState(false);
@@ -45,7 +54,11 @@ export function GoLive({ password }: { password: string }) {
   if (!s) return null;
 
   const live = s.channel === 'live';
-  const ready = reason.trim().length >= 8 && chosen.size > 0;
+  const changes = pending.data?.changes ?? [];
+  const waiting = pending.data?.waiting ?? null;
+  const picked = changes.filter((c) => !off.has(c.sha)).map((c) => c.sha);
+  const sendAll = off.size === 0 || picked.length === changes.length;
+  const ready = reason.trim().length >= 8 && chosen.size > 0 && (sendAll || picked.length > 0);
   const toggle = (key: string) => setChosen((prev) => {
     const next = new Set(prev);
     if (next.has(key)) next.delete(key); else next.add(key);
@@ -53,8 +66,8 @@ export function GoLive({ password }: { password: string }) {
   });
   const press = () => {
     setErr(null);
-    goLive.mutate({ hubs: [...chosen], reason: reason.trim() }, {
-      onSuccess: () => { setArming(false); setReason(''); setSent(true); },
+    goLive.mutate({ hubs: [...chosen], reason: reason.trim(), commits: sendAll ? undefined : picked }, {
+      onSuccess: () => { setArming(false); setReason(''); setSent(true); setOff(new Set()); },
       onError: (e: unknown) => {
         const m = e as { response?: { data?: { message?: string | string[] } } };
         const raw = m?.response?.data?.message;
@@ -104,6 +117,14 @@ export function GoLive({ password }: { password: string }) {
         </div>
       )}
 
+      {!live && <ReleaseProgress status={status.data} />}
+
+      {!live && waiting !== null && (
+        waiting === 0
+          ? <p className="muted" style={small}>Nothing is waiting: togethercity.app has every change on this copy.</p>
+          : <ChangePicker changes={changes} off={off} onChange={setOff} disabled={goLive.isPending} />
+      )}
+
       {!live && !s.tokenSet && (
         <p style={{ ...small, color: 'var(--danger-ink)' }} role="alert">
           GITHUB_RELEASE_TOKEN is not set on this environment, so the button cannot ask GitHub to
@@ -130,7 +151,9 @@ export function GoLive({ password }: { password: string }) {
             style={reasonBox} />
           <div style={row}>
             <Button variant="accent" size="sm" disabled={!ready || goLive.isPending} onClick={press}>
-              {goLive.isPending ? 'Asking GitHub…' : 'Send this copy to togethercity.app'}
+              {goLive.isPending ? 'Asking GitHub…'
+                : sendAll ? 'Send this copy to togethercity.app'
+                : `Send ${picked.length} chosen change${picked.length === 1 ? '' : 's'} to togethercity.app`}
             </Button>
             <Button variant="line" size="sm" onClick={() => { setArming(false); setReason(''); setErr(null); }}>
               Cancel
@@ -143,7 +166,8 @@ export function GoLive({ password }: { password: string }) {
       {err && <p style={{ ...small, color: 'var(--danger-ink)' }} role="alert">{err}</p>}
       {sent && (
         <p style={small} role="status">
-          Release started. It takes a few minutes: build, then main moves, then Vercel and Railway deploy.
+          Release started. It takes a few minutes: build, then main moves, then Vercel and Railway deploy —
+          the progress above follows it.
         </p>
       )}
 

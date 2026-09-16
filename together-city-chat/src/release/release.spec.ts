@@ -62,24 +62,40 @@ describe('the hubs the button can hold back', () => {
 
 describe('the live-hubs file the workflow rewrites', () => {
   const src = readFileSync(join(__dirname, 'live-hubs.ts'), 'utf8');
-  const wf = readFileSync(join(__dirname, '..', '..', '..', '.github', 'workflows', 'go-live.yml'), 'utf8');
+  const root = join(__dirname, '..', '..', '..');
+  const wf = readFileSync(join(root, '.github', 'workflows', 'go-live.yml'), 'utf8');
+  // The steps themselves live in release/go-live.sh, which the workflow reads from main.
+  const sh = readFileSync(join(root, 'release', 'go-live.sh'), 'utf8');
 
   it('keeps the one export the workflow writes', () => {
     expect(src).toMatch(/export const LIVE_HUBS: readonly string\[\] = \[/);
-    expect(wf).toContain('together-city-chat/src/release/live-hubs.ts');
-    expect(wf).toContain('export const LIVE_HUBS: readonly string[] = [');
+    expect(sh).toContain('together-city-chat/src/release/live-hubs.ts');
+    expect(sh).toContain('export const LIVE_HUBS: readonly string[] = [');
   });
 
-  it('is released only by building develop before main moves', () => {
+  it('is released only by building the release before main moves', () => {
     expect(wf).toMatch(/workflow_dispatch:/);
+    expect(wf).toContain('git show origin/main:release/go-live.sh');
     expect(wf).toMatch(/npx tsc --noEmit/);
     expect(wf).toMatch(/prisma migrate deploy/);
-    expect(wf).toMatch(/git push --atomic origin "\$DEV_SHA:refs\/heads\/develop" HEAD:main/);
-    // The merge happens BEFORE the gates, so what is built is what main becomes.
-    expect(wf.indexOf('git merge')).toBeLessThan(wf.indexOf('npx tsc --noEmit'));
+    // Prepare (hubs + merge or picks) runs BEFORE the gates, push only after them.
+    expect(wf.indexOf('go-live.sh" prepare')).toBeLessThan(wf.indexOf('npx prisma migrate deploy'));
+    expect(wf.indexOf('npm run build -- --base=/')).toBeLessThan(wf.indexOf('go-live.sh" push'));
+    expect(sh).toMatch(/git push --atomic origin "\$DEV_SHA:refs\/heads\/develop" HEAD:main/);
+    expect(sh.indexOf('git push --atomic')).toBeGreaterThan(sh.indexOf('git cherry-pick -x'));
   });
 
-  it('refuses a hub key the API does not know, in the workflow as well', () => {
-    for (const k of RELEASE_KEYS) expect(wf).toContain(k);
+  it('sends only the chosen changes when told which, and says when one needs another', () => {
+    expect(wf).toMatch(/commits:\n\s+description:[^\n]*\n\s+required: false/);
+    expect(wf).toContain('COMMITS: ${{ inputs.commits }}');
+    // A picked change keeps "cherry picked from" so the button knows it is live.
+    expect(sh).toContain('git cherry-pick -x "$c"');
+    expect(sh).toContain('builds on a change you did not choose');
+    // Only commits that are waiting on develop can be named.
+    expect(sh).toContain('rev-list --reverse --no-merges "origin/main..$DEV_SHA"');
+  });
+
+  it('refuses a hub key the API does not know, in the release script as well', () => {
+    for (const k of RELEASE_KEYS) expect(sh).toContain(k);
   });
 });

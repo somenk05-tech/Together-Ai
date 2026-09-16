@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import type { HubConfig } from '@/config/hubs';
+import { HUBS, type HubConfig } from '@/config/hubs';
 import { Icon } from '@/components/ui/Icon';
 import { useUiStore } from '@/store/ui.store';
 import { MailProjectsRail, MailProjectSideRail } from '@/features/mail/ProjectRail';
@@ -103,7 +103,7 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
       {/* Close first: Back moves the page UNDER the drawer, and a drawer that
           stays open over the previous page reads as a navigation that failed. */}
       <button className="back" onClick={() => { toggle(false); navigate(-1); }}>← Back</button>
-      <div className="hubname">{hub.key === 'family' ? 'Nutrition Hub' : hub.name}</div>
+      <div className="hubname">{hub.key === 'family' ? HUBS.nutrition.name : hub.name}</div>
       <div className="hubtag">{hub.key === 'family' ? 'Eat healthy, live better' : hub.tag}</div>
 
       {showModeTabs && (

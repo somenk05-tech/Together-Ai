@@ -63,4 +63,24 @@ describe('a go live button wherever there is a change (owner, 16 Sep)', () => {
     expect(dock).toMatch(/releaseApi\.goLive\(password/);
     expect(dock).not.toMatch(/localStorage|sessionStorage/);
   });
+
+  it('lets the owner choose which changes go live now (owner, 16 Sep)', () => {
+    const picker = src('features/dev/ChangePicker.tsx');
+    expect(picker).toMatch(/type="checkbox"/);
+    expect(picker).toMatch(/c\.areas/);
+    expect(picker).toMatch(/needsUnticked/);
+    const dock = src('features/dev/GoLiveDock.tsx');
+    // Everything ticked sends everything; otherwise only the ticked ids.
+    expect(dock).toMatch(/sendAll \? undefined : picked/);
+    expect(src('features/dev/GoLive.tsx')).toMatch(/commits: sendAll \? undefined : picked/);
+    expect(src('features/dev/release.api.ts')).toMatch(/commits\?\.length \? \{ commits \} : \{\}/);
+  });
+
+  it('says whether the last release has been deployed', () => {
+    expect(src('features/dev/release.api.ts')).toMatch(/'\/release\/status'/);
+    const picker = src('features/dev/ChangePicker.tsx');
+    expect(picker).toMatch(/deployed: 'Live — deployed on togethercity\.app\.'/);
+    expect(src('features/dev/GoLiveDock.tsx')).toMatch(/<ReleaseProgress/);
+    expect(src('features/dev/GoLive.tsx')).toMatch(/<ReleaseProgress/);
+  });
 });
