@@ -58,7 +58,7 @@ checks the SQL). The live activity feed says **what** happened, never **who**.
 | Active today / this week / this month (DAU / WAU / MAU) | Distinct members active on today / any of the last 7 / any of the last 30 city days. |
 | Returning members | Members active in the window who had also been active on an earlier day. |
 | Active days per member | Average number of distinct active days per active member in the window. |
-| Avg time per active day | Seconds in the app per member per active day, from the app's foreground heartbeat (`UsageDay`). **Not measured** until that heartbeat is recording. |
+| Avg time per active day | Seconds the app was on screen per member per active day (`UsageDay`). While a member is signed in and the app is visible, the web sends a beat every 30 seconds with the seconds it was visible; each beat counts at most 60 seconds, beats under 15 seconds apart are dropped, and a day tops out at 24 hours. Recorded from 16 Sep. |
 
 ### The eight personal systems
 
@@ -79,9 +79,13 @@ checks the SQL). The live activity feed says **what** happened, never **who**.
 - **Systems per member**: for each active member, how many of the eight they used in the window. The chart shows how many members used 1, 2 … 8. The headline is the average.
 
 Because interactions are read from each system's own tables, they have history from
-the day each system opened. **Days of use** are recorded from go-live of this
-dashboard (the migration also backfills one day per member from their last-seen date).
-The page says "Daily activity recorded from …".
+the day each system opened. **Days of use** are recorded as they happen from go-live of
+this dashboard (16 Sep). Earlier days were **rebuilt** by the 16 Sep migration from what
+already recorded a member and a day: the day they joined, sign-ins and token refreshes,
+chat messages sent, posts, comments, likes, calls started and app events (only the
+member and the day are copied). The page says "Daily activity recorded from 16 Sep,
+rebuilt back to …". A member who only read, before 16 Sep, without signing in again
+that day, is not in the rebuilt days.
 
 ### Activation, the journey and retention
 
@@ -116,9 +120,17 @@ The page says "Daily activity recorded from …".
 | Avg conversation | Member messages per conversation. |
 | Continuation rate | Share of conversations in which the member wrote more than once. |
 | Returning AI users | Members who talked to the assistant on more than one day in the window. |
-| AI requests, tokens | From the per-call ledger (`AiCall`) once it exists; otherwise **—**. |
-| AI cost, cost per member / conversation / session, monthly AI cost | Tokens × each model's price. **Not shown** until every call is metered and every model has a price; never estimated. |
-| Response time and failure rate of AI calls | **Not recorded yet.** |
+| AI requests, tokens | From the per-call ledger (`AiCall`): one row per call to a model, with the model, tokens in/out (and cached), how long it took, and whether it failed. No prompt, no answer. Recorded from 16 Sep. |
+| Failed AI calls | Calls that ended in an error ÷ all calls. Founders also see the kinds: timed out, rate limited, model overloaded, model not found, key refused, provider error. A reply that came back but was not the JSON asked for is **not** a failed call. |
+| AI response (median / p95) | Time from sending a call to its answer, successful calls only. |
+| AI cost in window | Σ tokens × the rate for that model, from `AI_MODEL_RATES` (rupees per million tokens; cached tokens at their own rate, or the input rate if none is set). If any model used in the window has no rate, **no cost is shown** (the page names the model to founders) — never a low guess. |
+| At this pace, a month | AI cost in the window ÷ days in the window × 30 (for All time: days since the first recorded call). A pace, not a forecast. |
+| Cost / active member, / AI user, / conversation | AI cost in the window ÷ active members, ÷ members who talked to the assistant, ÷ conversations. |
+
+To see AI cost, set **`AI_MODEL_RATES`** on the API service in Railway, e.g.
+`{"claude-sonnet-5":{"in":250,"out":1250},"claude-haiku":{"in":80,"out":400}}` —
+rupees per million tokens, keyed by model id (a key prices every model id that starts
+with it). The rates are yours to set from your provider bill; the city never invents one.
 
 ### Where members come from
 
@@ -152,12 +164,21 @@ The page says "Daily activity recorded from …".
 
 ### Platform health
 
-- Counted by this server process since it started (a deploy starts again):
-  requests, server errors (5xx), success rate, median and p95 response time, in
-  five-minute columns over the last 24 hours.
-- Database: a `SELECT 1` and how long it took.
-- **Not measured yet:** crash-free sessions (the apps do not report crashes), AI
-  failures, uptime across deploys.
+**Right now** — counted by this server process since it started (a deploy starts
+again): requests, server errors (5xx), success rate, median and p95 response time, in
+five-minute columns over the last 24 hours. Database: a `SELECT 1` and how long it took.
+
+**Across deploys** — over the chosen window:
+
+| Metric | Definition |
+|---|---|
+| Uptime | Every API process writes a `ServerRun` row when it starts and a beat every minute. A run counts as up from its start to its last beat plus 90 seconds. Uptime = time covered by at least one serving run ÷ the window (counted from the first recorded run). The worker service (`JOBS_ROLE=worker`) does not count as serving. |
+| Downtime | The rest of that window — a crash, a deploy's gap or the platform. |
+| Deploys / starts | Distinct commits started in the window / server starts in the window (a restart without a new version adds only to the second). |
+| Crash-free sessions | App openings in the window that did not crash ÷ all openings. A session is one page load (web, or the city inside the iOS/Android apps), with a random id and a platform word — no account, no address, no page. It is marked crashed once, the first time a screen falls over (the error boundary) or an uncaught exception is thrown. A failed image load, a 404 page and a stale page that reloads itself after a deploy are not crashes. |
+| Failed AI calls | As in the AI section. |
+
+- **Not measured yet:** crashes in the phone apps' native layer (outside the web view).
 
 ## How the numbers are captured
 
@@ -167,9 +188,19 @@ The page says "Daily activity recorded from …".
 | Request stats | `src/insights/request-stats.ts` | In memory only: five-minute buckets of requests, errors and response times. |
 | Visit origin | `src/analytics/visits.controller.ts`, `visit-origin.ts` | Source columns on `SiteVisitor`, on the first visit. |
 | Member origin | `src/insights/member-origin.service.ts` | One `MemberOrigin` row per member, never overwritten. |
+| AI bill | `src/ai/ai-ledger.service.ts`, called from the three model-call sites in `ai.service.ts` | One `AiCall` row per call: model, tokens, ms, failed + kind. Never awaited — a slow ledger never slows an answer. |
+| Time in app | `together-city-react/src/api/pulse.ts` → `POST /insights/beat` → `src/insights/pulse.service.ts` | `UsageDay` seconds per member per city day, capped. |
+| Sessions and crashes | `pulse.ts` (`startSession`, `reportCrash` from `ChunkBoundary`) → `POST /insights/session` | One `AppSession` row per page load; `crashes`, `crashKind`. |
+| Uptime | `src/insights/server-run.service.ts` | One `ServerRun` row per process; `lastBeatAt` every minute. |
 | Everything else | the systems' own tables | Read, counted, never changed. |
 
-Migration: `prisma/migrations/20260916T140000_the_control_room`.
+Migrations: `prisma/migrations/20260916T140000_the_control_room` and
+`20260916T170000_the_bill_and_the_clock` (the four tables above, and the rebuilt days).
+
+`AiCall` and `UsageDay` are **kept** when an account is purged (owner, 9 Sep: the
+record and the numbers survive, the person does not); they hold no text. `AppSession`
+and `ServerRun` hold no account at all. `MemberDay` and `MemberOrigin` are purged
+with the account.
 
 ## API
 
@@ -178,6 +209,8 @@ Migration: `prisma/migrations/20260916T140000_the_control_room`.
 | `GET /api/insights/investor?section=…&range=…` | investor password header | one section |
 | `GET /api/insights?section=…&range=…` | signed in, `analytics.read` | one section, founder view |
 | `POST /api/insights/origin` | signed in | 204; records where the member came from, once |
+| `POST /api/insights/beat` | signed in, 10 a minute | 204; `{ s }` seconds on screen since the last beat |
+| `POST /api/insights/session` | public, the city's own pages only (Origin), 30 a minute | 204; `{ id, platform, crash? }` |
 
 Sections: `overview` (snapshot, pulse, what changed, growth, journey, engagement),
 `city` (systems, adoption, depth), `retention`, `reach` (sources, places, ages,
@@ -197,7 +230,9 @@ Web: `together-city-react/src/features/insights/api.ts` exposes
 
 ## Known limits
 
-- Days of use start at go-live of this dashboard; before that, activity comes only from records members created.
-- Sources start at go-live; earlier visitors and members are counted apart.
-- AI cost and time in the app depend on the AI call ledger (`AiCall`) and the heartbeat (`UsageDay`), which ship separately. Until then those cards say so.
-- Health figures describe the current server process only.
+- Days of use before 16 Sep are rebuilt from sign-ins, messages, posts, comments, likes, calls and events, not observed; a member who only read that day is missing.
+- Traffic sources cannot be rebuilt: nothing recorded them before 16 Sep. Visitors and members from before then are counted in a note under the sources table, never guessed into a row.
+- AI calls, time in the app, sessions and uptime are recorded from 16 Sep (from the deploy that ships them). There is nothing earlier to read.
+- AI cost needs `AI_MODEL_RATES`; until it is set the page shows tokens and says so.
+- Crashes inside the phone apps' native layer (outside the web view) are not reported.
+- "Right now" health figures describe the current server process only; "Across deploys" covers the window.

@@ -6,6 +6,7 @@ import { useMiraShown } from '@/hooks/useCityDesign';
 import { useUiStore } from '@/store/ui.store';
 import { useAuthStore } from '@/store/auth.store';
 import { sendOrigin } from '@/api/origin';
+import { startHeartbeat, startSession } from '@/api/pulse';
 import { visitorId } from '@/api/visits.api';
 
 /**
@@ -64,6 +65,10 @@ export function RootChrome() {
      (owner, 16 Sep — the investor dashboard's acquisition table). */
   const signedInId = useAuthStore((st) => st.user?.id ?? null);
   useEffect(() => { if (signedInId) sendOrigin(signedInId, visitorId()); }, [signedInId]);
+  /* One opening of the app, and — while signed in — how long it is on screen
+     (owner, 16 Sep: crash-free sessions and time in the app). See api/pulse.ts. */
+  useEffect(() => { startSession(); }, []);
+  useEffect(() => (signedInId ? startHeartbeat() : undefined), [signedInId]);
   const lastPath = useRef(pathname);
   useEffect(() => {
     if (lastPath.current === pathname) return;

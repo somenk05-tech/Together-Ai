@@ -1,8 +1,9 @@
-import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, NotFoundException, Post, Query } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, NotFoundException, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 import { AdminAccessService } from '../admin/admin-access.service';
-import { investorPasswordOk } from '../analytics/visits.service';
+import { investorPasswordOk, isAutomated } from '../analytics/visits.service';
+import { VisitOriginGuard } from '../analytics/visit-origin.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { Public } from '../shared/public.decorator';
 import { JwtUser } from '../shared/types';
@@ -10,6 +11,7 @@ import { parseOrThrow } from '../shared/zod/zod-validation.pipe';
 import { isRangeKey, type RangeKey } from './insights.config';
 import { InsightsService, type View } from './insights.service';
 import { MemberOriginService } from './member-origin.service';
+import { PulseService } from './pulse.service';
 
 /**
  * ── /investor/analytics, SERVER SIDE (owner, 16 Sep) ───────────────────────
@@ -39,7 +41,7 @@ function run(svc: InsightsService, section: string, range: RangeKey, view: View)
     case 'reach': return svc.reach(range, view);
     case 'ai': return svc.ai(range, view);
     case 'money': return svc.money(view);
-    case 'health': return svc.health(view);
+    case 'health': return svc.health(range, view);
     case 'live': return svc.live();
     default: throw new NotFoundException('No such section.');
   }
@@ -52,6 +54,7 @@ export class InsightsController {
     private readonly insights: InsightsService,
     private readonly access: AdminAccessService,
     private readonly origins: MemberOriginService,
+    private readonly pulse: PulseService,
   ) {}
 
   /** Where this member first came from — sent once by the web after sign-in. */
@@ -59,6 +62,36 @@ export class InsightsController {
   @HttpCode(204)
   async origin(@CurrentUser() user: JwtUser, @Body() body: unknown): Promise<void> {
     await this.origins.record(user.sub, parseOrThrow(OriginSchema, body ?? {}));
+  }
+
+  /**
+   * Time in the app (owner, 16 Sep): a beat every half minute while the app is
+   * in front of this member, carrying the seconds it was visible. See
+   * pulse.service.ts for the caps.
+   */
+  @Post('beat')
+  @HttpCode(204)
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  async beat(@CurrentUser() user: JwtUser, @Body() body: { s?: unknown } | undefined): Promise<void> {
+    await this.pulse.beat(user.sub, body?.s);
+  }
+
+  /**
+   * One opening of the app, or the same opening crashing (owner, 16 Sep:
+   * crash-free sessions). Public, like the visit beacon, because most people
+   * who open the city are not signed in; guarded the same way — the city's own
+   * pages only, throttled per address — and all it can write is one row keyed
+   * by a random id, with a platform word and a crash word.
+   */
+  @Public()
+  @UseGuards(VisitOriginGuard)
+  @Post('session')
+  @HttpCode(204)
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  async session(@Body() body: Record<string, unknown> | undefined, @Req() req: { headers: Record<string, unknown> }): Promise<void> {
+    const ua = typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : '';
+    if (isAutomated(ua)) return;
+    await this.pulse.session(body ?? {});
   }
 
   @Public()

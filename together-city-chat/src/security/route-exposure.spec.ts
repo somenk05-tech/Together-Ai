@@ -74,6 +74,12 @@ const PUBLIC_ALLOWLIST = [
   // members folded away, no name, no record — and takes no id (the section
   // is a query value naming a report).
   'insights GET investor',
+  // One opening of the app, and whether it crashed (owner, 16 Sep: crash-free
+  // sessions). Public for the visit beacon's reason — most people who open the
+  // city are signed out — and guarded the same way: the city's own pages only,
+  // throttled; it writes one row keyed by a random id, with a platform word and
+  // a crash word, and nothing a citizen owns.
+  'insights POST session',
 ].sort();
 
 /**
@@ -90,6 +96,7 @@ const GUARDED_PUBLIC_MUTATIONS: Record<string, string> = {
   'mail POST inbound': 'InboundSecretGuard',
   'mail POST unsubscribe': 'UnsubscribeTokenGuard',
   'visits POST': 'VisitOriginGuard',
+  'insights POST session': 'VisitOriginGuard',
 };
 
 /**

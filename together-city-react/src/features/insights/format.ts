@@ -15,7 +15,21 @@ export const seconds = (n: number | null | undefined): string => {
 };
 
 export const inr = (n: number | null | undefined): string =>
-  n === null || n === undefined ? '—' : `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+  n === null || n === undefined ? '—' : `₹${n.toLocaleString('en-IN', { maximumFractionDigits: Math.abs(n) < 100 ? 2 : 0 })}`;
+
+/** A rate near 100% (uptime, success), where 99.95 must not print as 100. */
+export const percentFine = (n: number | null | undefined): string =>
+  n === null || n === undefined ? '—' : `${n.toLocaleString('en-IN', { maximumFractionDigits: n >= 99 && n < 100 ? 2 : 1 })}%`;
+
+/** "1.2 s" / "840 ms" for a response time. */
+export const ms = (n: number | null | undefined): string =>
+  n === null || n === undefined ? '—' : n >= 1000 ? `${(n / 1000).toLocaleString('en-IN', { maximumFractionDigits: 1 })} s` : `${Math.round(n)} ms`;
+
+/** A failed AI call's one-word kind, in words. */
+export const ERROR_LABEL: Record<string, string> = {
+  timeout: 'Timed out', rate_limit: 'Rate limited', overloaded: 'Model overloaded', not_found: 'Model not found',
+  auth: 'Key refused', server: 'Provider error', other: 'Other',
+};
 
 export const compact = (n: number | null | undefined): string => {
   if (n === null || n === undefined) return '—';

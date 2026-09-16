@@ -5,7 +5,7 @@ import {
 } from './parts';
 import { DEFINITIONS } from './definitions';
 import {
-  compact, count, dateLabel, dayLabel, inr, percent, seconds, SOURCE_LABEL, timeLabel, RANGE_LABEL,
+  compact, count, dateLabel, dayLabel, ERROR_LABEL, inr, ms, percent, percentFine, seconds, SOURCE_LABEL, timeLabel, RANGE_LABEL,
 } from './format';
 import type { RangeKey, SectionKey } from './types';
 
@@ -49,7 +49,7 @@ export function Snapshot({ ctx }: { ctx: Ctx }) {
               <MetricCard label="D7 retention" metric={s.d7Retention} show={percent} info={DEFINITIONS.d7} sample={sample} />
               <MetricCard label="Systems per member" metric={s.systemsPerMember} show={(n) => (n === null ? '—' : `${n} / 8`)} info={DEFINITIONS.depth} sample={sample} />
               <MetricCard label="City Assistant users" metric={s.aiUsers} show={count} info={DEFINITIONS.aiUsers} vs={vsOf(ctx.range)} sample={sample} />
-              <MetricCard label="AI cost" metric={undefined} show={count} info={DEFINITIONS.aiCost} sample={sample} />
+              <MetricCard label="AI cost" metric={s.aiCost} show={inr} info={DEFINITIONS.aiCost} vs={vsOf(ctx.range)} sample={sample} />
               <MetricCard label="Paying members" metric={s.paying} show={count} info={DEFINITIONS.paying} sample={sample} />
             </div>
           )}
@@ -372,7 +372,7 @@ export function AiSection({ ctx }: { ctx: Ctx }) {
         <Body q={q}>
           {a && (
             <>
-              <div className="ix-grid ix-grid-4">
+              <div className="ix-grid ix-grid-3">
                 <Stat label="Conversations" value={count(a.conversations)} info={DEFINITIONS.conversations} />
                 <Stat label="Messages from members" value={count(a.messages)} info={DEFINITIONS.aiMessages} />
                 <Stat label="Messages / member" value={count(a.perMember)} info={DEFINITIONS.aiPerMember} />
@@ -380,20 +380,32 @@ export function AiSection({ ctx }: { ctx: Ctx }) {
                 <Stat label="Continuation rate" value={percent(a.continuationRate)} info={DEFINITIONS.continuation} />
                 <Stat label="Returning AI users" value={count(a.returningMembers)} info={DEFINITIONS.aiReturning} />
                 <Stat label="AI requests" value={a.calls.available ? compact(a.calls.calls) : '—'} info={DEFINITIONS.aiCalls} />
-                <Stat label="Tokens used" value={a.calls.available ? compact((a.calls.tokensIn ?? 0) + (a.calls.tokensOut ?? 0)) : '—'} info={DEFINITIONS.tokens} />
+                <Stat label="Failed AI calls"
+                  value={a.failures.rate === null ? '—' : `${percent(a.failures.rate)} · ${count(a.failures.failed)}`} info={DEFINITIONS.aiFailures} />
+                <Stat label="AI response (median / p95)"
+                  value={a.latency.p50ms === null ? '—' : `${ms(a.latency.p50ms)} / ${ms(a.latency.p95ms)}`} info={DEFINITIONS.aiLatency} />
               </div>
-              <p className="ix-note">{a.latency.status === 'not-measured' ? `${a.latency.note} ${a.failures.note}` : ''}</p>
+              <p className="ix-note">
+                {a.calls.available
+                  ? `AI calls recorded from ${a.calls.since ? dateLabel(a.calls.since) : 'the next call'}.${a.latency.status === 'live' ? '' : ` ${a.latency.note}`}`
+                  : a.latency.note}
+              </p>
+              {ctx.founder && a.failures.byKind.length > 0 && (
+                <p className="ix-note">Failures: {a.failures.byKind.map((k) => `${ERROR_LABEL[k.kind] ?? k.kind} ${count(k.count)}`).join(' · ')}</p>
+              )}
               <h3 className="ix-h3">AI economics <InfoTip text={DEFINITIONS.aiCost} /></h3>
-              <div className="ix-grid ix-grid-4">
+              <div className="ix-grid ix-grid-3">
+                <Stat label="AI cost in window" value={inr(a.economics.costInr)} info={DEFINITIONS.aiCost} />
+                <Stat label="At this pace, a month" value={inr(a.economics.monthlyEstimate)} info={DEFINITIONS.aiMonthly} />
+                <Stat label="Tokens used" value={a.calls.available ? compact((a.calls.tokensIn ?? 0) + (a.calls.tokensOut ?? 0)) : '—'} info={DEFINITIONS.tokens} />
                 <Stat label="Cost / active member" value={inr(a.economics.costPerActiveMember)} info={DEFINITIONS.aiCost} />
+                <Stat label="Cost / AI user" value={inr(a.economics.costPerAiUser)} info={DEFINITIONS.aiCostPerUser} />
                 <Stat label="Cost / conversation" value={inr(a.economics.costPerConversation)} info={DEFINITIONS.aiCost} />
-                <Stat label="Est. monthly AI cost" value={inr(a.economics.monthlyEstimate)} info={DEFINITIONS.aiCost} />
-                <Stat label="Cost / session" value="—" info={DEFINITIONS.session} />
               </div>
               <p className="ix-note">{a.economics.note}</p>
               {ctx.founder && a.calls.byModel.length > 0 && (
-                <DataTable caption="Calls by model" head={['Model', 'Calls', 'Tokens in', 'Tokens out']}
-                  rows={a.calls.byModel.map((m) => [m.model, count(m.calls), count(m.tokensIn), count(m.tokensOut)])} />
+                <DataTable caption="Calls by model" head={['Model', 'Calls', 'Failed', 'Tokens in', 'Tokens out', 'Cost']}
+                  rows={a.calls.byModel.map((m) => [m.model, count(m.calls), count(m.failed), count(m.tokensIn), count(m.tokensOut), m.costInr === null ? 'rate not set' : inr(m.costInr)])} />
               )}
             </>
           )}
@@ -552,20 +564,42 @@ export function HealthSection({ ctx }: { ctx: Ctx }) {
   return (
     <div ref={ref}>
       <Section id="health" title="Platform health" sample={sample}
-        sub={h ? `This server, since it started ${dateLabel(h.since)} ${timeLabel(h.since)}. A deploy starts the count again.` : undefined}>
+        sub={h ? `Right now: this server, since it started ${dateLabel(h.since)} ${timeLabel(h.since)}. Across deploys: ${ctx.range === 'all' ? 'all time' : `the last ${RANGE_LABEL[ctx.range]}`}.` : undefined}>
         <Body q={q}>
           {h && (
             <>
               <p className={`ix-status ${h.status}`}><span className="ix-status-dot" aria-hidden /> {STATUS_WORD[h.status]}</p>
               <div className="ix-grid ix-grid-4">
                 <Stat label="Up for" value={seconds(h.uptimeSeconds)} info={DEFINITIONS.uptime} />
-                <Stat label="API success rate" value={percent(h.successRate)} info={DEFINITIONS.success} />
+                <Stat label="API success rate" value={percentFine(h.successRate)} info={DEFINITIONS.success} />
                 <Stat label="Response time (median / p95)" value={h.p50ms === null ? '—' : `${h.p50ms} / ${h.p95ms} ms`} info={DEFINITIONS.latency} />
                 <Stat label="Failed requests" value={count(h.failedRequests)} info={DEFINITIONS.failed} />
                 <Stat label="Database" value={h.database.ok ? `OK · ${h.database.ms} ms` : 'Not answering'} info={DEFINITIONS.database} />
               </div>
               <h3 className="ix-h3">Last 24 hours</h3>
               <Timeline rows={h.timeline} />
+              <h3 className="ix-h3">Across deploys · {RANGE_LABEL[ctx.range]}</h3>
+              <div className="ix-grid ix-grid-3">
+                <Stat label="Uptime" value={percentFine(h.uptime.percent)} info={DEFINITIONS.uptimeDeploys} />
+                <Stat label="Downtime" value={h.uptime.downSeconds === null ? '—' : seconds(h.uptime.downSeconds)} info={DEFINITIONS.uptimeDeploys} />
+                <Stat label="Deploys / starts"
+                  value={h.uptime.deploys === null ? '—' : `${count(h.uptime.deploys)} / ${count(h.uptime.restarts)}`} info={DEFINITIONS.deploys} />
+                <Stat label="Crash-free sessions" value={percentFine(h.crashFree.value)} info={DEFINITIONS.crashFree} />
+                <Stat label="Sessions / crashed"
+                  value={h.sessions.total === null ? '—' : `${count(h.sessions.total)} / ${count(h.sessions.crashed)}`} info={DEFINITIONS.crashFree} />
+                <Stat label="Failed AI calls" value={percent(h.aiFailures.rate)} info={DEFINITIONS.aiFailures} />
+              </div>
+              <p className="ix-note">
+                {[
+                  h.uptime.since ? `Uptime recorded from ${dateLabel(h.uptime.since)}.` : 'Uptime is recorded from the next server start.',
+                  h.sessions.since ? `Sessions recorded from ${dateLabel(h.sessions.since)}.` : 'Sessions are recorded from the next opening of the app.',
+                  h.crashFree.value === null ? '' : (h.crashFree.note ?? ''),
+                ].filter(Boolean).join(' ')}
+              </p>
+              {ctx.founder && h.sessions.byPlatform.length > 0 && (
+                <DataTable caption="Sessions by platform" head={['Platform', 'Sessions', 'Crashed']}
+                  rows={h.sessions.byPlatform.map((p) => [p.platform, count(p.sessions), count(p.crashed)])} />
+              )}
               {h.notMeasured.length > 0 && <p className="ix-note">Not measured yet: {h.notMeasured.join('; ')}.</p>}
             </>
           )}

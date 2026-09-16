@@ -103,7 +103,7 @@ describe('who may read it', () => {
   const allow = { assert: jest.fn(async () => ['founder']) } as any;
 
   it('asks the investor for the deck’s password', async () => {
-    const c = new InsightsController(svc, refuse, {} as any);
+    const c = new InsightsController(svc, refuse, {} as any, {} as any);
     expect(() => c.investor('overview', '30d', 'nope')).toThrow(ForbiddenException);
     expect(() => c.investor('overview', '30d', undefined)).toThrow(ForbiddenException);
     await expect(c.investor('overview', '30d', 'Togethercity')).resolves.toBe('overview');
@@ -111,8 +111,8 @@ describe('who may read it', () => {
   });
 
   it('asks an account for analytics.read, which the founder holds and an investor role holds alone', async () => {
-    await expect(new InsightsController(svc, refuse, {} as any).founder({ sub: 'u' } as any, 'overview', '7d')).rejects.toThrow(ForbiddenException);
-    await expect(new InsightsController(svc, allow, {} as any).founder({ sub: 'u' } as any, 'health', 'bogus')).resolves.toBe('health');
+    await expect(new InsightsController(svc, refuse, {} as any, {} as any).founder({ sub: 'u' } as any, 'overview', '7d')).rejects.toThrow(ForbiddenException);
+    await expect(new InsightsController(svc, allow, {} as any, {} as any).founder({ sub: 'u' } as any, 'health', 'bogus')).resolves.toBe('health');
     expect(allow.assert).toHaveBeenCalledWith('u', 'analytics.read');
     expect(can(['founder'], 'analytics.read')).toBe(true);
     expect(can(['investor'], 'analytics.read')).toBe(true);
