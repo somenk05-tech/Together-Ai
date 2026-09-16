@@ -162,6 +162,16 @@ gates, then the commit. Each script names the one before it as a precondition.
 **Never run git through the device bridge** — it cannot unlink, so a stale
 `.git/index.lock` is left behind and the repo needs manual repair.
 
+## Two cities: land on `develop`, never on `main` (16 Sep)
+
+`develop` is the developer copy (dev.togethercity.app, its own database);
+`main` is the live site. **Every landing script lands on `develop`** — check
+`git symbolic-ref --short HEAD` is `develop`, move `refs/heads/develop`, and end
+with `git push origin develop`. Nothing moves `main` except the Go live button
+(`.github/workflows/go-live.yml`), which builds the merged tree first. A hub
+the live site should not show yet is switched to "Developer only" on the
+button, not deleted. Full picture: `RELEASE.md`.
+
 ## The ratchet pattern
 
 `scripts/lint-ceiling.mjs` and `scripts/dead-export-audit.mjs` both end with

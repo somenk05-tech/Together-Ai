@@ -16,7 +16,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # develop is the developer site (owner, 16 Sep): its pushes are checked
+    # before the Go live button ever offers them to main.
+    branches: [main, develop]
   pull_request:
 
 # A second push to the same branch makes the first run irrelevant.
