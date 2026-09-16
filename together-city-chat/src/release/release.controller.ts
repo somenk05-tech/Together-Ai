@@ -11,6 +11,8 @@ const GoLiveSchema = z.object({
   hubs: z.array(z.string().min(1).max(40)).min(1).max(40),
   // Same rule as every console action: a sentence, so the log can answer why.
   reason: z.string().trim().min(8).max(500),
+  // Only these changes (commit ids waiting on develop). Absent: everything.
+  commits: z.array(z.string().regex(/^[0-9a-f]{7,40}$/)).min(1).max(30).optional(),
 });
 type GoLiveDto = z.infer<typeof GoLiveSchema>;
 
@@ -34,6 +36,6 @@ export class ReleaseController {
   @Post('go-live')
   @UsePipes(new ZodValidationPipe(GoLiveSchema))
   goLive(@CurrentUser() user: JwtUser, @Body() dto: GoLiveDto, @Req() req: { ip?: string }) {
-    return this.release.goLive(user.sub, dto.hubs, dto.reason, req.ip ?? null);
+    return this.release.goLive(user.sub, dto.hubs, dto.reason, req.ip ?? null, dto.commits);
   }
 }

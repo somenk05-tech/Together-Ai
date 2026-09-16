@@ -22,22 +22,48 @@ export interface ReleaseRun {
   id: number; title: string; status: string; conclusion: string | null; createdAt: string; url: string;
 }
 
+/** One change waiting on the developer copy. */
+export interface PendingChange {
+  sha: string;
+  short: string;
+  title: string;
+  details: string;
+  at: string | null;
+  url: string;
+  /** Where it lands, in words. Null: GitHub did not say. */
+  areas: string[] | null;
+  files: string[] | null;
+}
+
 /** What the developer copy has that the live site does not. `waiting: null`: GitHub could not be asked. */
 export interface PendingChanges {
   waiting: number | null;
-  changes: Array<{ sha: string; title: string; at: string | null; url: string }>;
+  /** Newest first, at most 30. */
+  changes: PendingChange[];
+}
+
+export type ReleaseStage = 'none' | 'building' | 'failed' | 'deploying' | 'deployed' | 'deploy-failed';
+
+/** Where the last release is: building, live on main, and deployed by Vercel and Railway. */
+export interface ReleaseStatus {
+  stage: ReleaseStage;
+  run: ReleaseRun | null;
+  main: { sha: string; title: string; at: string | null; url: string } | null;
+  deploys: Array<{ name: string; state: string; at: string | null; url: string | null }>;
 }
 
 export const releaseApi = {
   /** No password: the owner's own session on the developer copy is the lock (DevAccountGuard). */
   pending: () => api.get<PendingChanges>('/release/pending').then((r) => r.data),
+  status: () => api.get<ReleaseStatus>('/release/status').then((r) => r.data),
   state: (password: string) =>
     api.get<ReleaseState>('/dev/release', withPassword(password)).then((r) => r.data),
   runs: (password: string) =>
     api.get<{ runs: ReleaseRun[] | null }>('/dev/release/runs', withPassword(password)).then((r) => r.data),
-  goLive: (password: string, hubs: string[], reason: string) =>
-    api.post<{ dispatched: boolean; hubs: string[]; runsUrl: string }>(
-      '/dev/release/go-live', { hubs, reason }, withPassword(password),
+  /** `commits` absent: everything on develop. Given: only those changes. */
+  goLive: (password: string, hubs: string[], reason: string, commits?: string[]) =>
+    api.post<{ dispatched: boolean; hubs: string[]; changes: number | null; runsUrl: string }>(
+      '/dev/release/go-live', { hubs, reason, ...(commits?.length ? { commits } : {}) }, withPassword(password),
     ).then((r) => r.data),
 };
 
@@ -50,6 +76,20 @@ export function usePendingChanges(enabled: boolean) {
     retry: false,
     staleTime: 60_000,
     refetchOnWindowFocus: true,
+  });
+}
+
+const MOVING: ReleaseStage[] = ['building', 'deploying'];
+
+/** Asks every 15 seconds while a release is building or deploying, then rests. */
+export function useReleaseStatus(enabled: boolean, watching = false) {
+  return useQuery({
+    queryKey: ['release', 'status'],
+    queryFn: releaseApi.status,
+    enabled,
+    retry: false,
+    staleTime: 15_000,
+    refetchInterval: (q) => (watching || MOVING.includes(q.state.data?.stage ?? 'none') ? 15_000 : false),
   });
 }
 
@@ -79,10 +119,10 @@ export function useReleaseRuns(password: string | null, enabled: boolean) {
 export function useGoLive(password: string | null) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { hubs: string[]; reason: string }) =>
-      releaseApi.goLive(password as string, v.hubs, v.reason),
+    mutationFn: (v: { hubs: string[]; reason: string; commits?: string[] }) =>
+      releaseApi.goLive(password as string, v.hubs, v.reason, v.commits),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['release', 'pending'] });
+      void qc.invalidateQueries({ queryKey: ['release'] });
       // GitHub takes a moment to list a dispatched run; ask again shortly.
       window.setTimeout(() => { void qc.invalidateQueries({ queryKey: ['dev', 'release', 'runs'] }); }, 4_000);
     },
