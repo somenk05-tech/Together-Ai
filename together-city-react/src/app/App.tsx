@@ -1,6 +1,7 @@
 import { RouterProvider } from 'react-router-dom';
 import { Providers } from './providers';
 import { CallCenter } from '@/features/calls/CallCenter';
+import { Realtime } from './Realtime';
 import { useZoomLock } from '@/hooks/useZoomLock';
 import { useDeepLinks } from '@/hooks/useDeepLinks';
 import { router } from './router';
@@ -36,6 +37,9 @@ export function App() {
   useDeepLinks();
   return (
     <Providers>
+      {/* The socket, presence heartbeat, chat badge and push subscription —
+          above the router for CallCenter's reason. See Realtime.tsx. */}
+      <Realtime />
       <CallCenter>
         <RouterProvider router={router} />
       </CallCenter>
