@@ -7,6 +7,9 @@ export const ListEmailsSchema = z.object({
   /** One category, or several comma-separated — a chip on the page is a group
    *  ("LABS" is laboratory + blood-test + pathology). Unknown names are dropped. */
   category: z.string().max(200).transform((v) => v.split(',').map((x) => x.trim()).filter((x): x is (typeof MEDICAL_CATEGORIES)[number] => (MEDICAL_CATEGORIES as readonly string[]).includes(x))).optional(),
+  /** "Reports": every email that produced a document in Health Records,
+   *  whatever it was classified as — the same count the landing tile shows. */
+  documents: z.enum(['1']).optional(),
   q: z.string().trim().max(200).optional(),
   cursor: z.string().max(64).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(25),

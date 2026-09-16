@@ -54,10 +54,11 @@ describe('the two inboxes stay apart', () => {
     expect(hint).toMatch(/Never from this sender/);
   });
 
-  it('Health Records says where a mailed document came from and opens its email', () => {
+  it('Health Records keeps Medical Mail as a collapsed folder, and every mailed file opens its email', () => {
     const rec = code('features/medical/pages/Records.tsx');
     expect(rec).toMatch(/Source: Medical Mail/);
-    expect(rec).toMatch(/From Medical Mail/);
+    expect(rec).toMatch(/key: '__mail', label: 'Medical Mail'/);
+    expect(rec).not.toMatch(/From Medical Mail/);
     expect(rec).toMatch(/to=\{`\/medical\/mail\/\$\{r\.sourceEmailId\}`\}/);
   });
 

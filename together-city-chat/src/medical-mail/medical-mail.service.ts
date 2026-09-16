@@ -393,7 +393,14 @@ export class MedicalMailService {
       case 'attachments': Object.assign(where, { deletedAt: null, attachments: { some: { status: { not: 'failed' } } } }); break;
       case 'all': Object.assign(where, { deletedAt: null }); break;
     }
-    if (q.category?.length) where.category = { in: q.category };
+    // A chip is its categories, OR — for Reports — any email whose attachment
+    // was filed as a record: the owner's "2 recent reports" tile counts filed
+    // documents, and a chip that counted differently looked like a sort bug.
+    const byCategory = q.category?.length ? { category: { in: q.category } } : null;
+    const byDocument = q.documents ? { attachments: { some: { recordId: { not: null } } } } : null;
+    if (byCategory && byDocument) where.AND = [{ OR: [byCategory, byDocument] }];
+    else if (byCategory) where.category = byCategory.category;
+    else if (byDocument) where.attachments = byDocument.attachments;
     if (q.q) {
       const needle = q.q.slice(0, 200);
       const cat = Object.entries(CATEGORY_LABEL).find(([, label]) => label.toLowerCase() === needle.toLowerCase())?.[0];
@@ -410,7 +417,7 @@ export class MedicalMailService {
       const [at, id] = q.cursor.split('_');
       const t = new Date(Number(at));
       if (!Number.isNaN(t.getTime()) && id) {
-        where.AND = [{ OR: [{ receivedAt: { lt: t } }, { receivedAt: t, id: { lt: id } }] }];
+        where.AND = [...((where.AND as unknown[]) ?? []), { OR: [{ receivedAt: { lt: t } }, { receivedAt: t, id: { lt: id } }] }];
       }
     }
     const take = Math.min(q.limit, PAGE_MAX);

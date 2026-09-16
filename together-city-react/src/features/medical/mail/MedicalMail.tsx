@@ -34,7 +34,7 @@ export function MedicalMail() {
     for (const [k, v] of Object.entries(next)) { if (v) p.set(k, v); else p.delete(k); }
     setParams(p);
   };
-  const list = useMedicalMailList({ folder, category: chip.categories.join(',') || undefined, q: q || undefined });
+  const list = useMedicalMailList({ folder, category: chip.categories.join(',') || undefined, documents: chip.documents ? '1' : undefined, q: q || undefined });
   const emptyTrash = useEmptyMedicalTrash();
   const plain = folder === 'inbox' && chip.key === 'all' && !q;
 
