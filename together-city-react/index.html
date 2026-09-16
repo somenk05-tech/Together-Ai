@@ -15,6 +15,13 @@
          account of what a page genuinely cannot prevent. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#faf9f6" />
+    <!-- THE API CONNECTION OPENS BEFORE THE SCRIPT ARRIVES (16 Sep). The
+         first request the app makes pays DNS + TCP + TLS to the API host on
+         top of the round trip; declared here, the browser does that work
+         while the bundle is still downloading. Same origin as
+         src/api/client.ts's production fallback. -->
+    <link rel="preconnect" href="https://api.togethercity.app" crossorigin />
+    <link rel="dns-prefetch" href="https://api.togethercity.app" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon-180.png" />
