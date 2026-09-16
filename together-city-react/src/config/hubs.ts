@@ -26,9 +26,10 @@ export interface SideItem { path: string; index: string; label: string; sub: str
  * drawer rail and tab bar can fit on a phone (Beauty, Fitness, Matchmaking…).
  * `HubConfig.name` is the hub's title — the drawer's heading, the landing
  * plate, the breadcrumb, the command palette — and for seven hubs the owner
- * gave it a sentence: "Your Personal Hair & Skin Specialist", "Your Personal
- * Trainer", "Your Private Nutritionist", "Your Secure Medical Records",
- * "Find Your Perfect Match", "Your Personal Astrologer", "Care for Your Pets".
+ * gave it a longer name: "Personal Hair & Skin Specialist", "Personal
+ * Trainer", "Private Nutritionist", "Secure Medical Records", "Find Your
+ * Perfect Match", "Personal Astrologer", "For Your Pets" (first given with
+ * "Your" in front, then shortened the same afternoon).
  * The Personalize cards and the home tiles wear the same seven (Home.tsx).
  */
 export interface HubConfig {
@@ -306,7 +307,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   astrology: {
-    key: 'astrology', name: 'Your Personal Astrologer', tag: 'Read the stars, together', backPath: '/astrology', dark: true, skies: true,
+    key: 'astrology', name: 'Personal Astrologer', tag: 'Read the stars, together', backPath: '/astrology', dark: true, skies: true,
     items: [
       // This leads to a letter, and a letter may not name what produced it. A
       // menu entry sitting four inches away that says "from your chart" gives
@@ -339,7 +340,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   nutrition: {
-    key: 'nutrition', name: 'Your Private Nutritionist', tag: 'Eat healthy, live better', backPath: '/nutrition',
+    key: 'nutrition', name: 'Private Nutritionist', tag: 'Eat healthy, live better', backPath: '/nutrition',
     items: [
       // Seven destinations were removed by the review (p14, p26) and two were
       // renamed. The removed paths still resolve — see REMOVED_ROUTES — they
@@ -496,7 +497,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   beauty: {
-    key: 'beauty', name: 'Your Personal Hair & Skin Specialist', tag: 'Science-led, personally curated', backPath: '/beauty',
+    key: 'beauty', name: 'Personal Hair & Skin Specialist', tag: 'Science-led, personally curated', backPath: '/beauty',
     items: [
       { path: '/beauty/profile', index: '01', label: 'Skin & Hair Profile', sub: 'Photos, AI assessment & goals' },
       // THE BUDGET IS NOT A TAB. It had one for an afternoon and it was a
@@ -525,7 +526,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   medical: {
-    key: 'medical', name: 'Your Secure Medical Records', tag: 'Your health, one secure place', backPath: '/medical',
+    key: 'medical', name: 'Secure Medical Records', tag: 'Your health, one secure place', backPath: '/medical',
     items: [
       // OWNER, 10 Sep: the vault first, its analysis second. Health Records is
       // where a file goes in (one Upload button, sorted by the server) and
@@ -565,7 +566,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   fitness: {
-    key: 'fitness', name: 'Your Personal Trainer', tag: 'Move, recover, fuel', backPath: '/fitness',
+    key: 'fitness', name: 'Personal Trainer', tag: 'Move, recover, fuel', backPath: '/fitness',
     items: [
       { path: '/fitness/profile', index: '01', label: 'Training Profile', sub: 'Age, level, style & body goal' },
       // BODY GOAL IS FOLDED INTO WORKOUT (owner, 8 Sep: "merge body goals and
@@ -675,7 +676,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
     backPath: '/personalize', door: '/personalize', items: [],
   },
   pets: {
-    key: 'pets', name: 'Care for Your Pets', tag: 'Everything your pet needs, in one place', backPath: '/pets',
+    key: 'pets', name: 'For Your Pets', tag: 'Everything your pet needs, in one place', backPath: '/pets',
     /* The sixteen rooms live with the feature that owns them, so adding a room
        is one edit there rather than two — one here and one in the router. */
     items: PETS_SIDEBAR,

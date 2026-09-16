@@ -16,13 +16,13 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const src = (p: string) => readFileSync(resolve(HERE, '..', p), 'utf8');
 
 const NAMES = {
-  beauty: ['Your Personal Hair & Skin Specialist', 'Beauty'],
-  fitness: ['Your Personal Trainer', 'Fitness'],
-  nutrition: ['Your Private Nutritionist', 'Nutrition'],
-  medical: ['Your Secure Medical Records', 'Medical'],
+  beauty: ['Personal Hair & Skin Specialist', 'Beauty'],
+  fitness: ['Personal Trainer', 'Fitness'],
+  nutrition: ['Private Nutritionist', 'Nutrition'],
+  medical: ['Secure Medical Records', 'Medical'],
   dating: ['Find Your Perfect Match', 'Matchmaking'],
-  astrology: ['Your Personal Astrologer', 'Astrology'],
-  pets: ['Care for Your Pets', 'Pets'],
+  astrology: ['Personal Astrologer', 'Astrology'],
+  pets: ['For Your Pets', 'Pets'],
 } as const;
 
 describe('seven hubs take a sentence for a name', () => {
@@ -44,7 +44,7 @@ describe('seven hubs take a sentence for a name', () => {
   it('puts the same names on the home tiles', () => {
     const home = src('pages/Home.tsx');
     for (const [title] of Object.values(NAMES)) {
-      if (title === 'Care for Your Pets') continue; // Pets has no tile yet
+      if (title === 'For Your Pets') continue; // Pets has no tile yet
       expect(home).toContain(`title: '${title}'`);
     }
   });
