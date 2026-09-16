@@ -115,7 +115,10 @@ function buildDestinations(): Dest[] {
     for (const it of cfg.items) {
       out.push({
         id: `p-${it.path}`, kind: 'page', label: it.label, sub: it.sub, path: it.path,
-        hub: key, icon: HUB_ICON[key], keywords: `${cfg.name} ${it.sub}`.toLowerCase(),
+        // The tab's short word too: a hub titled "Your Personal Trainer" is
+        // still found by typing "fitness".
+        hub: key, icon: HUB_ICON[key],
+        keywords: `${cfg.name} ${NAV.find((n) => n.key === key)?.label ?? key} ${it.sub}`.toLowerCase(),
       });
     }
   }
