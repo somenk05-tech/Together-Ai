@@ -10,6 +10,7 @@ import { FeatureFlagGuard } from './feature-flag.guard';
 import { RoomRoutesRegistry } from './room-routes.registry';
 import { ReleaseController } from '../release/release.controller';
 import { ReleaseService } from '../release/release.service';
+import { PendingController } from '../release/pending.controller';
 
 /**
  * The developer page, and the kill switches it operates.
@@ -34,7 +35,7 @@ import { ReleaseService } from '../release/release.service';
   // from the list it reports is one somebody edits without seeing the other.
   // ReleaseController is the Go live button (owner, 16 Sep): same page, same
   // locks, and it reads the same release list VisibilityController applies.
-  controllers: [DevController, VisibilityController, ReleaseController],
+  controllers: [DevController, VisibilityController, ReleaseController, PendingController],
   providers: [
     DevService,
     ReleaseService,

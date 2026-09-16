@@ -45,3 +45,22 @@ describe('two cities', () => {
     expect(dev?.headers).toContainEqual({ key: 'X-Robots-Tag', value: 'noindex, nofollow' });
   });
 });
+
+describe('a go live button wherever there is a change (owner, 16 Sep)', () => {
+  it('is mounted once, at the root every page goes through', () => {
+    expect(src('layouts/RootChrome.tsx')).toMatch(/<GoLiveDock \/>/);
+  });
+
+  it('shows only on the developer copy, for a signed-in owner, when something is waiting', () => {
+    const dock = src('features/dev/GoLiveDock.tsx');
+    expect(dock).toMatch(/channel === 'dev' && authed/);
+    expect(dock).toMatch(/waiting < 1\)\) return null/);
+    expect(src('features/dev/release.api.ts')).toMatch(/'\/release\/pending'/);
+  });
+
+  it('asks for the developer password to press, and never keeps it', () => {
+    const dock = src('features/dev/GoLiveDock.tsx');
+    expect(dock).toMatch(/releaseApi\.goLive\(password/);
+    expect(dock).not.toMatch(/localStorage|sessionStorage/);
+  });
+});

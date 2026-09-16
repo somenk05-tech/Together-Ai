@@ -22,7 +22,15 @@ export interface ReleaseRun {
   id: number; title: string; status: string; conclusion: string | null; createdAt: string; url: string;
 }
 
+/** What the developer copy has that the live site does not. `waiting: null`: GitHub could not be asked. */
+export interface PendingChanges {
+  waiting: number | null;
+  changes: Array<{ sha: string; title: string; at: string | null; url: string }>;
+}
+
 export const releaseApi = {
+  /** No password: the owner's own session on the developer copy is the lock (DevAccountGuard). */
+  pending: () => api.get<PendingChanges>('/release/pending').then((r) => r.data),
   state: (password: string) =>
     api.get<ReleaseState>('/dev/release', withPassword(password)).then((r) => r.data),
   runs: (password: string) =>
@@ -32,6 +40,18 @@ export const releaseApi = {
       '/dev/release/go-live', { hubs, reason }, withPassword(password),
     ).then((r) => r.data),
 };
+
+/** Asked on every developer page, only when this is the developer copy and somebody is signed in. */
+export function usePendingChanges(enabled: boolean) {
+  return useQuery({
+    queryKey: ['release', 'pending'],
+    queryFn: releaseApi.pending,
+    enabled,
+    retry: false,
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+}
 
 export function useReleaseState(password: string | null) {
   return useQuery({
@@ -62,6 +82,7 @@ export function useGoLive(password: string | null) {
     mutationFn: (v: { hubs: string[]; reason: string }) =>
       releaseApi.goLive(password as string, v.hubs, v.reason),
     onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['release', 'pending'] });
       // GitHub takes a moment to list a dispatched run; ask again shortly.
       window.setTimeout(() => { void qc.invalidateQueries({ queryKey: ['dev', 'release', 'runs'] }); }, 4_000);
     },

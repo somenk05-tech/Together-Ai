@@ -9,6 +9,12 @@ import {
 
 const GITHUB = 'https://api.github.com';
 
+export interface PendingChanges {
+  /** How many changes the developer copy has that the live site lacks; null when GitHub could not be asked. */
+  waiting: number | null;
+  changes: Array<{ sha: string; title: string; at: string | null; url: string }>;
+}
+
 export interface ReleaseRun {
   id: number;
   title: string;
@@ -85,6 +91,48 @@ export class ReleaseService {
     }
   }
 
+  /**
+   * ── WHAT IS WAITING (owner, 16 Sep) ──────────────────────────────────────
+   *
+   * The commits on `develop` that `main` does not have, newest first, as
+   * GitHub's compare answers it. Kept for a minute: every developer page asks,
+   * and the answer only changes when somebody pushes or presses Go live.
+   * `waiting: null` means "could not ask" — never read as "nothing waiting".
+   */
+  private pendingCache: { at: number; value: PendingChanges } | null = null;
+
+  async pending(): Promise<PendingChanges> {
+    if (this.pendingCache && Date.now() - this.pendingCache.at < 60_000) return this.pendingCache.value;
+    const token = (process.env.GITHUB_RELEASE_TOKEN ?? '').trim();
+    let value: PendingChanges = { waiting: null, changes: [] };
+    if (token) {
+      try {
+        const res = await fetch(`${GITHUB}/repos/${RELEASE_REPO}/compare/main...develop`,
+          { headers: this.headers(token), signal: AbortSignal.timeout(10_000) });
+        if (res.ok) {
+          const body = await res.json() as {
+            ahead_by?: number;
+            commits?: Array<{ sha: string; html_url: string; commit: { message: string; committer?: { date?: string } } }>;
+          };
+          const changes = (body.commits ?? [])
+            .map((c) => ({
+              sha: c.sha.slice(0, 8),
+              title: c.commit.message.split('\n')[0].slice(0, 140),
+              at: c.commit.committer?.date ?? null,
+              url: c.html_url,
+            }))
+            .reverse()
+            .slice(0, 30);
+          value = { waiting: body.ahead_by ?? changes.length, changes };
+        }
+      } catch {
+        /* GitHub did not answer: `waiting: null` says so. */
+      }
+    }
+    this.pendingCache = { at: Date.now(), value };
+    return value;
+  }
+
   async goLive(userId: string, hubs: string[], reason: string, ip?: string | null) {
     if (releaseChannel() !== 'dev') {
       throw new BadRequestException('Go live is pressed on the developer site, not on the live one.');
@@ -124,6 +172,7 @@ export class ReleaseService {
           ? `GitHub refused the release (${res.status}). Check the token can run workflows on ${RELEASE_REPO}.`
           : 'GitHub did not answer. Nothing was released; try again.');
       }
+      this.pendingCache = null;
       return { dispatched: true, hubs: live, runsUrl: RELEASE_RUNS_URL };
     });
   }
