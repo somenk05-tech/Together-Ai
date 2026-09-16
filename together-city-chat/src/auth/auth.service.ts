@@ -6,6 +6,7 @@ import { isDisposableEmail } from './disposable-domains';
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   Optional,
@@ -21,6 +22,7 @@ import { assertStrongPassword } from './password-policy';
 import { isCityAddress } from '../mail/mail.constants';
 import { passwordChangedEmail, recoveryOtpEmail } from '../mail/email-templates';
 import { isReservedAdminHandle } from './admin';
+import { devCopyAdmits } from '../release/dev-city-door';
 
 /** Wrong guesses allowed against one recovery code before it is burned. */
 const MAX_RESET_ATTEMPTS = 5;
@@ -92,6 +94,11 @@ export class AuthService {
   async register(dto: RegisterDto, meta: SessionMeta = {}): Promise<TokenPair & { userId: string }> {
     // Open registration — Together City is no longer invite-only.
     assertStrongPassword(dto.password);
+    // The developer copy (RELEASE_CHANNEL=dev) takes new accounts only for the
+    // names in DEV_PAGE_ACCOUNTS (owner, 16 Sep). See release/dev-city-door.ts.
+    if (!devCopyAdmits({ handle: dto.handle })) {
+      throw new ForbiddenException('This is the developer copy of Together City. New accounts are closed here.');
+    }
     // Same generic message for a taken handle and a reserved moderator handle,
     // so registration doesn't reveal which names are privileged.
     if (isReservedAdminHandle(dto.handle)) throw new ConflictException('That handle is already taken.');
@@ -425,6 +432,11 @@ export class AuthService {
     // caller "that account is suspended" answers "does this handle exist" and
     // "is this password right" for anybody typing handles into a form.
     if ((user as unknown as { suspendedAt?: Date | null }).suspendedAt) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    // The developer copy signs in only the accounts DEV_PAGE_ACCOUNTS names
+    // (owner, 16 Sep) — the same generic message, for the same reason as above.
+    if (!devCopyAdmits({ id: user.id, handle: user.handle })) {
       throw new UnauthorizedException('Invalid credentials');
     }
     await this.clearFailures(dto.handle);
