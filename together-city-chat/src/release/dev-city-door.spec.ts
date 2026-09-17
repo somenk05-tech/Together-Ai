@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { devCopyAdmits, isDevCopy } from './dev-city-door';
+import { devCopyAdmits, devCopyOperator, isDevCopy } from './dev-city-door';
 
 /** The developer copy lets in the owner and nobody else (owner, 16 Sep). */
 describe('the developer copy has one door', () => {
@@ -23,6 +23,24 @@ describe('the developer copy has one door', () => {
     expect(isDevCopy({ RELEASE_CHANNEL: 'live' })).toBe(false);
     expect(devCopyAdmits({ handle: 'anyone' }, { NODE_ENV: 'production' })).toBe(true);
     expect(devCopyAdmits({ handle: 'anyone' }, {})).toBe(true);
+  });
+
+  it('lets a second person onto the copy without making them an operator (17 Sep)', () => {
+    const two = { RELEASE_CHANNEL: 'dev', DEV_PAGE_ACCOUNTS: 'somen', DEV_COPY_ACCOUNTS: 'somen, @Shruti' };
+    expect(devCopyAdmits({ handle: 'somen' }, two)).toBe(true);
+    expect(devCopyAdmits({ handle: 'shruti' }, two)).toBe(true);
+    expect(devCopyAdmits({ handle: 'priya' }, two)).toBe(false);
+    expect(devCopyOperator({ handle: 'somen' }, two)).toBe(true);
+    expect(devCopyOperator({ handle: 'shruti' }, two)).toBe(false);
+  });
+
+  it('follows DEV_PAGE_ACCOUNTS while DEV_COPY_ACCOUNTS is unset or blank', () => {
+    expect(devCopyAdmits({ handle: 'somen' }, { ...dev, DEV_COPY_ACCOUNTS: ' , ' })).toBe(true);
+    expect(devCopyAdmits({ handle: 'shruti' }, { ...dev, DEV_COPY_ACCOUNTS: '' })).toBe(false);
+  });
+
+  it('never makes anybody an operator of the live site', () => {
+    expect(devCopyOperator({ handle: 'somen' }, { RELEASE_CHANNEL: 'live', DEV_PAGE_ACCOUNTS: 'somen' })).toBe(false);
   });
 
   it('is asked at both doors: a new account and a sign-in', () => {
