@@ -115,6 +115,7 @@ const MedMail = lazy(() => import('@/features/medical/mail/MedicalMail').then((m
 const MedMailMessage = lazy(() => import('@/features/medical/mail/MedicalMailMessage').then((m) => ({ default: m.MedicalMailMessage })));
 const MedMailSettings = lazy(() => import('@/features/medical/mail/MedicalMailSettings').then((m) => ({ default: m.MedicalMailSettings })));
 const MedMailTimeline = lazy(() => import('@/features/medical/mail/MedicalMailTimeline').then((m) => ({ default: m.MedicalMailTimeline })));
+const SocialConnected = lazy(() => import('@/features/dev/SocialConnected').then((m) => ({ default: m.SocialConnected })));
 const MedMailOps = lazy(() => import('@/features/medical/mail/MedicalMailOps').then((m) => ({ default: m.MedicalMailOps })));
 const BeautyProfile = lazy(() => import('@/features/beauty/pages/Profile').then((m) => ({ default: m.Profile })));
 const BeautyMarket = lazy(() => import('@/features/beauty/pages/Market').then((m) => ({ default: m.Market })));
@@ -389,6 +390,10 @@ const ROUTE_BLOCKS: RouteObject[] = [
       // carry the password regardless of what this app renders.
       { path: '/dev', element: <RequireAuth>{wrap(<DevPage />)}</RequireAuth> },
       { path: '/dev/medical-mail', element: <RequireAuth>{wrap(<MedMailOps />)}</RequireAuth> },
+      /* Where Google, Instagram and Threads send the media desk's Connect
+         pop-up back to (owner, 17 Sep). It only hands the code to the desk
+         that opened it — see features/dev/SocialConnected.tsx. */
+      { path: '/dev/social/connected', element: <RequireAuth>{wrap(<SocialConnected />)}</RequireAuth> },
       { path: '/profile', element: <RequireAuth>{wrap(<Profile />)}</RequireAuth> },
       { path: '/profile/master', element: <MasterProfileMoved /> },
       { path: '/profile/avatar', element: <RequireAuth>{wrap(<Avatars />)}</RequireAuth> },

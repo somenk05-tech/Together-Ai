@@ -210,6 +210,12 @@ const UNPROBED = [
   // — and the reads are findFirst({ id, userId }); the-front-door-and-the-
   // archive.spec.ts drives the pipeline against an in-memory table set.
   'medical/mail',
+  // The media desk (17 Sep). /dev/media/:id is the CITY's upload record, not
+  // a citizen's: the routes sit behind DevPasswordGuard (DEV_PAGE_ACCOUNTS +
+  // the page password) and a console grant, so a bare account is refused
+  // before any id is read. /hub-videos/:hub takes a hub key and returns the
+  // same public films to everyone.
+  'dev/media', 'hub-videos',
   // Operate on the caller's own record only — there is no other citizen's id to pass.
   'auth', 'users', 'profile', 'privacy', 'notifications', 'push', 'health', 'hub',
   'astrology', 'financial', 'fitness', 'ai', 'admin', '',

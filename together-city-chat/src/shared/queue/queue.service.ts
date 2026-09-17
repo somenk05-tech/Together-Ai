@@ -77,7 +77,25 @@ export const JOB_LANES: readonly JobLane[] = ['city', 'media'] as const;
 const LANE_OF: Readonly<Record<string, JobLane>> = {
   'transcode-video': 'media',
   'media.sweep': 'media',
+  // The media desk waits on the transcode and then uploads up to two
+  // gigabytes to YouTube — minutes of work, which belongs beside the encodes.
+  'social.publish': 'media',
 };
+
+/**
+ * ── A JOB ID BULLMQ WILL ACCEPT (found 17 Sep) ─────────────────────────────
+ *
+ * BullMQ refuses a custom id containing ':' unless it splits into exactly
+ * three parts ("Custom Id cannot contain :"), and `add` below catches that and
+ * answers `false` — so `transcode:<id>` and `reindex:<id>` were never queued
+ * at all: on a `both` container the work quietly ran in-process instead, and
+ * on an `api` container the video stayed 'processing' for good. The ids keep
+ * their meaning (one per media row, one per citizen); only the separator
+ * changes, the same way for every caller, so de-duplication still holds.
+ */
+export function bullJobId(id: string | undefined): string | undefined {
+  return id === undefined ? undefined : id.replace(/:/g, '-');
+}
 
 export function laneFor(name: string): JobLane {
   return LANE_OF[name] ?? 'city';
@@ -171,7 +189,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
     if (!queue) return false;
     try {
       await queue.add(name, data, {
-        jobId: opts.jobId, delay: opts.delayMs, attempts: opts.attempts ?? 3,
+        jobId: bullJobId(opts.jobId), delay: opts.delayMs, attempts: opts.attempts ?? 3,
         backoff: { type: 'exponential', delay: 10_000 }, removeOnComplete: 500, removeOnFail: 1000,
       });
       return true;

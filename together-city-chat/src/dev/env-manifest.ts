@@ -38,7 +38,11 @@
 
 export type EnvGroup =
   | 'Core' | 'Database & cache' | 'Mail' | 'Messaging & calls'
-  | 'Push' | 'Media' | 'AI' | 'Third-party data' | 'Safety' | 'Operations';
+  | 'Push' | 'Media' | 'AI' | 'Third-party data' | 'Safety' | 'Operations'
+  /* The platforms the media desk publishes to. Their own group rather than
+     folded into 'Media', which is about the city's own bucket and transcode:
+     these are credentials for somebody else's house. */
+  | 'Media desk';
 
 export interface EnvEntry {
   name: string;
@@ -166,6 +170,20 @@ export const ENV_MANIFEST: EnvEntry[] = [
   { name: 'ANTHROPIC_API_KEY', group: 'AI', purpose: 'Every AI feature: meal planning, blood-report reading, beauty analysis, CV parsing.', whenMissing: 'Those features fail or fall back, hub by hub.', secret: true },
   { name: 'AI_DAILY_CALLS_GLOBAL', group: 'AI', purpose: 'How many model calls the whole city may spend per UTC day, whoever is asking — jobs and socket frames included. Past it the model refuses everybody until midnight UTC and the deterministic fallbacks answer. Default 20,000.', whenMissing: 'Uses the built-in twenty thousand.' },
   { name: 'AI_DAILY_CALLS_PER_CITIZEN', group: 'AI', purpose: 'How many model calls one citizen may spend per UTC day across every model call in the city — charged at the call itself since 4 Sep, so the blood-report reads, Mira, the CV reader and the menu scan all count. Default 60. Kept in Redis; with Redis away only the per-minute throttle holds.', whenMissing: 'Uses the built-in sixty.' },
+  /* ── THE MEDIA DESK'S APPS (owner, 9 Sep; 17 Sep) ─────────────────────────
+     One upload on /dev → the topic's YouTube channel, Instagram account and
+     Threads profile. These are the APP credentials; the eighteen account
+     sign-ins are made on the desk with Connect and stored sealed. A platform
+     with any of its variables unset shows "not set up" and refuses.
+     broadcast/channels.ts lists what to obtain, in order. */
+  { name: 'SOCIAL_TOKEN_KEY', group: 'Media desk', purpose: '32 random bytes (base64 or hex) that seal every stored platform sign-in and sign the Connect pop-up\'s state. Make one with `openssl rand -base64 32`. Changing it disconnects every account.', whenMissing: 'No account can be connected or used; every platform row on the desk says so.', secret: true },
+  { name: 'SOCIAL_OAUTH_REDIRECT_URL', group: 'Media desk', purpose: 'Where the platforms send the Connect pop-up back to: this deployment\'s web origin + /dev/social/connected (e.g. https://togethercity.app/dev/social/connected). Register the same value in Google Cloud and in both Meta use cases.', whenMissing: 'The Connect buttons refuse.' },
+  { name: 'GOOGLE_OAUTH_CLIENT_ID', group: 'Media desk', purpose: 'The OAuth client (Web application) of a Google Cloud project with the YouTube Data API v3 enabled. The consent screen must be "In production" — in Testing, Google expires the sign-in after seven days.', whenMissing: 'YouTube shows as not set up on the desk.' },
+  { name: 'GOOGLE_OAUTH_CLIENT_SECRET', group: 'Media desk', purpose: 'The same OAuth client\'s secret. Until Google audits the project, every upload it makes is forced to Private.', whenMissing: 'YouTube shows as not set up on the desk.', secret: true },
+  { name: 'INSTAGRAM_APP_ID', group: 'Media desk', purpose: 'The Instagram app id from the Meta app\'s "Instagram API with Instagram Login" setup (not the Facebook app id). The six accounts are added as Instagram Testers.', whenMissing: 'Instagram shows as not set up on the desk.' },
+  { name: 'INSTAGRAM_APP_SECRET', group: 'Media desk', purpose: 'The Instagram app secret from the same screen.', whenMissing: 'Instagram shows as not set up on the desk.', secret: true },
+  { name: 'THREADS_APP_ID', group: 'Media desk', purpose: 'The Threads app id from the Meta app\'s "Access the Threads API" use case. The six profiles are added as Threads Testers.', whenMissing: 'Threads shows as not set up on the desk.' },
+  { name: 'THREADS_APP_SECRET', group: 'Media desk', purpose: 'The Threads app secret from the same screen.', whenMissing: 'Threads shows as not set up on the desk.', secret: true },
   { name: 'AI_MODEL_RATES', group: 'AI', purpose: 'What each model COSTS, as JSON keyed by model id, in rupees per million tokens: {"claude-opus-5":{"in":1250,"out":6250,"cacheRead":125,"cacheWrite":1560}}. The only place a rate is written down — the tokens are counted per call in AiCall, and the rupees are this variable times those tokens, applied when the page is read. A key matches by longest prefix, so a dated model id is priced by its family.', whenMissing: 'The analytics page (/investor/analytics) shows tokens and says the rate is unset instead of an AI cost. Nothing breaks and no number is invented — a plausible wrong bill is worse than a blank one.' },
   { name: 'ANTHROPIC_MODEL', group: 'AI', purpose: 'The default text model.', whenMissing: 'Uses the built-in default.' },
   { name: 'ANTHROPIC_VISION_MODEL', group: 'AI', purpose: 'The model used for photographs — menus and blood reports, where a misread costs somebody something real.', whenMissing: 'Uses the built-in default.' },

@@ -113,6 +113,9 @@ const UNSCOPED_CATALOGUE_READS = [
   'entertainment GET tv/:id',
   'entertainment GET sources/:type/:id',
   'entertainment GET person/:id',
+  // A hub's own films (17 Sep): the hub KEY, not a resource id — it picks one
+  // of six topics' published videos, links already public on the platforms.
+  'hub-videos GET :hub',
   'lookups GET :category',
   'nutrition GET recipes/:id/variants',
   'travel GET packages/:id',

@@ -1,0 +1,62 @@
+/* ── TOGETHER SOCIAL — THE MEDIA DESK (owner, 9 Sep; 17 Sep) ─────────────────
+   The /dev desk that sends one video to a topic's YouTube channel, Instagram
+   account, Threads profile and Together TV — and the strip of those films on
+   a hub landing. Drawn here rather than inline, because the size ratchet's
+   rule is "lower the number or raise nothing". Every colour is a token; every
+   surface is `.card` and so draws at one of the five depths. Prefix `md-`. */
+
+.md-wrap { display: grid; gap: 24px; }
+.md-section { display: grid; gap: 10px; }
+.md-h { font-size: 13px; margin: 0; letter-spacing: .08em; text-transform: uppercase; }
+.md-lead { font-size: 13px; margin: 0; max-width: 66ch; line-height: 1.6; }
+.md-small { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.md-note { font-size: 13px; margin: 0; color: var(--ink); }
+.md-err { color: var(--danger-ink); }
+.md-link { font-size: 12px; font-weight: 700; color: var(--accent-ink); }
+.md-grow { flex: 1 1 240px; min-width: 0; }
+.md-line { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.md-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; align-items: start; }
+.md-list { display: grid; gap: 12px; }
+.md-card { display: grid; gap: 8px; margin-top: 0; }
+.md-steps { font-size: 12px; color: var(--muted); line-height: 1.5; padding-left: 18px; display: grid; gap: 4px; margin: 6px 0 0; }
+
+.md-tag { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.md-tag.md-ok { color: var(--ok-ink); }
+.md-tag.md-bad { color: var(--danger-ink); }
+.md-tag.md-busy { color: var(--accent-ink); }
+
+/* the eighteen slots */
+.md-scroll { overflow-x: auto; }
+.md-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.md-table th, .md-table td { text-align: left; vertical-align: top; padding: 10px 12px 10px 0; border-top: 1px solid var(--line); }
+.md-table thead th { border-top: none; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.md-table tbody th { font-weight: 600; white-space: nowrap; }
+.md-table tbody th .md-small { display: block; font-weight: 400; }
+.md-slot { min-width: 180px; }
+.md-slot > span { display: block; }
+.md-slot-acts { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+
+/* the form */
+.md-form { display: grid; gap: 14px; }
+.md-field { display: grid; gap: 4px; }
+.md-label { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.md-input { width: 100%; box-sizing: border-box; min-height: 44px; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: var(--r-1); font-size: 14px; font-family: inherit; background: var(--card); color: var(--ink); }
+.md-area { min-height: 96px; }
+.md-check { display: flex; gap: 8px; align-items: center; font-size: 13px; min-height: 44px; }
+.md-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.md-chip { min-height: 44px; padding: 6px 14px; cursor: pointer; font-family: inherit; font-size: 13px; border-radius: var(--r-1); border: 1.5px solid var(--line); background: var(--card); color: var(--ink); display: grid; justify-items: start; }
+.md-chip[aria-pressed="true"] { font-weight: 700; border-color: var(--accent-ink); background: var(--accent-soft); }
+.md-chip-sub { font-size: 11px; font-weight: 400; color: var(--muted); }
+
+/* one destination on a post */
+.md-target { display: flex; align-items: baseline; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.md-target-name { min-width: 110px; font-size: 13px; font-weight: 600; }
+.md-why { flex: 1 1 240px; }
+
+/* ── A HUB'S OWN FILMS, under its landing ───────────────────────────────── */
+.md-films { max-width: 1100px; margin: 24px auto 0; padding: 0 16px; display: grid; gap: 12px; }
+.md-films-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.md-film { display: grid; gap: 8px; margin-top: 0; padding: 12px; color: var(--ink); text-decoration: none; }
+.md-film img { width: 100%; aspect-ratio: 9 / 16; max-height: 280px; object-fit: cover; border-radius: var(--r-1); }
+.md-film-title { font-size: 14px; font-weight: 600; line-height: 1.4; }
+.md-film-links { display: flex; gap: 10px; flex-wrap: wrap; }

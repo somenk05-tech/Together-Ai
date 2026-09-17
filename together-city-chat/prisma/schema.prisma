@@ -5083,3 +5083,124 @@ model MedicalAuditEvent {
   @@index([userId, at])
   @@index([subject, subjectId])
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── THE MEDIA DESK: ONE UPLOAD, EVERY CHANNEL (owner, 9 Sep; 17 Sep) ────────
+//
+// 9 Sep: "Create a media page for Together City where I upload content in the
+// developer section and it goes to all social media pages and gets uploaded
+// on its own."
+// 17 Sep: "…all details are automatically uploaded on youtube and instagram
+// channels from there, connect dating with dating site, health with health."
+//
+// What the operator made, once. The file itself lives where every other video
+// in the city lives — it IS a Together TV post (public, or private when TV is
+// not ticked), so it goes through the same screen and the same transcode, and
+// the three platforms are sent the rendition that plays everywhere.
+// ═══════════════════════════════════════════════════════════════════════════
+model MediaPost {
+  id        String   @id @default(uuid())
+  /// The operator who made it. Kept as a plain id, like the ledgers: this is a
+  /// record of what the CITY published, and it must outlive whoever pressed the
+  /// button leaving the company.
+  authorId  String
+  kind      String   // video
+  /// dating | health | fitness | pets | astrology | world — broadcast/topics.ts.
+  /// Decides the YouTube channel, the Instagram account, the Threads profile,
+  /// the hub the words link to and the hub pages that show it.
+  topic     String   @default("world")
+  /// The uploaded object (social/<authorId>/…). The TV post's media row is
+  /// the one that follows the transcode; this is where it started. There is
+  /// no public link: the file is in the private bucket, and each platform is
+  /// handed a short-lived signed one at the moment it fetches.
+  storageKey String
+  mediaUrl   String?
+  thumbUrl   String?
+  /// The owner's one line about the film, which the drafting model reads.
+  note      String?
+  /// The words the owner approved. A title is YouTube's (and the TV post's
+  /// first line); a caption is Instagram's; Threads has its own short line.
+  title       String?
+  description String?
+  tagsJson    String?
+  caption     String   @default("")
+  threadsText String?
+  overridesJson String?
+  /// public | unlisted | private — what YouTube is asked for. Google forces
+  /// private until the API project is audited; the target row says so.
+  privacy      String  @default("public")
+  /// "Made with AI": YouTube's altered-content flag, and a line in the words.
+  aiDisclosure Boolean @default(false)
+  /// The city's own copy. Its media row is what the transcode rewrites.
+  tvPostId  String?
+  tvMediaId String?
+  /// draft | publishing | done | failed — derived from the targets.
+  state     String   @default("draft")
+  scheduledAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  targets   MediaTarget[]
+
+  @@index([state, scheduledAt])
+  @@index([createdAt])
+  @@index([topic, state, createdAt])
+}
+
+/**
+ * ONE DESTINATION, ONE ROW, ONE ANSWER.
+ *
+ * "Posted to social media" is four outcomes, and the one that matters is the
+ * one that failed. Each row carries the platform's OWN id and URL when it
+ * worked, and the platform's own error text when it did not.
+ */
+model MediaTarget {
+  id        String   @id @default(uuid())
+  postId    String
+  /// youtube | instagram | threads | tv — broadcast/channels.ts.
+  channel   String
+  /// pending | skipped | publishing | posted | failed
+  state     String   @default("pending")
+  /// Why it was not attempted: no app credential, or no account connected.
+  skipReason String?
+  externalId  String?
+  externalUrl String?
+  /// The platform's own words. Truncated, never reworded.
+  error     String?
+  /// Something true about a post that DID go out — "YouTube kept it private".
+  notice    String?
+  attempts  Int      @default(0)
+  startedAt DateTime?
+  finishedAt DateTime?
+  updatedAt DateTime @updatedAt
+
+  post MediaPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, channel])
+  @@index([state])
+}
+
+/**
+ * ONE SIGN-IN PER PLATFORM PER TOPIC — six YouTube channels, six Instagram
+ * accounts, six Threads profiles. The token is SEALED (broadcast/seal.ts)
+ * under SOCIAL_TOKEN_KEY; this row never holds it in the clear. `externalId`
+ * is checked against the topic's named account when the sign-in finishes.
+ */
+model SocialAccount {
+  id          String    @id @default(uuid())
+  /// youtube | instagram | threads
+  platform    String
+  topic       String
+  externalId  String
+  handle      String
+  sealed      String
+  expiresAt   DateTime?
+  connectedBy String
+  connectedAt DateTime  @default(now())
+  refreshedAt DateTime?
+  lastUsedAt  DateTime?
+  lastError   String?
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([platform, topic])
+}

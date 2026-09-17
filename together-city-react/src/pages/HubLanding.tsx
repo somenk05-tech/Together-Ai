@@ -4,6 +4,7 @@ import { HUBS, hubDoor } from '@/config/hubs';
 import { useHubTheme } from '@/hooks/useHubTheme';
 import { useCitySwitches } from '@/hooks/useCityDesign';
 import { HubConsentGate } from '@/features/privacy/HubConsentGate';
+import { HubFilms } from '@/features/social/HubFilms';
 
 /**
  * Hub → hero image, matching the vanilla website's hub landings 1:1
@@ -223,6 +224,8 @@ export function HubLanding({ hub }: { hub: HubKey }) {
             <Link to={firstInner} className="hposter-cta">Explore<span aria-hidden> →</span></Link>
           </div>
         </div>
+        {/* The hub's own films, under the billboard (owner, 17 Sep). */}
+        <HubFilms hub={hub} />
       </HubConsentGate>
     );
   }
@@ -248,6 +251,7 @@ export function HubLanding({ hub }: { hub: HubKey }) {
           </Link>
         </article>
       </div>
+      <HubFilms hub={hub} />
     </HubConsentGate>
   );
 }
