@@ -13,6 +13,7 @@ export interface MediaPostRow {
   caption: string; threadsText: string | null; overridesJson: string | null;
   privacy: string; aiDisclosure: boolean; tvPostId: string | null; tvMediaId: string | null;
   state: string; scheduledAt: Date | null; createdAt: Date; updatedAt: Date;
+  series: string | null; episode: string | null; campaign: string | null;
 }
 export interface MediaTargetRow {
   id: string; postId: string; channel: string; state: string; skipReason: string | null;
@@ -25,6 +26,16 @@ export interface SocialAccountRow {
   refreshedAt: Date | null; lastUsedAt: Date | null; lastError: string | null; updatedAt: Date;
 }
 export type MediaPostWithTargets = MediaPostRow & { targets: MediaTargetRow[] };
+/** One reading of one published post (content analytics). Null: not given. */
+export interface MediaMetricRow {
+  id: string; targetId: string; postId: string; channel: string; capturedAt: Date;
+  views: number | null; likes: number | null; comments: number | null; shares: number | null; saves: number | null;
+}
+/** One reading of one account. */
+export interface ChannelMetricRow {
+  id: string; platform: string; topic: string; capturedAt: Date;
+  followers: number | null; views: number | null; posts: number | null;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Args = any;
@@ -47,6 +58,8 @@ export interface DeskDb {
   };
   mediaTarget: Table<MediaTargetRow>;
   socialAccount: Table<SocialAccountRow>;
+  mediaMetric: Pick<Table<MediaMetricRow>, 'findMany'> & { createMany(a: Args): Promise<{ count: number }> };
+  channelMetric: Pick<Table<ChannelMetricRow>, 'findMany'> & { createMany(a: Args): Promise<{ count: number }> };
   postMedia: {
     findUnique(a: Args): Promise<{ id: string; url: string; thumbUrl: string | null; state: string } | null>;
     findMany(a: Args): Promise<Array<{ id: string; thumbUrl: string | null; state: string }>>;

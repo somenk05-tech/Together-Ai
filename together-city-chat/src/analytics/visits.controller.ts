@@ -4,6 +4,7 @@ import { Public } from '../shared/public.decorator';
 import { swallow } from '../shared/swallow';
 import { VisitOriginGuard } from './visit-origin.guard';
 import { originOf } from './visit-origin';
+import { arrivalOf } from '../broadcast/tracking';
 import { VisitsService, investorPasswordOk, isAutomated, visitorKey, type VisitStats } from './visits.service';
 
 /**
@@ -35,6 +36,10 @@ export class VisitsController {
     // Where the visit came from (owner, 16 Sep: acquisition by source) — kept
     // on the visitor's FIRST visit only, and the referring host, never the address.
     void swallow(this.visits.record(key, originOf(body, ua)), 'visits: record');
+    // This load came through a Together Social link (owner, 17 Sep): count
+    // the arrival against the post, whether or not it is the browser's first.
+    const arrived = arrivalOf(body);
+    if (arrived) void swallow(this.visits.arrival(key, arrived.tag, arrived.channel), 'visits: social arrival');
   }
 
   /** The live numbers, for whoever holds the Investor page password. The

@@ -62,6 +62,8 @@ export interface NewVideo extends Draft {
   topic: TopicKey;
   storageKey: string;
   note?: string;
+  /** For Content analytics: the series, episode and campaign this upload belongs to. */
+  series?: string; episode?: string; campaign?: string;
   privacy: 'public' | 'unlisted' | 'private';
   aiDisclosure: boolean;
   channels: ChannelKey[];

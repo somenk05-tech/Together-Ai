@@ -10,6 +10,7 @@ import { useDiagnostics, useFlags, useSetFlag, type EnvRow, type FlagRow, type V
 import { routeIndex } from '../routeIndex';
 import { DevCitizens } from '../Citizens';
 import { DevMedia } from '../Media';
+import { DevContentAnalytics } from '../ContentAnalytics';
 
 /**
  * THE DEVELOPER PAGE.
@@ -517,15 +518,19 @@ const flagIcon = (key: string): IconName =>
 
 /* ─────────────────────────── the page ─────────────────────────── */
 
-type Tab = 'config' | 'users' | 'flags' | 'social' | 'routes';
+type Tab = 'config' | 'users' | 'flags' | 'social' | 'analytics' | 'routes';
 
 export function DevPage() {
   const [password, setPassword] = useState<string | null>(null);
   const [attempt, setAttempt] = useState<string | null>(null);
   /* `/dev?tab=social` opens straight on Together Social (owner, 17 Sep:
-     "a together social media page") — once the password is in. */
-  const [tab, setTab] = useState<Tab>(() =>
-    (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'social' ? 'social' : 'config'));
+     "a together social media page") — once the password is in. And
+     `/dev?tab=analytics` on Content analytics (owner, 17 Sep). */
+  const [tab, setTab] = useState<Tab>(() => {
+    const asked = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    if (asked?.get('tab') === 'analytics') return 'analytics';
+    return asked?.get('tab') === 'social' ? 'social' : 'config';
+  });
 
   const diag = useDiagnostics(attempt);
   const flags = useFlags(password);
@@ -583,6 +588,7 @@ export function DevPage() {
            ['users', 'Users'],
            ['flags', 'Kill switches'],
            ['social', 'Together Social'],
+           ['analytics', 'Content analytics'],
            ['routes', `Pages (${routes.length})`]] as Array<[Tab, string]>).map(([k, label]) => (
           <button key={k} type="button" onClick={() => setTab(k)} aria-current={tab === k ? 'page' : undefined}
             style={{ position: 'relative', minHeight: 44, padding: '0 14px', border: 0, background: 'none',
@@ -652,6 +658,11 @@ export function DevPage() {
           profile and Together TV. It takes the password rather than reading it
           from a store, like every other panel here. */}
       {tab === 'social' && <DevMedia password={password} />}
+
+      {/* ── CONTENT ANALYTICS (owner, 17 Sep) — every upload on every connected
+          platform: the combined view, the audit, one page per piece of
+          content and the click-through funnel. Public counts only. */}
+      {tab === 'analytics' && <DevContentAnalytics password={password} />}
 
       {tab === 'flags' && (
         <>

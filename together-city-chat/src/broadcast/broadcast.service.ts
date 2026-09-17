@@ -15,6 +15,7 @@ import { instagramCaption, threadsText, tvText, youtubeMeta, type Words } from '
 import { deskDb, type MediaPostWithTargets, type MediaTargetRow } from './desk.db';
 import { publishReel, publishThread, uploadToYouTube } from './platforms';
 import { topic as topicOf, topicForHub, TOPICS, type Topic, type TopicKey } from './topics';
+import { trackedLink } from './tracking';
 
 export interface CreateInput {
   topic: TopicKey;
@@ -30,6 +31,10 @@ export interface CreateInput {
   channels: ChannelKey[];
   /** Send it now, rather than leave it as a draft. */
   publish: boolean;
+  /** Where it belongs, for the content analytics. All optional. */
+  series?: string;
+  episode?: string;
+  campaign?: string;
 }
 
 export interface Draft { title: string; description: string; tags: string[]; caption: string; threadsText: string }
@@ -117,7 +122,8 @@ export class BroadcastService implements OnModuleInit {
       'tags: 8 to 12 plain search phrases a person would type, no # sign.',
       'caption: an Instagram caption under 600 characters — a first line that stops the scroll, then two or three short lines, then a question to the viewer. At most 3 hashtags. No links.',
       'threadsText: one or two sentences under 280 characters that invite a reply. No hashtags, no links.',
-      'Use only what the note says. Never invent facts, numbers, prices, medical or veterinary claims, results or guarantees. English (India).',
+      'Use only what the note says. Never invent facts, numbers, prices, medical or veterinary claims, results or guarantees.',
+      'Audience: the whole world, the United States included. Plain international English with American spelling; no regional slang, no local currencies, prices, holidays or references that only make sense in one country.',
     ].join('\n');
     const out = await this.ai.json<Partial<Draft> | null>(system, `The owner's note: ${note || '(none)'}\nFile name: ${fileName || '(none)'}`, null, 1200);
     if (!out) return plain;
@@ -163,6 +169,7 @@ export class BroadcastService implements OnModuleInit {
         data: {
           authorId: actorId, kind: 'video', topic: t.key, storageKey: dto.storageKey,
           note: dto.note?.trim() || null, title: words.title, description: words.description,
+          series: dto.series?.trim() || null, episode: dto.episode?.trim() || null, campaign: dto.campaign?.trim() || null,
           tagsJson: JSON.stringify(words.tags), caption: words.caption, threadsText: words.threadsText,
           privacy: words.privacy, aiDisclosure: words.aiDisclosure,
           tvPostId: tv.id, tvMediaId: tvMedia?.id ?? null, state: 'draft',
@@ -302,7 +309,7 @@ export class BroadcastService implements OnModuleInit {
           const file = join(dir, 'video.mp4');
           if (!(await this.storage.downloadPostObjectToFile(media.url, file))) throw new Error('The stored video could not be read.');
           const size = (await stat(file)).size;
-          const done = await uploadToYouTube(this.accounts.http, acct.access, file, size, youtubeMeta(words, t));
+          const done = await uploadToYouTube(this.accounts.http, acct.access, file, size, youtubeMeta(words, t, trackedLink(t, 'youtube', post.id)));
           const notice = done.privacy !== words.privacy
             ? `YouTube set it to ${done.privacy}, not ${words.privacy}. Until Google has audited the API project, every upload from it is private — change it in YouTube Studio.`
             : null;
@@ -322,7 +329,7 @@ export class BroadcastService implements OnModuleInit {
         return;
       }
       const acct = await this.accounts.use('threads', t.key);
-      const done = await publishThread(this.accounts.http, acct.access, acct.externalId, { videoUrl, text: threadsText(words, t), handle: acct.handle });
+      const done = await publishThread(this.accounts.http, acct.access, acct.externalId, { videoUrl, text: threadsText(words, t, trackedLink(t, 'threads', post.id)), handle: acct.handle });
       await this.posted(target.id, done.id, done.url, null);
     } catch (e) {
       const msg = String((e as Error)?.message ?? e).slice(0, 900);

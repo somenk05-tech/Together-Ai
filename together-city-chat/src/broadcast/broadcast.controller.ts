@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards, UsePipes } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 import { CurrentUser } from '../shared/current-user.decorator';
@@ -7,6 +7,8 @@ import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { DevPasswordGuard } from '../dev/dev-password.guard';
 import { BroadcastService, type CreateInput } from './broadcast.service';
 import { SocialAccountsService } from './accounts.service';
+import { ContentAnalyticsService, type AnalyticsQuery } from './content-analytics.service';
+import { RANGE_KEYS } from './content-analytics-math';
 import { CHANNEL_KEYS, PLATFORM_KEYS } from './channels';
 import { TOPIC_KEYS } from './topics';
 
@@ -32,6 +34,25 @@ const CreateSchema = z.object({
   aiDisclosure: z.boolean().default(false),
   channels: z.array(z.enum(CHANNEL_KEYS)).min(1),
   publish: z.boolean().default(false),
+  series: z.string().trim().max(120).optional(),
+  episode: z.string().trim().max(120).optional(),
+  campaign: z.string().trim().max(120).optional(),
+});
+
+/* The analytics filters. A value outside the lists is refused, not ignored,
+   so a typo in an address cannot quietly show everything. */
+const DAY = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const AnalyticsSchema = z.object({
+  range: z.enum(RANGE_KEYS as [string, ...string[]]).default('30d'),
+  from: DAY.optional(),
+  to: DAY.optional(),
+  platform: z.enum(CHANNEL_KEYS).optional(),
+  topic: z.enum(TOPIC_KEYS).optional(),
+  series: z.string().trim().min(1).max(120).optional(),
+  episode: z.string().trim().min(1).max(120).optional(),
+  campaign: z.string().trim().min(1).max(120).optional(),
+  type: z.string().trim().regex(/^[a-z]{1,20}$/).optional(),
+  published: z.enum(['all', 'period']).default('all'),
 });
 
 const ConnectSchema = z.object({ platform: z.enum(PLATFORM_KEYS as [string, ...string[]]), topic: z.enum(TOPIC_KEYS) });
@@ -61,6 +82,7 @@ export class BroadcastController {
   constructor(
     private readonly desk: BroadcastService,
     private readonly accounts: SocialAccountsService,
+    private readonly analytics: ContentAnalyticsService,
   ) {}
 
   /** Every destination, every topic, every account slot. */
@@ -91,6 +113,24 @@ export class BroadcastController {
   @Delete('accounts/:platform/:topic')
   disconnect(@CurrentUser() user: JwtUser, @Param('platform') platform: string, @Param('topic') topic: string, @Req() req: { ip?: string }) {
     return this.accounts.disconnect(user.sub, platform, topic, req.ip ?? null);
+  }
+
+  /* ── THE CONTENT ANALYTICS (owner, 17 Sep) — reads only; Refresh asks the
+     platforms for public counts, never posts. */
+  @Get('analytics')
+  analyticsOverview(@CurrentUser() user: JwtUser, @Query(new ZodValidationPipe(AnalyticsSchema)) q: AnalyticsQuery) {
+    return this.analytics.overview(user.sub, q);
+  }
+
+  @Post('analytics/refresh')
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
+  analyticsRefresh(@CurrentUser() user: JwtUser) {
+    return this.analytics.refresh(user.sub);
+  }
+
+  @Get('analytics/:id')
+  analyticsDetail(@CurrentUser() user: JwtUser, @Param('id') id: string, @Query(new ZodValidationPipe(AnalyticsSchema)) q: AnalyticsQuery) {
+    return this.analytics.detail(user.sub, id, q);
   }
 
   @Get()

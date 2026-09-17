@@ -4,7 +4,7 @@
 removing a route. It is produced from the same parse the security guards in
 `src/security/` use, so it cannot describe a route that does not exist.
 
-Every path below is prefixed with `/api`. **650 routes** across
+Every path below is prefixed with `/api`. **653 routes** across
 **53 controllers**; **17** are reachable without a token.
 
 ## Conventions
@@ -318,6 +318,9 @@ _broadcast/broadcast.controller.ts_
 | POST | `/api/dev/media/:id/retry/:channel` | 🔒 |
 | DELETE | `/api/dev/media/:id` | 🔒 |
 | DELETE | `/api/dev/media/accounts/:platform/:topic` | 🔒 |
+| GET | `/api/dev/media/analytics/:id` | 🔒 |
+| POST | `/api/dev/media/analytics/refresh` | 🔒 |
+| GET | `/api/dev/media/analytics` | 🔒 |
 | GET | `/api/dev/media/channels` | token |
 | POST | `/api/dev/media/connect/finish` | 🔒 |
 | POST | `/api/dev/media/connect` | 🔒 |
