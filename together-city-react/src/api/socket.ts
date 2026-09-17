@@ -18,22 +18,16 @@ import { WS, type WsEvent } from './events';
  * Now: a stale token is refreshed BEFORE the first connect; a server-side
  * disconnect or a handshake refusal refreshes the pair and reconnects, with a
  * backoff that cannot loop (1 s doubling to 30 s, reset on success); and the
- * state is published so the shell can show a strip while the socket is away.
+ * state is kept so a reconnect is not started twice (the strip that once
+ * announced it is gone — owner, 17 Sep).
  * A disconnect the client asked for is left alone.
  */
-export type SocketState = 'off' | 'connected' | 'reconnecting';
+type SocketState = 'off' | 'connected' | 'reconnecting';
 let state: SocketState = 'off';
-const listeners = new Set<() => void>();
 function setState(next: SocketState): void {
   if (state === next) return;
   state = next;
-  for (const l of listeners) l();
 }
-/** For useSyncExternalStore: subscribe + read. */
-export const socketState = {
-  subscribe: (l: () => void): (() => void) => { listeners.add(l); return () => { listeners.delete(l); }; },
-  get: (): SocketState => state,
-};
 
 let backoffMs = 1_000;
 let retryTimer: number | null = null;

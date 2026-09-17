@@ -5,7 +5,6 @@ import { CookRoot } from '@/features/nutrition/components/CookMode';
 import { NotificationToaster } from './NotificationToaster';
 import { CityDrawer } from './CityDrawer';
 import { VerifyEmailBanner } from '@/features/auth/VerifyEmailBanner';
-import { ReconnectStrip } from './ReconnectStrip';
 
 /** Root layout for full-width hub landings & the city home. */
 export function AppShell() {
@@ -33,7 +32,8 @@ export function AppShell() {
           actually be seen. */}
       <main className="tc-main" style={isChat ? { minHeight: 0, overflow: 'hidden' } : undefined}>
         {!isChat && <VerifyEmailBanner />}
-        <ReconnectStrip />
+        {/* The "Reconnecting…" strip is gone (owner, 17 Sep): the socket still
+            recovers on its own (api/socket.ts), it just no longer announces it. */}
         <Outlet />
       </main>
       {!isChat && <Footer />}
