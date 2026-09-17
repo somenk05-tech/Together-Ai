@@ -47,10 +47,10 @@ const READERS: { [K in SectionKey]: (range: RangeKey, access: Access) => Promise
 /** Every section the CSV export needs, from the same place the page reads (sample included). */
 export async function readForExport(range: RangeKey, access: Access, sample: boolean) {
   const one = <K extends SectionKey>(k: K): Promise<Sections[K]> => (sample ? Promise.resolve(sampleOf(k, range)) : READERS[k](range, access));
-  const [overview, city, retention, reach, ai, money] = await Promise.all([
-    one('overview'), one('city'), one('retention'), one('reach'), one('ai'), one('money'),
+  const [overview, city, retention, reach, ai, money, health] = await Promise.all([
+    one('overview'), one('city'), one('retention'), one('reach'), one('ai'), one('money'), one('health'),
   ]);
-  return { overview, city, retention, reach, ai, money };
+  return { overview, city, retention, reach, ai, money, health };
 }
 
 /** How often a section is asked again while the page is open. Only the pulse and the feed move quickly. */

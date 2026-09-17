@@ -35,7 +35,7 @@ export function sampleOf<K extends SectionKey>(section: K, range: RangeKey): Sec
     overview: () => ({
       range, view: 'investor', from: days(span)[0], to: '2026-09-16', prevFrom: null, prevTo: null,
       countingSince: '2026-05-01T00:00:00.000Z',
-      tracking: { memberDays: '2026-05-01', origins: '2026-05-01T00:00:00.000Z', visitors: '2026-05-01T00:00:00.000Z' },
+      tracking: { memberDays: '2026-05-01', rebuiltFrom: null, origins: '2026-05-01T00:00:00.000Z', visitors: '2026-05-01T00:00:00.000Z' },
       pulse: {
         members: m(1000, 38), activeToday: m(180, 6), activeWeek: m(520, 12), activeMonth: m(760, 9),
         newMembers: m(140, 24), growthRate: m(16.3, 2.1, 'pts'), d7Retention: m(54, 4.2, 'pts'),
@@ -43,7 +43,7 @@ export function sampleOf<K extends SectionKey>(section: K, range: RangeKey): Sec
       },
       snapshot: {
         members: m(1000, 38), newMembers: m(140, 24), activeWeek: m(520, 12), d7Retention: m(54, 4.2, 'pts'),
-        systemsPerMember: m(4.7, null), aiUsers: m(720, 31), paying: { ...m(0, null), value: null, status: 'not-measured' }, visitors: m(5400, 18),
+        systemsPerMember: m(4.7, null), aiUsers: m(720, 31), aiCost: m(9_800, 22), paying: { ...m(0, null), value: null, status: 'not-measured' }, visitors: m(5400, 18),
       },
       changes: [
         { key: 'members', label: 'Members', change: ch(18), kind: 'pct' },
@@ -93,7 +93,7 @@ export function sampleOf<K extends SectionKey>(section: K, range: RangeKey): Sec
     }),
     reach: () => ({
       range, from: null, to: '2026-09-16', minGroup: 3,
-      tracking: { memberDays: '2026-05-01', origins: '2026-05-01T00:00:00.000Z', visitors: '2026-05-01T00:00:00.000Z' },
+      tracking: { memberDays: '2026-05-01', rebuiltFrom: null, origins: '2026-05-01T00:00:00.000Z', visitors: '2026-05-01T00:00:00.000Z' },
       acquisition: {
         sources: [['direct', 1800, 360], ['google', 1200, 240], ['instagram', 1400, 250], ['youtube', 500, 90], ['referral', 300, 110], ['paid_social', 150, 20], ['other', 50, 10]]
           .map(([key, visitors, signups]) => ({
@@ -118,9 +118,10 @@ export function sampleOf<K extends SectionKey>(section: K, range: RangeKey): Sec
     ai: () => ({
       range, from: null, to: '2026-09-16', conversations: 1400, messages: 4400, replies: 4400, members: 720,
       perMember: 6.1, avgConversation: 3.1, continuationRate: 64, returningMembers: 510, adoption: 72,
-      calls: { available: true, calls: 9800, tokensIn: 5_200_000, tokensOut: 1_100_000, byModel: [] },
-      economics: { costPerActiveMember: 14, costPerConversation: 7, monthlyEstimate: 10_000, note: 'Sample data' },
-      latency: { status: 'live', note: 'Sample' }, failures: { status: 'live', note: 'Sample' },
+      calls: { available: true, since: '2026-05-01T00:00:00.000Z', calls: 9800, failed: 49, tokensIn: 5_200_000, tokensOut: 1_100_000, byModel: [] },
+      economics: { costInr: 9_800, costPerActiveMember: 13, costPerConversation: 7, costPerAiUser: 13.6, monthlyEstimate: 9_800, note: 'Sample data' },
+      latency: { status: 'live', p50ms: 1400, p95ms: 4200, note: 'Sample' },
+      failures: { status: 'live', failed: 49, rate: 0.5, byKind: [], note: 'Sample' },
     }),
     money: () => ({
       monetised: false, paymentsLive: false, note: 'Sample: not yet monetised.',
@@ -135,6 +136,10 @@ export function sampleOf<K extends SectionKey>(section: K, range: RangeKey): Sec
       status: 'operational', since: '2026-09-16T00:00:00.000Z', uptimeSeconds: 86_400,
       database: { ok: true, ms: 4 }, requests: 48_000, failedRequests: 12, successRate: 99.97, p50ms: 38, p95ms: 210,
       timeline: Array.from({ length: 48 }, (_, i) => ({ at: new Date(Date.UTC(2026, 8, 15, 6) + i * 30 * 60_000).toISOString(), requests: 1000, errors: i === 30 ? 6 : 0 })),
+      sessions: { available: true, since: '2026-05-01T00:00:00.000Z', total: 21_000, crashed: 63, byPlatform: [] },
+      crashFree: m(99.7, 0.1, 'pts'),
+      uptime: { available: true, since: '2026-05-01T00:00:00.000Z', percent: 99.95, downSeconds: 1300, deploys: 14, restarts: 16 },
+      aiFailures: { available: true, calls: 9800, failed: 49, rate: 0.5 },
       notMeasured: [],
     }),
     live: () => ({

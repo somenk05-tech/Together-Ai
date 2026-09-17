@@ -133,6 +133,11 @@ export const PURGE_RULES: PurgeRule[] = [
   /* The control room (b17e2705, 16 Sep) added these two and landed without
      the privacy suite in its gates; classified here so the plan is whole. */
   { model: 'MemberDay', by: 'userId', action: 'purge', reason: 'Which days a citizen was active and which systems they touched — a per-person activity log for the founder’s counters. The counts are read live; a deleted citizen is not a member.' },
+  /* THE CITY'S OWN ACCOUNTS (owner, 9 Sep: "keep data of deleted citizens" —
+     the record and the numbers survive, the person does not). Neither table
+     holds a word anybody wrote: an id, a model name, token counts, seconds. */
+  { model: 'AiCall', by: 'userId', action: 'keep', reason: 'One row per AI model call: which model, how many tokens, how long, whether it failed. The bill was the city’s, not the citizen’s, and it must not shrink when somebody leaves. No prompt, no answer, no text — and no foreign key to User, so the purge leaves an id that names nobody.' },
+  { model: 'UsageDay', by: 'userId', action: 'keep', reason: 'Seconds the app was on screen, per day. Kept by the owner’s 9 Sep decision so time-in-app totals and rankings do not rewrite history when an account closes; it holds a count per day and nothing else, and no foreign key to User.' },
   { model: 'MemberOrigin', by: 'userId', action: 'purge', reason: 'Where a citizen came from — visitor id, UTM source, campaign, referrer. Marketing attribution tied to one person; it goes with them.' },
   { model: 'Prescription', by: 'userId', action: 'purge', storageKey: 'fileKey', reason: 'Uploaded prescriptions, with the scanned file.' },
   { model: 'Medicine', by: 'userId', action: 'purge', reason: 'What they were taking.' },

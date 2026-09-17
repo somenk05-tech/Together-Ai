@@ -17,7 +17,7 @@ export interface Metric {
   note: string | null;
 }
 
-export interface Tracking { memberDays: string | null; origins: string | null; visitors: string | null }
+export interface Tracking { memberDays: string | null; rebuiltFrom: string | null; origins: string | null; visitors: string | null }
 
 export interface Overview {
   range: RangeKey; view: 'founder' | 'investor';
@@ -30,7 +30,7 @@ export interface Overview {
   };
   snapshot: {
     members: Metric; newMembers: Metric; activeWeek: Metric; d7Retention: Metric;
-    systemsPerMember: Metric; aiUsers: Metric; paying: Metric; visitors: Metric;
+    systemsPerMember: Metric; aiUsers: Metric; aiCost: Metric; paying: Metric; visitors: Metric;
   };
   changes: Array<{ key: string; label: string; change: Change; kind: 'pct' | 'pts' }>;
   growth: { points: Array<{ day: string; members: number; joined: number }>; milestones: Array<{ day: string; label: string }> };
@@ -83,11 +83,15 @@ export interface AiEngine {
   conversations: number; messages: number; replies: number; members: number;
   perMember: number | null; avgConversation: number | null; continuationRate: number | null;
   returningMembers: number; adoption: number | null;
-  calls: { available: boolean; calls: number | null; tokensIn: number | null; tokensOut: number | null;
-    byModel: Array<{ model: string; calls: number; tokensIn: number; tokensOut: number }> };
-  economics: { costPerActiveMember: number | null; costPerConversation: number | null; monthlyEstimate: number | null; note: string };
-  latency: { status: MetricStatus; note: string };
-  failures: { status: MetricStatus; note: string };
+  calls: { available: boolean; since: string | null; calls: number | null; failed: number | null;
+    tokensIn: number | null; tokensOut: number | null;
+    byModel: Array<{ model: string; calls: number; failed: number; tokensIn: number; tokensOut: number; costInr: number | null }> };
+  economics: {
+    costInr: number | null; costPerActiveMember: number | null; costPerConversation: number | null;
+    costPerAiUser: number | null; monthlyEstimate: number | null; note: string;
+  };
+  latency: { status: MetricStatus; p50ms: number | null; p95ms: number | null; note: string };
+  failures: { status: MetricStatus; failed: number | null; rate: number | null; byKind: Array<{ kind: string; count: number }>; note: string };
 }
 
 export interface Money {
@@ -103,6 +107,11 @@ export interface Health {
   database: { ok: boolean; ms: number };
   requests: number; failedRequests: number; successRate: number | null; p50ms: number | null; p95ms: number | null;
   timeline: Array<{ at: string; requests: number; errors: number }>;
+  sessions: { available: boolean; since: string | null; total: number | null; crashed: number | null;
+    byPlatform: Array<{ platform: string; sessions: number; crashed: number }> };
+  crashFree: Metric;
+  uptime: { available: boolean; since: string | null; percent: number | null; downSeconds: number | null; deploys: number | null; restarts: number | null };
+  aiFailures: { available: boolean; calls: number | null; failed: number | null; rate: number | null };
   notMeasured: string[];
 }
 

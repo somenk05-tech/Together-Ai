@@ -158,3 +158,28 @@ export function hostOf(raw: string | null | undefined): string | null {
     return null;
   }
 }
+
+/**
+ * How much of [from, to) is covered by at least one of the intervals (ms).
+ * Used for uptime: each server run is an interval, the gaps are downtime.
+ */
+export function coveredMs(intervals: Array<{ start: number; end: number }>, from: number, to: number): number {
+  const xs = intervals
+    .map((i) => ({ start: Math.max(i.start, from), end: Math.min(i.end, to) }))
+    .filter((i) => i.end > i.start)
+    .sort((a, b) => a.start - b.start);
+  let total = 0;
+  let curS = -Infinity;
+  let curE = -Infinity;
+  for (const i of xs) {
+    if (i.start > curE) {
+      if (curE > curS) total += curE - curS;
+      curS = i.start;
+      curE = i.end;
+    } else if (i.end > curE) {
+      curE = i.end;
+    }
+  }
+  if (curE > curS) total += curE - curS;
+  return total;
+}

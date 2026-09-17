@@ -1453,6 +1453,48 @@ model MemberOrigin {
 }
 
 /**
+ * ── ONE OPENING OF THE APP, AND WHETHER IT BROKE (owner, 16 Sep) ─────────────
+ *
+ * For "crash-free sessions" on the investor dashboard. The web and the phone
+ * apps send one row per page load (a random id made in the browser), and mark
+ * it when the app hit an error it could not recover from: a screen that fell
+ * over (`render`) or an uncaught exception (`uncaught`). No account, no
+ * address, no message, no page — a session is a count and a flag.
+ */
+model AppSession {
+  id        String   @id
+  /// web | ios | android
+  platform  String
+  startedAt DateTime @default(now())
+  crashes   Int      @default(0)
+  /// The first way it broke: render | uncaught.
+  crashKind String?
+  crashedAt DateTime?
+
+  @@index([startedAt])
+}
+
+/**
+ * ── EVERY TIME THE SERVER RAN (owner, 16 Sep) ────────────────────────────────
+ *
+ * For "uptime across deploys". Each API process writes one row when it starts
+ * and moves `lastBeatAt` once a minute while it lives. Uptime over a window is
+ * the time covered by at least one serving process; the gaps are downtime,
+ * whether a crash, a deploy or the platform. `commit` tells a deploy from a
+ * restart. The worker (JOBS_ROLE=worker) is recorded but does not count as
+ * serving the city.
+ */
+model ServerRun {
+  id         String   @id
+  role       String
+  commit     String?
+  startedAt  DateTime @default(now())
+  lastBeatAt DateTime @default(now())
+
+  @@index([lastBeatAt])
+}
+
+/**
  * A citizen's appeal against a moderation decision on their own dating
  * profile or photo. One open appeal per target; a moderator upholds or
  * overturns it with a written reason, through the console's act().
@@ -4764,6 +4806,103 @@ model Child {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+/**
+ * ── WHAT ONE CITIZEN COST US (owner, 9 Sep) ─────────────────────────────────
+ *
+ * "Add money spend and API cost per user data with each user id."
+ *
+ * The per-citizen model ceiling has always been counted — in Redis, one
+ * counter per day, thrown away at midnight. That is the right shape for a
+ * ceiling and the wrong shape for a bill: it cannot answer "what has this
+ * account cost us since March", which is the question an operator ranking
+ * citizens by cost is actually asking.
+ *
+ * ONE ROW PER PROVIDER CALL. Tokens, not rupees: a rate can be renegotiated
+ * and a stored rupee figure would then be wrong in a way nothing could
+ * recompute. Cost is tokens x the rate in ai/model-rates.ts, applied at read
+ * time, and a model with no rate set shows its tokens and says the rate is
+ * unset rather than showing a number nobody can stand behind.
+ *
+ * NO RELATION TO User, DELIBERATELY. Every other table hanging off a citizen
+ * cascades when the account is purged, which is right for their data and wrong
+ * for our accounting: the bill was ours, not theirs, and it must survive the
+ * account it was spent on. Nothing personal is here to survive — an id, a
+ * model name and a few counts.
+ *
+ * FAILURES TOO (owner, 16 Sep: the investor dashboard's AI health). A call
+ * that errored is a row with `failed` and the kind of error, and every row
+ * carries how long the provider took, so AI response time and failure rate
+ * are measured rather than guessed. Landed with the dashboard on 16 Sep.
+ */
+model AiCall {
+  id        String   @id @default(uuid())
+  /// The citizen the call was spent on. NULL for work with nobody behind it —
+  /// a job, a socket frame — which is charged to the city and to no account.
+  userId    String?
+  /// The model as the provider knows it, so a rate can be attached to it.
+  model     String
+  /// converse | json | vision | extract — the shape of the call, for reading
+  /// a bill that suddenly moved.
+  kind      String
+  tokensIn  Int      @default(0)
+  tokensOut Int      @default(0)
+  /// Cached prefixes are billed differently and are the reason a bill can fall
+  /// without traffic falling. Kept apart so that story is readable.
+  cacheRead  Int     @default(0)
+  cacheWrite Int     @default(0)
+  /// Whether the citizen had paid for this work. Paid calls are exempt from the
+  /// daily ceiling (owner, 4 Sep) and are still counted — an exemption nobody
+  /// can see is how a bill grows unexplained.
+  paid      Boolean  @default(false)
+  /// Milliseconds from sending the call to the provider's answer (or error).
+  ms        Int?
+  /// True when the provider call failed; `error` says which way: timeout |
+  /// rate_limit | overloaded | not_found | auth | server | other. Never the
+  /// provider's message, which can quote the prompt.
+  failed    Boolean  @default(false)
+  error     String?
+  at        DateTime @default(now())
+
+  @@index([userId, at])
+  @@index([at])
+}
+
+/**
+ * ── HOW LONG SOMEBODY WAS ACTUALLY HERE (owner, 9 Sep) ──────────────────────
+ *
+ * "Rank the user based on the usage of the app money wise and time wise and
+ * show the duration."
+ *
+ * Before this the city knew one thing about time: `lastSeenAt`, a single
+ * date. It cannot tell an account that opened once for an hour from one that
+ * opens for a minute every day, and both readings are things an operator
+ * ranking by time needs to tell apart.
+ *
+ * ONE ROW PER CITIZEN PER DAY, not one per beat. The client sends a heartbeat
+ * while its tab is actually in front of somebody; the server adds the interval
+ * to the day's total, capped, so a tab left open overnight cannot report eight
+ * hours of use. A row a day per active citizen is a table that stays small
+ * enough to rank on for years.
+ *
+ * NO RELATION TO User, for the same reason AiCall has none.
+ */
+model UsageDay {
+  id      String   @id @default(uuid())
+  userId  String
+  /// YYYY-MM-DD in the city's day (Asia/Kolkata), so a day means the day the
+  /// citizen had, not the one UTC was having.
+  day     String
+  /// Seconds of attention, as measured by the beats below.
+  seconds Int      @default(0)
+  /// How many heartbeats made up that total — the honest denominator, and what
+  /// separates "an hour of use" from "one beat and a generous cap".
+  beats   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, day])
+  @@index([day])
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

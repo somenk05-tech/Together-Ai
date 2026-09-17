@@ -1,5 +1,6 @@
 import { HttpException, Injectable, Logger, Optional } from '@nestjs/common';
 import { ModelBudgetService } from './model-budget.service';
+import { AiLedgerService } from './ai-ledger.service';
 import { salutation } from '../shared/salutation';
 import { acceptOrFallback, cityVoice, violations } from '../shared/voice';
 import Anthropic from '@anthropic-ai/sdk';
@@ -163,7 +164,14 @@ export class AiService {
    * them. `@Optional()` so the specs that `new AiService()` keep working;
    * a missing budget charges nothing, which is what those specs assume.
    */
-  constructor(@Optional() private readonly budget?: ModelBudgetService) {
+  constructor(
+    @Optional() private readonly budget?: ModelBudgetService,
+    /* THE BILL (owner, 9 Sep). Optional like the budget beside it, for the same
+       reason: every unit test that builds an AiService by hand must keep
+       working, and a ledger nobody injected is a bill that does not get
+       written rather than a service that will not construct. */
+    @Optional() private readonly ledger?: AiLedgerService,
+  ) {
     const key = process.env.ANTHROPIC_API_KEY;
     /**
      * ── AN EXPLICIT TIMEOUT AND AN EXPLICIT RETRY COUNT ───────────────────
@@ -206,6 +214,8 @@ export class AiService {
   ): Promise<string | null> {
     if (!this.client) return null;
     await this.meter('converse');
+    const began = Date.now();
+    let answered = false;
     try {
       /**
        * ── ONE MODEL, ONE RETRY, A WALL CLOCK ──────────────────────────────
@@ -230,6 +240,8 @@ export class AiService {
         },
         { timeout: AiService.CHAT_TIMEOUT_MS, maxRetries: 1 },
       );
+      answered = true;
+      this.tally(this.model, 'converse', res, began);
       /**
        * ── AND A HALF SENTENCE IS NOT AN ANSWER ────────────────────────────
        *
@@ -252,6 +264,7 @@ export class AiService {
         .trim();
       return text || null;
     } catch (e) {
+      if (!answered) this.ledger?.fail(this.model, 'converse', e, Date.now() - began);
       this.logger.warn(`AI converse call failed: ${(e as Error).message}`);
       return null;
     }
@@ -260,6 +273,8 @@ export class AiService {
   async json<T>(system: string, user: string, fallback: T, maxTokens = 1024): Promise<T> {
     if (!this.client) return fallback;
     await this.meter('json');
+    const began = Date.now();
+    let answered = false;
     try {
       const res = await this.client.messages.create({
         model: this.model,
@@ -267,6 +282,8 @@ export class AiService {
         system: `${system}\n\nRespond with ONLY a valid JSON value — no prose, no markdown fences.`,
         messages: [{ role: 'user', content: user }],
       });
+      answered = true;
+      this.tally(this.model, 'json', res, began);
       const text = res.content
         .filter((b): b is Anthropic.TextBlock => b.type === 'text')
         .map((b) => b.text)
@@ -274,6 +291,8 @@ export class AiService {
       const parsed = this.extractJson(text);
       return (parsed as T) ?? fallback;
     } catch (e) {
+      // A reply that came back and would not parse is not a provider failure.
+      if (!answered) this.ledger?.fail(this.model, 'json', e, Date.now() - began);
       this.logger.warn(`AI json call failed: ${(e as Error).message}`);
       return fallback;
     }
@@ -315,6 +334,22 @@ export class AiService {
   }
 
   /**
+   * ── AND THE OTHER HALF OF THE METER (owner, 9 Sep) ────────────────────────
+   *
+   * `meter` runs BEFORE the call, because a ceiling has to refuse before the
+   * money is spent. A bill can only be written after: the tokens are in the
+   * response. So the two are separate methods on purpose, and this one is
+   * called at every point where a provider call has come back — all three of
+   * them in this file, which `a-call-is-counted-twice.spec.ts` holds.
+   *
+   * Nothing awaits it. See AiLedgerService for why a slow ledger may never be
+   * the reason a citizen waits.
+   */
+  private tally(model: string, kind: string, res: { usage?: Anthropic.Usage } | null | undefined, began?: number): void {
+    this.ledger?.record(model, kind, res?.usage ?? null, began === undefined ? null : Date.now() - began);
+  }
+
+  /**
    * messages.create with an automatic model fallback: if the preferred model is
    * unavailable to this API key (404 not_found / 403), retry once on the default
    * model rather than silently failing the feature.
@@ -349,10 +384,17 @@ export class AiService {
        * being read as this model failing and walking to the next one.
        */
       await this.meter(kind);
+      const began = Date.now();
       try {
-        return await this.client.messages.create({ ...params, model });
+        const res = await this.client.messages.create({ ...params, model });
+        /* THE MODEL THAT ANSWERED, not the one that was asked for. This method
+           walks a chain, and a bill that named the preferred model would show
+           Opus prices for a Sonnet answer whenever the walk moved on. */
+        this.tally(model, kind, res, began);
+        return res;
       } catch (e) {
         lastErr = e;
+        this.ledger?.fail(model, kind, e, Date.now() - began);
         const msg = ((e as Error).message ?? '').slice(0, 160);
         this.logger.warn(`messages.create failed on ${model} (${msg})${model === chain[chain.length - 1] ? '' : ' — trying next model'}`);
       }

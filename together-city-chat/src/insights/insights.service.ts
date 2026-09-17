@@ -6,10 +6,12 @@ import {
   SOURCES, SYSTEMS, type RangeKey, type SourceKey,
 } from './insights.config';
 import {
-  addDays, ageBandOf, boundsOf, change, cityDay, cityOf, daysBetween, foldSmall, pointChange, rate,
+  addDays, ageBandOf, boundsOf, change, cityDay, cityOf, coveredMs, daysBetween, foldSmall, pointChange, rate,
   type Bounds, type Change,
 } from './insights-math';
 import { REQUEST_STATS } from './insights.interceptor';
+import { BEAT_MS } from './server-run.service';
+import { costPaise } from '../ai/model-rates';
 
 /**
  * ── THE CONTROL ROOM BEHIND THE CITY (owner, 16 Sep) ───────────────────────
@@ -118,7 +120,15 @@ export class InsightsService {
     return this.prisma.$queryRawUnsafe<T[]>(sql, ...params);
   }
 
-  /** A table another piece of work adds (AiCall, UsageDay) may not exist yet. */
+  /** A read that may fail without failing the section: logged, and empty. */
+  private quiet(what: string) {
+    return (e: unknown): never[] => {
+      this.log.warn(`${what} read failed: ${e instanceof Error ? e.message : String(e)}`);
+      return [];
+    };
+  }
+
+  /** A table that may not exist on this server yet (before its migration ran). */
   private async tableExists(name: string): Promise<boolean> {
     const r = await this.rows<{ ok: boolean }>(`SELECT to_regclass($1) IS NOT NULL AS ok`, `"${name}"`).catch(() => []);
     return Boolean(r[0]?.ok);
@@ -198,6 +208,10 @@ export class InsightsService {
         this.growthSeries(b, now),
         this.funnel(b, now),
       ]);
+      const [aiNowBill, aiPrevBill] = await Promise.all([
+        this.aiLedger(w.fromIso, w.toIso),
+        w.prevFromIso && w.prevToIso ? this.aiLedger(w.prevFromIso, w.prevToIso) : Promise.resolve(null),
+      ]);
 
       const aiNow = activeRange.bySystem.assistant ?? 0;
       const interactionsNow = await this.interactions(w.fromIso, w.toIso);
@@ -232,6 +246,7 @@ export class InsightsService {
           d7Retention: pulse.d7Retention,
           systemsPerMember: metric(systemsPerMember.average, null),
           aiUsers: metric(aiNow, activePrev?.bySystem.assistant ?? null),
+          aiCost: aiCostMetric(aiNowBill, aiPrevBill),
           paying: (await this.money(view)).paying,
           visitors: metric(visitors.unique, null),
         },
@@ -248,14 +263,23 @@ export class InsightsService {
     });
   }
 
-  private async trackingSince(): Promise<{ memberDays: string | null; origins: string | null; visitors: string | null }> {
-    const r = await this.rows<{ md: string | null; mo: Date | null; sv: Date | null }>(
+  /**
+   * When each instrument began. `memberDays` is the day days of use started
+   * being recorded as they happened (the earliest row's write time);
+   * `rebuiltFrom` is the earliest day rebuilt from older records (sign-ins,
+   * messages, posts …) by the 16 Sep migration, when there is one.
+   */
+  private async trackingSince(): Promise<{ memberDays: string | null; rebuiltFrom: string | null; origins: string | null; visitors: string | null }> {
+    const r = await this.rows<{ md: string | null; mf: Date | null; mo: Date | null; sv: Date | null }>(
       `SELECT (SELECT MIN("day") FROM "MemberDay") AS md,
+              (SELECT MIN("firstAt") FROM "MemberDay") AS mf,
               (SELECT MIN("createdAt") FROM "MemberOrigin") AS mo,
               (SELECT MIN("firstAt") FROM "SiteVisitor" WHERE "source" IS NOT NULL) AS sv`).catch(() => []);
     const x = r[0];
+    const live = x?.mf ? cityDay(new Date(x.mf)) : null;
     return {
-      memberDays: x?.md ?? null,
+      memberDays: live ?? x?.md ?? null,
+      rebuiltFrom: x?.md && live && x.md < live ? x.md : null,
       origins: x?.mo ? new Date(x.mo).toISOString() : null,
       visitors: x?.sv ? new Date(x.sv).toISOString() : null,
     };
@@ -273,7 +297,7 @@ export class InsightsService {
   /** Time in the app, from the heartbeat table another piece of work adds (UsageDay). */
   private async sessionLength(fromIso: string, toIso: string, prevFromIso: string | null, prevToIso: string | null): Promise<Metric> {
     if (!(await this.tableExists('UsageDay'))) {
-      return notMeasured('Time in the app is not measured yet — the heartbeat that records it has not shipped.');
+      return notMeasured('Time in the app is not recorded on this server yet.');
     }
     const read = async (a: string, z: string) => {
       const r = await this.rows<{ s: number | null }>(
@@ -669,8 +693,9 @@ export class InsightsService {
                   (SELECT COUNT(*) FROM (SELECT "userId" FROM c WHERE asked > 0 GROUP BY 1 HAVING COUNT(DISTINCT day) > 1) r) AS returning`,
           w.fromIso, w.toIso),
         this.active(w.fromIso, w.toIso),
-        this.aiCalls(w.fromIso, w.toIso),
+        this.aiLedger(w.fromIso, w.toIso),
       ]);
+      const spanDays = b.days ?? (calls.since ? Math.max(1, Math.ceil((Date.now() - Date.parse(calls.since)) / MS_DAY)) : 0);
       const t = talk[0];
       const messages = num(t?.messages);
       const members = num(t?.members);
@@ -683,36 +708,76 @@ export class InsightsService {
         continuationRate: rate(num(t?.continued), conversations),
         returningMembers: num(t?.returning),
         adoption: rate(members, active.all),
-        calls: view === 'founder' ? calls : { ...calls, byModel: [] },
-        economics: {
-          costPerActiveMember: null as number | null,
-          costPerConversation: null as number | null,
-          monthlyEstimate: null as number | null,
-          note: calls.available
-            ? 'Tokens are counted; a cost needs the rate for each model, which is not set on this server yet.'
-            : 'AI calls are not metered yet — the ledger that records each call has not shipped.',
+        calls: {
+          available: calls.available, since: calls.since, calls: calls.calls, failed: calls.failed,
+          tokensIn: calls.tokensIn, tokensOut: calls.tokensOut,
+          byModel: view === 'founder' ? calls.byModel : [],
         },
-        latency: { status: 'not-measured' as const, note: 'Response time of AI calls is not recorded yet.' },
-        failures: { status: 'not-measured' as const, note: 'Failed AI calls are not recorded yet.' },
+        economics: {
+          costInr: calls.costInr,
+          costPerActiveMember: calls.costInr !== null && active.all > 0 ? round2(calls.costInr / active.all) : null,
+          costPerConversation: calls.costInr !== null && conversations > 0 ? round2(calls.costInr / conversations) : null,
+          costPerAiUser: calls.costInr !== null && members > 0 ? round2(calls.costInr / members) : null,
+          monthlyEstimate: calls.costInr !== null && spanDays > 0 ? round2((calls.costInr / spanDays) * 30) : null,
+          note: economicsNote(calls, view),
+        },
+        latency: calls.available && calls.p50ms !== null
+          ? { status: 'live' as const, p50ms: calls.p50ms, p95ms: calls.p95ms, note: 'Time from sending a call to the model to its answer, successful calls only.' }
+          : { status: (calls.available ? 'not-enough-data' : 'not-measured') as MetricStatus, p50ms: null, p95ms: null,
+              note: calls.available ? 'No AI calls answered in this window.' : 'AI calls are not recorded on this server yet.' },
+        failures: calls.available && (calls.calls ?? 0) > 0
+          ? { status: 'live' as const, failed: calls.failed, rate: rate(calls.failed ?? 0, calls.calls ?? 0),
+              byKind: view === 'founder' ? calls.errors : [], note: 'Calls to the model that returned an error (a timeout, a rate limit, an overload …).' }
+          : { status: (calls.available ? 'not-enough-data' : 'not-measured') as MetricStatus, failed: null, rate: null, byKind: [],
+              note: calls.available ? 'No AI calls in this window.' : 'AI calls are not recorded on this server yet.' },
       };
     });
   }
 
-  /** From the per-call ledger (AiCall), when that table exists. Provider-agnostic: models are names. */
-  private async aiCalls(fromIso: string, toIso: string) {
-    if (!(await this.tableExists('AiCall'))) {
-      return { available: false, calls: null as number | null, tokensIn: null as number | null, tokensOut: null as number | null, byModel: [] as Array<{ model: string; calls: number; tokensIn: number; tokensOut: number }> };
-    }
-    const r = await this.rows<{ model: string; calls: bigint; tin: bigint; tout: bigint }>(
-      `SELECT "model", COUNT(*) AS calls, SUM("tokensIn") AS tin, SUM("tokensOut") AS tout FROM "AiCall"
-        WHERE "at" >= (($1)::timestamptz AT TIME ZONE 'UTC') AND "at" < (($2)::timestamptz AT TIME ZONE 'UTC') GROUP BY 1`,
-      fromIso, toIso).catch(() => []);
-    const byModel = r.map((x) => ({ model: x.model, calls: num(x.calls), tokensIn: num(x.tin), tokensOut: num(x.tout) }));
+  /**
+   * The AI bill for a window, from the per-call ledger (AiCall), when that
+   * table exists. Tokens are counted; rupees are tokens × the rate an operator
+   * set in AI_MODEL_RATES (ai/model-rates.ts), and a model with tokens but no
+   * rate makes the whole cost unknown rather than quietly low.
+   */
+  private async aiLedger(fromIso: string, toIso: string): Promise<AiBill> {
+    if (!(await this.tableExists('AiCall'))) return NO_BILL;
+    const where = `"at" >= (($1)::timestamptz AT TIME ZONE 'UTC') AND "at" < (($2)::timestamptz AT TIME ZONE 'UTC')`;
+    const [models, lat, errs, first] = await Promise.all([
+      this.rows<{ model: string; calls: bigint; failed: bigint; tin: bigint | null; tout: bigint | null; cr: bigint | null; cw: bigint | null }>(
+        `SELECT "model", COUNT(*) AS calls, COUNT(*) FILTER (WHERE "failed") AS failed,
+                SUM("tokensIn") AS tin, SUM("tokensOut") AS tout, SUM("cacheRead") AS cr, SUM("cacheWrite") AS cw
+           FROM "AiCall" WHERE ${where} GROUP BY 1 ORDER BY 2 DESC`, fromIso, toIso).catch(this.quiet('AI ledger')),
+      this.rows<{ p50: number | null; p95: number | null }>(
+        `SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY "ms")::float AS p50,
+                percentile_cont(0.95) WITHIN GROUP (ORDER BY "ms")::float AS p95
+           FROM "AiCall" WHERE ${where} AND NOT "failed" AND "ms" IS NOT NULL`, fromIso, toIso).catch(this.quiet('AI latency')),
+      this.rows<{ error: string | null; n: bigint }>(
+        `SELECT "error", COUNT(*) AS n FROM "AiCall" WHERE ${where} AND "failed" GROUP BY 1 ORDER BY 2 DESC`, fromIso, toIso).catch(this.quiet('AI errors')),
+      this.rows<{ at: Date | null }>(`SELECT MIN("at") AS at FROM "AiCall"`).catch(this.quiet('AI since')),
+    ]);
+    let paise = 0;
+    const unpriced: string[] = [];
+    const byModel = models.map((m) => {
+      const t = { tokensIn: num(m.tin), tokensOut: num(m.tout), cacheRead: num(m.cr), cacheWrite: num(m.cw) };
+      const used = t.tokensIn + t.tokensOut + t.cacheRead + t.cacheWrite;
+      const p = used > 0 ? costPaise(m.model, t) : 0;
+      if (p === null) unpriced.push(m.model); else paise += p;
+      return { model: m.model, calls: num(m.calls), failed: num(m.failed), tokensIn: t.tokensIn, tokensOut: t.tokensOut,
+        costInr: p === null ? null : round2(p / 100) };
+    });
     return {
       available: true,
+      since: first[0]?.at ? new Date(first[0].at).toISOString() : null,
       calls: byModel.reduce((n, x) => n + x.calls, 0),
+      failed: byModel.reduce((n, x) => n + x.failed, 0),
       tokensIn: byModel.reduce((n, x) => n + x.tokensIn, 0),
       tokensOut: byModel.reduce((n, x) => n + x.tokensOut, 0),
+      costInr: unpriced.length ? null : round2(paise / 100),
+      unpriced,
+      p50ms: lat[0]?.p50 === null || lat[0]?.p50 === undefined ? null : Math.round(lat[0].p50),
+      p95ms: lat[0]?.p95 === null || lat[0]?.p95 === undefined ? null : Math.round(lat[0].p95),
+      errors: errs.map((e) => ({ kind: e.error ?? 'other', count: num(e.n) })),
       byModel,
     };
   }
@@ -750,11 +815,12 @@ export class InsightsService {
 
   // ───────────────────────────── HEALTH ─────────────────────────────
 
-  async health(view: View) {
+  async health(range: RangeKey, view: View, now = new Date()) {
     const started = Date.now();
     const db = await this.rows<{ ok: number }>('SELECT 1 AS ok').then(() => true).catch(() => false);
     const dbMs = Date.now() - started;
     const s = REQUEST_STATS.snapshot();
+    const history = await this.cached(`health:${range}:${view}`, () => this.healthHistory(range, view, now));
     const status: 'operational' | 'degraded' | 'incident' =
       !db ? 'incident'
         : s.successRate !== null && s.successRate < 95 ? 'incident'
@@ -771,7 +837,98 @@ export class InsightsService {
       p50ms: s.p50ms,
       p95ms: s.p95ms,
       timeline: view === 'founder' ? s.timeline : s.timeline.map((x) => ({ at: x.at, requests: x.requests, errors: x.errors > 0 ? 1 : 0 })),
-      notMeasured: ['Crash-free sessions (the apps do not report crashes yet)', 'AI failures', 'Uptime across deploys (this server counts since it started)'],
+      ...history,
+      notMeasured: ['Crashes in the phone apps\' native layer (the city inside the apps is counted with the web)'],
+    };
+  }
+
+  /** Crash-free sessions, uptime across deploys and AI failures, over the window. */
+  private async healthHistory(range: RangeKey, view: View, now: Date) {
+    const b = boundsOf(range, now);
+    const w = this.windowOf(b);
+    const [crashNow, crashPrev, uptime, ai] = await Promise.all([
+      this.crashFree(w.fromIso, w.toIso),
+      w.prevFromIso && w.prevToIso ? this.crashFree(w.prevFromIso, w.prevToIso) : Promise.resolve(null),
+      this.uptime(w.fromIso, w.toIso, now),
+      this.aiLedger(w.fromIso, w.toIso),
+    ]);
+    const crashFree: Metric = !crashNow.available
+      ? notMeasured('Sessions are not recorded on this server yet.')
+      : crashNow.sessions === 0
+        ? { ...notMeasured('No sessions recorded in this window yet.'), status: 'not-enough-data' }
+        : metric(crashNow.rate, crashPrev?.available && crashPrev.sessions > 0 ? crashPrev.rate : null,
+          { kind: 'pts', base: Math.min(crashNow.sessions, crashPrev?.sessions ?? 0),
+            note: crashNow.sessions < 5 ? `Only ${crashNow.sessions} session${crashNow.sessions === 1 ? '' : 's'} so far.` : null });
+    return {
+      sessions: crashNow.available
+        ? { available: true, since: crashNow.since, total: crashNow.sessions, crashed: crashNow.crashed,
+            byPlatform: view === 'founder' ? crashNow.byPlatform : [] }
+        : { available: false, since: null, total: null, crashed: null, byPlatform: [] },
+      crashFree,
+      uptime,
+      aiFailures: ai.available && (ai.calls ?? 0) > 0
+        ? { available: true, calls: ai.calls, failed: ai.failed, rate: rate(ai.failed ?? 0, ai.calls ?? 0) }
+        : { available: ai.available, calls: ai.calls, failed: null, rate: null },
+    };
+  }
+
+  private async crashFree(fromIso: string, toIso: string) {
+    if (!(await this.tableExists('AppSession'))) {
+      return { available: false, since: null as string | null, sessions: 0, crashed: 0, rate: null as number | null, byPlatform: [] as Array<{ platform: string; sessions: number; crashed: number }> };
+    }
+    const [r, first] = await Promise.all([
+      this.rows<{ platform: string; n: bigint; crashed: bigint }>(
+        `SELECT "platform", COUNT(*) AS n, COUNT(*) FILTER (WHERE "crashes" > 0) AS crashed
+           FROM "AppSession"
+          WHERE "startedAt" >= (($1)::timestamptz AT TIME ZONE 'UTC') AND "startedAt" < (($2)::timestamptz AT TIME ZONE 'UTC')
+          GROUP BY 1 ORDER BY 2 DESC`, fromIso, toIso),
+      this.rows<{ at: Date | null }>(`SELECT MIN("startedAt") AS at FROM "AppSession"`),
+    ]);
+    const sessions = r.reduce((n, x) => n + num(x.n), 0);
+    const crashed = r.reduce((n, x) => n + num(x.crashed), 0);
+    return {
+      available: true,
+      since: first[0]?.at ? new Date(first[0].at).toISOString() : null,
+      sessions, crashed,
+      rate: rate(sessions - crashed, sessions),
+      byPlatform: r.map((x) => ({ platform: APP_LABEL[x.platform] ?? x.platform, sessions: num(x.n), crashed: num(x.crashed) })),
+    };
+  }
+
+  /**
+   * Uptime across deploys: of the window since the first recorded server run,
+   * the share covered by at least one serving process (JOBS_ROLE api or both).
+   * A run counts as up until its last beat plus one beat of grace.
+   */
+  private async uptime(fromIso: string, toIso: string, now: Date) {
+    if (!(await this.tableExists('ServerRun'))) {
+      return { available: false, since: null as string | null, percent: null as number | null, downSeconds: null as number | null, deploys: null as number | null, restarts: null as number | null };
+    }
+    const r = await this.rows<{ start: Date; last: Date; commit: string | null; role: string }>(
+      `SELECT "startedAt" AS start, "lastBeatAt" AS last, "commit", "role" FROM "ServerRun"
+        WHERE "lastBeatAt" >= (($1)::timestamptz AT TIME ZONE 'UTC') - interval '2 minutes'
+          AND "startedAt" < (($2)::timestamptz AT TIME ZONE 'UTC')`, fromIso, toIso);
+    const first = await this.rows<{ at: Date | null }>(`SELECT MIN("startedAt") AS at FROM "ServerRun" WHERE "role" <> 'worker'`);
+    const since = first[0]?.at ? new Date(first[0].at).getTime() : null;
+    const serving = r.filter((x) => x.role !== 'worker');
+    const from = Math.max(Date.parse(fromIso), since ?? Infinity);
+    const to = Math.min(Date.parse(toIso), now.getTime());
+    if (since === null || to <= from) {
+      return { available: true, since: since === null ? null : new Date(since).toISOString(), percent: null, downSeconds: null, deploys: 0, restarts: 0 };
+    }
+    const nowMs = now.getTime();
+    const up = coveredMs(serving.map((x) => ({
+      start: new Date(x.start).getTime(),
+      end: Math.min(nowMs, new Date(x.last).getTime() + BEAT_MS + 30_000),
+    })), from, to);
+    const startedIn = serving.filter((x) => new Date(x.start).getTime() >= Date.parse(fromIso));
+    return {
+      available: true,
+      since: new Date(since).toISOString(),
+      percent: Math.round((up / (to - from)) * 100_000) / 1000,
+      downSeconds: Math.round((to - from - up) / 1000),
+      deploys: new Set(startedIn.map((x) => x.commit ?? `run:${new Date(x.start).getTime()}`)).size,
+      restarts: startedIn.length,
     };
   }
 
@@ -810,3 +967,43 @@ export class InsightsService {
 
 const sum = (m: Record<string, number>) => Object.values(m).reduce((n, x) => n + x, 0);
 export type { SourceKey };
+
+const round2 = (n: number): number => Math.round(n * 100) / 100;
+
+interface AiBill {
+  available: boolean;
+  since: string | null;
+  calls: number | null;
+  failed: number | null;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  costInr: number | null;
+  unpriced: string[];
+  p50ms: number | null;
+  p95ms: number | null;
+  errors: Array<{ kind: string; count: number }>;
+  byModel: Array<{ model: string; calls: number; failed: number; tokensIn: number; tokensOut: number; costInr: number | null }>;
+}
+
+const NO_BILL: AiBill = {
+  available: false, since: null, calls: null, failed: null, tokensIn: null, tokensOut: null,
+  costInr: null, unpriced: [], p50ms: null, p95ms: null, errors: [], byModel: [],
+};
+
+function economicsNote(b: AiBill, view: View): string {
+  if (!b.available) return 'AI calls are not recorded on this server yet.';
+  if (b.unpriced.length) {
+    return view === 'founder'
+      ? `No rate is set for ${b.unpriced.join(', ')} — add it to AI_MODEL_RATES and the cost appears. Tokens are counted meanwhile.`
+      : 'The rate for one of the AI models is not set yet, so cost is not shown. Tokens are counted meanwhile.';
+  }
+  if (!b.calls) return 'No AI calls in this window.';
+  return 'Tokens used × each model\'s rate, in rupees. The monthly figure is this window\'s daily average × 30.';
+}
+
+function aiCostMetric(now: AiBill, prev: AiBill | null): Metric {
+  if (!now.available) return notMeasured('AI calls are not recorded on this server yet.');
+  if (now.costInr === null) return notMeasured('The rate for an AI model is not set yet — tokens are counted meanwhile.');
+  return metric(now.costInr, prev && prev.available && prev.costInr !== null && prev.calls ? prev.costInr : null,
+    { note: 'Rupees spent on AI models in this window.' });
+}

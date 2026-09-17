@@ -1,5 +1,5 @@
 import { RANGE_LABEL, SOURCE_LABEL } from './format';
-import type { AiEngine, CityActivity, Metric, Money, Overview, RangeKey, Reach, Retention } from './types';
+import type { AiEngine, CityActivity, Health, Metric, Money, Overview, RangeKey, Reach, Retention } from './types';
 
 /**
  * EXPORT — every number on the page as one CSV (owner, 16 Sep). Blank cells
@@ -12,7 +12,7 @@ const cell = (v: unknown) => {
 };
 
 export function exportCsv(d: {
-  range: RangeKey; overview: Overview; city: CityActivity; retention: Retention; reach: Reach; ai: AiEngine; money: Money; sample: boolean;
+  range: RangeKey; overview: Overview; city: CityActivity; retention: Retention; reach: Reach; ai: AiEngine; money: Money; health: Health; sample: boolean;
 }): void {
   const rows: unknown[][] = [
     [d.sample ? 'SAMPLE DATA — not Together City numbers' : 'Together City — product intelligence', `Window: ${RANGE_LABEL[d.range]}`, `Exported ${new Date().toISOString()}`],
@@ -31,6 +31,24 @@ export function exportCsv(d: {
   for (const r of d.reach.geography.india.rows) rows.push(['reach', r.label, r.count, '', '', 'India']);
   for (const r of d.reach.geography.abroad.rows) rows.push(['reach', r.label, r.count, '', '', 'abroad']);
   rows.push(['ai', 'conversations', d.ai.conversations, '', '', ''], ['ai', 'messages', d.ai.messages, '', '', ''], ['ai', 'members', d.ai.members, '', '', '']);
+  rows.push(
+    ['ai', 'calls', d.ai.calls.calls, '', '', d.ai.calls.available ? '' : d.ai.latency.note],
+    ['ai', 'failed calls %', d.ai.failures.rate, '', '', d.ai.failures.note],
+    ['ai', 'response ms (median)', d.ai.latency.p50ms, '', '', ''],
+    ['ai', 'response ms (p95)', d.ai.latency.p95ms, '', '', ''],
+    ['ai', 'cost INR', d.ai.economics.costInr, '', '', d.ai.economics.note],
+    ['ai', 'cost per active member INR', d.ai.economics.costPerActiveMember, '', '', ''],
+    ['ai', 'cost per AI user INR', d.ai.economics.costPerAiUser, '', '', ''],
+    ['ai', 'cost per conversation INR', d.ai.economics.costPerConversation, '', '', ''],
+    ['ai', 'monthly at this pace INR', d.ai.economics.monthlyEstimate, '', '', ''],
+  );
+  rows.push(
+    ['health', 'uptime across deploys %', d.health.uptime.percent, '', '', d.health.uptime.since ? `recorded from ${d.health.uptime.since}` : 'not recorded yet'],
+    ['health', 'downtime seconds', d.health.uptime.downSeconds, '', '', ''],
+    ['health', 'deploys', d.health.uptime.deploys, '', '', `${d.health.uptime.restarts ?? ''} server starts`],
+  );
+  metric('health', 'crash-free sessions %', d.health.crashFree);
+  rows.push(['health', 'sessions', d.health.sessions.total, '', '', `${d.health.sessions.crashed ?? ''} crashed`]);
   rows.push(['money', 'monetised', d.money.monetised ? 'yes' : 'no', '', '', d.money.note]);
   const csv = rows.map((r) => r.map(cell).join(',')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));

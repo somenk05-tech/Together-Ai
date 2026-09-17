@@ -1,6 +1,7 @@
 import { Component, Suspense, useEffect, type ReactNode } from 'react';
 import { isRouteErrorResponse, useRouteError } from 'react-router-dom';
 import { Spinner } from '@/components/ui';
+import { reportCrash } from '@/api/pulse';
 
 /** True when an error is a failed dynamic import / stale code-split chunk —
  *  the classic "page won't load after a new deploy" symptom: the browser is
@@ -49,6 +50,9 @@ export class ChunkBoundary extends Component<{ children: ReactNode }, State> {
   }
 
   override componentDidCatch(error: unknown): void {
+    // A screen that fell over is a crashed session (owner, 16 Sep); a stale
+    // chunk after a deploy is not — it reloads and carries on.
+    if (!isChunkLoadError(error)) reportCrash('render');
     if (isChunkLoadError(error)) {
       // A new version shipped mid-session — reload once to pick it up.
       if (!sessionStorage.getItem(RELOAD_FLAG)) {
@@ -119,12 +123,15 @@ function FailureCard({ chunk, detail }: { chunk: boolean; detail: string | null 
 export function RouteError() {
   const err = useRouteError();
   const chunk = isChunkLoadError(err);
+  // A thrown error is a crashed session; a 404 route response is not.
+  const fatal = !chunk && !isRouteErrorResponse(err);
   useEffect(() => {
+    if (fatal) reportCrash('render');
     if (chunk && !sessionStorage.getItem(RELOAD_FLAG)) {
       sessionStorage.setItem(RELOAD_FLAG, '1');
       window.location.reload();
     }
-  }, [chunk]);
+  }, [chunk, fatal]);
   const detail = isRouteErrorResponse(err)
     ? `${err.status} ${err.statusText}`.trim()
     : err instanceof Error ? err.message : null;

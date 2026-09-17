@@ -208,6 +208,7 @@ function Dashboard({ access, onLock }: { access: Access; onLock: () => void }) {
         <p className="ix-counting">
           Live · counting since {overview.data.countingSince ? dateLabel(overview.data.countingSince) : 'the first visit'}
           {overview.data.tracking.memberDays ? ` · daily activity recorded from ${dateLabel(`${overview.data.tracking.memberDays}T00:00:00Z`)}` : ''}
+          {overview.data.tracking.rebuiltFrom ? `, rebuilt back to ${dateLabel(`${overview.data.tracking.rebuiltFrom}T00:00:00Z`)} from sign-ins, messages and posts` : ''}
           {' '}· {RANGE_LABEL[range]}
         </p>
       )}

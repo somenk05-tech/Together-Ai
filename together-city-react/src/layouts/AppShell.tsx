@@ -1,10 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
-import { useSocket } from '@/hooks/useSocket';
-import { useChatNotifications } from '@/hooks/useChatNotifications';
-import { useWebPush } from '@/hooks/useWebPush';
-import { useConnectionSync } from '@/api/connections.api';
 import { CookRoot } from '@/features/nutrition/components/CookMode';
 import { NotificationToaster } from './NotificationToaster';
 import { CityDrawer } from './CityDrawer';
@@ -13,10 +9,10 @@ import { ReconnectStrip } from './ReconnectStrip';
 
 /** Root layout for full-width hub landings & the city home. */
 export function AppShell() {
-  useSocket(); // connect Socket.IO whenever authenticated (chat, presence, notifications)
-  useChatNotifications(); // instant unread badge + delivery receipts, app-wide
-  useWebPush(); // keep the browser push subscription fresh when already granted
-  useConnectionSync(); // live hub-permission sync — People + hub pages never drift
+  // The socket, the heartbeat, the chat badge and the push subscription used
+  // to be mounted here — and this is one route block of nineteen, so every
+  // hub's inner pages had none of them. They live in app/Realtime.tsx now,
+  // above the router, for the reason CallCenter moved (below).
   // Chat is a full-viewport app screen: its thread scrolls internally and the
   // composer is pinned to the bottom. Rendering the footer there adds page
   // scroll, which pushes the composer below the fold — so no footer on /chats.

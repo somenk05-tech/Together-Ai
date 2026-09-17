@@ -168,11 +168,11 @@ describe('a closed room', () => {
 
   it('says it is closed rather than pretending it never existed', () => {
     const gate = code('components/RoomGate.tsx');
-    expect(gate).toMatch(/This room is closed just now/);
+    expect(gate).toMatch(/This room is temporarily closed/);
     /* Not "no access", which sends somebody to support asking what they did;
        not "not found", which makes a returning citizen doubt their memory. */
     expect(gate).not.toMatch(/do not have access|does not exist|not found/i);
-    expect(gate).toMatch(/Nothing you have saved here has been touched/);
+    expect(gate).toMatch(/nothing you’ve saved has been affected/);
   });
 
   it('fails open, so a slow switch list never closes a room', () => {
