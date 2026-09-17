@@ -31,7 +31,7 @@
  * never a wrong page.
  */
 import { OFFERED_CATEGORIES, categoryGroup, categoryLabel, categoryKeysMatching, isCategory } from './categories';
-import { BUSINESS_TYPES, businessType } from './business-types';
+import { BUSINESS_TYPES, businessType, catalogueFor } from './business-types';
 import { GROCERY_CATEGORIES } from './grocery';
 import { PLACES } from './places';
 
@@ -401,6 +401,11 @@ export interface Reading {
   typeKey: string;
   typeLabel: string;
   engine: Engine;
+  /** WHAT THEY WILL BE ASKED FOR NEXT (owner, 17 Sep: "for restaurants ask for
+   *  their menus here only … for grocery stores their list of products"). The
+   *  catalogue this type publishes, in its own words, so the create page can
+   *  say "then your menu" before a single field is filled. */
+  catalogue: { kind: string; title: string; blurb: string; noun: string; plural: string };
   /** "your café" — the word after "Let's create your …". */
   noun: string;
   confidence: Confidence;
@@ -479,6 +484,9 @@ export function readingFor(categoryKey: string, confidence: Confidence, text: st
     typeKey: type.key,
     typeLabel: type.label,
     engine: engineForType(type.key),
+    catalogue: (({ kind, title, blurb, noun, plural }) => ({ kind, title, blurb, noun, plural }))(
+      catalogueFor(type.key, categoryKey, categoryGroup(categoryKey)),
+    ),
     noun: nounFor(categoryKey, type.key),
     confidence,
     alternatives: alternatives.filter((k) => k !== categoryKey).slice(0, 3)

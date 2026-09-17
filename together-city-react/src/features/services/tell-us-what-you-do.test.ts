@@ -51,7 +51,7 @@ describe('the create page', () => {
   it('ends on the ready page, with the address and the door to the catalogue', () => {
     expect(page).toContain('Your {noun} is ready.');
     expect(page).toContain('See it as customers do');
-    expect(page).toContain('Add your ${made.catalogue.title.toLowerCase()}');
+    expect(page).toContain('Edit your ${made.catalogue.title.toLowerCase()}');
   });
 });
 
@@ -67,6 +67,58 @@ describe('the one form', () => {
 
   it('always lists the chosen type, whatever group it was filed under', () => {
     expect(form).toMatch(/t\.group === group \|\| t\.key === 'general' \|\| t\.key === businessType/);
+  });
+});
+
+describe('the catalogue is a step of the page (owner, 17 Sep)', () => {
+  const page = code('features/services/pages/ListBusiness.tsx');
+
+  it('asks for the menu, the stock list or the rates right here, with the editor open', () => {
+    expect(page).toContain("'catalogue'");
+    expect(page).toContain('<MenuEditor listingId={made.id} catalogue={made.catalogue} startOpen />');
+    expect(page).toContain("card.catalogue.kind !== 'none' ? 'catalogue' : 'ready'");
+  });
+
+  it('names the step in the catalogue\'s own word, never "menu" for everyone', () => {
+    expect(page).toContain('Your {reading.catalogue.title.toLowerCase()}');
+    expect(page).not.toMatch(/Your menu\b/);
+  });
+});
+
+describe('a unique page for each kind of business', () => {
+  const server = readFileSync(join(root, '..', 'together-city-chat', 'src', 'local-services', 'understand.ts'), 'utf8');
+  const client = code('features/services/engine.ts');
+  const grab = (src: string) => {
+    const m = src.match(/const ENGINE_OF_TYPE[^=]*=\s*\{([\s\S]*?)\};/);
+    return Object.fromEntries([...(m?.[1] ?? '').matchAll(/(\w+):\s*'(\w+)'/g)].map((x) => [x[1], x[2]]));
+  };
+
+  it('reads the same engine map the server names', () => {
+    const a = grab(server), b = grab(client);
+    expect(Object.keys(a).length).toBeGreaterThan(10);
+    expect(b).toEqual(a);
+  });
+
+  it('opens the page on what the business is for — the front card, then the catalogue, before the facts', () => {
+    const biz = code('features/services/pages/BusinessPage.tsx');
+    const front = biz.indexOf('<EngineFront');
+    const menu = biz.indexOf('<OrderMenu');
+    const glance = biz.indexOf('bold="glance"');
+    expect(front).toBeGreaterThan(0);
+    expect(menu).toBeGreaterThan(front);
+    expect(glance).toBeGreaterThan(menu);
+  });
+
+  it('a clinic asks for an appointment, a garage asks for the vehicle and the problem, and both end in the anonymous thread', () => {
+    const ef = code('features/services/EngineFront.tsx');
+    expect(ef).toContain("engine === 'healthcare' || engine === 'professional'");
+    expect(ef).toContain('Book an appointment');
+    expect(ef).toContain("s.businessType === 'transport'");
+    expect(ef).toContain('What vehicle do you have?');
+    expect(ef).toContain('Describe the problem');
+    expect(ef).toContain('mediaApi.upload(f)');
+    expect((ef.match(/enquire\.mutate\(/g) ?? []).length).toBe(2);
+    expect(ef).not.toMatch(/Add to cart|checkout/i);
   });
 });
 

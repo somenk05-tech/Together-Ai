@@ -352,3 +352,37 @@
 .lf-read { display: grid; gap: 6px; justify-items: start; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: var(--r-2); }
 .lf-read-v { font-size: var(--fs-4); }
 .lf-read-say { font-size: var(--fs-3); line-height: 1.5; margin: 0; max-width: 60ch; }
+/* The three steps of creating a business, said on the reading card and on the
+   catalogue step: the basics, your menu (or stock list, or rates), live. */
+.cyb-steps { display: flex; gap: 14px; flex-wrap: wrap; list-style: none; margin: 4px 0 0; padding: 0; }
+.cyb-step { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-3); color: var(--muted); }
+.cyb-step b { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: var(--r-full); border: 1.5px solid var(--line); font-size: var(--fs-2); }
+.cyb-step.is-now { color: var(--ink); font-weight: 700; }
+.cyb-step.is-now b { border-color: var(--ink); background: var(--ink); color: var(--card); }
+.cyb-step.is-done b { border-color: var(--ink); }
+
+/* ── THE FRONT OF THE PAGE, BY ENGINE (owner, 17 Sep) ────────────────────────
+   The request card a clinic, a practice or a garage opens on: the declared
+   facts, two boxes, one send. Tokens only. */
+.ef { display: grid; gap: 12px; margin-top: 30px; }
+.ef-k { font-size: var(--fs-7); font-weight: 700; }
+.ef-cred { font-size: var(--fs-4); margin: 0; line-height: 1.5; }
+.ef-reg { font-size: var(--fs-3); }
+.ef-facts { display: flex; gap: 22px; flex-wrap: wrap; margin: 0; }
+.ef-facts > div { display: grid; gap: 2px; }
+.ef-facts dt { font-size: var(--fs-2); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.ef-facts dd { margin: 0; font-size: var(--fs-5); }
+.ef-facts:empty { display: none; }
+.ef-grid { display: grid; gap: 12px; }
+.ef-l { display: block; font-size: var(--fs-3); font-weight: 700; margin-bottom: 6px; }
+.ef-soft { font-weight: 400; }
+.ef-in {
+  width: 100%; box-sizing: border-box; min-height: 44px; padding: 10px 13px; font: inherit; font-size: var(--fs-4);
+  border: 1.5px solid var(--line); border-radius: var(--r-2); background: var(--card); color: var(--ink);
+}
+.ef-ta { resize: vertical; line-height: 1.5; }
+.ef-file { font: inherit; font-size: var(--fs-3); }
+.ef-thumb { width: 92px; height: 70px; object-fit: cover; border-radius: var(--r-1); border: 1px solid var(--line); display: block; }
+.ef-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.ef-say { font-size: var(--fs-2); line-height: 1.5; max-width: 44ch; }
+.ef-err { color: var(--danger-ink); font-size: var(--fs-3); margin: 0; }

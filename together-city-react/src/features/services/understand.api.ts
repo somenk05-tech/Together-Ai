@@ -22,6 +22,9 @@ export interface Understanding {
   typeKey: string;
   typeLabel: string;
   engine: { key: string; label: string; builds: string };
+  /** What this kind of business publishes — asked for as the step after the
+   *  details, in the catalogue's own word (menu, stock list, rates…). */
+  catalogue: { kind: string; title: string; blurb: string; noun: string; plural: string };
   /** "café", "clinic", "garage" — the word after "Let's create your …". */
   noun: string;
   confidence: 'sure' | 'likely' | 'unsure';

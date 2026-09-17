@@ -47,6 +47,13 @@ describe('what do you do — the owner\'s sentences', () => {
     expect(r!.confidence).toBe('sure');
   });
 
+  it('says what will be asked for next — a menu for a kitchen, a stock list for a kirana, rates for a salon', () => {
+    expect(understandByRules('I run a café in Bandra.')!.catalogue.title).toBe('Menu');
+    expect(understandByRules('We are a kirana store in Powai')!.catalogue.title).toBe('Stock list');
+    expect(understandByRules("I have a women's salon.")!.catalogue.title).toBe('Services & rates');
+    expect(understandByRules("I'm an orthopaedic doctor.")!.catalogue.kind).not.toBe('menu');
+  });
+
   it('reads the place off the sentence when the tree knows it', () => {
     expect(readPlace('I run a café in Bandra.')).toEqual({ city: 'Mumbai', area: 'Bandra' });
     expect(readPlace('kirana in Mumbai')).toEqual({ city: 'Mumbai', area: null });

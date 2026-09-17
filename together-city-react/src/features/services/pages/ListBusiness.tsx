@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, Card } from '@/components/ui';
 import { ListingForm } from '../ListingForm';
-import { serviceHref, useCreateService, type MyServiceCard } from '../api';
+import { MenuEditor } from '../MenuEditor';
+import { serviceHref, useCreateService, useMenu, type MyServiceCard } from '../api';
 import { useUnderstandBusiness, type Understanding } from '../understand.api';
 
 /**
@@ -39,7 +40,17 @@ import { useUnderstandBusiness, type Understanding } from '../understand.api';
  * of the form would drift within a month, which is the reason the 24 Aug
  * comment on this page gave for not having two then.
  */
-type Phase = 'ask' | 'build' | 'ready';
+/**
+ * FOUR MOMENTS, NOT THREE (owner, 17 Sep, on seeing the first cut): "for
+ * restaurant, cafe and eating place ask for their menus here only, and make
+ * it visible; for grocery stores ask for their list of products". So the
+ * catalogue is a STEP of this page — after the details, before "ready" — with
+ * the editor open, in the trade's own word. A kitchen photographs its menu
+ * card; a kirana ticks the city's catalogue or uploads its stock sheet; a
+ * salon types its rates. A trade whose catalogue is 'none' (the plain page)
+ * skips the step: a price list there is optional and lives on My Business.
+ */
+type Phase = 'ask' | 'build' | 'catalogue' | 'ready';
 
 /** Said as chips under the box: the owner's six trades, in a citizen's words. */
 const EXAMPLES = [
@@ -91,6 +102,10 @@ export function ListBusiness() {
     setPhase('build');
   };
 
+  if (phase === 'catalogue' && made) {
+    return <CatalogueStep made={made} noun={reading?.noun ?? 'business'} onDone={() => { setPhase('ready'); window.scrollTo(0, 0); }} />;
+  }
+
   if (phase === 'ready' && made) {
     const noun = reading?.noun ?? 'business';
     const url = `togethercity.app${serviceHref(made)}`;
@@ -105,7 +120,7 @@ export function ListBusiness() {
             <Link to={serviceHref(made)}><Button variant="accent">See it as customers do</Button></Link>
             <Link to="/services/mine">
               <Button variant="line">
-                {made.catalogue.kind === 'none' ? 'Add a price list' : `Add your ${made.catalogue.title.toLowerCase()}`}
+                {made.catalogue.kind === 'none' ? 'Add a price list' : `Edit your ${made.catalogue.title.toLowerCase()}`}
               </Button>
             </Link>
             <Link to={`/services/${made.id}/edit`}><Button variant="line">Edit details</Button></Link>
@@ -134,6 +149,14 @@ export function ListBusiness() {
             <div className="cyb-read-k">{reading.engine.label}</div>
             <div className="cyb-read-v"><b>{reading.categoryLabel}</b> · {reading.typeLabel}</div>
             <p className="cyb-read-say">{reading.engine.builds}</p>
+            {/* THE ROAD, SAID UP FRONT: the details now, the menu (or stock
+                list, or rates) next, live after that. The middle word is the
+                catalogue's own, so a kirana is never promised a menu. */}
+            <ol className="cyb-steps" aria-label="The three steps">
+              <li className="cyb-step is-now"><b>1</b> The basics</li>
+              <li className="cyb-step"><b>2</b> Your {reading.catalogue.title.toLowerCase()}</li>
+              <li className="cyb-step"><b>3</b> Live</li>
+            </ol>
             {/* ONE PRESS TO CORRECT IT. The runner-up trades the reading
                 considered, as keys; anything else opens the dropdowns in the
                 form below. The reading's own trade is never among them. */}
@@ -193,7 +216,11 @@ export function ListBusiness() {
               ...(v.lat != null ? { lat: v.lat, lng: v.lng } : {}),
               ...(v.radiusKm != null ? { radiusKm: v.radiusKm } : {}),
             }, {
-              onSuccess: (card) => { setMade(card); setPhase('ready'); window.scrollTo(0, 0); },
+              onSuccess: (card) => {
+                setMade(card);
+                setPhase(card.catalogue?.kind && card.catalogue.kind !== 'none' ? 'catalogue' : 'ready');
+                window.scrollTo(0, 0);
+              },
               // The error the server actually gave, not a shrug. A form that
               // says "something went wrong" after somebody typed for four
               // minutes is how a listing silently never gets made.
@@ -242,6 +269,46 @@ export function ListBusiness() {
         services and rates. Doctors get a consultation page. Mechanics get a job request with a photo.
         You give the facts; Together City builds what your business needs, and only asks what it needs to.
       </p>
+    </div>
+  );
+}
+
+/**
+ * STEP 2 — THE THING THE PAGE IS FOR. The listing exists (it needed an id for
+ * the editor to write rows against), so this is the same MenuEditor My
+ * Business uses, opened on its first door: photograph for a kitchen, the
+ * city's catalogue for a kirana, typed lines for a salon. The count under the
+ * heading is live, so "12 items live" appears the moment they publish, and
+ * Done is offered from the start — an owner who wants to photograph the menu
+ * tomorrow is not held at the door.
+ */
+function CatalogueStep({ made, noun, onDone }: { made: MyServiceCard; noun: string; onDone: () => void }) {
+  const live = useMenu(made.id);
+  const count = live.data?.count ?? 0;
+  const words = made.catalogue;
+  return (
+    <div className="cyb">
+      <div className="eyebrow">Local Market</div>
+      <h1 className="cyb-h">Your {noun} is created. Now, your {words.title.toLowerCase()}.</h1>
+      <p className="cyb-lead">
+        {count === 0
+          ? `This is what people will see first on your page — and what they ${words.orderable ? 'order from' : 'pick from and write to you about'}.`
+          : `${count} ${count === 1 ? words.noun : words.plural} live. Add more, or go and see your page.`}
+      </p>
+      <ol className="cyb-steps" aria-label="The three steps">
+        <li className="cyb-step is-done"><b>1</b> The basics</li>
+        <li className="cyb-step is-now"><b>2</b> Your {words.title.toLowerCase()}</li>
+        <li className="cyb-step"><b>3</b> Live</li>
+      </ol>
+      <Card className="cyb-card">
+        <MenuEditor listingId={made.id} catalogue={made.catalogue} startOpen />
+      </Card>
+      <div className="cyb-row">
+        <Button variant="accent" onClick={onDone}>{count > 0 ? 'Done — see my page' : 'Skip for now'}</Button>
+        {count === 0 && (
+          <span className="muted cyb-eg-lead">You can add it any time from My business.</span>
+        )}
+      </div>
     </div>
   );
 }
