@@ -84,11 +84,18 @@ function RoomClosed() {
     <div className="page">
       <div className="card" style={{ maxWidth: '52ch', margin: '48px auto', textAlign: 'center', display: 'grid', gap: 10, padding: '30px 26px' }}>
         <div aria-hidden style={{ fontSize: 26 }}>◍</div>
-        <h1 style={{ fontSize: 20, margin: 0 }}>This room is closed just now</h1>
+        <h1 style={{ fontSize: 20, margin: 0 }}>This room is temporarily closed</h1>
         <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.6, margin: 0 }}>
-          Together City has switched it off for everybody while something is sorted out — it is
-          not you, and it is not permanent. Nothing you have saved here has been touched, and it
-          will all be where you left it when the room opens again.
+          Together City is currently in its beta launch stage, and some rooms and features may be
+          temporarily unavailable while we prepare the full city experience.
+        </p>
+        <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.6, margin: 0 }}>
+          It’s not you, and nothing you’ve saved has been affected. Your information will remain
+          safe and available when the room opens again.
+        </p>
+        <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.6, margin: 0 }}>
+          We’re building Together City one room at a time — and we’ll notify you when the full city
+          officially launches.
         </p>
         <p style={{ fontSize: 13.5, margin: '4px 0 0' }}>
           <Link to="/" style={{ color: 'var(--accent-ink)', fontWeight: 700 }}>Back to your city</Link>
