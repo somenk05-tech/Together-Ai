@@ -10,7 +10,7 @@ Set up 16 Sep 2026. One codebase, two deployments, two databases.
 | Database | its own Postgres + Redis | the real one |
 | `RELEASE_CHANNEL` | `dev` | `live` (also the default when unset) |
 | Hubs shown | all of them | the ones the Go live button chose |
-| Who can open it | you (Vercel login) | everybody |
+| Who can open it | you and the accounts in `DEV_COPY_ACCOUNTS` (Vercel login + that list) | everybody |
 
 ## The rule
 
@@ -69,6 +69,8 @@ In project **abundant-creation**:
 | `MEDIA_BUCKET` / `MEDIA_PRIVATE_BUCKET` / `MEDIA_PUBLIC_BASE_URL` | a separate R2 bucket pair is best; if you keep the production buckets, test uploads land beside real ones |
 
 Leave `DEV_PAGE_ACCOUNTS` and `DEV_PAGE_PASSWORD` as they are.
+
+`DEV_COPY_ACCOUNTS` (development only, added 17 Sep) — the handles that may sign in to or join the developer copy, comma-separated, e.g. `somen,shruti`. Unset, it follows `DEV_PAGE_ACCOUNTS`. It does **not** open `/dev` or show the Go live button: that stays `DEV_PAGE_ACCOUNTS`. Anyone on it also needs to get past Vercel's login on `dev.togethercity.app` (see 3.3).
 
 5. On **production**, add `RELEASE_CHANNEL` = `live`. (Unset already means live; writing it down makes it visible on `/dev`.)
 

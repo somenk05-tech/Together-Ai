@@ -1,5 +1,5 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
-import { devCopyAdmits, isDevCopy } from './dev-city-door';
+import { devCopyOperator } from './dev-city-door';
 
 /**
  * THE OWNER, ON THE DEVELOPER COPY — WITHOUT THE PASSWORD.
@@ -19,7 +19,9 @@ export class DevAccountGuard implements CanActivate {
   canActivate(ctx: ExecutionContext): boolean {
     const req = ctx.switchToHttp().getRequest<{ user?: { sub?: string; handle?: string } }>();
     const user = req.user;
-    if (!isDevCopy() || !user?.handle || !devCopyAdmits({ id: user.sub, handle: user.handle })) {
+    /* The operators' list, not the sign-in list (17 Sep): a second person on
+       the copy does not see what is waiting to go live. */
+    if (!user?.handle || !devCopyOperator({ id: user.sub, handle: user.handle })) {
       throw new ForbiddenException('Not available.');
     }
     return true;

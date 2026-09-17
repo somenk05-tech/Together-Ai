@@ -29,6 +29,12 @@ describe('what is waiting to go live', () => {
     expect(() => new DevAccountGuard().canActivate(ctx({ sub: 'u1', handle: 'somen' }))).toThrow(ForbiddenException);
   });
 
+  it('refuses a second person who may only sign in to the copy (17 Sep)', () => {
+    Object.assign(process.env, { RELEASE_CHANNEL: 'dev', DEV_PAGE_ACCOUNTS: 'somen', DEV_COPY_ACCOUNTS: 'somen,shruti' });
+    expect(new DevAccountGuard().canActivate(ctx({ sub: 'u1', handle: 'somen' }))).toBe(true);
+    expect(() => new DevAccountGuard().canActivate(ctx({ sub: 'u3', handle: 'shruti' }))).toThrow(ForbiddenException);
+  });
+
   it('only reads: the press stays behind the dev password', () => {
     const pending = readFileSync(join(__dirname, 'pending.controller.ts'), 'utf8');
     expect(pending).not.toMatch(/@Post/);
