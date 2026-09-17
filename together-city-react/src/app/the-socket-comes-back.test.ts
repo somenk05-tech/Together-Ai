@@ -35,11 +35,9 @@ describe('the socket comes back', () => {
     expect(socket).toMatch(/reason === 'io client disconnect'\) \{ setState\('off'\); return; \}/);
   });
 
-  it('the shell shows a strip while it is away — on chat too', () => {
-    expect(shell).toMatch(/<ReconnectStrip \/>/);
-    // Not gated on !isChat: chat is where the silence was worst.
-    expect(shell).not.toMatch(/\{!isChat && <ReconnectStrip \/>\}/);
-    // And the two strips wear one hoisted style, not two inline ones.
+  it('the shell shows NO strip while it is away (owner, 17 Sep) — the socket recovers silently', () => {
+    expect(shell).not.toMatch(/<ReconnectStrip \/>/);
+    // The verify-email banner keeps the one hoisted style.
     expect(banner).toMatch(/style=\{bannerStyle\}/);
   });
 });
