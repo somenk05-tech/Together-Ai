@@ -9,6 +9,7 @@ import type { TabKey } from '@/config/hubs';
 import { useDiagnostics, useFlags, useSetFlag, type EnvRow, type FlagRow, type VisibilityRow, type RoomRow } from '../api';
 import { routeIndex } from '../routeIndex';
 import { DevCitizens } from '../Citizens';
+import { DevMedia } from '../Media';
 
 /**
  * THE DEVELOPER PAGE.
@@ -516,12 +517,15 @@ const flagIcon = (key: string): IconName =>
 
 /* ─────────────────────────── the page ─────────────────────────── */
 
-type Tab = 'config' | 'users' | 'flags' | 'routes';
+type Tab = 'config' | 'users' | 'flags' | 'social' | 'routes';
 
 export function DevPage() {
   const [password, setPassword] = useState<string | null>(null);
   const [attempt, setAttempt] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>('config');
+  /* `/dev?tab=social` opens straight on Together Social (owner, 17 Sep:
+     "a together social media page") — once the password is in. */
+  const [tab, setTab] = useState<Tab>(() =>
+    (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'social' ? 'social' : 'config'));
 
   const diag = useDiagnostics(attempt);
   const flags = useFlags(password);
@@ -578,6 +582,7 @@ export function DevPage() {
         {([['config', `Configuration${notSet.length ? ` (${notSet.length} unset)` : ''}`],
            ['users', 'Users'],
            ['flags', 'Kill switches'],
+           ['social', 'Together Social'],
            ['routes', `Pages (${routes.length})`]] as Array<[Tab, string]>).map(([k, label]) => (
           <button key={k} type="button" onClick={() => setTab(k)} aria-current={tab === k ? 'page' : undefined}
             style={{ position: 'relative', minHeight: 44, padding: '0 14px', border: 0, background: 'none',
@@ -641,6 +646,12 @@ export function DevPage() {
       )}
 
       {tab === 'users' && <DevCitizens />}
+
+      {/* ── TOGETHER SOCIAL — THE MEDIA DESK (owner, 9 Sep; 17 Sep) ───────────
+          One upload → the topic's YouTube channel, Instagram account, Threads
+          profile and Together TV. It takes the password rather than reading it
+          from a store, like every other panel here. */}
+      {tab === 'social' && <DevMedia password={password} />}
 
       {tab === 'flags' && (
         <>

@@ -15,5 +15,8 @@ import { AdminConsoleModule } from '../admin/admin.module';
   /* PostMediaGuard needs StorageProvider, which MediaModule already exports
      into this module — the same wiring MessagesModule uses for ChatMediaGuard. */
   providers: [SocialService, SocialGateway, PostMediaGuard],
+  /* The media desk (broadcast/) makes its Together TV copy through the same
+     createPost every citizen's post goes through. */
+  exports: [SocialService],
 })
 export class SocialModule {}

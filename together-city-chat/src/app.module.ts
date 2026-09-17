@@ -17,6 +17,7 @@ import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { AdminModule } from './auth/admin.module';
 import { DevModule } from './dev/dev.module';
+import { BroadcastModule } from './broadcast/broadcast.module';
 import { GeoModule } from './geo/geo.module';
 import { AdminConsoleModule } from './admin/admin.module';
 import { ClockModule } from './shared/clock/clock.module';
@@ -90,6 +91,7 @@ import { QueueModule } from './shared/queue/queue.module';
     AdminModule,
     AdminConsoleModule,
     DevModule,
+    BroadcastModule,
     GeoModule,
     ClockModule,
     TasksModule,

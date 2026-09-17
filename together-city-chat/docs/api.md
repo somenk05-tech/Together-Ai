@@ -4,8 +4,8 @@
 removing a route. It is produced from the same parse the security guards in
 `src/security/` use, so it cannot describe a route that does not exist.
 
-Every path below is prefixed with `/api`. **639 routes** across
-**51 controllers**; **17** are reachable without a token.
+Every path below is prefixed with `/api`. **650 routes** across
+**53 controllers**; **17** are reachable without a token.
 
 ## Conventions
 
@@ -308,6 +308,23 @@ _dev/dev.controller.ts_
 | GET | `/api/dev/flags` | token |
 | POST | `/api/dev/flags` | 🔒 |
 
+## /dev/media
+
+_broadcast/broadcast.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| POST | `/api/dev/media/:id/publish` | 🔒 |
+| POST | `/api/dev/media/:id/retry/:channel` | 🔒 |
+| DELETE | `/api/dev/media/:id` | 🔒 |
+| DELETE | `/api/dev/media/accounts/:platform/:topic` | 🔒 |
+| GET | `/api/dev/media/channels` | token |
+| POST | `/api/dev/media/connect/finish` | 🔒 |
+| POST | `/api/dev/media/connect` | 🔒 |
+| GET | `/api/dev/media` | token |
+| POST | `/api/dev/media` | 🔒 |
+| POST | `/api/dev/media/suggest` | token |
+
 ## /dev/medical-mail
 
 _medical-mail/medical-mail.controller.ts_
@@ -441,6 +458,14 @@ _connections/hub-members.controller.ts_
 |---|---|---|
 | GET | `/api/hub/:hub/members` | 🔒 |
 | PATCH | `/api/hub/:hub/members` | 🔒 |
+
+## /hub-videos
+
+_broadcast/hub-videos.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| GET | `/api/hub-videos/:hub` | token |
 
 ## /insights
 

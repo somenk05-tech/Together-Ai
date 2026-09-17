@@ -403,6 +403,10 @@ const UNREACHABLE_ON_PURPOSE = new Map([
   // PURPOSE until the owner asks for it.
   ['/social/wall', 'the wall of posts the television replaced. Off the rail for now by the owner\'s call (6 Sep); kept so it can return with one rail line rather than a rebuild.'],
   ['/console', 'the admin console. Staff-only, and absent from every menu ON PURPOSE — a link in a citizen\'s navigation is an invitation to a door that will not open. The server checks the permission per request; the route existing is not access.'],
+  // Where Google, Instagram and Threads send the media desk's Connect pop-up
+  // back to (17 Sep). Nothing in the app links to it by design: the platform
+  // redirects there, and it only hands the code to the desk that opened it.
+  ['/dev/social/connected', 'the media desk\'s sign-in landing. Reached only by a platform\'s redirect, never by a link; it posts the code to the /dev page that opened it and closes.'],
   ['/dev', 'the developer page. Absent from every menu for the same reason as the console, and with one more lock on top: the API refuses every /dev request that does not carry the password, checked on the server in constant time. The route existing is not access.'],
   // The hub was renamed Dating → Matchmaking on 31 Aug. The old paths are
   // redirects now (see router.tsx) and the rooms answer on /matchmaking.
