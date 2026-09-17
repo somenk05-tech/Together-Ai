@@ -267,7 +267,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
          holds no price nobody in this city typed. It is the same shelf the
          Open Market draws under its Electronics tab; one room, two doors. */
       { path: '/services/electronics', index: '04', label: 'Electronics Store', sub: 'Phones, appliances and accessories — from shops near you' },
-      { path: '/services/list', index: '05', label: 'List your business', sub: 'Pick a category, name your areas' },
+      { path: '/services/list', index: '05', label: 'List your business', sub: 'Tell us what you do — the page is built for it' },
       { path: '/services/mine', index: '06', label: 'My business', sub: 'Edit, close, see who asked' },
       { path: '/services/regulars', index: '07', label: 'Regulars', sub: 'The businesses you keep' },
       { path: '/services/offers', index: '08', label: 'Daily offers', sub: 'What is on today' },

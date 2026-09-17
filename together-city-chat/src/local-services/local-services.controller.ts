@@ -4,6 +4,7 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { LocalServicesService } from './local-services.service';
+import { UnderstandService } from './understand.service';
 import { categoriesByGroup } from './categories';
 import { REACH_DEFAULT_KM, reachCeilingKm } from './reach';
 import { catalogueKeyFor } from './business-types';
@@ -27,13 +28,17 @@ import {
   ScanMenuSchema, type ScanMenuDto,
   SaveMenuSchema, type SaveMenuDto,
   SendMenuItemsSchema, type SendMenuItemsDto,
+  UnderstandSchema, type UnderstandDto,
 } from './dto/local-services.dto';
 import { MODEL_LIMIT } from '../shared/throttles';
 
 @Controller('services')
 @UseGuards(JwtAuthGuard)
 export class LocalServicesController {
-  constructor(private readonly services: LocalServicesService) {}
+  constructor(
+    private readonly services: LocalServicesService,
+    private readonly understanding: UnderstandService,
+  ) {}
 
   /** The vocabulary. Static, so the picker never waits on a query. */
   @Get('categories')
@@ -76,6 +81,27 @@ export class LocalServicesController {
     // catalogue's own words, what the chosen business will publish — without
     // the web holding a second copy of those words.
     return { types: BUSINESS_TYPES, catalogues: CATALOGUES };
+  }
+
+  /**
+   * ── TELL US WHAT YOU DO (owner, 17 Sep) ────────────────────────────────────
+   *
+   * "I run a café in Bandra" in; the trade, the business type, the engine it
+   * runs on and the place, out — a READING, stored nowhere, that the create
+   * screen pre-fills from and the owner can change with one press. Rules
+   * first (understand.ts); the model only when the rules are unsure, which is
+   * why it wears the model throttle: a sentence the lexicon cannot read is
+   * one model call, and twenty of those a minute is enough for anyone
+   * describing their own business.
+   *
+   * Declared with the literals, before ':id', or "understand" is read as a
+   * listing id and 404s from the database.
+   */
+  @Post('understand')
+  @Throttle(MODEL_LIMIT)
+  @UsePipes(new ZodValidationPipe(UnderstandSchema))
+  understand(@CurrentUser() _user: JwtUser, @Body() dto: UnderstandDto) {
+    return this.understanding.understand(dto.text);
   }
 
   /** Country → state → city → areas, served like the trades: one file, one

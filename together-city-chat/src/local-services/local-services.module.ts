@@ -12,6 +12,7 @@ import { ServiceOrdersController } from './orders.controller';
 import { ServiceOrdersService } from './orders.service';
 import { VerificationController } from './verification.controller';
 import { VerificationService } from './verification.service';
+import { UnderstandService } from './understand.service';
 
 @Module({
   // Commerce is the till and Financial is the wallet; ordering is a CALLER of
@@ -25,7 +26,7 @@ import { VerificationService } from './verification.service';
   // declaration-order rule 'mine' and 'regulars' already rely on inside the
   // main controller.
   controllers: [VerificationController, ServiceOrdersController, LocalServicesController],
-  providers: [LocalServicesService, ServiceOrdersService, VerificationService, PostMediaGuard],
+  providers: [LocalServicesService, ServiceOrdersService, VerificationService, UnderstandService, PostMediaGuard],
   // The console decides on submissions, and the decision lives where the
   // permission check and the audit row are.
   exports: [VerificationService],

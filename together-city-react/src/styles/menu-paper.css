@@ -312,3 +312,43 @@
    the tap lands on the video and summons the real controls. */
 .vf-wrap { position: relative; margin-top: 12px; line-height: 0; }
 .vf-play { position: absolute; inset: 0; margin: auto; width: 64px; height: 64px; border-radius: var(--r-full); background: var(--scrim-deep); color: var(--on-scrim); display: grid; place-items: center; font-size: var(--fs-8); pointer-events: none; }
+
+/* ── CREATE YOUR BUSINESS ON TOGETHER CITY (owner, 17 Sep) ──────────────────
+   "Tell us what you do. We'll build the rest." One box, one sentence, and the
+   reading said back in a line before the form opens underneath it. Tokens
+   only, no literal colour or size — the page wears the city's paper and the
+   form under it is the one that has always existed. */
+.cyb { display: grid; gap: var(--s-2); max-width: 720px; }
+.cyb-h { font-size: var(--fs-8); margin: 0; }
+.cyb-lead { font-size: var(--fs-5); line-height: 1.55; margin: 0; max-width: 60ch; }
+.cyb-url { word-break: break-all; }
+.cyb-card { display: grid; gap: var(--s-2); }
+.cyb-q { display: block; font-size: var(--fs-4); font-weight: 700; }
+.cyb-say {
+  width: 100%; box-sizing: border-box; padding: 12px 14px; resize: vertical; min-height: 88px;
+  border: 1.5px solid var(--line); border-radius: var(--r-2); font: inherit; font-size: var(--fs-5); line-height: 1.5;
+  background: var(--card); color: var(--ink);
+}
+.cyb-eg { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.cyb-eg-lead { font-size: var(--fs-3); }
+.cyb-eg-k {
+  min-height: 44px; padding: 0 14px; cursor: pointer;
+  border: 1.5px solid var(--line); border-radius: var(--r-full); background: var(--card); color: var(--ink);
+  font: inherit; font-size: var(--fs-3); font-weight: 600;
+}
+.cyb-eg-k[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--card); }
+.cyb-link {
+  min-height: 44px; padding: 0 6px; cursor: pointer; border: 0; background: none;
+  font: inherit; font-size: var(--fs-3); font-weight: 600; color: var(--ink); text-decoration: underline; text-underline-offset: 3px;
+}
+.cyb-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.cyb-err { color: var(--danger-ink); font-size: var(--fs-4); margin: 0; }
+.cyb-say-what { font-size: var(--fs-4); line-height: 1.55; margin: 0; max-width: 62ch; }
+.cyb-read { display: grid; gap: 6px; }
+.cyb-read-k { font-size: var(--fs-2); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.cyb-read-v { font-size: var(--fs-5); }
+.cyb-read-say { font-size: var(--fs-4); line-height: 1.55; margin: 0; max-width: 60ch; }
+/* The line the form shows in place of its three dropdowns once the trade was read. */
+.lf-read { display: grid; gap: 6px; justify-items: start; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: var(--r-2); }
+.lf-read-v { font-size: var(--fs-4); }
+.lf-read-say { font-size: var(--fs-3); line-height: 1.5; margin: 0; max-width: 60ch; }
