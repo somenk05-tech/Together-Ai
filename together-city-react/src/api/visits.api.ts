@@ -32,6 +32,21 @@ function stored(store: () => Storage, key: string, make?: () => string): string 
   }
 }
 
+/**
+ * The campaign tags THIS page load came with (owner, 17 Sep: "click-through
+ * analytics"). `firstTouch` keeps a browser's first arrival for good; a
+ * Together Social link must be counted every time it sends somebody, so the
+ * current address travels too. The server keeps only its own tags.
+ */
+function arrivalHere(): { cmp: string; cnt: string; src: string } | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const q = new URLSearchParams(window.location.search);
+  const cmp = q.get('utm_campaign');
+  const cnt = q.get('utm_content');
+  const src = q.get('utm_source');
+  return cmp && cnt && src ? { cmp: cmp.slice(0, 40), cnt: cnt.slice(0, 40), src: src.slice(0, 40) } : undefined;
+}
+
 /** One beacon per tab: a reload or a walk between rooms is the same visit. */
 export function countThisVisit(): void {
   if (stored(() => sessionStorage, COUNTED_KEY)) return;
@@ -41,7 +56,7 @@ export function countThisVisit(): void {
     : null;
   // Where the visit came from travels with it (owner, 16 Sep); see origin.ts.
   const t = firstTouch();
-  http.post('/visits', { id, ...(t ? { src: t.src, med: t.med, cmp: t.cmp, cnt: t.cnt, trm: t.trm, ref: t.ref } : {}) })
+  http.post('/visits', { id, arrival: arrivalHere(), ...(t ? { src: t.src, med: t.med, cmp: t.cmp, cnt: t.cnt, trm: t.trm, ref: t.ref } : {}) })
     .catch(() => undefined);
 }
 

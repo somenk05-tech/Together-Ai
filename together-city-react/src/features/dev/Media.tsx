@@ -158,13 +158,19 @@ function NewVideo({ desk, password }: { desk: DeskState; password: string }) {
   const [key, setKey] = useState<string | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [note, setNote] = useState('');
+  const [series, setSeries] = useState('');
+  const [episode, setEpisode] = useState('');
+  const [campaign, setCampaign] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
   const [caption, setCaption] = useState('');
   const [threads, setThreads] = useState('');
   const [privacy, setPrivacy] = useState<'public' | 'unlisted' | 'private'>('public');
-  const [ai, setAi] = useState(false);
+  /* On by default (owner, 17 Sep: every film is made with AI). YouTube and
+     Meta require the label on realistic AI video, and a missing label, not the
+     label, is what puts a channel's monetisation at risk. */
+  const [ai, setAi] = useState(true);
   const [chosen, setChosen] = useState<ChannelKey[]>(['youtube', 'instagram', 'threads', 'tv']);
   const [drafting, setDrafting] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -201,12 +207,13 @@ function NewVideo({ desk, password }: { desk: DeskState; password: string }) {
     setMsg(null);
     act.create.mutate({
       topic, storageKey: key, note: note.trim() || undefined, title: title.trim(), description,
+      series: series.trim() || undefined, episode: episode.trim() || undefined, campaign: campaign.trim() || undefined,
       tags: tags.split(',').map((x) => x.trim()).filter(Boolean), caption, threadsText: threads,
       privacy, aiDisclosure: ai, channels: chosen, publish,
     }, {
       onSuccess: () => {
         setFile(null); setKey(null); setProgress(null); uploadFor.current = null;
-        setNote(''); setTitle(''); setDescription(''); setTags(''); setCaption(''); setThreads(''); setAi(false);
+        setNote(''); setEpisode(''); setTitle(''); setDescription(''); setTags(''); setCaption(''); setThreads(''); setAi(true);
         setMsg(publish ? 'On its way. Each destination has its own row below.' : 'Saved as a draft below. Nothing has left the building.');
       },
       onError: (e) => {
@@ -261,6 +268,22 @@ function NewVideo({ desk, password }: { desk: DeskState; password: string }) {
           <input className="md-input" value={note} maxLength={500} onChange={(e) => setNote(e.target.value)}
             placeholder="e.g. Neel and Isha, episode 3 — she finally says what she wants" />
         </label>
+        {/* The series, episode and campaign are what Content analytics groups
+            and filters by; the series and campaign stay for the next upload. */}
+        <div className="md-line">
+          <label className="md-field md-grow">
+            <span className="md-label">Series · optional</span>
+            <input className="md-input" value={series} maxLength={120} onChange={(e) => setSeries(e.target.value)} placeholder="e.g. Two Sides" />
+          </label>
+          <label className="md-field md-grow">
+            <span className="md-label">Episode · optional</span>
+            <input className="md-input" value={episode} maxLength={120} onChange={(e) => setEpisode(e.target.value)} placeholder="e.g. Episode 3" />
+          </label>
+          <label className="md-field md-grow">
+            <span className="md-label">Campaign · optional</span>
+            <input className="md-input" value={campaign} maxLength={120} onChange={(e) => setCampaign(e.target.value)} placeholder="e.g. October launch" />
+          </label>
+        </div>
         <div className="md-line">
           <Button variant="line" disabled={drafting || (!note.trim() && !file)} onClick={() => { void draft(); }}>
             {drafting ? 'Drafting…' : 'Draft the words'}

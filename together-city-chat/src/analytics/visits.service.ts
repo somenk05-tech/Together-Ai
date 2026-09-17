@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import type { VisitOrigin } from './visit-origin';
 import { timingSafeEqualStr } from '../mail/mail-inbound';
@@ -86,6 +86,18 @@ export class VisitsService {
               ${o?.content ?? null}, ${o?.term ?? null}, ${o?.referrer ?? null}, ${o?.device ?? null})
       ON CONFLICT ("id") DO UPDATE
         SET "visits" = "SiteVisitor"."visits" + 1, "lastAt" = CURRENT_TIMESTAMP`;
+  }
+
+  /**
+   * One arrival through a Together Social link (owner, 17 Sep: "click-through
+   * analytics"). Every arrival, not only a browser's first: the visitor row
+   * above keeps how a browser FIRST came; this keeps each time a post sent it.
+   * The tag and platform are already checked (broadcast/tracking.ts).
+   */
+  async arrival(key: string, tag: string, channel: string): Promise<void> {
+    await this.prisma.$executeRaw`
+      INSERT INTO "SocialArrival" ("id", "tag", "channel", "visitor")
+      VALUES (${randomUUID()}, ${tag}, ${channel}, ${key})`;
   }
 
   async stats(): Promise<VisitStats> {

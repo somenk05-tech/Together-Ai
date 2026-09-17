@@ -140,7 +140,14 @@ P.privacy = {
       <p>Exercise these via Settings or by writing to ${CO.privacyEmail}.</p>` },
     { h: '11. Data Protection Officer & grievances', html:
       `<p>Data Protection Officer / contact: ${CO.dpo ? `${CO.dpo}, ` : ''}${CO.privacyEmail}. Unresolved concerns may be escalated to our Grievance Officer and to the Data Protection Board of India.</p>` },
-    { h: '12. Changes', html:
+    { h: '12. Our social channels: YouTube, Instagram and Threads', html:
+      `<p>We publish our own videos to our own ${CO.brand} channels on YouTube, Instagram and Threads, and read the public counts of those videos (views, likes, comments, followers) to see how they perform. We do this through the YouTube API Services and Meta's Instagram and Threads APIs, signed in only as our own accounts; we never ask you to connect your Google, Instagram or Threads account for this, and we do not read any viewer's account.</p>
+      ${li([
+        'Watching or interacting with our videos on YouTube is governed by the <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">YouTube Terms of Service</a> and the <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Privacy Policy</a>; on Instagram and Threads, by Meta\u2019s terms and privacy policy.',
+        'The links in our posts carry a short tag naming the post and the platform. When you arrive on the Platform through one, we record that tag against the random visitor identifier our site already uses, so we can count visits and sign-ups per post. It does not identify you to the platform, and you can clear it by clearing your browser storage.',
+        'The sign-in tokens for our own channels are stored encrypted, used only to publish and to read those counts, and can be revoked by us at any time (for Google, at <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer">myaccount.google.com/permissions</a>).',
+      ])}` },
+    { h: '13. Changes', html:
       `<p>We will notify you of material changes to this Policy in-app or by email.</p>` },
   ],
   related: ['cookies', 'retention', 'deletion', 'child', 'medical', 'security'],

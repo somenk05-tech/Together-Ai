@@ -5118,6 +5118,11 @@ model MediaPost {
   thumbUrl   String?
   /// The owner's one line about the film, which the drafting model reads.
   note      String?
+  /// WHERE IT BELONGS, for the content analytics (owner, 17 Sep: "filter by
+  /// Series | Episode | Campaign"). The owner's own words, all optional.
+  series    String?
+  episode   String?
+  campaign  String?
   /// The words the owner approved. A title is YouTube's (and the TV post's
   /// first line); a caption is Instagram's; Threads has its own short line.
   title       String?
@@ -5175,6 +5180,8 @@ model MediaTarget {
   updatedAt DateTime @updatedAt
 
   post MediaPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  /// What the platform said this post had, each time it was asked.
+  metrics MediaMetric[]
 
   @@unique([postId, channel])
   @@index([state])
@@ -5203,4 +5210,71 @@ model SocialAccount {
   updatedAt   DateTime  @updatedAt
 
   @@unique([platform, topic])
+}
+
+/**
+ * ── THE CONTENT ANALYTICS (owner, 17 Sep) ──────────────────────────────────
+ *
+ * "Create a permanent Combined View that aggregates performance from every
+ * video and post across every connected platform … do not simply add metrics
+ * together where doing so would create misleading numbers."
+ *
+ * The owner chose PUBLIC COUNTS ONLY (no insights permission, no reconnect):
+ * what YouTube, Instagram and the city's own tables say anybody could read.
+ * Reach, impressions, watch time and saves are not collected and the page
+ * says so. A null column is "the platform does not give this", never zero.
+ *
+ * MediaMetric: one reading of one published post, every few hours
+ * (broadcast/content-analytics.service.ts). The numbers are the platform's
+ * running totals at `capturedAt`; a period's value is the difference between
+ * two readings.
+ */
+model MediaMetric {
+  id         String   @id @default(uuid())
+  targetId   String
+  postId     String
+  /// youtube | instagram | threads | tv
+  channel    String
+  capturedAt DateTime @default(now())
+  views      Int?
+  likes      Int?
+  comments   Int?
+  shares     Int?
+  saves      Int?
+
+  target MediaTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([targetId, capturedAt])
+  @@index([postId, capturedAt])
+}
+
+/// One reading of one account: a topic's YouTube subscribers or Instagram
+/// followers. Followers GAINED over a period is the difference of two.
+model ChannelMetric {
+  id         String   @id @default(uuid())
+  /// youtube | instagram
+  platform   String
+  topic      String
+  capturedAt DateTime @default(now())
+  followers  Int?
+  views      Int?
+  posts      Int?
+
+  @@index([platform, topic, capturedAt])
+}
+
+/// One arrival on togethercity.app through a Together Social link — every
+/// arrival, not only a browser's first (SiteVisitor keeps that). `tag` is the
+/// first eight characters of MediaPost.id, carried as utm_content; `channel`
+/// is utm_source. `visitor` is SiteVisitor.id, so unique clicks are counted
+/// by browser. No address, no agent, no account.
+model SocialArrival {
+  id      String   @id @default(uuid())
+  tag     String
+  channel String
+  visitor String
+  at      DateTime @default(now())
+
+  @@index([tag, at])
+  @@index([at])
 }

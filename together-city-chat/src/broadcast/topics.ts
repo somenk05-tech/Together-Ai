@@ -67,7 +67,7 @@ export const TOPICS: readonly Topic[] = [
     youtube: { channelId: 'UCD-i8T3tYF52LOQ3Wn8WWyA', handle: '@TogetherCityFitness', categoryId: '26' },
     instagram: 'togethercity_fitness', threads: 'togethercity_fitness',
     hashtags: ['#TogetherCity', '#HomeWorkout', '#Fitness'],
-    disclaimer: 'Check with a doctor before starting a new exercise programme.',
+    disclaimer: 'Check with a doctor before starting a new exercise program.',
     brief: 'Together City – Fitness: follow-along home workouts filmed like movies. Name the move, the muscles and the common form mistake; no body-shaming, no promised results.',
   },
   {

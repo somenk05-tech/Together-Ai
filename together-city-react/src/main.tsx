@@ -30,6 +30,7 @@ import './styles/grocery-store.css';
 // Medical Mail's own sheet (owner, 16 Sep) — see its head note.
 import './styles/medical-mail.css';
 import './styles/media-desk.css';
+import './styles/content-analytics.css';
 // The investor dashboard's own sheet (owner, 16 Sep) — see its head note.
 import './styles/insights.css';
 

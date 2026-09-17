@@ -87,10 +87,11 @@ export function fitTags(tags: string[]): string[] {
   return out;
 }
 
-export function youtubeMeta(w: Words, t: Topic): YouTubeMeta {
+/** `link` is the tracked hub address (tracking.ts); the plain one when there is none. */
+export function youtubeMeta(w: Words, t: Topic, link: string = hubUrl(t)): YouTubeMeta {
   const tail = [
     '',
-    `▶ More on Together City: ${hubUrl(t)}`,
+    `▶ More on Together City: ${link}`,
     ...footer(t, w.aiDisclosure),
     '',
     t.hashtags.join(' '),
@@ -135,8 +136,7 @@ export function instagramCaption(w: Words, t: Topic): string {
   return body + tail;
 }
 
-export function threadsText(w: Words, t: Topic): string {
-  const link = hubUrl(t);
+export function threadsText(w: Words, t: Topic, link: string = hubUrl(t)): string {
   const lines = [...footer(t, w.aiDisclosure), link];
   const tail = `\n\n${lines.join('\n')}`;
   return cut(w.threadsText.trim() || w.caption.trim(), LIMITS.threadsText - Array.from(tail).length) + tail;

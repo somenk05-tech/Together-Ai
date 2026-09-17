@@ -1,0 +1,82 @@
+/* ── CONTENT ANALYTICS — /dev?tab=analytics (owner, 17 Sep) ─────────────────
+   Every film and post on every connected platform, the audit table, one page
+   per piece of content and the click-through funnel. Drawn here rather than
+   inline (the size ratchet's rule is "lower the number or raise nothing").
+   Every colour is a token; the charts are one series each on one axis, with a
+   crosshair on hover and a table beside them. Prefix `ca-`. */
+
+.ca-wrap { display: grid; gap: 24px; }
+.ca-section { display: grid; gap: 10px; }
+.ca-h { font-size: 13px; margin: 0; letter-spacing: .08em; text-transform: uppercase; }
+.ca-title { font-size: var(--fs-7); margin: 0; line-height: 1.3; }
+.ca-lead { font-size: 13px; margin: 0; max-width: 66ch; line-height: 1.6; }
+.ca-line { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.ca-small { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.ca-note { font-size: 13px; margin: 0; color: var(--ink); }
+.ca-err { color: var(--danger-ink); }
+.ca-change { font-size: 12px; font-weight: 700; }
+.ca-up { color: var(--ok-ink); }
+.ca-down { color: var(--danger-ink); }
+.ca-out { font-weight: 700; color: var(--accent-ink); }
+.ca-kv { display: grid; gap: 4px; }
+
+/* the views and the filters */
+.ca-nav { display: flex; gap: 8px; flex-wrap: wrap; }
+.ca-nav-btn, .ca-seg-btn { min-height: 44px; padding: 6px 14px; cursor: pointer; font-family: inherit; font-size: 13px; border-radius: var(--r-1); border: 1.5px solid var(--line); background: var(--card); color: var(--ink); }
+.ca-nav-btn[aria-pressed="true"], .ca-seg-btn[aria-pressed="true"] { font-weight: 700; border-color: var(--accent-ink); background: var(--accent-soft); }
+.ca-filters { display: grid; gap: 12px; }
+.ca-seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.ca-field { display: grid; gap: 4px; flex: 1 1 160px; min-width: 0; }
+.ca-selects { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.ca-label { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ca-input { width: 100%; box-sizing: border-box; min-height: 44px; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: var(--r-1); font-size: 14px; font-family: inherit; background: var(--card); color: var(--ink); }
+.ca-check { display: flex; gap: 8px; align-items: center; font-size: 13px; min-height: 44px; }
+
+/* the headline */
+.ca-hero { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.ca-hero-cell { display: grid; gap: 2px; padding: 12px 0; border-top: 1px solid var(--line); }
+.ca-hero-value { font-size: var(--fs-8); font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; color: var(--ink); }
+.ca-hero-label { font-size: 12px; color: var(--muted); }
+
+/* the tiles */
+.ca-tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.ca-tile { display: grid; gap: 4px; align-content: start; padding: 12px 0; border-top: 1px solid var(--line); }
+.ca-tile-label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ca-tile-value { font-size: var(--fs-7); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+/* content cards */
+.ca-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; align-items: start; }
+.ca-card { display: grid; gap: 8px; margin-top: 0; }
+.ca-rowlink { min-height: 44px; padding: 0; border: none; background: none; cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 600; color: var(--accent-ink); text-align: left; }
+.ca-split { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 12px; padding-top: 6px; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.ca-split-total { font-weight: 700; }
+
+/* tables */
+.ca-scroll { overflow-x: auto; }
+.ca-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ca-table th, .ca-table td { text-align: left; vertical-align: top; padding: 10px 12px 10px 0; border-top: 1px solid var(--line); }
+.ca-table thead th { vertical-align: bottom; border-top: none; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.ca-table tbody th { font-weight: 600; }
+.ca-tr:hover { background: var(--accent-soft); }
+.ca-sort { min-height: 44px; padding: 0; border: none; background: none; cursor: pointer; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; }
+.ca-table thead th[aria-sort="descending"] { color: var(--ink); }
+
+/* the funnel */
+.ca-stages { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.ca-stage { display: grid; gap: 6px; align-content: start; }
+.ca-stage-btn { display: grid; gap: 2px; justify-items: start; width: 100%; box-sizing: border-box; min-height: 44px; padding: 12px; text-align: left; font-family: inherit; border-radius: var(--r-1); border: 1.5px solid var(--line); background: var(--card); color: var(--ink); }
+button.ca-stage-btn { cursor: pointer; }
+button.ca-stage-btn[aria-expanded="true"] { border-color: var(--accent-ink); }
+.ca-stage-value { font-size: var(--fs-7); font-weight: 700; font-variant-numeric: tabular-nums; }
+.ca-stage-label { font-size: 13px; font-weight: 600; }
+
+/* one measure over time */
+.ca-charts { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.ca-chart { margin: 0; display: grid; gap: 6px; }
+.ca-chart-head { display: grid; gap: 2px; }
+.ca-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.ca-axis { stroke: var(--line); stroke-width: 1; }
+.ca-plot { fill: none; stroke: var(--accent-ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.ca-cross { stroke: var(--muted); stroke-width: 1; }
+.ca-dot { fill: var(--accent-ink); stroke: var(--card); stroke-width: 2; }
+.ca-hit { fill: none; pointer-events: all; cursor: crosshair; }
