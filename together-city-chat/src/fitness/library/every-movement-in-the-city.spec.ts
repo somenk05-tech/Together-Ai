@@ -81,6 +81,13 @@ describe('two libraries, one catalogue', () => {
     expect(trackFor('Non-binary')).toBe('women');
     expect(trackFor(null)).toBe('women');
     expect(trackFor(undefined)).toBe('women');
+    /* And until the identity question is answered, the Training Profile's
+       own sex decides (18 Sep) — it never overrides an answer. */
+    expect(trackFor(null, 'male')).toBe('men');
+    expect(trackFor(undefined, 'female')).toBe('women');
+    expect(trackFor(null, 'other')).toBe('women');
+    expect(trackFor('Non-binary', 'male')).toBe('women');
+    expect(trackFor('Female', 'male')).toBe('women');
   });
 });
 

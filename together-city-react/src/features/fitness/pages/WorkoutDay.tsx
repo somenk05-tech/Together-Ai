@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button, EmptyState, Fold, Spinner } from '@/components/ui';
 import { EXERCISE_MEDIA_ATTRIBUTION, WEEKDAY_NAMES, useMoveWorkoutDay, useProgramme, type ProgrammeDay, type ProgrammeExercise } from '../api';
 import { monthOf } from '../division.api';
-import { useAddToDay, useRemoveFromDay } from '../day.api';
+import { useAddToDay, useRemoveFromDay, type MobilityStep } from '../day.api';
 import { useWorkoutLibrary, type LibraryMovement } from '../library.api';
 
 /**
@@ -28,6 +28,57 @@ const longDate = (iso: string) => {
   return `${WEEKDAY_NAMES[(d.getUTCDay() + 6) % 7]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 };
 type DayExercise = ProgrammeExercise & { additionId?: string };
+
+/**
+ * ── THE WAY IN AND THE WAY OUT (owner, 18 Sep) ──────────────────────────────
+ *
+ * "Add the warm up and rest workouts too each day, and make it detailed."
+ * The warm-up before the work and the stretches after it, each held for
+ * its time, with its steps, its picture and the city's film where one has
+ * been shot. On a day off the cool-down is the whole workout — the
+ * owner's "rest workout". Nothing here is a set; the runner counts it
+ * down (see stepsFromDay on the Workout page).
+ */
+function MobilityList({ id, title, line, steps }: { id: string; title: string; line: string; steps: MobilityStep[] }) {
+  const total = steps.reduce((s, x) => s + x.seconds, 0);
+  return (
+    <section className="card wd-card" aria-labelledby={id}>
+      <h2 id={id} className="wd-h2">{title} <span className="wd-parts">— about {Math.max(1, Math.round(total / 60))} min</span></h2>
+      <p className="muted wd-line">{line}</p>
+      <ol className="wd-list">
+        {steps.map((s, i) => (
+          <li key={`${s.id}-${i}`}>
+            <Fold face="wl-lid" panel="wl-how-panel"
+              title={<>{s.thumb ? <img className="wl-thumb" src={s.thumb} alt="" width={44} height={44} loading="lazy" /> : <span className="wl-thumb wl-thumb-none" aria-hidden />}<span className="wl-nm">{i + 1}. {s.name}</span></>}
+              meta={<><span className="wl-mu">{s.works} · hold or move, easy breathing</span><span className="wd-tg">{s.seconds}s</span></>}>
+              <div className="wl-how">
+                <div className="wl-how-media">
+                  {s.video && (
+                    <div className="wl-film">
+                      <video className="wl-film-v" src={s.video} controls playsInline preload="metadata" aria-label={`${s.name} — the city's film`} />
+                    </div>
+                  )}
+                  {s.gif && (
+                    <figure className="wl-gif">
+                      <img src={s.gif} alt={`${s.name}, animated`} width={180} height={180} loading="lazy" />
+                      <figcaption className="muted">{EXERCISE_MEDIA_ATTRIBUTION}</figcaption>
+                    </figure>
+                  )}
+                </div>
+                <div className="wl-how-words">
+                  <div className="eyebrow">How it is done · {s.seconds} seconds</div>
+                  {s.steps.length > 0
+                    ? <ol className="wl-steps">{s.steps.map((w, k) => <li key={k}>{w}</li>)}</ol>
+                    : <p className="muted">Ease into it, breathe slowly, and stop short of pain.</p>}
+                </div>
+              </div>
+            </Fold>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
 
 /** Remove, asked twice, in the words the log uses. */
 function RemoveKey({ id, name, dayIndex, confirming, setConfirming }: { id: string; name: string; dayIndex: number; confirming: string | null; setConfirming: (v: string | null) => void }) {
@@ -61,7 +112,7 @@ export function WorkoutDay() {
   const [confirming, setConfirming] = useState<string | null>(null);
 
   const month = programme.data;
-  const day: (ProgrammeDay & { minutes?: number }) | undefined = month && Number.isInteger(n) && n >= 0 ? month.days[n] : undefined;
+  const day: (ProgrammeDay & { minutes?: number; warmup?: MobilityStep[]; cooldown?: MobilityStep[] }) | undefined = month && Number.isInteger(n) && n >= 0 ? month.days[n] : undefined;
   const inDay = useMemo(() => new Set((day?.exercises ?? []).map((e) => e.id)), [day]);
   const results = useMemo(() => {
     const all = lib.data?.movements ?? [];
@@ -81,6 +132,8 @@ export function WorkoutDay() {
   const anchor = month.days.find((d) => d.index >= todayIndex && d.kind === 'strength');
   const canMove = day.kind === 'strength' && anchor != null && day.index !== anchor.index && day.slot !== anchor.slot;
   const work = day.exercises as DayExercise[];
+  const warmup = day.warmup ?? [];
+  const cooldown = day.cooldown ?? [];
   const added = work.filter((e) => e.additionId).length;
   const cap = 10;
   const addOne = (mv: LibraryMovement) => add.mutate({ dayIndex: day.index, exerciseId: mv.id, sets, reps });
@@ -94,9 +147,9 @@ export function WorkoutDay() {
       </p>
       <p className="lede wd-note">{day.note}</p>
       <div className="wd-acts">
-        {day.exercises.length > 0 && (
+        {(day.exercises.length > 0 || cooldown.length > 0) && (
           <Link to={`/fitness/workout?start=${day.index}`} className="btn btn-accent">
-            ▶ {day.index === todayIndex ? 'Start this day' : day.index < todayIndex ? 'Do it again' : 'Do it early'}
+            ▶ {day.kind === 'rest' ? 'Start the rest workout' : day.index === todayIndex ? 'Start this day' : day.index < todayIndex ? 'Do it again' : 'Do it early'}
           </Link>
         )}
         {canMove && anchor && (
@@ -109,12 +162,18 @@ export function WorkoutDay() {
       </div>
       {moveDay.isError && <p role="alert" className="wd-alert">That didn&rsquo;t reach us — your month is unchanged. Try again in a moment.</p>}
 
+      {/* ── THE WAY IN ──────────────────────────────────────────────────── */}
+      {warmup.length > 0 && (
+        <MobilityList id="wd-warm-h" title="Warm-up" steps={warmup}
+          line={day.kind === 'strength' ? 'Before the first set: raise the pulse and move the joints you are about to load. None of this counts as a set.' : 'Before you start: raise the pulse and open the hips and shoulders, so the easy minutes stay easy.'} />
+      )}
+
       {/* ── THE DAY, WHOLE ──────────────────────────────────────────────── */}
       <section className="card wd-card" aria-labelledby="wd-work-h">
         <h2 id="wd-work-h" className="wd-h2">{day.kind === 'strength' ? 'The work' : day.kind === 'rest' ? 'A day off' : 'Easy on purpose'}</h2>
         {day.kind !== 'strength' && (
           <p className="muted wd-line">
-            {day.kind === 'rest' ? 'Nothing is planned. ' : `${day.cardioMinutes} minutes, conversational. `}
+            {day.kind === 'rest' ? 'Nothing is lifted; the rest workout is under this. ' : `${day.cardioMinutes} minutes, conversational. `}
             {day.exercises.length > 0 ? 'What is below is yours — you put it here.' : 'Anything you add below is yours.'}
           </p>
         )}
@@ -149,6 +208,16 @@ export function WorkoutDay() {
         )}
         <p className="muted wd-credit">{EXERCISE_MEDIA_ATTRIBUTION}</p>
       </section>
+
+      {/* ── THE WAY OUT ─────────────────────────────────────────────────── */}
+      {cooldown.length > 0 && (
+        <MobilityList id="wd-cool-h" title={day.kind === 'rest' ? 'The rest workout' : 'Cool-down'} steps={cooldown}
+          line={day.kind === 'rest'
+            ? 'A day off is not a day still. Stretch the big muscles, thirty seconds each, breathing slowly — the week ahead is easier for it. Start it from the button above.'
+            : day.kind === 'strength'
+              ? 'Stretch what you just worked, thirty seconds each, easy breathing. This is where the range comes from.'
+              : 'Bring the heart rate down and open what tightened on the way.'} />
+      )}
 
       {/* ── SEARCH, AND ADD TO THE DAY ──────────────────────────────────── */}
       <section className="card wd-card" aria-labelledby="wd-add-h">

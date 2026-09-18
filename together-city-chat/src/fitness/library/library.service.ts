@@ -56,9 +56,9 @@ export class LibraryService {
   async library(userId: string) {
     const [master, profile] = await Promise.all([
       this.masterProfile.get(userId).catch(swallowed('fitness.library.master', null)),
-      this.prisma.fitnessProfile.findUnique({ where: { userId }, select: { level: true, answeredAt: true } }),
+      this.prisma.fitnessProfile.findUnique({ where: { userId }, select: { level: true, answeredAt: true, sex: true } }),
     ]);
-    const track = trackFor(master?.resolvedGender ?? null);
+    const track = trackFor(master?.resolvedGender ?? null, profile?.sex ?? null);
     const level = profile?.answeredAt ? gradeForLevel(profile.level) : null;
     const movements = this.movements(track);
     const counts = new Map<string, number>();
@@ -83,8 +83,11 @@ export class LibraryService {
   async movement(userId: string, id: string) {
     const c = catalogById(id);
     if (!c) throw new NotFoundException('No movement with that id');
-    const master = await this.masterProfile.get(userId).catch(swallowed('fitness.library.master', null));
-    const track = trackFor(master?.resolvedGender ?? null);
+    const [master, profile] = await Promise.all([
+      this.masterProfile.get(userId).catch(swallowed('fitness.library.master', null)),
+      this.prisma.fitnessProfile.findUnique({ where: { userId }, select: { sex: true } }),
+    ]);
+    const track = trackFor(master?.resolvedGender ?? null, profile?.sex ?? null);
     return { ...this.row(c, track), steps: c.steps };
   }
 

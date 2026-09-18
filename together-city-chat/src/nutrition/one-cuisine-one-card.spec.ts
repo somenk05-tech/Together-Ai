@@ -25,11 +25,11 @@ import { normCuisine, cuisineAliases } from './meal-composer';
 
 const SRC = readFileSync(join(__dirname, 'nutrition.service.ts'), 'utf8');
 
-/** The body of one private method, comments stripped. */
+/** The body of one method, comments stripped. */
 function body(name: string): string {
-  const at = SRC.indexOf(`private async ${name}(`);
+  const at = SRC.indexOf(`async ${name}(`);
   expect(at).toBeGreaterThan(-1);
-  return SRC.slice(at, SRC.indexOf('\n  }', at))
+  return SRC.slice(at, SRC.indexOf('\n  }\n', at))
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n');
 }
@@ -94,31 +94,28 @@ describe('cuisineAliases — what a card has to query for', () => {
   });
 });
 
-describe('the library actually applies both halves', () => {
-  it('folds the facet on the canonical name', () => {
-    const facet = body('cuisineFacet');
-    expect(facet).toMatch(/normCuisine\(/);
-    expect(facet).toMatch(/folded\.set\(/);
+describe('the database for you actually applies both halves', () => {
+  // 18 Sep: the unfiltered library and its groupBy facet were retired. The
+  // browsable database is now dayRecipes() — the in-memory pool after the
+  // profile's hard gate — and the same two promises hold there: the facet is
+  // folded on the canonical name, and asking for a canonical name reaches
+  // every spelling of it.
+  const day = body('dayRecipes');
+
+  it('folds the facet on the canonical name, over the ELIGIBLE list', () => {
+    expect(day).toMatch(/const k = normCuisine\(r\.cuisine\); facet\.set\(/);
+    expect(day).toMatch(/for \(const r of eligible\)/);
   });
 
-  it('folds BEFORE it truncates', () => {
-    // The trap: `take: 24` on the groupBy merges an already-truncated list, so a
-    // cuisine split across two spellings can miss the cut on both while its
-    // combined count would have ranked it near the top.
-    const facet = body('cuisineFacet');
-    expect(facet).not.toMatch(/take:\s*24/);
-    const foldAt = facet.indexOf('folded.set(');
-    const sliceAt = facet.indexOf('.slice(0, 24)');
-    expect(foldAt).toBeGreaterThan(-1);
-    expect(sliceAt).toBeGreaterThan(foldAt);
+  it('does not leave the filter matching one spelling', () => {
+    // Both sides are folded before they are compared, so "Indian" reaches the
+    // rows filed under "India" without an alias list.
+    expect(day).toMatch(/normCuisine\(r\.cuisine\)\.toLowerCase\(\) === wantCuisine/);
+    expect(day).toMatch(/normCuisine\(q\.cuisine\)\.toLowerCase\(\)/);
+    expect(day).not.toMatch(/=== q\.cuisine\b/);
   });
 
-  it('does not leave the query matching one spelling', () => {
-    expect(SRC).not.toMatch(/where\.country = q\.cuisine;/);
-    expect(SRC).toMatch(/cuisineAliases\(q\.cuisine\)/);
-  });
-
-  it('shows the same name on the card as on the tile it was reached from', () => {
-    expect(SRC).toMatch(/cuisine: normCuisine\(r\.country\)/);
+  it('shows the same name on the card as on the index it was reached from', () => {
+    expect(day).toMatch(/cuisine: normCuisine\(r\.cuisine\)/);
   });
 });

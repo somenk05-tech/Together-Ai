@@ -4,7 +4,7 @@
 removing a route. It is produced from the same parse the security guards in
 `src/security/` use, so it cannot describe a route that does not exist.
 
-Every path below is prefixed with `/api`. **663 routes** across
+Every path below is prefixed with `/api`. **667 routes** across
 **54 controllers**; **17** are reachable without a token.
 
 ## Conventions
@@ -327,6 +327,8 @@ _broadcast/broadcast.controller.ts_
 | GET | `/api/dev/media` | token |
 | POST | `/api/dev/media` | 🔒 |
 | POST | `/api/dev/media/suggest` | token |
+| POST | `/api/dev/media/threads/suggest` | 🔒 |
+| POST | `/api/dev/media/threads` | 🔒 |
 
 ## /dev/medical-mail
 
@@ -692,6 +694,8 @@ _nutrition/nutrition.controller.ts_
 | POST | `/api/nutrition/blood` | 🔒 |
 | GET | `/api/nutrition/cart` | 🔒 |
 | POST | `/api/nutrition/cart` | 🔒 |
+| GET | `/api/nutrition/day/recipes` | 🔒 |
+| GET | `/api/nutrition/day` | 🔒 |
 | PATCH | `/api/nutrition/delivery-time` | 🔒 |
 | GET | `/api/nutrition/diet-plans` | 🔒 |
 | POST | `/api/nutrition/dietitians/:id/book` | 🔒 |
@@ -745,6 +749,7 @@ _nutrition/nutrition.controller.ts_
 | POST | `/api/nutrition/plan/composed/unpin` | 🔒 |
 | GET | `/api/nutrition/plan/composed` | 🔒 |
 | POST | `/api/nutrition/plan/own/add` | 🔒 |
+| POST | `/api/nutrition/plan/own/food` | 🔒 |
 | POST | `/api/nutrition/plan/own/lock` | 🔒 |
 | POST | `/api/nutrition/plan/own/remove` | 🔒 |
 | POST | `/api/nutrition/plan/own/unlock` | 🔒 |
@@ -757,7 +762,6 @@ _nutrition/nutrition.controller.ts_
 | POST | `/api/nutrition/recipes/:id/save` | 🔒 |
 | GET | `/api/nutrition/recipes/:id/variants` | token |
 | GET | `/api/nutrition/recipes/:id` | 🔒 |
-| GET | `/api/nutrition/recipes/library` | 🔒 |
 | DELETE | `/api/nutrition/recipes/own/:id` | 🔒 |
 | PATCH | `/api/nutrition/recipes/own/:id` | 🔒 |
 | GET | `/api/nutrition/recipes/own` | 🔒 |

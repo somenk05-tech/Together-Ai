@@ -321,6 +321,11 @@ function useOwnMutation<TArgs>(path: string) {
       // Locking a day pushes its ingredients into the basket, so the grocery
       // list on the next screen must not still be yesterday's.
       void qc.invalidateQueries({ queryKey: ['nutrition', 'grocery'] });
+      // THE LOOP CLOSES HERE. Every dish added or removed changes what is
+      // still needed, which changes what is recommended and how the database
+      // is ranked — so the day read and the recipe list are refetched after
+      // every write to the day.
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'day'] });
     },
   });
 }
@@ -347,7 +352,14 @@ export function useSetOwnPeople() {
   });
 }
 
-export const useAddToOwnPlan = () => useOwnMutation<{ recipeId: string }>('/nutrition/plan/own/add');
+export const useAddToOwnPlan = () => useOwnMutation<{ recipeId: string; portionPct?: number }>('/nutrition/plan/own/add');
+/** Anything eaten that is not a city recipe — see day.api.ts for the shape. */
+export const useAddFoodToOwnPlan = () => useOwnMutation<OwnFoodInput>('/nutrition/plan/own/food');
+export interface OwnFoodInput {
+  name: string; source: 'cooked' | 'restaurant' | 'packaged' | 'quick';
+  qty?: string; grams?: number; place?: string; slot?: 'b' | 'l' | 'es' | 'd';
+  kcal: number; protein: number; carbs: number; fat: number; fiber?: number;
+}
 export const useRemoveFromOwnPlan = () => useOwnMutation<{ day: number; recipeId: string }>('/nutrition/plan/own/remove');
 export const useLockOwnDay = () => useOwnMutation<{ day: number }>('/nutrition/plan/own/lock');
 export const useUnlockOwnDay = () => useOwnMutation<{ day: number }>('/nutrition/plan/own/unlock');

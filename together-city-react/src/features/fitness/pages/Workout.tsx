@@ -9,6 +9,7 @@ import {
 } from '../api';
 import { BodyGoalPanel } from '../components/BodyGoalPanel';
 import { dateSpan, monthOf, useChoosePlace } from '../division.api';
+import type { MobilityStep } from '../day.api';
 import { useFoodPref, useNutritionTargets } from '@/features/nutrition/hooks';
 
 /* ---------- shared body profile (from the Nutrition food-preference profile) ---------- */
@@ -113,8 +114,11 @@ const REP_SECONDS = 3;
  * NO WALK ON THE END. Today's session earns one from the citizen's activity
  * goal; a Thursday opened on a Tuesday has not.
  */
-function stepsFromDay(day: ProgrammeDay): Step[] {
+function stepsFromDay(day: ProgrammeDay & { warmup?: MobilityStep[]; cooldown?: MobilityStep[] }): Step[] {
   const out: Step[] = [];
+  /* THE WAY IN (18 Sep): the day's warm-up, held for the time, with the
+     film where one has been shot. */
+  for (const w of day.warmup ?? []) out.push({ name: w.name, block: 'Warm-up', dur: w.seconds, reps: null, steps: w.steps, muscles: [w.works], gif: w.gif, video: w.video || undefined });
   for (const ex of day.exercises) {
     const perSet = Math.round((ex.reps?.[1] ?? 10) * REP_SECONDS);
     for (let i = 1; i <= ex.sets; i++) {
@@ -127,6 +131,8 @@ function stepsFromDay(day: ProgrammeDay): Step[] {
       if (i < ex.sets && ex.restSec > 0) out.push({ name: 'Rest', block: day.title, dur: ex.restSec, reps: null, rest: true });
     }
   }
+  /* AND THE WAY OUT: the stretches for what was just worked. */
+  for (const c of day.cooldown ?? []) out.push({ name: c.name, block: 'Cool-down', dur: c.seconds, reps: null, steps: c.steps, muscles: [c.works], gif: c.gif, video: c.video || undefined });
   return out;
 }
 

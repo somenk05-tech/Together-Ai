@@ -116,4 +116,13 @@ export const TRACK_ORDER: Record<Track, string[]> = {
   women: ['upper legs', 'waist', 'back', 'shoulders', 'upper arms', 'chest', 'lower legs', 'lower arms', 'cardio', 'neck'],
   men: ['chest', 'back', 'shoulders', 'upper arms', 'upper legs', 'waist', 'lower legs', 'lower arms', 'cardio', 'neck'],
 };
-export const trackFor = (resolvedGender: string | null | undefined): Track => (resolvedGender === 'Male' ? 'men' : 'women');
+export const trackFor = (resolvedGender: string | null | undefined, sex?: string | null): Track => {
+  if (resolvedGender === 'Male') return 'men';
+  if (resolvedGender) return 'women';
+  /* NO IDENTITY ANSWER YET (owner, 18 Sep: "show only men's workouts for
+     men"). A citizen who filled in the Training Profile and never the
+     gender question was being handed the women's library by default. The
+     profile's own sex decides until the identity answer arrives; once it
+     does, it wins, as above. */
+  return sex === 'male' ? 'men' : 'women';
+};

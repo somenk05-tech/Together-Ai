@@ -10,7 +10,9 @@
 .wl-note { margin: 8px 0 0; font-size: var(--fs-3); line-height: 1.55; max-width: 72ch; }
 
 .wl-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); gap: 24px; margin-top: 22px; align-items: start; }
-.wl-side { position: sticky; top: calc(var(--header-h) + 16px); display: grid; gap: 16px; }
+/* The panel is pinned, and a long plan scrolls inside it (owner, 18 Sep)
+   — Save stays reachable however many movements are on the day. */
+.wl-side { position: sticky; top: calc(var(--header-h) + 16px); display: grid; gap: 16px; max-height: calc(100vh - var(--header-h) - 32px); overflow-y: auto; overscroll-behavior: contain; }
 
 /* ── the shelf ─────────────────────────────────────────────────────────── */
 .wl-filters { display: grid; gap: 10px; }
@@ -111,7 +113,7 @@
 .wl-num input { width: 64px; min-height: 44px; }
 .wl-x { color: var(--muted); padding-bottom: 12px; }
 .wl-tg { font-size: var(--fs-2); font-weight: 700; white-space: nowrap; color: var(--accent-ink); }
-.wl-builder-acts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.wl-builder-acts { position: sticky; bottom: 0; background: var(--card); padding: 8px 0 2px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .wl-hint { margin: 0; font-size: var(--fs-2); }
 .wl-alert { margin: 0; font-size: var(--fs-3); color: var(--danger-ink); font-weight: 600; }
 
@@ -124,7 +126,7 @@
 
 @media (max-width: 899px) {
   .wl-cols { grid-template-columns: minmax(0, 1fr); }
-  .wl-side { position: static; }
+  .wl-side { position: static; max-height: none; overflow: visible; }
   .wl-how { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 560px) {

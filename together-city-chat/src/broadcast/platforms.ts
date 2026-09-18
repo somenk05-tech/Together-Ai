@@ -133,6 +133,33 @@ export async function publishReel(
   return { id: pub.id, url: link.permalink ?? `https://www.instagram.com/${reel.handle}/` };
 }
 
+/**
+ * A TEXT post, and the only call here that publishes in one step: a text
+ * container is ready the moment it is made, so there is nothing to poll. With
+ * `replyTo` it becomes the next post in that thread, which is how a chain is
+ * written — Threads has no "post three at once".
+ */
+export async function publishThreadText(
+  http: Http, access: string, userId: string,
+  post: { text: string; handle: string; replyTo?: string },
+): Promise<Posted> {
+  const base = 'https://graph.threads.net/v1.0';
+  const fields: Record<string, string> = { media_type: 'TEXT', text: post.text, access_token: access };
+  if (post.replyTo) fields.reply_to_id = post.replyTo;
+  const box = await callJson<{ id: string }>(http, 'Threads', `${base}/${userId}/threads`, {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(fields).toString(),
+  });
+  const pub = await callJson<{ id: string }>(http, 'Threads', `${base}/${userId}/threads_publish`, {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ creation_id: box.id, access_token: access }).toString(),
+  });
+  const link = await callJson<{ permalink?: string }>(http, 'Threads', query(`${base}/${pub.id}`, { fields: 'permalink', access_token: access }))
+    .catch(() => ({ permalink: undefined }));
+  // Published is published: a permalink that did not come back is not a failure.
+  return { id: pub.id, url: link.permalink ?? `https://www.threads.com/@${post.handle}` };
+}
+
 export async function publishThread(
   http: Http, access: string, userId: string,
   post: { videoUrl: string; text: string; handle: string },

@@ -1,4 +1,4 @@
-import { conditionMatcher, hasCondition } from './condition-match';
+import { conditionKeys, conditionMatcher, hasCondition, type ConditionKey } from './condition-match';
 import { medicalFoodAllergenTerms } from '../shared/medical-allergies';
 import { RECORD_CAP } from '../shared/paging';
 import { swallowed } from '../shared/swallow';
@@ -33,10 +33,12 @@ import { assignDietPlans, planLabel, DIET_PLAN_CATALOG } from './diet-plans';
 import { auditRecipe, type QaRecipe } from './nutrition-qa';
 import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntAvoidKeywords } from './clinical-mnt';
-import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, cuisineAliases, resolveDayDiets, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
-import { buildOwnDay, ownDayComponents, slotForRecipe, targetDay, type OwnEntry } from './own-plan';
+import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, resolveDayDiets, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
+import { buildOwnDay, clampPortion, foodComponentId, isFoodEntry, ownDayComponents, slotForRecipe, targetDay, type OwnEntry, type OwnFoodEntry } from './own-plan';
+import { advise, nextSlot, priorities as dayPriorities, readDay, recommend, portionFor, scoreForNow, fitsSlot, whatToDoNext, PRIORITY_LABEL, type DietKey as FixDiet } from './build-your-day';
+import { recipeEligible } from './meal-composer';
 import { sumTotals } from './meal-composer';
-import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe, type DietKey } from './diet-tags';
+import { JAIN_EXCLUSION_HINTS, screenRecipe, type DietKey } from './diet-tags';
 import { normaliseDietKey, stricterThanOwner, strictestDiet } from './household-diet';
 import { canonicaliseDeclared, findAllergen, isAllergenSafe } from '../shared/allergens';
 import { allergyNotice } from '../shared/allergen-voice';
@@ -437,7 +439,7 @@ interface PrefExtras {
    * Separate from composedPins on purpose: a pin steers the ENGINE's day, this
    * IS the day. See own-plan.ts.
    */
-  ownDays?: Record<string, Array<{ slot: string; recipeId: string }>>;
+  ownDays?: Record<string, OwnEntry[]>;
   /** Built days they have settled. Locking one moves the next dish to the day after. */
   ownLocks?: number[];
   /** 3-week plan anchor: the plan runs PLAN_DAYS days from this date (YYYY-MM-DD).
@@ -2530,87 +2532,12 @@ export class NutritionService implements OnModuleInit {
     return { ...week, mode, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], locks, lockModes: this.lockPlanModes(ex), scorecard, planStartDate, reviewDate: addDaysISO(planStartDate, planDays), planDays, allergyNotice: allergyNotice(cut.matched, cut.removed, { one: 'recipe', many: 'recipes' }), ...(compliance ? { compliance } : {}), ...(isClinical ? { clinicalCaveat: CLINICAL_CAVEAT } : {}) };
   }
 
-  /** DB diet values that satisfy a requested diet (ladder). Real DB values:
-   *  nonveg, vegan, veg, egg, pesc, jain, jainvegan. (QA H7 fix — every diet
-   *  now filters correctly; jain counts as vegetarian; pesc/nonveg handled.) */
-  private dietDbValues(diet: string): string[] {
-    switch ((diet || '').toLowerCase()) {
-      case 'vegan': return ['vegan', 'jainvegan'];
-      case 'jain': return ['jain', 'jainvegan'];
-      case 'vegetarian': case 'veg': return ['vegan', 'jainvegan', 'veg', 'jain'];
-      case 'eggetarian': case 'egg': return ['vegan', 'jainvegan', 'veg', 'jain', 'egg'];
-      case 'pescatarian': case 'pesc': return ['vegan', 'jainvegan', 'veg', 'jain', 'egg', 'pesc'];
-      case 'nonveg': case 'non-veg': case 'nonvegetarian': return ['vegan', 'jainvegan', 'veg', 'jain', 'egg', 'pesc', 'nonveg'];
-      default: return [];
-    }
-  }
 
-  /** Build a library recipe card from a dataset row (per-serving macros + badges). */
-  private recipeCard(r: {
-    id: string; recipeNo?: number | null; name: string; country: string; kcal: number; protein: number; carbs: number; fat: number; fiber: number;
-    minutes: number; gramsPerServing: number; diet: string; servings?: number; healthPercent?: number | null; healthGrade?: string | null;
-    image?: string | null; imageUrl?: string | null; ingredients?: Array<{ name: string; grams?: number | null }>;
-  }) {
-    const s = Math.max(1, r.servings ?? 1);
-    const per = (n: number) => Math.max(0, Math.round((n || 0) / s));
-    const kcal = per(r.kcal);
-    const ings = (r.ingredients ?? []).map((i) => ({ name: i.name, grams: Math.max(1, Math.round((i.grams ?? 0) / s)) }));
-    const n = computeNutrients(ings);
-    const micro = computeMicros(ings);
-    const diet = r.diet === 'jainvegan' ? 'vegan' : r.diet;
-    const difficulty = r.minutes <= 15 ? 'Easy' : r.minutes <= 40 ? 'Medium' : 'Hard';
-    return {
-      id: r.id, name: r.name, cuisine: normCuisine(r.country), kcal, protein: per(r.protein), carbs: per(r.carbs), fat: per(r.fat), fiber: per(r.fiber),
-      minutes: r.minutes, servings: 1, difficulty, diet, healthScore: r.healthPercent ?? null, healthGrade: r.healthGrade ?? null,
-      sodiumMg: n.complete ? n.na : null, potassiumMg: n.complete ? n.k : null, sugarG: n.complete ? n.sug : null,
-      ironMg: micro.ironMg || null, calciumMg: micro.calciumMg || null, vitDUg: micro.vitDUg || null, vitCMg: micro.vitCMg || null,
-      imageUrl: recipeImageUrl(r.recipeNo) ?? r.imageUrl ?? r.image ?? null,
-      badges: {
-        diabetes: n.complete && n.addedSug <= 6,
-        kidney: n.complete && n.k <= 250 && n.p <= 220,
-        heart: n.complete && n.sfat <= 5,
-        vegan: diet === 'vegan', vegetarian: diet === 'vegan' || diet === 'veg' || diet === 'vegetarian',
-      },
-    };
-  }
+
+
 
   /** Cuisine facet for the library grid (top countries by recipe count). */
-  /**
-   * The cuisine cards on the Recipe Library landing.
-   *
-   * The corpus stores a `country`, and it stores it two ways — the dataset's
-   * "India", "Italy", "Thailand" alongside the profile's "Indian", "Italian",
-   * "Thai". Grouping the raw column showed both, so the landing offered Indian
-   * AND India, Chinese AND China, six pairs in all, each holding part of a
-   * cuisine and neither admitting the other existed.
-   *
-   * So the counts fold onto the name `normCuisine` already uses everywhere else
-   * — the planner, the pool, plan-score. The Library was the one place still
-   * speaking the raw column.
-   *
-   * THE FOLD HAPPENS BEFORE THE TRUNCATION, which is why the group is no longer
-   * capped at 24 in the query. Take the top 24 raw rows and merge afterwards and
-   * you have merged a truncated list: a cuisine split across two spellings could
-   * miss the cut on both while its combined count would have put it near the
-   * top. `FACET_SCAN` sits comfortably above the real cardinality of a country
-   * column and is there only so this is not an unbounded read.
-   */
-  private async cuisineFacet() {
-    const FACET_SCAN = 200;
-    const rows = await (this.prisma as unknown as { recipe: { groupBy: (a: unknown) => Promise<Array<{ country: string; _count: { _all: number } }>> } }).recipe
-      .groupBy({ by: ['country'], _count: { _all: true }, orderBy: { _count: { country: 'desc' } }, take: FACET_SCAN })
-      .catch(swallowed('nutrition.cuisineFacet', [] as Array<{ country: string; _count: { _all: number } }>));
-    const folded = new Map<string, number>();
-    for (const r of rows) {
-      if (!r.country) continue;
-      const name = normCuisine(r.country);
-      folded.set(name, (folded.get(name) ?? 0) + r._count._all);
-    }
-    return [...folded.entries()]
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-      .slice(0, 24);
-  }
+
 
   /**
    * Recipe Library — the complete, searchable recipe database for browsing
@@ -2780,86 +2707,10 @@ export class NutritionService implements OnModuleInit {
     return { ok: true as const, cleared: res.count };
   }
 
-  async recipeLibrary(q: { search?: string; cuisine?: string; mealType?: string; diet?: string; sort?: string; page?: number; pageSize?: number; ingredients?: string[]; userId?: string }) {
-    const page = Math.max(1, q.page ?? 1);
-    const pageSize = Math.min(60, Math.max(12, q.pageSize ?? 24));
-    const where: Record<string, unknown> = {};
-    // Hide bare generic one-word titles (QA L1 data hygiene) — e.g. a recipe
-    // literally named "Chili"/"Chicken" is noise in a browsable library.
-    const JUNK_TITLES = ['Chili', 'Chilli', 'Chicken', 'Curry', 'Dal', 'Rice', 'Soup', 'Salad', 'Sauce', 'Bread', 'Cake', 'Fish', 'Beef', 'Pork', 'Lamb', 'Snack', 'Drink', 'Dessert', 'Gravy', 'Stew'];
-    where.NOT = { name: { in: JUNK_TITLES } };
-    // Against every spelling of it, not just the one on the card. The card now
-    // says "Indian" and its count includes the rows filed under "India"; a
-    // filter on the canonical name alone would return only part of what the
-    // count promised, which is a worse bug than the two cards were.
-    if (q.cuisine) { const aliases = cuisineAliases(q.cuisine); if (aliases.length) where.country = { in: aliases }; }
-    // Search matches a recipe's NAME or its INGREDIENTS, so "paneer" finds
-    // dishes made with paneer, not only ones with it in the title.
-    if (q.search) {
-      where.OR = [
-        { name: { contains: q.search, mode: 'insensitive' } },
-        { ingredients: { some: { name: { contains: q.search, mode: 'insensitive' } } } },
-      ];
-    }
-    if (q.mealType) {
-      const slot = ({ breakfast: 'b', lunch: 'l', dinner: 'd', snack: 's' } as Record<string, string>)[q.mealType];
-      if (slot) where.slot = slot;
-    }
-    if (q.diet) { const dv = this.dietDbValues(q.diet); if (dv.length) where.diet = { in: dv }; }
-    // Cook-from-what-you-have: AND, not OR. Somebody who lists paneer and
-    // spinach is telling us what is in their kitchen, and a dish that uses only
-    // one of the two does not answer that. Kept separate from `search` above,
-    // which is a single OR across name-or-ingredient and means something else.
-    // Everything that has to hold at once goes in AND, because `search` above
-    // already owns the top-level OR and a second one would overwrite it.
-    const and: Record<string, unknown>[] = [];
-    // The corpus, plus this citizen's own dishes, and nobody else's.
-    and.push({ OR: [{ authorId: null }, ...(q.userId ? [{ authorId: q.userId }] : [])] });
-    if (q.ingredients?.length) {
-      for (const name of q.ingredients) {
-        and.push({ ingredients: { some: { name: { contains: name, mode: 'insensitive' } } } });
-      }
-    }
-    where.AND = and;
-    const orderBy = (q.sort === 'rated' || q.sort === 'health' || q.sort === 'trending')
-      ? [{ healthPercent: 'desc' as const }]
-      : q.sort === 'name' ? [{ name: 'asc' as const }] : [{ recipeNo: 'desc' as const }];
+  // recipeLibrary() — the unfiltered, paginated database query — was retired
+  // on 18 Sep in favour of dayRecipes(): the same corpus, after the profile's
+  // hard gate, ranked by what the day still needs.
 
-    const [rows, total] = await Promise.all([
-      this.prisma.recipe.findMany({ where, orderBy, skip: (page - 1) * pageSize, take: pageSize, include: { ingredients: { select: { name: true, grams: true } } } }) as unknown as Promise<Parameters<NutritionService['recipeCard']>[0][]>,
-      this.prisma.recipe.count({ where }),
-    ]);
-    /**
-     * The column said it was fine; check the dish.
-     *
-     * `where.diet` above is the ONLY diet filter this endpoint had, and it reads
-     * a label. diet-integrity.spec.ts now holds every shipped corpus to that
-     * label, so in normal operation this drops nothing — which is exactly why a
-     * drop is worth shouting about. It means a row reached the database that the
-     * build-time guard never saw: a re-import, a runtime-authored recipe, an
-     * AI-written one. Serving it would put onion in front of somebody who told
-     * us they do not eat it.
-     *
-     * A dropped row makes this page slightly shorter than `total` promises. That
-     * is the right way round: a page of 23 is a cosmetic problem and the
-     * alternative is not.
-     */
-    const safe = q.diet
-      ? rows.filter((r) => {
-        const screen = screenRecipe(q.diet as string, (r.ingredients ?? []).map((i) => i.name));
-        if (!screen.ok) {
-          this.logger.warn(`recipe "${r.name}" is labelled ${r.diet} but ${explainScreen(screen)} — withheld from a ${q.diet} search`);
-        }
-        return screen.ok;
-      })
-      : rows;
-
-    return {
-      items: safe.map((r) => this.recipeCard(r)),
-      total, page, pageSize, pages: Math.ceil(total / pageSize),
-      cuisines: page === 1 ? await this.cuisineFacet() : [],
-    };
-  }
 
   /** Read the meal-planning settings (cuisine per slot, fasting, pantry). */
   async mealSettings(userId: string) {
@@ -3086,7 +2937,7 @@ export class NutritionService implements OnModuleInit {
   }
 
   /** Add a dish to the day currently being built. */
-  async addToOwnPlan(userId: string, recipeId: string) {
+  async addToOwnPlan(userId: string, recipeId: string, portionPct?: number) {
     const pool = await this.poolFor(userId);
     const recipe = pool.find((r) => r.id === recipeId);
     if (!recipe) throw new NotFoundException('recipe not found');
@@ -3106,7 +2957,12 @@ export class NutritionService implements OnModuleInit {
     const list = [...(entries[String(day)] ?? [])];
     // The same dish twice in one course is almost always a double tap, not an
     // order for two servings; portions are what a serving count is for.
-    if (!list.some((e) => e.recipeId === recipeId)) list.push({ slot: slotForRecipe(recipe), recipeId });
+    const pct = clampPortion(portionPct);
+    const at = list.findIndex((e) => !isFoodEntry(e) && e.recipeId === recipeId);
+    if (at < 0) list.push({ slot: slotForRecipe(recipe), recipeId, ...(pct !== 100 ? { portionPct: pct } : {}) });
+    // Adding the same dish again at a different portion is a change of mind
+    // about the amount, not a second plate.
+    else list[at] = { slot: list[at].slot, recipeId, ...(pct !== 100 ? { portionPct: pct } : {}) };
     entries[String(day)] = list;
 
     await this.mergeExtras(userId, { ownDays: entries });
@@ -3121,7 +2977,7 @@ export class NutritionService implements OnModuleInit {
     if (locks.includes(day)) throw new BadRequestException('That day is locked. Unlock it first to change what is on it.');
 
     const entries = { ...((ex.ownDays ?? {}) as Record<string, OwnEntry[]>) };
-    entries[String(day)] = (entries[String(day)] ?? []).filter((e) => e.recipeId !== recipeId);
+    entries[String(day)] = (entries[String(day)] ?? []).filter((e) => (isFoodEntry(e) ? foodComponentId(e.foodId) : e.recipeId) !== recipeId);
     if (!entries[String(day)].length) delete entries[String(day)];
     await this.mergeExtras(userId, { ownDays: entries });
     return this.ownPlan(userId);
@@ -3157,6 +3013,241 @@ export class NutritionService implements OnModuleInit {
     const locks = ((ex.ownLocks ?? []) as number[]).filter((d) => d !== day);
     await this.mergeExtras(userId, { ownLocks: locks });
     return this.ownPlan(userId);
+  }
+
+  /* ─────────────────── BUILD YOUR DAY — the closed loop ─────────────────── */
+
+  /**
+   * Add something eaten that is not a city recipe: a plate cooked at home, a
+   * restaurant meal, a packet, a quick add. The numbers are the citizen's
+   * (reviewed AI estimates, or typed) and they count against the day exactly
+   * as a recipe does — the day cannot balance itself if it only knows about the
+   * food chosen from its own database. No ingredients, so never on the grocery
+   * list.
+   */
+  async addFoodToOwnPlan(userId: string, dto: {
+    name: string; source: OwnFoodEntry['source']; qty?: string; grams?: number; place?: string; slot?: string;
+    kcal: number; protein: number; carbs: number; fat: number; fiber?: number;
+  }) {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    let ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const planStartDate = monthStartISO(await this.today(userId));
+    const planDays = monthDayCount(planStartDate);
+    if (ex.planStartDate !== planStartDate) {
+      ex = await this.reanchorDayKeyedState(userId, ex, planStartDate, planDays);
+    }
+    const entries = { ...((ex.ownDays ?? {}) as Record<string, OwnEntry[]>) };
+    const locks = (ex.ownLocks ?? []) as number[];
+    const todayIdx = Math.max(0, daysBetweenISO(planStartDate, await this.today(userId)));
+    const day = targetDay(todayIdx, locks, planDays);
+    const list = [...(entries[String(day)] ?? [])];
+    const slot = (['b', 'l', 'es', 'd'] as const).find((c) => c === dto.slot)
+      ?? nextSlot(list.map((e) => e.slot), null).slot;
+    const entry: OwnFoodEntry = {
+      slot, foodId: randomBytes(6).toString('hex'),
+      name: dto.name.trim().slice(0, 80), source: dto.source, qty: (dto.qty ?? '1 serving').trim().slice(0, 40),
+      ...(dto.grams ? { grams: Math.round(dto.grams) } : {}),
+      ...(dto.place ? { place: dto.place.trim().slice(0, 80) } : {}),
+      kcal: Math.round(dto.kcal), protein: dto.protein, carbs: dto.carbs, fat: dto.fat, fiber: dto.fiber ?? 0,
+    };
+    list.push(entry);
+    entries[String(day)] = list;
+    await this.mergeExtras(userId, { ownDays: entries });
+    return this.ownPlan(userId);
+  }
+
+  /**
+   * What the Food Preference Profile says may be shown, and what it prefers.
+   *
+   * The same terms composeFor() builds for the composer, assembled once here
+   * so Build Your Day's browsable database and the engine's plate obey one
+   * rule: allergies from the profile AND from the medical vault, explicit
+   * exclusions, Jain hints, clinical avoid-lists, the diet, the chosen protein
+   * sources, the cuisine mix, the cooking-time limit.
+   */
+  private async dayConstraints(userId: string) {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    let ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const medicalTerms = await medicalFoodAllergenTerms(this.prisma, userId).catch(swallowed('nutrition.dayConstraints medical', [] as string[], { userId }));
+    if (medicalTerms.length) ex = { ...ex, allergies: [...new Set([...terms(ex.allergies), ...medicalTerms])].join(',') };
+    const bvals = await this.bloodValues(userId);
+    const conditions = [...new Set([...(ex.healthConditions ?? []), ...conditionsFromBlood(bvals)])];
+    const flags = flagsFor(bvals);
+    const rawDiet = ((pref?.diet as string) ?? 'vegetarian').toLowerCase();
+    const diet: ComposerDiet = mapUserDiet(rawDiet);
+    const mntAvoids = mntAvoidKeywords(activeMntRules({ conditions, flags: flags as Record<string, string>, age: pref?.age ?? undefined }));
+    const excluded = [
+      ...(ex.excluded ? ex.excluded.split(',') : []),
+      ...(ex.allergies ? ex.allergies.split(',') : []),
+      ...(rawDiet === 'jain' ? [...JAIN_EXCLUSION_HINTS] : []),
+      ...mntAvoids,
+    ].map((x) => x.trim()).filter(Boolean);
+    // The shared matcher, not a second regex: one place decides what counts as
+    // a clinical profile (condition-match.ts), and the ceiling spec holds it.
+    const CLINICAL_KEYS: ConditionKey[] = ['kidney', 'diabetes', 'hypertension', 'dyslipidemia', 'fattyLiver', 'gout'];
+    const clinical = conditionKeys(conditions).some((k) => CLINICAL_KEYS.includes(k))
+      || flags.hba1c === 'high' || flags.ldl === 'high' || flags.trig === 'high';
+    const t = await this.targets(userId);
+    const capsRaw = t as unknown as { sodiumMaxMg?: number; potassiumMaxMg?: number; phosphorusMaxMg?: number; sugarMaxG?: number; satFatMaxG?: number };
+    const caps = clinical ? {
+      sodiumMg: capsRaw.sodiumMaxMg, potassiumMg: capsRaw.potassiumMaxMg, phosphorusMg: capsRaw.phosphorusMaxMg,
+      sugarG: capsRaw.sugarMaxG, satFatG: capsRaw.satFatMaxG,
+    } : undefined;
+    const profileMix: Record<string, number> | null =
+      (ex.cuisineMix && Object.keys(ex.cuisineMix).length) ? ex.cuisineMix
+        : (ex.cuisines && ex.cuisines.length) ? Object.fromEntries(ex.cuisines.map((c) => [c, 1])) : null;
+    const cuisines = profileMix ? Object.keys(profileMix).map(normCuisine) : [];
+    const favourites = [...(ex.proteins ?? []), ...(ex.meats ?? [])].filter(Boolean);
+    // Blood work informs the food (avoid-lists, caps, conditions), never the
+    // calorie arithmetic — the page says which when it is true.
+    const bloodInformed = Object.keys(bvals ?? {}).length > 0 && (conditionsFromBlood(bvals).length > 0 || mntAvoids.length > 0 || flags.hba1c === 'high' || flags.ldl === 'high' || flags.trig === 'high');
+    return {
+      pref, ex, diet, excluded, favourites, cuisines, clinical, caps, maxMinutes: ex.maxCookMin ?? undefined,
+      targets: t, conditions, bloodInformed,
+      fixDiet: (diet === 'nonveg' ? 'nonveg' : diet === 'eggetarian' ? 'eggetarian' : diet === 'vegan' ? 'vegan' : 'vegetarian') as FixDiet,
+    };
+  }
+
+  /** The pool this citizen may be shown: the corpus and their own dishes, after the hard gate. */
+  private async eligiblePoolFor(userId: string, c: Awaited<ReturnType<NutritionService['dayConstraints']>>) {
+    const pool = await this.poolFor(userId);
+    const prefs = { diet: c.diet, excluded: c.excluded, favourites: c.favourites, clinical: c.clinical, caps: c.caps };
+    return { all: pool.length, eligible: pool.filter((r) => recipeEligible(r, prefs)) };
+  }
+
+  /**
+   * GET /nutrition/day — the loop, read once.
+   *
+   * The target (with the words that say what kind of number each one is),
+   * the day being built, what is still needed, which course is next, three
+   * plates chosen to close the gaps at the portion that fits, and the advice
+   * under the numbers. Every figure derives from the same two inputs — the
+   * target and what is on the day — so nothing on the page can disagree with
+   * anything else on it.
+   */
+  async buildYourDay(userId: string, nowHHMM?: string) {
+    const [own, c] = await Promise.all([this.ownPlan(userId), this.dayConstraints(userId)]);
+    const day = own.days.find((d) => d.dayIndex === own.targetDay) ?? null;
+    const live = own.targetDay === own.todayIndex;
+    const now = live && nowHHMM && /^\d{1,2}:\d{2}$/.test(nowHHMM) ? nowHHMM : null;
+    const t = c.targets;
+    const targets = { kcal: t.kcal, protein: t.protein, carb: t.carb, fat: t.fat, fiber: t.fiber };
+    const eaten = day
+      ? { kcal: day.totals.kcal, protein: day.totals.protein, carbs: day.totals.carbs, fat: day.totals.fat, fiber: day.totals.fiber }
+      : { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
+    const { lines, remaining } = readDay(targets, eaten);
+    const pri = dayPriorities(lines);
+    const filled = (day?.meals ?? []).map((m) => m.slot);
+    const next = nextSlot(filled, now);
+    const eatenAnything = (day?.meals.length ?? 0) > 0;
+
+    const { eligible, all } = await this.eligiblePoolFor(userId, c);
+    const ctx = { remaining, targets, priorities: pri, slot: next.slot, prefs: { cuisines: c.cuisines, favourites: c.favourites, maxMinutes: c.maxMinutes } };
+    const recs = recommend(eligible, ctx, 3);
+    const advice = advise(lines, { diet: c.fixDiet, excluded: c.excluded, eatenAnything });
+
+    const readinessRaw = (t as { readiness?: { ok: boolean } }).readiness;
+    return {
+      target: {
+        ...targets,
+        kind: { kcal: 'budget', protein: 'target', carbs: 'range', fat: 'range', fiber: 'target' } as const,
+        personalised: (t as { personalised?: boolean }).personalised ?? false,
+        assumed: (t as { assumed?: string[] }).assumed ?? [],
+        estimate: !((t as { personalised?: boolean }).personalised ?? false),
+        ready: readinessRaw?.ok ?? true,
+        readiness: readinessRaw ?? null,
+        bloodInformed: c.bloodInformed,
+        adjustments: (t as { adjustments?: string[] }).adjustments ?? [],
+        basis: c.bloodInformed
+          ? 'Based on your body, activity, goals and saved nutrition profile — personalised using your connected health information.'
+          : 'Based on your body, activity, goals and saved nutrition profile.',
+      },
+      day,
+      dayIndex: own.targetDay,
+      dayISO: addDaysISO(own.planStartDate, own.targetDay),
+      live,
+      lines,
+      remaining,
+      priorities: pri.map((p) => ({ key: p, label: PRIORITY_LABEL[p] })),
+      next: whatToDoNext(pri),
+      nextSlot: next,
+      recommend: recs.map((r) => ({ ...r.component, portionPct: r.portionPct, fits: r.fits, why: r.why })),
+      advice,
+      pool: { eligible: eligible.length, all, hidden: all - eligible.length },
+      constraints: { diet: c.diet, excluded: c.excluded.length, cuisines: c.cuisines, clinical: c.clinical },
+    };
+  }
+
+  /**
+   * GET /nutrition/day/recipes — the database, already filtered for this
+   * citizen and ranked by what the day still needs.
+   *
+   * Hard restrictions REMOVE a dish (it is not in this list at all); diet
+   * removes; preference and nutrition fit ORDER. The order changes as the day
+   * fills, because the remaining requirement is an input to the score — the
+   * same dish ranks differently at 9 am and after lunch. Search, cuisine,
+   * course and "what I have" narrow the same eligible list; they never widen
+   * it past the gate.
+   */
+  async dayRecipes(userId: string, q: { search?: string; cuisine?: string; mealType?: string; ingredients?: string[]; page?: number; pageSize?: number; now?: string; sort?: string }) {
+    const page = Math.max(1, q.page ?? 1);
+    const pageSize = Math.min(48, Math.max(12, q.pageSize ?? 24));
+    const [own, c] = await Promise.all([this.ownPlan(userId), this.dayConstraints(userId)]);
+    const { eligible, all } = await this.eligiblePoolFor(userId, c);
+    const day = own.days.find((d) => d.dayIndex === own.targetDay) ?? null;
+    const live = own.targetDay === own.todayIndex;
+    const now = live && q.now && /^\d{1,2}:\d{2}$/.test(q.now) ? q.now : null;
+    const t = c.targets;
+    const targets = { kcal: t.kcal, protein: t.protein, carb: t.carb, fat: t.fat, fiber: t.fiber };
+    const eaten = day
+      ? { kcal: day.totals.kcal, protein: day.totals.protein, carbs: day.totals.carbs, fat: day.totals.fat, fiber: day.totals.fiber }
+      : { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
+    const { lines, remaining } = readDay(targets, eaten);
+    const pri = dayPriorities(lines);
+    const mealSlot = ({ breakfast: 'b', lunch: 'l', evening: 'es', snack: 'es', dinner: 'd' } as Record<string, 'b' | 'l' | 'es' | 'd'>)[q.mealType ?? ''];
+    const slot = mealSlot ?? nextSlot((day?.meals ?? []).map((m) => m.slot), now).slot;
+    const ctx = { remaining, targets, priorities: pri, slot, prefs: { cuisines: c.cuisines, favourites: c.favourites, maxMinutes: c.maxMinutes } };
+
+    const search = (q.search ?? '').trim().toLowerCase();
+    const wantCuisine = q.cuisine ? normCuisine(q.cuisine).toLowerCase() : null;
+    const haves = (q.ingredients ?? []).map((x) => x.trim().toLowerCase()).filter(Boolean);
+    const JUNK = new Set(['chili', 'chilli', 'chicken', 'curry', 'dal', 'rice', 'soup', 'salad', 'sauce', 'bread', 'cake', 'fish', 'beef', 'pork', 'lamb', 'snack', 'drink', 'dessert', 'gravy', 'stew']);
+
+    let rows = eligible.filter((r) => !JUNK.has(r.name.toLowerCase()));
+    if (mealSlot) rows = rows.filter((r) => fitsSlot(r, mealSlot));
+    if (wantCuisine) rows = rows.filter((r) => normCuisine(r.cuisine).toLowerCase() === wantCuisine);
+    if (search) rows = rows.filter((r) => r.name.toLowerCase().includes(search) || r.ingredients.some((i) => i.name.toLowerCase().includes(search)));
+    if (haves.length) rows = rows.filter((r) => haves.every((h) => r.ingredients.some((i) => i.name.toLowerCase().includes(h))));
+
+    // Cuisine facet over the ELIGIBLE list — the index says what this citizen
+    // can actually open, not how many rows the corpus holds.
+    const facet = new Map<string, number>();
+    for (const r of eligible) { const k = normCuisine(r.cuisine); facet.set(k, (facet.get(k) ?? 0) + 1); }
+    const cuisines = [...facet.entries()].filter(([, n]) => n >= 3).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count }));
+
+    const scored = rows.map((r) => ({ r, score: q.sort === 'name' ? 0 : scoreForNow(r, ctx) }));
+    if (q.sort === 'name') scored.sort((a, b) => a.r.name.localeCompare(b.r.name));
+    else scored.sort((a, b) => b.score - a.score || a.r.name.localeCompare(b.r.name));
+    const total = scored.length;
+    const items = scored.slice((page - 1) * pageSize, page * pageSize).map(({ r, score }) => {
+      const { pct, fits } = portionFor(r, remaining.kcal);
+      const f = pct / 100;
+      return {
+        id: r.id, name: r.name, cuisine: normCuisine(r.cuisine), diet: r.diet,
+        kcal: r.kcal, protein: r.protein, carbs: r.carbs, fat: r.fat, fiber: r.fiber,
+        minutes: r.minutes, grams: r.grams, imageUrl: r.imageUrl ?? null,
+        slot: (['b', 'l', 'es', 'd'] as const).find((sc) => fitsSlot(r, sc)) ?? 'd',
+        fit: {
+          portionPct: pct, fits, score: Math.round(score * 100) / 100,
+          grams: Math.round(r.grams * f), kcal: Math.round(r.kcal * f), protein: Math.round(r.protein * f), fiber: Math.round(r.fiber * f),
+        },
+      };
+    });
+    return {
+      items, total, page, pageSize, pages: Math.max(1, Math.ceil(total / pageSize)),
+      cuisines, pool: { eligible: eligible.length, all, hidden: all - eligible.length },
+      slot, remaining, priorities: pri.map((p) => ({ key: p, label: PRIORITY_LABEL[p] })),
+    };
   }
 
   async lockComposedDay(userId: string, day: number, mode: PlanMode = 'individual', planMode: 'preferred' | 'optimal' = 'preferred') {
