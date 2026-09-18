@@ -176,6 +176,17 @@ export const ReplyReviewSchema = z.object({
 export type ReplyReviewDto = z.infer<typeof ReplyReviewSchema>;
 
 /** A photo to read a menu off. Data URL, same shape the food journal uses. */
+/**
+ * ── WHAT DO YOU DO? (owner, 17 Sep) ──────────────────────────────────────────
+ * One sentence, typed naturally. Bounded because it is read by rules and, when
+ * they are unsure, by the model; four hundred characters is a paragraph, and
+ * a paragraph is more than anybody needs to say "I run a café in Bandra".
+ */
+export const UnderstandSchema = z.object({
+  text: trimmed(2, 400),
+});
+export type UnderstandDto = z.infer<typeof UnderstandSchema>;
+
 export const ScanMenuSchema = z.object({
   image: z.string().min(32).max(9_000_000),
 });

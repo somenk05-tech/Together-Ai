@@ -5,6 +5,7 @@ import { Button, Card, Spinner, EmptyState } from '@/components/ui';
 import { MenuView } from '../MenuView';
 import { OrderMenu } from '../OrderMenu';
 import { GroceryStore } from '../GroceryStore';
+import { EngineFront } from '../EngineFront';
 import { isGroceryTrade } from '../grocery-trades';
 import { HoursTable, OpenBadge } from '../HoursEditor';
 import { TrustBadge, TrustNote } from '../Verification';
@@ -236,6 +237,54 @@ export function BusinessPage() {
       )}
 
       {/*
+        THE PAGE OPENS ON WHAT THE BUSINESS IS FOR (owner, 17 Sep: "create a
+        unique business page for each kind of business"). A kitchen's page
+        opens on its menu, a kirana's on its shelf, a clinic's on an
+        appointment request, a garage's on "what vehicle, what's wrong, a
+        photo" — BEFORE the facts, the about and the offers, which every page
+        has and no page is for. EngineFront is the request card for the
+        engines that do not sell over a counter; the catalogue block under it
+        is the menu, shelf or rate card, and for food and stores it is the
+        whole front.
+      */}
+      <EngineFront s={s} onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
+      {/* Menu for a restaurant, price list for everyone else — MenuView takes
+          its words from the category group, and renders nothing at all when the
+          business has not published one. */}
+      {/*
+        SECTIONS DECIDE WHAT TO ASK FOR, NEVER WHAT TO HIDE.
+        
+        This was gated on the type declaring a menu, and it hid sixty-two
+        published prices from a salon whose owner had not yet picked a type —
+        the listing predates the schema, so it declared nothing, so the page
+        showed nothing. A business that took the trouble to publish a price
+        list has said what it wants shown, and no schema of ours outranks that.
+        MenuView renders nothing of its own accord when there is nothing.
+      */}
+      {/* FOOD ORDERS AND PAYS; EVERYONE ELSE ASKS. A kitchen's menu takes a
+          cart, a wallet payment and a delivery address; a plumber's price list
+          takes a question — and "order a haircut × 2" is the app telling the
+          citizen it has not understood what a salon does. Both end in the same
+          thread. */}
+      {/* THE CATALOGUE DECIDES (8 Sep): a kitchen's menu and a kirana's stock
+          list take a cart; a salon's rate card, a photographer's packages and
+          a taxi stand's fares take a question. The kind comes from the type
+          and the trade on the server, so this page and the owner's editor
+          cannot disagree. */}
+      {/* A GROCER'S STOCK LIST IS A SHOP, NOT A MENU (owner, 11 Sep): the eight
+          grocery trades draw the storefront — hero, aisles, photographed
+          product cards — on the same cart and the same checkout. */}
+      {s.catalogue?.kind === 'stock' && isGroceryTrade(s.categoryKey) ? (
+        <GroceryStore listingId={s.id} businessName={s.businessName} logoUrl={s.logoUrl ?? s.photos[0]?.url ?? null}
+          onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
+      ) : (s.catalogue?.orderable ?? s.categoryGroup === 'Food & Daily Needs') ? (
+        <OrderMenu listingId={s.id} businessName={s.businessName} logoUrl={s.logoUrl ?? s.photos[0]?.url ?? null}
+          onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
+      ) : (
+        <MenuView listingId={s.id} group={s.categoryGroup} catalogue={s.catalogue} onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
+      )}
+
+      {/*
         AT A GLANCE.
 
         The schema's own answers, in the schema's own words. A restaurant shows
@@ -279,42 +328,6 @@ export function BusinessPage() {
             An offer is what the business says it is running. Ask them before you set out.
           </p>
         </div>
-      )}
-
-      {/* Menu for a restaurant, price list for everyone else — MenuView takes
-          its words from the category group, and renders nothing at all when the
-          business has not published one. */}
-      {/*
-        SECTIONS DECIDE WHAT TO ASK FOR, NEVER WHAT TO HIDE.
-        
-        This was gated on the type declaring a menu, and it hid sixty-two
-        published prices from a salon whose owner had not yet picked a type —
-        the listing predates the schema, so it declared nothing, so the page
-        showed nothing. A business that took the trouble to publish a price
-        list has said what it wants shown, and no schema of ours outranks that.
-        MenuView renders nothing of its own accord when there is nothing.
-      */}
-      {/* FOOD ORDERS AND PAYS; EVERYONE ELSE ASKS. A kitchen's menu takes a
-          cart, a wallet payment and a delivery address; a plumber's price list
-          takes a question — and "order a haircut × 2" is the app telling the
-          citizen it has not understood what a salon does. Both end in the same
-          thread. */}
-      {/* THE CATALOGUE DECIDES (8 Sep): a kitchen's menu and a kirana's stock
-          list take a cart; a salon's rate card, a photographer's packages and
-          a taxi stand's fares take a question. The kind comes from the type
-          and the trade on the server, so this page and the owner's editor
-          cannot disagree. */}
-      {/* A GROCER'S STOCK LIST IS A SHOP, NOT A MENU (owner, 11 Sep): the eight
-          grocery trades draw the storefront — hero, aisles, photographed
-          product cards — on the same cart and the same checkout. */}
-      {s.catalogue?.kind === 'stock' && isGroceryTrade(s.categoryKey) ? (
-        <GroceryStore listingId={s.id} businessName={s.businessName} logoUrl={s.logoUrl ?? s.photos[0]?.url ?? null}
-          onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
-      ) : (s.catalogue?.orderable ?? s.categoryGroup === 'Food & Daily Needs') ? (
-        <OrderMenu listingId={s.id} businessName={s.businessName} logoUrl={s.logoUrl ?? s.photos[0]?.url ?? null}
-          onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
-      ) : (
-        <MenuView listingId={s.id} group={s.categoryGroup} catalogue={s.catalogue} onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
       )}
 
       {/* Photographs on a dark ground, which is where photographs look their

@@ -17,7 +17,7 @@ import {
 import { buildSession, type LevelKey, type BodyGoalKey, type SessionInput, type Intensity } from './session-engine';
 import { buildProgramme, daysBetween, readMoves, writeMoves, type Muscle } from './programme-engine';
 import { EQUIPMENT_KEYS, type Condition, type Equipment , type Pattern } from './exercise-library';
-import type { SaveFitnessProfileDto, SaveTrainingWeekDto, MoveWorkoutDayDto, LogWorkoutDto, EditWorkoutDto, TodaySessionQueryDto } from './dto/fitness.dto';
+import type { SaveFitnessProfileDto, SaveTrainingWeekDto, MoveWorkoutDayDto, ChoosePlaceDto, LogWorkoutDto, EditWorkoutDto, TodaySessionQueryDto } from './dto/fitness.dto';
 
 const DEFAULT_PROFILE = {
   age: 35, sex: 'other', level: 'beginner', mode: 'mixed', goal: 'general', conditions: [] as string[],
@@ -403,6 +403,21 @@ export class FitnessService {
     return this.programme(userId);
   }
 
+  /**
+   * ── THE CITIZEN CHOOSES THEIR DIVISION (owner, 18 Sep) ────────────────────
+   *
+   * Gym or home, both built every day; this is the switch. It writes the
+   * profile's `place` — the same column today's session reads — so the
+   * month and the session cannot disagree about which plan is being
+   * followed. Its own route and UNMETERED, like the week and the move: a
+   * tab the owner wants pressed is not a change of mind about who somebody
+   * is, and it does not set `answeredAt` either.
+   */
+  async choosePlace(userId: string, dto: ChoosePlaceDto) {
+    await this.prisma.fitnessProfile.upsert({ where: { userId }, update: { place: dto.place }, create: { userId, place: dto.place } });
+    return this.programme(userId);
+  }
+
   async programme(userId: string) {
     const profile = await this.getProfile(userId);
     const today = cityDay(new Date());
@@ -440,6 +455,9 @@ export class FitnessService {
       daysPerWeek: profile.daysPerWeek ?? levelDef(profile.level).days,
       level: profile.level as LevelKey, mode: profile.mode, bodyGoal: profile.bodyGoal as BodyGoalKey,
       equipment, place: profile.place === 'gym' ? 'gym' : 'home', conditions, seed: userId, cycle,
+      /* TWO DIVISIONS (owner, 18 Sep): the gym template or the home one,
+         and the place IS the choice — see choosePlace. */
+      division: profile.place === 'gym' ? 'gym' : 'home',
       /* THE CITIZEN'S OWN WEEK (owner, 9 Sep). Null travels as undefined, and
          the engine's fallback is the calendar's placement — the month every
          citizen had before they were asked. */

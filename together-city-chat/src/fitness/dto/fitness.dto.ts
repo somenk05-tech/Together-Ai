@@ -77,6 +77,10 @@ export type SaveTrainingWeekDto = z.infer<typeof SaveTrainingWeekSchema>;
  * the same reason the week is — a citizen looking at their month and saying
  * *legs today* is using the plan, not rewriting who they are.
  */
+/** Gym or home — which of the two divisions the month runs (owner, 18 Sep). */
+export const ChoosePlaceSchema = z.object({ place: z.enum(['home', 'gym']) });
+export type ChoosePlaceDto = z.infer<typeof ChoosePlaceSchema>;
+
 export const MoveWorkoutDaySchema = z.object({
   dayIndex: z.number().int().min(0).max(27),
 });

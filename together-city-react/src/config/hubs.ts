@@ -267,7 +267,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
          holds no price nobody in this city typed. It is the same shelf the
          Open Market draws under its Electronics tab; one room, two doors. */
       { path: '/services/electronics', index: '04', label: 'Electronics Store', sub: 'Phones, appliances and accessories — from shops near you' },
-      { path: '/services/list', index: '05', label: 'List your business', sub: 'Pick a category, name your areas' },
+      { path: '/services/list', index: '05', label: 'List your business', sub: 'Tell us what you do — the page is built for it' },
       { path: '/services/mine', index: '06', label: 'My business', sub: 'Edit, close, see who asked' },
       { path: '/services/regulars', index: '07', label: 'Regulars', sub: 'The businesses you keep' },
       { path: '/services/offers', index: '08', label: 'Daily offers', sub: 'What is on today' },
@@ -347,9 +347,11 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // just no longer have a way in from the menu.
       { path: '/nutrition/blood', index: '01', label: 'Connect Blood Test', sub: 'Personalise from your labs' },
       { path: '/nutrition/preferences', index: '02', label: 'Food Preference Profile', sub: 'Your taste & goals' },
-      { path: '/nutrition/weekly', index: '03', label: 'Weekly Meal Planner', sub: 'Personalised 7-day plan' },
-      { path: '/nutrition/grocery', index: '04', label: LABELS.groceryLists, sub: 'Built from your plan' },
-      { path: '/nutrition/recipes', index: '05', label: LABELS.createYourOwnMealPlan, sub: 'Browse, add your own, build a list' },
+      // 18 Sep: the order follows the work — you build the day first, the
+      // week reads from it, and the list is built from the week.
+      { path: '/nutrition/recipes', index: '03', label: LABELS.createYourOwnMealPlan, sub: 'Browse, add your own, build a list' },
+      { path: '/nutrition/weekly', index: '04', label: 'Weekly Meal Planner', sub: 'Personalised 7-day plan' },
+      { path: '/nutrition/grocery', index: '05', label: LABELS.groceryLists, sub: 'Built from your plan' },
       { path: '/nutrition/journal', index: '06', label: 'AI Food Journal', sub: 'Photo in — logged & counted' },
       // 07. The Save button on every recipe page has worked since the page was
       // built and wrote to a list nothing rendered — GET /nutrition/saved has
@@ -605,8 +607,13 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // The numbering closes up, same as it did at 03: a menu that counts
       // 01-02-04 advertises the thing it is trying not to advertise.
       { path: '/fitness/workout', index: '02', label: 'Workout', sub: 'Body goal, targets & today\'s session' },
-      { path: '/fitness/log', index: '03', label: 'Activity Log', sub: 'What you actually did' },
-      { path: '/fitness/supplements', index: '04', label: 'Supplements', sub: 'Read from your blood work' },
+      /* EVERY MOVEMENT IN THE CITY (owner, 18 Sep): the whole catalogue with
+         body part, level, how it is done and a space for the film, and the
+         citizen's own day or week built from it. The rooms after it count
+         on, as they closed up when Body Goal and Multivitamins left. */
+      { path: '/fitness/library', index: '03', label: 'Workout Library', sub: 'Every movement, graded, and your own plan' },
+      { path: '/fitness/log', index: '04', label: 'Activity Log', sub: 'What you actually did' },
+      { path: '/fitness/supplements', index: '05', label: 'Supplements', sub: 'Read from your blood work' },
       // MULTIVITAMINS CAME OFF THE RAIL (owner, 9 Sep). It stood here from 5
       // Sep as an advising screen whose most useful sentence was a refusal;
       // the owner removed the page, so the door goes with it and the
@@ -614,9 +621,9 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // thing it is trying not to advertise. The server's assessment engine
       // and its specs are untouched, and /fitness/multivitamins redirects to
       // the supplements read in config/labels.ts.
-      { path: '/fitness/sleep', index: '05', label: 'Sleep Cycle', sub: 'Duration, quality & schedule' },
-      { path: '/fitness/store', index: '06', label: 'The Store', sub: 'Verified in India · we take no cut' },
-      { path: '/fitness/orders', index: '07', label: 'My Orders', sub: 'Your bag & what you bought' },
+      { path: '/fitness/sleep', index: '06', label: 'Sleep Cycle', sub: 'Duration, quality & schedule' },
+      { path: '/fitness/store', index: '07', label: 'The Store', sub: 'Verified in India · we take no cut' },
+      { path: '/fitness/orders', index: '08', label: 'My Orders', sub: 'Your bag & what you bought' },
     ],
   },
   mail: {

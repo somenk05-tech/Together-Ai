@@ -152,6 +152,23 @@ const PROBES: Probe[] = [
     ],
   },
   {
+    /**
+     * A WORKOUT PLAN IS PROBEABLE FOR THE SAME REASON A PET IS — one call, no
+     * upload, no second party, no provider key — so the Workout Library (18
+     * Sep) gets a real probe rather than a line on the UNPROBED list. The
+     * movement is the catalogue's own first row; the plan is the citizen's
+     * hand and nobody else's, scoped by updateMany / deleteMany({ id, userId })
+     * in fitness/library/library.service.ts.
+     */
+    hub: 'fitness/library',
+    create: { path: '/api/fitness/library/plans', body: { name: 'Push day', kind: 'day', days: [{ day: 0, exercises: [{ id: '0001', sets: 3, reps: 10 }] }] } },
+    list: '/api/fitness/library/plans',
+    attempts: (id) => [
+      { method: 'PATCH', path: `/api/fitness/library/plans/${id}`, body: { name: 'mine now', kind: 'day', days: [{ day: 0, exercises: [{ id: '0001', sets: 3, reps: 10 }] }] } },
+      { method: 'DELETE', path: `/api/fitness/library/plans/${id}` },
+    ],
+  },
+  {
     hub: 'drive',
     create: { path: '/api/drive/folders', body: { name: 'Private papers' } },
     list: '/api/drive',

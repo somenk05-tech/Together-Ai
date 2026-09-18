@@ -60,7 +60,13 @@ export const MENU_WORDS: Catalogue = {
  * a price list — but the first one on the screen is the one that trade
  * actually reaches for.
  */
-export function MenuEditor({ listingId, catalogue }: { listingId: string; catalogue?: Catalogue | null }) {
+/**
+ * `startOpen` (owner, 17 Sep): on the create page the catalogue is not a
+ * section the owner finds — it is the step they are on. The doors are open
+ * the moment the editor mounts, so "add your menu" is the screen, not a
+ * button on it. Off everywhere else; My Business keeps its folded editor.
+ */
+export function MenuEditor({ listingId, catalogue, startOpen = false }: { listingId: string; catalogue?: Catalogue | null; startOpen?: boolean }) {
   const words = catalogue ?? MENU_WORDS;
   const live = useMenu(listingId);
   const scan = useScanMenu(listingId);
@@ -71,7 +77,7 @@ export function MenuEditor({ listingId, catalogue }: { listingId: string; catalo
   const [scanUrl, setScanUrl] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
   const [picking, setPicking] = useState(false);
 
   const count = live.data?.count ?? 0;

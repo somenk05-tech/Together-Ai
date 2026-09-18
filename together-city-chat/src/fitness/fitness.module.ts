@@ -7,6 +7,8 @@ import { FinancialModule } from '../financial/financial.module';
 import { FitnessController } from './fitness.controller';
 import { FitnessService } from './fitness.service';
 import { SupplementsService } from './supplements/supplements.service';
+import { LibraryController } from './library/library.controller';
+import { LibraryService } from './library/library.service';
 
 @Module({
   // MedicalModule provides the consent-gated biomarker reader. NutritionModule
@@ -19,8 +21,8 @@ import { SupplementsService } from './supplements/supplements.service';
   // in the same monthly spending view as a restaurant bill — and what means
   // there is exactly one place in this codebase that knows how to take money.
   imports: [PrismaModule, ProfileModule, MedicalModule, NutritionModule, FinancialModule],
-  controllers: [FitnessController],
-  providers: [FitnessService, SupplementsService],
+  controllers: [FitnessController, LibraryController],
+  providers: [FitnessService, SupplementsService, LibraryService],
   /** Mira reads the citizen's plan and their log. */
   exports: [FitnessService],
 })

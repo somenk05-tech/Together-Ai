@@ -1,0 +1,136 @@
+/* ── EVERY MOVEMENT IN THE CITY (owner, 18 Sep) ────────────────────────────
+   The Workout Library at /fitness/library: the shelf on the left, the plan
+   being built and the saved plans on the right, one column on a phone. Every
+   size is a token and every colour a token; the row is the city's one
+   disclosure (Fold) wearing `.wl-lid`, the way the daybook's rows wear
+   `.dayb-lid`. Nothing here is drawn with a literal. */
+
+.wl-h1 { font-size: var(--fs-9); margin-top: 6px; }
+.wl-lede { margin: 10px 0 0; }
+.wl-note { margin: 8px 0 0; font-size: var(--fs-3); line-height: 1.55; max-width: 72ch; }
+
+.wl-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); gap: 24px; margin-top: 22px; align-items: start; }
+.wl-side { position: sticky; top: calc(var(--header-h) + 16px); display: grid; gap: 16px; }
+
+/* ── the shelf ─────────────────────────────────────────────────────────── */
+.wl-filters { display: grid; gap: 10px; }
+.wl-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.wl-chip {
+  min-height: 44px; padding: 6px 14px; border-radius: var(--r-full);
+  border: 1px solid var(--line); background: var(--card); color: var(--ink-soft);
+  font: inherit; font-size: var(--fs-3); font-weight: 600; cursor: pointer;
+}
+.wl-chip:hover { border-color: var(--accent); }
+.wl-chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+.wl-chip .wl-n { font-weight: 500; color: var(--muted); margin-left: 2px; }
+.wl-chip .wl-you { margin-left: 4px; font-size: var(--fs-1); text-transform: uppercase; letter-spacing: .06em; color: var(--accent-ink); }
+
+.wl-row-fields { display: flex; gap: 10px; flex-wrap: wrap; }
+.wl-field { display: grid; gap: 4px; min-width: 160px; }
+.wl-grow { flex: 1 1 220px; }
+.wl-label { font-size: var(--fs-1); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); font-weight: 500; }
+.wl-count { margin: 0; font-size: var(--fs-2); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+
+.wl-list { list-style: none; margin: 14px 0 0; padding: 0; border-top: 1px solid var(--line); }
+.wl-list > li { border-bottom: 1px solid var(--line); }
+.wl-list .fold-hd { gap: 8px; padding-right: 2px; }
+
+/* THE ROW IS THE LID. The Fold's face, undressed of button chrome so the list
+   still reads as a list, with the thumbnail and the name in `.t`, the muscle
+   and the level in `.m`, and "Open + / Close −" in `.s`. */
+.wl-lid {
+  flex: 1; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto;
+  column-gap: 12px; row-gap: 2px; align-items: center;
+  background: none; box-shadow: none; border: 0; padding: 8px 2px; margin: 0;
+  min-height: 60px; text-align: left; cursor: pointer; color: var(--ink); font: inherit;
+}
+.wl-lid .t { grid-column: 1 / 3; grid-row: 1; display: flex; align-items: center; gap: 12px; min-width: 0; }
+.wl-lid .m { grid-column: 2; grid-row: 2; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.wl-lid .s { grid-column: 3; grid-row: 1 / 3; font-size: var(--fs-2); color: var(--faint); white-space: nowrap; }
+.wl-lid:hover .s { color: var(--accent-ink); }
+.wl-lid .t .wl-nm { font-size: var(--fs-4); }
+/* The plans' lids have no picture, so the words start at the edge. */
+.wl-plan-shelf .wl-lid { grid-template-columns: minmax(0, 1fr) auto; min-height: 52px; }
+.wl-plan-shelf .wl-lid .t { grid-column: 1; }
+.wl-plan-shelf .wl-lid .m { grid-column: 1; }
+.wl-plan-shelf .wl-lid .s { grid-column: 2; }
+
+.wl-thumb { width: 44px; height: 44px; border-radius: var(--r-1); object-fit: cover; background: var(--wash); flex: none; }
+.wl-thumb-none { display: inline-block; border: 1px dashed var(--line); }
+.wl-nm { font-size: var(--fs-3); font-weight: 600; display: block; }
+.wl-mu { font-size: var(--fs-2); color: var(--muted); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.wl-lv {
+  flex: none; font-size: var(--fs-1); font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  padding: 1px 8px; border-radius: var(--r-full); border: 1px solid var(--line); color: var(--ink-soft);
+}
+.wl-lv.is-beginner { color: var(--ok-ink); border-color: var(--ok-line); background: var(--ok-soft); }
+.wl-lv.is-intermediate { color: var(--info-ink); border-color: var(--info-line); background: var(--info-soft); }
+.wl-lv.is-advanced { color: var(--warn-ink); border-color: var(--warn-line); background: var(--warn-soft); }
+.wl-acts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; flex: none; }
+.wl-more { display: flex; justify-content: center; margin-top: 14px; }
+.wl-credit { margin: 14px 0 0; font-size: var(--fs-1); }
+
+/* ── how it is done ────────────────────────────────────────────────────── */
+.wl-how-panel { padding: 0 2px 14px; }
+.wl-how { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 18px; align-items: start; }
+.wl-how-media { display: grid; gap: 10px; }
+.wl-film { border-radius: var(--r-2); overflow: hidden; background: var(--media-bg); }
+.wl-film-v { display: block; width: 100%; aspect-ratio: 16 / 9; background: var(--media-bg); }
+.wl-film-wait {
+  display: grid; place-content: center; gap: 4px; text-align: center; aspect-ratio: 16 / 9;
+  border: 1px dashed var(--line-2); border-radius: var(--r-2); background: var(--wash);
+  font-size: var(--fs-3); color: var(--muted); padding: 12px;
+}
+.wl-gif { margin: 0; display: grid; gap: 4px; justify-items: start; }
+.wl-gif img { width: 180px; height: 180px; border-radius: var(--r-1); background: var(--wash); }
+.wl-gif figcaption { font-size: var(--fs-1); }
+.wl-how-words { min-width: 0; }
+.wl-steps { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 6px; font-size: var(--fs-3); line-height: 1.55; }
+.wl-works { margin: 12px 0 0; font-size: var(--fs-2); }
+
+/* ── your plan ─────────────────────────────────────────────────────────── */
+.wl-h2 { font-size: var(--fs-6); font-weight: 700; margin: 0; }
+.wl-builder { display: grid; gap: 12px; }
+.wl-builder-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.wl-kinds { display: flex; gap: 6px; }
+.wl-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.wl-day {
+  display: grid; gap: 2px; justify-items: center; min-height: 44px; padding: 6px 2px;
+  border: 1px solid var(--line); border-radius: var(--r-1); background: var(--card);
+  font: inherit; font-size: var(--fs-2); font-weight: 700; color: var(--ink-soft); cursor: pointer;
+}
+.wl-day .wl-n { font-size: var(--fs-1); color: var(--muted); font-weight: 500; min-height: 1em; }
+.wl-day[aria-selected="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+.wl-empty { margin: 0; font-size: var(--fs-3); line-height: 1.55; }
+.wl-plan-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.wl-plan-list li { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.wl-plan-list .wl-w { flex: 1 1 140px; min-width: 0; }
+.wl-plan-read li { flex-wrap: nowrap; }
+.wl-nums { display: flex; align-items: end; gap: 6px; }
+.wl-num { display: grid; gap: 2px; }
+.wl-num input { width: 64px; min-height: 44px; }
+.wl-x { color: var(--muted); padding-bottom: 12px; }
+.wl-tg { font-size: var(--fs-2); font-weight: 700; white-space: nowrap; color: var(--accent-ink); }
+.wl-builder-acts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.wl-hint { margin: 0; font-size: var(--fs-2); }
+.wl-alert { margin: 0; font-size: var(--fs-3); color: var(--danger-ink); font-weight: 600; }
+
+/* ── saved plans ───────────────────────────────────────────────────────── */
+.wl-plans { display: grid; gap: 10px; }
+.wl-plan-shelf { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.wl-plan-shelf > li { border-bottom: 1px solid var(--line); }
+.wl-plan-open { padding: 0 0 12px; display: grid; gap: 12px; }
+.wl-plan-day { display: grid; gap: 6px; }
+
+@media (max-width: 899px) {
+  .wl-cols { grid-template-columns: minmax(0, 1fr); }
+  .wl-side { position: static; }
+  .wl-how { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .wl-lid { grid-template-columns: minmax(0, 1fr) auto; }
+  .wl-lid .t { grid-column: 1; }
+  .wl-lid .m { grid-column: 1; }
+  .wl-lid .s { grid-column: 2; }
+  .wl-thumb { width: 36px; height: 36px; }
+}

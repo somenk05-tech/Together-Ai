@@ -132,7 +132,7 @@ export function ServicesBrowse() {
           </p>
         </div>
         <div style={{ flex: '0 0 auto' }}>
-          <Link to="/services/list"><Button variant="accent">+ List your business</Button></Link>
+          <Link to="/services/list"><Button variant="accent">+ Create your business</Button></Link>
         </div>
       </header>
 
@@ -264,7 +264,7 @@ export function ServicesBrowse() {
             Free to list. Verification is what makes people write to you.
           </p>
         </div>
-        <Link to="/services/list"><Button variant="line" size="sm">List your business →</Button></Link>
+        <Link to="/services/list"><Button variant="line" size="sm">Create your business →</Button></Link>
       </Card>
     </div>
   );

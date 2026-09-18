@@ -8,6 +8,7 @@ import {
   type ProgrammeDay, type TodaySession,
 } from '../api';
 import { BodyGoalPanel } from '../components/BodyGoalPanel';
+import { dateSpan, monthOf, useChoosePlace } from '../division.api';
 import { useFoodPref, useNutritionTargets } from '@/features/nutrition/hooks';
 
 /* ---------- shared body profile (from the Nutrition food-preference profile) ---------- */
@@ -249,6 +250,8 @@ export function Workout() {
    * read off it — whether there is anything to move, and what to call it.
    */
   const moveDay = useMoveWorkoutDay();
+  /* GYM OR HOME (owner, 18 Sep) — the tab that picks the division. */
+  const choosePlace = useChoosePlace();
   const anchor = month ? month.days.find((d) => d.index >= month.todayIndex && d.kind === 'strength') : undefined;
   const canMove = !!(shown && anchor && shown.kind === 'strength' && shown.index !== anchor.index && shown.slot !== anchor.slot);
   /* THE KEYS ARE PRESSED LOCALLY AND SAVED ON RELEASE. A save per tap would
@@ -519,40 +522,77 @@ export function Workout() {
           phase, what comes next, and the 28 days with the ones done ticked. */}
       {month && monthDay && (
         <section className="blk wk-month">
-          <div className="blk-head">
-            <h2>Your month</h2>
-            <span className="muted wk-month-split">{month.splitName} · {month.daysPerWeek} days a week</span>
-          </div>
-          <div className="card">
-            <div className="eyebrow">Day {monthDay.index + 1} of {month.days.length} · week {monthDay.week} · {month.phases.find((p) => p.key === monthDay.phase)?.label ?? monthDay.phase}</div>
-            <h3 className="wk-month-title">{dayWord(monthDay)}</h3>
-            <p className="wk-month-note">{monthDay.note}</p>
-            {monthNext && <p className="muted wk-month-next">Next: {dayWord(monthNext)}{monthNext.index === monthDay.index + 1 ? ', tomorrow' : ` on day ${monthNext.index + 1}`}.</p>}
-            {/* EVERY DAY IS A DOOR (owner, 9 Sep: "let user see past and future
-                workouts"). The tile was a word on a grid, so a citizen who
-                wanted to know what Thursday held had to wait until Thursday.
-                It opens the day underneath instead of navigating, so the month
-                stays on screen while you read a day out of it. */}
-            <ol className="wk-month-grid" aria-label="The twenty-eight days">
-              {month.days.map((d) => (
-                <li key={d.index}>
-                  <button type="button" aria-pressed={d.index === openDay}
-                    aria-label={`Day ${d.index + 1}, ${dayWord(d)}${d.done ? ', done' : ''}`}
-                    onClick={() => setOpenDay((cur) => (cur === d.index ? null : d.index))}
-                    className={['wk-month-key', d.index === monthDay.index ? 'is-today' : '', d.done ? 'is-done' : '', d.index < monthDay.index ? 'is-past' : '', `is-${d.kind}`].filter(Boolean).join(' ')}>
-                    <span className="n">{d.index + 1}</span>
-                    <span className="t">{d.title}</span>
-                    {d.done && <span className="d" aria-hidden>✓</span>}
+          {/* ── TWO DIVISIONS, ONE MONTH (owner, 18 Sep) ─────────────────────
+              "Create two sets of workout divisions … and rechange the layout
+              accordingly." The month is drawn as four rows — the week's name
+              and line on the left, seven day cards across — and the citizen
+              chooses which division to follow: gym or home, both built every
+              day. The choice is the profile's place, so today's session
+              follows it too. */}
+          <div className="wm-head">
+            <div>
+              <div className="eyebrow">Personal trainer</div>
+              <h2 className="wm-h2">{monthOf(month).division?.name ?? 'Your month'}</h2>
+              <p className="wm-tag muted">{monthOf(month).division?.tag ?? `${month.splitName} · ${month.daysPerWeek} days a week`}</p>
+            </div>
+            <div className="wm-tools">
+              <div className="wm-kinds" role="group" aria-label="Which plan to follow">
+                {(['gym', 'home'] as const).map((k) => (
+                  <button key={k} type="button" className="wm-kind" aria-pressed={(choosePlace.variables?.place ?? monthOf(month).division?.key ?? 'home') === k}
+                    disabled={choosePlace.isPending} onClick={() => choosePlace.mutate({ place: k })}>
+                    {k === 'gym' ? 'Gym plan' : 'Home plan'}
                   </button>
+                ))}
+              </div>
+              <Link to="/fitness/profile" className="btn btn-line btn-sm wm-adjust">Adjust plan</Link>
+            </div>
+          </div>
+          {choosePlace.isError && (
+            <p role="alert" className="wm-alert">That didn&rsquo;t reach us — your plan is unchanged. Try again in a moment.</p>
+          )}
+          <div className="card wm-card">
+            <div className="wm-today">
+              <div className="eyebrow">Day {monthDay.index + 1} of {month.days.length} · week {monthDay.week} · {month.phases.find((p) => p.key === monthDay.phase)?.label ?? monthDay.phase}</div>
+              <h3 className="wk-month-title">{dayWord(monthDay)}</h3>
+              <p className="wk-month-note">{monthDay.note}</p>
+              {monthNext && <p className="muted wk-month-next">Next: {dayWord(monthNext)}{monthNext.index === monthDay.index + 1 ? ', tomorrow' : ` on day ${monthNext.index + 1}`}.</p>}
+            </div>
+            {/* FOUR ROWS, ONE A WEEK (owner, 18 Sep). Every day is still a door
+                — the key is the same button it has been since 9 Sep, wearing
+                the card's picture: the day's first movement from the catalogue,
+                and the walk or stretch mark on a day off. */}
+            <ol className="wm-weeks" aria-label="The four weeks">
+              {monthOf(month).weeks.map((w) => (
+                <li key={w.week} className="wm-week">
+                  <div className="wm-week-l">
+                    <div className="eyebrow">Week {w.week}</div>
+                    <div className="wm-week-name">{w.label}</div>
+                    <div className="wm-week-dates muted">{dateSpan(w.from, w.to)}</div>
+                    {w.line && <p className="wm-week-line muted">{w.line}</p>}
+                  </div>
+                  <ol className="wk-month-grid wm-days" aria-label={`Week ${w.week}, the seven days`}>
+                    {month.days.filter((d) => d.week === w.week).map((d) => (
+                      <li key={d.index}>
+                        <button type="button" aria-pressed={d.index === openDay}
+                          aria-label={`Day ${d.index + 1}, ${dayWord(d)}${d.done ? ', done' : ''}`}
+                          onClick={() => setOpenDay((cur) => (cur === d.index ? null : d.index))}
+                          className={['wk-month-key', d.index === monthDay.index ? 'is-today' : '', d.done ? 'is-done' : '', d.index < monthDay.index ? 'is-past' : '', `is-${d.kind}`].filter(Boolean).join(' ')}>
+                          <span className="n">{WEEKDAY_SHORT[d.index % 7]} {d.index + 1}</span>
+                          {d.kind === 'strength' && d.exercises[0]?.thumb
+                            ? <img className="wm-pic" src={d.exercises[0].thumb} alt="" loading="lazy" />
+                            : <span className={`wm-pic wm-mark is-${d.kind}`} aria-hidden>{d.kind === 'rest' ? '⌂' : '↗'}</span>}
+                          <span className="t">{d.title}</span>
+                          <span className="wm-s">{d.kind === 'strength' ? `${d.exercises.length} exercises` : d.parts}</span>
+                          <span className="wm-m">{monthOf(month).days[d.index]?.minutes ?? d.cardioMinutes} min</span>
+                          {d.done && <span className="d" aria-hidden>✓</span>}
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
                 </li>
               ))}
             </ol>
-
-            {/* THE DAY YOU OPENED. Its whole session — the movements, the sets
-                and reps, the trainer's note for the phase — and a way to run
-                it, because a citizen who opens Saturday's legs day on a
-                Thursday evening usually wants to do it, not admire it. The LOG
-                still records the day it was actually done on. */}
+            <p className="muted wm-credit">{EXERCISE_MEDIA_ATTRIBUTION} · {month.days.filter((d) => d.done).length} of {month.days.filter((d) => d.kind !== 'rest').length} days done</p>
             {shown && (
               <div className="wk-day">
                 <div className="wk-day-head">

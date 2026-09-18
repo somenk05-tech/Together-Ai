@@ -198,6 +198,7 @@ const FitSupplements = lazy(() => import('@/features/fitness/pages/Supplements')
 const FitStore = lazy(() => import('@/features/fitness/pages/Store').then((m) => ({ default: m.Store })));
 const FitOrders = lazy(() => import('@/features/fitness/pages/Orders').then((m) => ({ default: m.Orders })));
 const FitSleep = lazy(() => import('@/features/fitness/pages/Sleep').then((m) => ({ default: m.Sleep })));
+const FitLibrary = lazy(() => import('@/features/fitness/pages/Library').then((m) => ({ default: m.Library })));
 const FamConnect = lazy(() => import('@/features/family/pages/Connect').then((m) => ({ default: m.FamilyConnect })));
 const FamWeekly = lazy(() => import('@/features/family/pages/Weekly').then((m) => ({ default: m.FamilyWeekly })));
 const FamGrocery = lazy(() => import('@/features/family/pages/Grocery').then((m) => ({ default: m.FamilyGrocery })));
@@ -604,6 +605,7 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/fitness/store', element: <RequireAuth>{wrap(<FitStore />)}</RequireAuth> },
       { path: '/fitness/orders', element: <RequireAuth>{wrap(<FitOrders />)}</RequireAuth> },
       { path: '/fitness/sleep', element: <RequireAuth>{wrap(<FitSleep />)}</RequireAuth> },
+      { path: '/fitness/library', element: <RequireAuth>{wrap(<FitLibrary />)}</RequireAuth> },
     ],
   },
   {

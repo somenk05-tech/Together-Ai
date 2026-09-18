@@ -13,6 +13,7 @@ import {
   SaveFitnessProfileSchema,
   SaveTrainingWeekSchema,
   MoveWorkoutDaySchema,
+  ChoosePlaceSchema,
   TodaySessionQueryDto,
   TodaySessionQuerySchema,
   type EditWorkoutDto,
@@ -20,6 +21,7 @@ import {
   type SaveFitnessProfileDto,
   type SaveTrainingWeekDto,
   type MoveWorkoutDayDto,
+  type ChoosePlaceDto,
 } from './dto/fitness.dto';
 import {
   SupplementBagSchema, type SupplementBagDto,
@@ -112,6 +114,18 @@ export class FitnessController {
   @UsePipes(new ZodValidationPipe(MoveWorkoutDaySchema))
   moveWorkoutDay(@CurrentUser() user: JwtUser, @Body() dto: MoveWorkoutDayDto) {
     return this.fitness.moveWorkoutDay(user.sub, dto);
+  }
+
+  /**
+   * PUT /api/fitness/programme/place — gym or home (owner, 18 Sep: two
+   * divisions, the citizen chooses). Unmetered like the week and the move;
+   * returns the rebuilt month so the rows redraw from the answer.
+   */
+  @Room('/fitness/workout')
+  @Put('programme/place')
+  @UsePipes(new ZodValidationPipe(ChoosePlaceSchema))
+  choosePlace(@CurrentUser() user: JwtUser, @Body() dto: ChoosePlaceDto) {
+    return this.fitness.choosePlace(user.sub, dto);
   }
 
   @Room('/fitness/workout')

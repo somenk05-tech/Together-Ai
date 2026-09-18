@@ -4,8 +4,8 @@
 removing a route. It is produced from the same parse the security guards in
 `src/security/` use, so it cannot describe a route that does not exist.
 
-Every path below is prefixed with `/api`. **653 routes** across
-**53 controllers**; **17** are reachable without a token.
+Every path below is prefixed with `/api`. **661 routes** across
+**54 controllers**; **17** are reachable without a token.
 
 ## Conventions
 
@@ -423,6 +423,7 @@ _fitness/fitness.controller.ts_
 | GET | `/api/fitness/plan` | 🔒 |
 | GET | `/api/fitness/profile` | 🔒 |
 | PUT | `/api/fitness/profile` | 🔒 |
+| PUT | `/api/fitness/programme/place` | 🔒 |
 | PUT | `/api/fitness/programme/today` | 🔒 |
 | PUT | `/api/fitness/programme/week` | 🔒 |
 | GET | `/api/fitness/programme` | 🔒 |
@@ -435,6 +436,19 @@ _fitness/fitness.controller.ts_
 | GET | `/api/fitness/store` | 🔒 |
 | GET | `/api/fitness/supplements` | 🔒 |
 | POST | `/api/fitness/sync-nutrition` | 🔒 |
+
+## /fitness/library
+
+_fitness/library/library.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| GET | `/api/fitness/library/:id` | 🔒 |
+| GET | `/api/fitness/library` | 🔒 |
+| DELETE | `/api/fitness/library/plans/:id` | 🔒 |
+| PATCH | `/api/fitness/library/plans/:id` | 🔒 |
+| GET | `/api/fitness/library/plans` | 🔒 |
+| POST | `/api/fitness/library/plans` | 🔒 |
 
 ## /geo
 
@@ -952,6 +966,7 @@ _local-services/local-services.controller.ts_
 | POST | `/api/services/threads/:id/messages` | 🔒 |
 | POST | `/api/services/threads/:id/reveal` | 🔒 |
 | GET | `/api/services/threads/:id` | 🔒 |
+| POST | `/api/services/understand` | 🔒 |
 
 ## /social
 

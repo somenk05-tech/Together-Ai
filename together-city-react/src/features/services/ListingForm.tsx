@@ -84,8 +84,19 @@ export interface ListingDraft {
 
 const str = (v: unknown): string => (v == null ? '' : String(v));
 
-export function ListingForm({ initial, submitLabel, busyLabel, pending, error, onSubmit, onCancel }: {
+export function ListingForm({ initial, understood = false, onChangeTrade, submitLabel, busyLabel, pending, error, onSubmit, onCancel }: {
   initial?: ListingDraft;
+  /**
+   * THE TRADE WAS READ, NOT PICKED (owner, 17 Sep). When the create screen
+   * has already understood "I run a café in Bandra", the three dropdowns —
+   * kind, trade, sort — are a question already answered, so they fold into
+   * one line saying what was understood, with Change beside it. Every other
+   * question stays exactly where it is; only the ones the sentence answered
+   * are folded. Off (the default) for the edit screen and the list road.
+   */
+  understood?: boolean;
+  /** Pressed on that line's Change: the parent opens the dropdowns. */
+  onChangeTrade?: () => void;
   submitLabel: string;
   busyLabel: string;
   pending: boolean;
@@ -250,8 +261,12 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
    * Derived, never stored on this screen: the schema is the server's, and a
    * copy of it here is a copy that goes stale the day a trade is added.
    */
-  const offeredTypes = (types.data?.types ?? []).filter((t) => t.group === group || t.key === 'general');
   const chosenType = (types.data?.types ?? []).find((t) => t.key === businessType) ?? null;
+  /* A READ type may sit outside its trade's group — a vet under Healthcare is
+     a pet-care page, a movers firm quotes like transport (understand.ts). The
+     select must still show what is chosen, so the chosen type is always among
+     the options, whatever group it is filed under. */
+  const offeredTypes = (types.data?.types ?? []).filter((t) => t.group === group || t.key === 'general' || t.key === businessType);
   /**
    * ── WHICH SHELF THIS OWNER IS BEING PROMISED (9 Sep) ─────────────────────
    *
@@ -370,6 +385,22 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
           )}
         </div>
 
+        {/* ── WHAT WAS UNDERSTOOD, IN ONE LINE (owner, 17 Sep) ─────────────
+            The sentence answered these three; they are shown, not asked. */}
+        {understood && categoryKey && (
+          <div className="lf-read">
+            <div className="lf-read-v">
+              <span className="muted">Filed under</span> <b>{group || cats.data?.groups.find((g) => g.items.some((i) => i.key === categoryKey))?.group}</b>
+              {' › '}<b>{cats.data?.groups.flatMap((g) => g.items).find((i) => i.key === categoryKey)?.label ?? categoryKey}</b>
+              {chosenType && <> · {chosenType.label}</>}
+            </div>
+            {chosenCatalogue && chosenCatalogue.kind !== 'none' && (
+              <p className="muted lf-read-say">You'll publish a {chosenCatalogue.title.toLowerCase()}. {chosenCatalogue.blurb}</p>
+            )}
+            <Button variant="line" size="sm" onClick={() => onChangeTrade?.()}>Change</Button>
+          </div>
+        )}
+        {!understood && (<>
         {/*
           TWO STEPS, THE SAME TWO STEPS AS FINDING ONE.
 
@@ -444,6 +475,8 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
             )}
           </div>
         )}
+
+        </>)}
 
         <DynamicFields type={chosenType} values={details} onChange={setDetails} />
 

@@ -338,7 +338,7 @@ export function MyBusiness() {
           title="You haven't listed anything yet"
           hint="Pick a category, say where you work, and people nearby can find you."
         />
-        <Link to="/services/list"><Button variant="accent">List your business</Button></Link>
+        <Link to="/services/list"><Button variant="accent">Create your business</Button></Link>
       </div>
     );
   }

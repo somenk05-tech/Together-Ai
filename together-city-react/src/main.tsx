@@ -33,6 +33,10 @@ import './styles/media-desk.css';
 import './styles/content-analytics.css';
 // The investor dashboard's own sheet (owner, 16 Sep) — see its head note.
 import './styles/insights.css';
+// The Workout Library's own sheet (owner, 18 Sep) — see its head note.
+import './styles/workout-library.css';
+// The month's rows — two divisions, one month (owner, 18 Sep) — see its head note.
+import './styles/workout-month.css';
 
 const container = document.getElementById('root');
 if (!container) throw new Error('#root not found');
