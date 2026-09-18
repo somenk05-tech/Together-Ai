@@ -347,9 +347,11 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // just no longer have a way in from the menu.
       { path: '/nutrition/blood', index: '01', label: 'Connect Blood Test', sub: 'Personalise from your labs' },
       { path: '/nutrition/preferences', index: '02', label: 'Food Preference Profile', sub: 'Your taste & goals' },
-      { path: '/nutrition/weekly', index: '03', label: 'Weekly Meal Planner', sub: 'Personalised 7-day plan' },
-      { path: '/nutrition/grocery', index: '04', label: LABELS.groceryLists, sub: 'Built from your plan' },
-      { path: '/nutrition/recipes', index: '05', label: LABELS.createYourOwnMealPlan, sub: 'Browse, add your own, build a list' },
+      // 18 Sep: the order follows the work — you build the day first, the
+      // week reads from it, and the list is built from the week.
+      { path: '/nutrition/recipes', index: '03', label: LABELS.createYourOwnMealPlan, sub: 'Browse, add your own, build a list' },
+      { path: '/nutrition/weekly', index: '04', label: 'Weekly Meal Planner', sub: 'Personalised 7-day plan' },
+      { path: '/nutrition/grocery', index: '05', label: LABELS.groceryLists, sub: 'Built from your plan' },
       { path: '/nutrition/journal', index: '06', label: 'AI Food Journal', sub: 'Photo in — logged & counted' },
       // 07. The Save button on every recipe page has worked since the page was
       // built and wrote to a list nothing rendered — GET /nutrition/saved has
