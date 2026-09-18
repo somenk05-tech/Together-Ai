@@ -147,6 +147,7 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'Consult', by: 'userId', action: 'purge', reason: 'Doctor consultations.' },
   { model: 'FitnessProfile', by: 'userId', action: 'purge', reason: 'Body measurements and goals.' },
   { model: 'WorkoutLog', by: 'userId', action: 'purge', reason: 'Every workout they logged, and when.' },
+  { model: 'WorkoutPlan', by: 'userId', action: 'purge', reason: 'The day and week plans they built in the Workout Library — their own hand, and nobody else can see them.' },
   { model: 'SupplementBag', by: 'userId', action: 'purge', reason: 'What they have put in the supplement basket but not yet bought. An unfinished purchase is still a statement about their body.' },
   { model: 'SupplementOrder', by: 'userId', action: 'purge', reason: 'Which supplements they bought and when — a health record in everything but name, and read as one by anybody who sees it.' },
 

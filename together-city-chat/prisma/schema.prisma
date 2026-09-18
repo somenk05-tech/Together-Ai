@@ -5278,3 +5278,29 @@ model SocialArrival {
   @@index([tag, at])
   @@index([at])
 }
+
+/**
+ * ── EVERY MOVEMENT IN THE CITY (owner, 18 Sep) ──────────────────────────────
+ *
+ * "The user can add the workouts to create his own plan for the day or week
+ * and save those plans on the page."
+ *
+ * A citizen's own workout plan, built from the Workout Library
+ * (fitness/library). `kind` is 'day' or 'week'; `days` is the plan itself —
+ * [{ day: 0..6 (Monday = 0), exercises: [{ id, sets, reps }] }] — checked by
+ * SaveWorkoutPlanSchema before it is written, and every `id` a movement the
+ * catalogue (exercise-catalog.ts) knows. Kept as JSON rather than rows
+ * because a plan is read and written whole, never queried by movement. No
+ * foreign key to User, like MemberOrigin: the purge plan takes it by userId.
+ */
+model WorkoutPlan {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  kind      String
+  days      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt])
+}

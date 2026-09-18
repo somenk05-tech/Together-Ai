@@ -450,11 +450,12 @@ export const ROOM_FLAGS: RoomFlag[] = [
   ...rooms('fitness', 'Fitness', [
     ['01', '/fitness/profile', 'Training Profile'],
     ['02', '/fitness/workout', 'Workout'],
-    ['03', '/fitness/log', 'Activity Log'],
-    ['04', '/fitness/supplements', 'Supplements'],
-    ['05', '/fitness/sleep', 'Sleep Cycle'],
-    ['06', '/fitness/store', 'The Store'],
-    ['07', '/fitness/orders', 'My Orders'],
+    ['03', '/fitness/library', 'Workout Library'],
+    ['04', '/fitness/log', 'Activity Log'],
+    ['05', '/fitness/supplements', 'Supplements'],
+    ['06', '/fitness/sleep', 'Sleep Cycle'],
+    ['07', '/fitness/store', 'The Store'],
+    ['08', '/fitness/orders', 'My Orders'],
   ]),
   ...rooms('mail', 'Together City Mail', [
     ['01', '/mail/inbox', 'All Email'],

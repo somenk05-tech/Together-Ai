@@ -605,8 +605,13 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // The numbering closes up, same as it did at 03: a menu that counts
       // 01-02-04 advertises the thing it is trying not to advertise.
       { path: '/fitness/workout', index: '02', label: 'Workout', sub: 'Body goal, targets & today\'s session' },
-      { path: '/fitness/log', index: '03', label: 'Activity Log', sub: 'What you actually did' },
-      { path: '/fitness/supplements', index: '04', label: 'Supplements', sub: 'Read from your blood work' },
+      /* EVERY MOVEMENT IN THE CITY (owner, 18 Sep): the whole catalogue with
+         body part, level, how it is done and a space for the film, and the
+         citizen's own day or week built from it. The rooms after it count
+         on, as they closed up when Body Goal and Multivitamins left. */
+      { path: '/fitness/library', index: '03', label: 'Workout Library', sub: 'Every movement, graded, and your own plan' },
+      { path: '/fitness/log', index: '04', label: 'Activity Log', sub: 'What you actually did' },
+      { path: '/fitness/supplements', index: '05', label: 'Supplements', sub: 'Read from your blood work' },
       // MULTIVITAMINS CAME OFF THE RAIL (owner, 9 Sep). It stood here from 5
       // Sep as an advising screen whose most useful sentence was a refusal;
       // the owner removed the page, so the door goes with it and the
@@ -614,9 +619,9 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // thing it is trying not to advertise. The server's assessment engine
       // and its specs are untouched, and /fitness/multivitamins redirects to
       // the supplements read in config/labels.ts.
-      { path: '/fitness/sleep', index: '05', label: 'Sleep Cycle', sub: 'Duration, quality & schedule' },
-      { path: '/fitness/store', index: '06', label: 'The Store', sub: 'Verified in India · we take no cut' },
-      { path: '/fitness/orders', index: '07', label: 'My Orders', sub: 'Your bag & what you bought' },
+      { path: '/fitness/sleep', index: '06', label: 'Sleep Cycle', sub: 'Duration, quality & schedule' },
+      { path: '/fitness/store', index: '07', label: 'The Store', sub: 'Verified in India · we take no cut' },
+      { path: '/fitness/orders', index: '08', label: 'My Orders', sub: 'Your bag & what you bought' },
     ],
   },
   mail: {
