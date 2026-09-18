@@ -51,7 +51,15 @@ export const MUSCLE_WORDS: Record<Muscle, string> = {
 interface Slot { muscle: Muscle; compound: boolean }
 
 /** A day of the split: what it is called, and the slots in the order they are done. */
-export interface SplitDay { key: string; title: string; parts: string; slots: Slot[] }
+export interface SplitDay {
+  key: string; title: string; parts: string; slots: Slot[];
+  /** The session length a division writes on the card, in minutes. Absent
+   *  on the day-count splits, where the month estimates it from the work. */
+  minutes?: number;
+  /** A LIGHT DAY inside a division's rotation — conditioning, yoga, active
+   *  recovery: a card with a title and a length, and no working sets. */
+  light?: { minutes: number; note: string };
+}
 
 const S = (muscle: Muscle, compound = false): Slot => ({ muscle, compound });
 
@@ -100,6 +108,96 @@ export const SPLITS: Record<number, SplitDay[]> = {
  *  citizen has not said which days are theirs — see `placeTraining` below. */
 const PLACEMENT: Record<number, number[]> = {
   1: [0], 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 3, 4], 6: [0, 1, 2, 3, 4, 5],
+};
+
+/**
+ * ── TWO DIVISIONS, ONE MONTH (owner, 18 Sep) ────────────────────────────────
+ *
+ * "Create two sets of workout divisions from the existing database … make
+ * sure the workouts are based on a celebrity trainer." Asked whose: a
+ * body-part split for the gym in the shape the Centr programmes use, and a
+ * bodyweight full-body / upper / lower / core week for home in the shape
+ * Kayla Itsines' programmes use. Both are built every day for every citizen
+ * and the citizen chooses which to follow — the choice IS the profile's
+ * `place`, so today's session and the month agree without a second field.
+ *
+ * NO TRAINER'S NAME IS PRINTED ANYWHERE A CITIZEN READS, and none may be:
+ * a name on a plan is an endorsement, and an endorsement is a licence the
+ * city does not hold. What is borrowed is the SHAPE — which muscles on which
+ * day, how long, how the four weeks move — and the movements themselves are
+ * the catalogue's, chosen by the same pool, kit and condition rules as every
+ * month before this one. The old day-count splits above stay for a month
+ * built without a division (and for their specs).
+ *
+ * A division is a seven-day template: six sessions in rotation, one of them
+ * LIGHT (conditioning / yoga / recovery — a card with a length and no
+ * working sets), and a default placement that leaves Thursday off. The
+ * citizen's own rest days still win, exactly as before: name Saturday and
+ * Sunday and the rotation runs through the five days left, every session
+ * still in its turn.
+ */
+export type DivisionKey = 'gym' | 'home';
+
+export interface DivisionWeek { label: string; line: string }
+
+export interface Division {
+  key: DivisionKey;
+  /** 'Your customised gym plan' — the page's headline. */
+  name: string;
+  /** One line under the headline. */
+  tag: string;
+  /** 'Chest / Back / Legs / Shoulders / Arms / Conditioning' */
+  splitName: string;
+  /** Weekdays (Mon = 0) the six sessions land on when the citizen has not said. */
+  placement: number[];
+  days: SplitDay[];
+  /** The four weeks' names and lines, in the order of PHASES. */
+  weeks: [DivisionWeek, DivisionWeek, DivisionWeek, DivisionWeek];
+}
+
+export const DIVISIONS: Record<DivisionKey, Division> = {
+  gym: {
+    key: 'gym',
+    name: 'Your customised gym plan',
+    tag: '4 weeks. Built for your goals, your body and your schedule.',
+    splitName: 'Chest / Back / Legs / Shoulders / Arms / Conditioning',
+    placement: [0, 1, 2, 4, 5, 6],
+    days: [
+      { key: 'chest-triceps', title: 'Chest + Triceps', parts: 'chest & triceps', minutes: 45, slots: [S('pectorals', true), S('pectorals', true), S('pectorals'), S('triceps', true), S('triceps')] },
+      { key: 'back-biceps', title: 'Back + Biceps', parts: 'back & biceps', minutes: 45, slots: [S('lats', true), S('upper back', true), S('lats'), S('biceps'), S('biceps')] },
+      { key: 'legs', title: 'Legs', parts: 'quads, hamstrings, glutes & calves', minutes: 50, slots: [S('quads', true), S('hamstrings', true), S('glutes', true), S('quads'), S('calves')] },
+      { key: 'shoulders-traps', title: 'Shoulders + Traps', parts: 'shoulders & traps', minutes: 45, slots: [S('delts', true), S('delts'), S('delts'), S('traps'), S('abs')] },
+      { key: 'arms', title: 'Arms', parts: 'biceps, triceps & forearms', minutes: 40, slots: [S('biceps', true), S('triceps', true), S('biceps'), S('triceps'), S('forearms')] },
+      { key: 'conditioning', title: 'Conditioning', parts: 'treadmill / HIIT', minutes: 25, slots: [], light: { minutes: 25, note: 'Twenty to thirty minutes on a treadmill, bike or rower. Intervals if you have them in you today, steady if you do not — either counts.' } },
+    ],
+    weeks: [
+      { label: 'Build strength', line: 'Get the pattern right. Same movements all week, a load you can control.' },
+      { label: 'Progress', line: 'New movements, one more set. Add a little load where last week felt easy.' },
+      { label: 'Build more', line: 'Week one\u2019s movements again, heavier — fewer reps, a longer rest.' },
+      { label: 'Consolidate', line: 'Lighter on purpose. Perfect form, easy reps — the week the month pays out.' },
+    ],
+  },
+  home: {
+    key: 'home',
+    name: 'Your customised home workout plan',
+    tag: '4 weeks. No equipment (or minimal equipment). Built for your goals, your body and your schedule.',
+    splitName: 'Full body / Upper / Lower / Core / Yoga / Recovery',
+    placement: [0, 1, 2, 4, 5, 6],
+    days: [
+      { key: 'full-body', title: 'Full body', parts: 'strength & mobility', minutes: 30, slots: [S('quads', true), S('pectorals', true), S('lats', true), S('glutes'), S('delts'), S('abs')] },
+      { key: 'upper', title: 'Upper body', parts: 'push & pull', minutes: 25, slots: [S('pectorals', true), S('lats', true), S('delts'), S('triceps'), S('biceps'), S('abs')] },
+      { key: 'lower', title: 'Lower body', parts: 'glutes & legs', minutes: 30, slots: [S('glutes', true), S('quads', true), S('hamstrings'), S('glutes'), S('calves'), S('abs')] },
+      { key: 'core', title: 'Core', parts: 'abs & stability', minutes: 20, slots: [S('abs', true), S('abs'), S('abs'), S('abs'), S('abs')] },
+      { key: 'yoga', title: 'Yoga', parts: 'mobility & flexibility', minutes: 25, slots: [], light: { minutes: 25, note: 'Twenty-five minutes of range and breathing. Long holds, nothing forced — this is the day the week loosens.' } },
+      { key: 'recovery', title: 'Active recovery', parts: 'walk or light movement', minutes: 25, slots: [], light: { minutes: 25, note: 'A walk, an easy cycle, a swim — twenty to thirty minutes, conversational. Recovery, not a session.' } },
+    ],
+    weeks: [
+      { label: 'Build movement', line: 'Get into rhythm. Full body, low impact, build consistency.' },
+      { label: 'Build strength', line: 'Increase intensity. Focus on form and control.' },
+      { label: 'Build endurance', line: 'Move longer. Feel stronger. Improve conditioning.' },
+      { label: 'Feel your best', line: 'Bring it together. Strength, cardio, mobility and recovery.' },
+    ],
+  },
 };
 
 export const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
@@ -216,6 +314,9 @@ export interface ProgrammeDay {
   exercises: ProgrammeExercise[];
   /** Minutes of the day's cardio, on a cardio day; the walk to take, on a rest day. */
   cardioMinutes: number;
+  /** How long the day is, as the card prints it: the division's length on a
+   *  division day, otherwise an estimate from the work. */
+  minutes: number;
   /** One line from the trainer for the day. */
   note: string;
   /**
@@ -318,6 +419,10 @@ export interface ProgrammeRest {
   advice: string[];
 }
 
+/** A phase as the month prints it: PHASES' numbers, and under a division
+ *  the division's own name and line for the week. */
+export interface ProgrammePhase { key: Phase; label: string; sets: number; reps: 'low' | 'full' | 'high'; restSec: number; note: string; line?: string }
+
 export interface Programme {
   startDate: string;
   /** 0–27, or -1 before the start and 28 after the end (the service rolls the month). */
@@ -326,7 +431,11 @@ export interface Programme {
   splitName: string;
   /** How many days the split rotates through — the modulus `slot` counts in. */
   splitDays: number;
-  phases: typeof PHASES;
+  phases: ProgrammePhase[];
+  /** The division this month runs (18 Sep), or null for a day-count split. */
+  division: { key: DivisionKey; name: string; tag: string; splitName: string } | null;
+  /** The four weeks as the page prints their rows: name, line, first and last date. */
+  weeks: { week: 1 | 2 | 3 | 4; label: string; line: string; from: string; to: string }[];
   days: ProgrammeDay[];
   /** Why the month is shaped this way — every clause names an input. */
   why: string[];
@@ -356,6 +465,9 @@ export interface ProgrammeInput {
    * Absent or 'home', the pool is whatever the kit list allows.
    */
   place?: 'home' | 'gym';
+  /** TWO DIVISIONS (18 Sep): run the gym or the home template instead of
+   *  the day-count split. Absent, the month is built exactly as before. */
+  division?: DivisionKey;
   conditions: Condition[];
   /** Usually the citizen's id. */
   seed: string;
@@ -493,8 +605,11 @@ export function buildProgramme(input: ProgrammeInput): Programme {
   const days = Math.max(1, Math.min(asked, free));
   const goal = GOAL_PRESCRIPTION[input.bodyGoal] ?? GOAL_PRESCRIPTION.athletic;
   const lvl = LEVEL_ADJUST[input.level] ?? LEVEL_ADJUST.intermediate;
-  const split = SPLITS[days] ?? SPLITS[3];
-  const placement = placeTraining(days, restDays);
+  const division = input.division ? DIVISIONS[input.division] : null;
+  const split = division ? division.days : (SPLITS[days] ?? SPLITS[3]);
+  /* A division's own week — Thursday off — when the citizen has not said
+     and has the six days for it; the citizen's days otherwise, as before. */
+  const placement = division && restDays.length === 0 && days === division.placement.length ? division.placement : placeTraining(days, restDays);
   const off = offDay(input.restActivity);
   const pool = poolFor(input.equipment, input.conditions);
 
@@ -502,7 +617,7 @@ export function buildProgramme(input: ProgrammeInput): Programme {
   // the training days to the road; a mixed month alternates; a weights month
   // is all rotation. The rotation itself never changes — only which of the
   // week's days are on it.
-  const strengthDays = input.mode === 'walking' || input.mode === 'running' ? Math.min(2, days) : input.mode === 'mixed' ? Math.ceil(days / 2) : days;
+  const strengthDays = division ? days : input.mode === 'walking' || input.mode === 'running' ? Math.min(2, days) : input.mode === 'mixed' ? Math.ceil(days / 2) : days;
   const cardioName = input.mode === 'running' ? 'Run' : input.mode === 'walking' ? 'Walk' : 'Cardio';
   const cardioMinutes = input.level === 'basic' ? 20 : input.level === 'beginner' ? 30 : input.level === 'intermediate' ? 35 : 45;
 
@@ -580,13 +695,14 @@ export function buildProgramme(input: ProgrammeInput): Programme {
          that is what it is to the programme — a day off the split — and
          every reader of `kind` is asking that question, not what the citizen
          does with the afternoon. */
-      out.push({ ...base, kind: 'rest', title: off.title, parts: off.parts, muscles: [], exercises: [], cardioMinutes: off.minutes, note: off.note });
+      out.push({ ...base, kind: 'rest', title: off.title, parts: off.parts, muscles: [], exercises: [], cardioMinutes: off.minutes, minutes: off.minutes, note: off.note });
       continue;
     }
     if (slotInWeek >= strengthDays) {
       out.push({
         ...base, kind: 'cardio', title: cardioName, parts: 'heart & lungs', muscles: [], exercises: [],
         cardioMinutes: phase.key === 'deload' ? Math.round(cardioMinutes * 0.7) : cardioMinutes,
+        minutes: phase.key === 'deload' ? Math.round(cardioMinutes * 0.7) : cardioMinutes,
         note: input.mode === 'running'
           ? (input.level === 'basic' || input.level === 'beginner' ? 'Run a minute, walk two, and repeat. Build the running minute each week.' : 'Easy pace for most of it; brisk enough to be breathing, easy enough to talk.')
           : 'Brisk enough to be breathing, easy enough to talk. Hills if you have them.',
@@ -600,6 +716,14 @@ export function buildProgramme(input: ProgrammeInput): Programme {
     const slot = sequence[rotation] ?? rotation % split.length;
     const day = split[slot];
     rotation += 1;
+    if (day.light) {
+      /* A LIGHT DAY IN THE ROTATION (18 Sep): conditioning, yoga, recovery.
+         Its kind is 'cardio' because that is what it is to every reader of
+         `kind` — a day off the weights — and it keeps its slot so a move
+         walks it forward with the rest. */
+      out.push({ ...base, kind: 'cardio', slot, title: day.title, parts: day.parts, muscles: [], exercises: [], cardioMinutes: day.light.minutes, minutes: day.light.minutes, note: day.light.note });
+      continue;
+    }
     const variant = week % 2 === 1 ? 'a' : 'b';
     const sets = Math.max(2, goal.sets + lvl.sets + phase.sets);
     const reps: [number, number] = phase.reps === 'low'
@@ -615,6 +739,9 @@ export function buildProgramme(input: ProgrammeInput): Programme {
         equipment: e.equipment, sets, reps, restSec, steps: e.steps, thumb: exerciseThumbUrl(e), gif: exerciseGifUrl(e),
       })),
       cardioMinutes: 0,
+      /* The division's length, or an estimate: five minutes to warm up, then
+         every set's reps at three seconds each plus its rest. */
+      minutes: day.minutes ?? Math.round(5 + chosen.length * sets * (((reps[0] + reps[1]) / 2) * 3 + restSec) / 60),
       note: phase.note,
     });
   }
@@ -658,7 +785,9 @@ export function buildProgramme(input: ProgrammeInput): Programme {
   }
 
   const why = [
-    `You can give ${days} day${days === 1 ? '' : 's'} a week, so the month is ${SPLIT_NAMES[days] ?? SPLIT_NAMES[3]}: every muscle is worked, then left alone long enough to grow.`,
+    division
+      ? `${division.name} runs ${division.splitName} over ${days} day${days === 1 ? '' : 's'} a week: every muscle is worked, then left alone long enough to grow, and the light day keeps the heart in it.`
+      : `You can give ${days} day${days === 1 ? '' : 's'} a week, so the month is ${SPLIT_NAMES[days] ?? SPLIT_NAMES[3]}: every muscle is worked, then left alone long enough to grow.`,
     `Your body goal sets the work — ${goal.sets + lvl.sets} sets of ${goal.reps[0]}–${goal.reps[1]} at your level, with ${goal.restSec + lvl.restSec}s rest — and the four weeks move through base, build, peak and deload.`,
     gym
       ? `You train at a gym, so the month is built on the bars, the dumbbells, the cables and the machines — the presses, rows and pulldowns — with a pull-up or a dip where a trainer would keep one; ${[...pool.values()].reduce((n, xs) => n + xs.length, 0)} of the ${EXERCISE_CATALOG.length} in the catalogue qualify.`
@@ -673,9 +802,15 @@ export function buildProgramme(input: ProgrammeInput): Programme {
     startDate: input.startDate,
     todayIndex: daysBetween(input.startDate, input.today),
     daysPerWeek: days,
-    splitName: SPLIT_NAMES[days] ?? SPLIT_NAMES[3],
+    splitName: division ? division.splitName : SPLIT_NAMES[days] ?? SPLIT_NAMES[3],
     splitDays: split.length,
-    phases: PHASES,
+    phases: division ? PHASES.map((p, i) => ({ ...p, label: division.weeks[i].label, line: division.weeks[i].line })) : PHASES,
+    division: division && input.division ? { key: input.division, name: division.name, tag: division.tag, splitName: division.splitName } : null,
+    weeks: ([1, 2, 3, 4] as const).map((week) => ({
+      week, label: division ? division.weeks[week - 1].label : PHASES[week - 1].label,
+      line: division ? division.weeks[week - 1].line : PHASES[week - 1].note,
+      from: addDays(input.startDate, (week - 1) * 7), to: addDays(input.startDate, week * 7 - 1),
+    })),
     days: out,
     why,
     rest: {

@@ -378,9 +378,9 @@ export const ROOM_FLAGS: RoomFlag[] = [
   ...rooms('nutrition', 'Nutrition', [
     ['01', '/nutrition/blood', 'Connect Blood Test'],
     ['02', '/nutrition/preferences', 'Food Preference Profile'],
-    ['03', '/nutrition/weekly', 'Weekly Meal Planner'],
-    ['04', '/nutrition/grocery', 'Grocery Lists'],
-    ['05', '/nutrition/recipes', 'Create Your Own Meal Plan'],
+    ['03', '/nutrition/recipes', 'Create Your Own Meal Plan'],
+    ['04', '/nutrition/weekly', 'Weekly Meal Planner'],
+    ['05', '/nutrition/grocery', 'Grocery Lists'],
     ['06', '/nutrition/journal', 'AI Food Journal'],
     ['07', '/nutrition/saved', 'Saved Recipes'],
   ]),

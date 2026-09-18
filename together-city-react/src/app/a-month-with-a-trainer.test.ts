@@ -36,7 +36,11 @@ describe('the whiteboard', () => {
   });
 
   it('draws the twenty-eight days, ticks the done ones and rings today', () => {
-    expect(page).toMatch(/<ol className="wk-month-grid" aria-label="The twenty-eight days">/);
+    /* FOUR ROWS, ONE A WEEK (18 Sep): the twenty-eight days are drawn a week
+       to a row, so the grid is one <ol> per week inside the list of weeks —
+       and every tile is still the same key. */
+    expect(page).toMatch(/<ol className="wm-weeks" aria-label="The four weeks">/);
+    expect(page).toMatch(/<ol className="wk-month-grid wm-days" aria-label=\{`Week \$\{w\.week\}, the seven days`\}>/);
     expect(page).toMatch(/d\.index === monthDay\.index \? 'is-today'/);
     expect(page).toMatch(/d\.done \? 'is-done'/);
     const css = read('styles/layout.css');

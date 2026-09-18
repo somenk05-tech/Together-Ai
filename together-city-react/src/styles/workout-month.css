@@ -1,0 +1,61 @@
+/* ── TWO DIVISIONS, ONE MONTH (owner, 18 Sep) ──────────────────────────────
+   The month on the Workout page drawn as four rows: the week's name, line
+   and dates on the left, seven day cards across — a picture, the day's
+   title, how many exercises, how long. The day key is still `.wk-month-key`
+   from layout.css (every day is a door, 9 Sep); this sheet dresses it as a
+   card inside `.wm-days` and adds the head with the Gym / Home choice.
+   Tokens only; no literal anywhere. */
+
+.wm-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.wm-h2 { margin: 4px 0 0; font-size: var(--fs-9); font-weight: 700; line-height: 1.15; letter-spacing: -.02em; }
+.wm-tag { margin: 6px 0 0; font-size: var(--fs-4); max-width: 60ch; }
+.wm-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.wm-kinds { display: flex; gap: 4px; padding: 3px; border-radius: var(--r-full); border: 1px solid var(--line); background: var(--card); }
+.wm-kind {
+  min-height: 38px; padding: 6px 16px; border-radius: var(--r-full); border: 1px solid transparent;
+  background: transparent; color: var(--ink-soft); font: inherit; font-size: var(--fs-3); font-weight: 700; cursor: pointer;
+}
+.wm-kind[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.wm-kind:disabled { cursor: progress; }
+.wm-adjust { text-decoration: none; }
+.wm-alert { margin: 0 0 12px; font-size: var(--fs-3); color: var(--danger-ink); font-weight: 600; }
+
+.wm-today { padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+
+.wm-weeks { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; margin-top: 14px; }
+.wm-week {
+  display: grid; grid-template-columns: minmax(150px, 170px) minmax(0, 1fr); gap: 12px; align-items: start;
+  padding: 12px; border: 1px solid var(--line); border-radius: var(--r-2); background: var(--wash);
+}
+.wm-week-l { display: grid; gap: 4px; padding: 4px 4px 0; }
+.wm-week-name { font-size: var(--fs-7); font-weight: 700; line-height: 1.15; }
+.wm-week-dates { font-size: var(--fs-2); }
+.wm-week-line { margin: 4px 0 0; font-size: var(--fs-2); line-height: 1.5; }
+
+/* The seven cards. `.wk-month-grid` keeps its seven columns from layout.css;
+   this adds the card's own rows. */
+.wm-days { margin: 0; gap: 8px; }
+.wm-days .wk-month-key { display: grid; grid-template-rows: auto auto auto auto auto; gap: 4px; padding: 10px; min-height: 0; }
+.wm-days .wk-month-key .n { font-size: var(--fs-1); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.wm-days .wk-month-key .t { font-size: var(--fs-3); white-space: normal; line-height: 1.2; }
+.wm-days .wk-month-key .wm-s { font-size: var(--fs-2); color: var(--muted); line-height: 1.2; }
+.wm-days .wk-month-key .wm-m { font-size: var(--fs-2); color: var(--ink-soft); font-weight: 600; }
+.wm-days .wk-month-key .d { top: 8px; right: 8px; }
+.wm-days .wk-month-key.is-today .n { color: var(--accent-ink); }
+.wm-pic { display: block; width: 100%; aspect-ratio: 4 / 3; border-radius: var(--r-1); object-fit: cover; background: var(--media-bg); }
+.wm-mark { display: grid; place-items: center; font-size: var(--fs-8); color: var(--on-ground-soft); background: var(--stage); }
+.wm-mark.is-cardio { background: var(--accent-soft); color: var(--accent-ink); }
+.wm-credit { margin: 12px 0 0; font-size: var(--fs-1); }
+
+@media (max-width: 1100px) {
+  .wm-week { grid-template-columns: minmax(0, 1fr); }
+  .wm-week-l { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+  .wm-week-line { flex-basis: 100%; margin: 0; }
+}
+@media (max-width: 899px) {
+  .wm-days { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .wm-days { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wm-h2 { font-size: var(--fs-8); }
+}
