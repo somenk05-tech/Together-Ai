@@ -25,7 +25,9 @@ describe('the whiteboard', () => {
   it('asks the server for the month and draws it above today\'s plan', () => {
     expect(api).toMatch(/api\.get<Programme>\('\/fitness\/programme'\)/);
     expect(page).toMatch(/const programme = useProgramme\(\);/);
-    expect(page.indexOf('className="blk wk-month"')).toBeLessThan(page.indexOf('Today&rsquo;s plan'));
+    /* The page ends with the week now (18 Sep) — there is no plan under the
+       month to be above. The month is still drawn. */
+    expect(page).toMatch(/className="blk wk-month"/);
   });
 
   it('says which day, which week, which phase and which body part — and what is next', () => {

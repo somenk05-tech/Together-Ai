@@ -15,9 +15,11 @@ import {
   type ConditionAdjustment,
 } from './fitness-engine';
 import { buildSession, type LevelKey, type BodyGoalKey, type SessionInput, type Intensity } from './session-engine';
-import { buildProgramme, daysBetween, readMoves, writeMoves, type Muscle } from './programme-engine';
+import { buildProgramme, daysBetween, readMoves, writeMoves, MUSCLE_WORDS, type Muscle } from './programme-engine';
+import { catalogById, exerciseGifUrl, exerciseThumbUrl } from './exercise-catalog';
+import { ADDITIONS_PER_DAY } from './dto/fitness.dto';
 import { EQUIPMENT_KEYS, type Condition, type Equipment , type Pattern } from './exercise-library';
-import type { SaveFitnessProfileDto, SaveTrainingWeekDto, MoveWorkoutDayDto, ChoosePlaceDto, LogWorkoutDto, EditWorkoutDto, TodaySessionQueryDto } from './dto/fitness.dto';
+import type { SaveFitnessProfileDto, SaveTrainingWeekDto, MoveWorkoutDayDto, ChoosePlaceDto, AddToDayDto, LogWorkoutDto, EditWorkoutDto, TodaySessionQueryDto } from './dto/fitness.dto';
 
 const DEFAULT_PROFILE = {
   age: 35, sex: 'other', level: 'beginner', mode: 'mixed', goal: 'general', conditions: [] as string[],
@@ -479,7 +481,63 @@ export class FitnessService {
       select: { doneAt: true },
     }).catch(swallowed('fitness.programme.logs', [] as { doneAt: Date }[]));
     const done = new Set(logs.map((l) => cityDay(l.doneAt)));
-    return { ...built, cycle, today, days: built.days.map((d) => ({ ...d, done: done.has(d.date) })) };
+    /* THE CITIZEN'S OWN ADDITIONS (owner, 18 Sep: "search and add workout to
+       the day"). Read for this cycle, merged after the build so the engine
+       stays a pure function of the profile; a day that was moved keeps the
+       additions on its calendar day, which is what somebody who added a
+       movement to Friday meant. Bounded: at most ADDITIONS_PER_DAY on each
+       of 28 days. */
+    const extra = await this.prisma.programmeAddition.findMany({
+      where: { userId, cycle }, orderBy: { createdAt: 'asc' }, take: 28 * ADDITIONS_PER_DAY,
+    }).catch(swallowed('fitness.programme.additions', [] as { id: string; dayIndex: number; exerciseId: string; sets: number; reps: number }[]));
+    return {
+      ...built, cycle, today,
+      days: built.days.map((d) => {
+        const mine = extra.filter((x) => x.dayIndex === d.index).flatMap((x) => {
+          const c = catalogById(x.exerciseId);
+          if (!c) return [];
+          const like = d.exercises[0];
+          return [{
+            id: c.id, name: c.name, muscle: c.target as Muscle, works: (MUSCLE_WORDS as Record<string, string>)[c.target] ?? c.target,
+            equipment: c.equipment, sets: x.sets, reps: [x.reps, x.reps] as [number, number], restSec: like?.restSec ?? 60,
+            steps: c.steps, thumb: exerciseThumbUrl(c), gif: exerciseGifUrl(c), additionId: x.id,
+          }];
+        });
+        return { ...d, done: done.has(d.date), exercises: [...d.exercises, ...mine] };
+      }),
+    };
+  }
+
+  /**
+   * ── A DAY IS A PAGE, AND THE CITIZEN CAN ADD TO IT (owner, 18 Sep) ────────
+   *
+   * "When someone clicks on the day it should open the day on a new page with
+   * that day's complete workout, and below each workout day page add search
+   * and add workout to the day."
+   *
+   * A movement added to a day is the citizen's, kept on its own row (not on
+   * the programme, which is built fresh on every read) and merged into the
+   * day above. The sets and reps are theirs; the rest is the day's. Unmetered
+   * like the week and the move, and it returns the rebuilt month. Capped at
+   * ADDITIONS_PER_DAY, because twelve added movements is a second session,
+   * not a day.
+   */
+  async addToDay(userId: string, dayIndex: number, dto: AddToDayDto) {
+    if (!Number.isInteger(dayIndex) || dayIndex < 0 || dayIndex > 27) throw new NotFoundException('No such day in your month');
+    if (!catalogById(dto.exerciseId)) throw new NotFoundException('No movement with that id');
+    const month = await this.programme(userId);
+    const have = await this.prisma.programmeAddition.count({ where: { userId, cycle: month.cycle, dayIndex } });
+    if (have >= ADDITIONS_PER_DAY) throw new ForbiddenException(`That day already has ${ADDITIONS_PER_DAY} movements of yours — take one off to add another.`);
+    await this.prisma.programmeAddition.create({
+      data: { userId, cycle: month.cycle, dayIndex, exerciseId: dto.exerciseId, sets: dto.sets, reps: dto.reps },
+    });
+    return this.programme(userId);
+  }
+
+  async removeFromDay(userId: string, id: string) {
+    const { count } = await this.prisma.programmeAddition.deleteMany({ where: { id, userId } });
+    if (count === 0) throw new NotFoundException('No movement of yours with that id');
+    return this.programme(userId);
   }
 
   // ─────────────── body goal ↔ nutrition (the reverse-connect) ───────────────

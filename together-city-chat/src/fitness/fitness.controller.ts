@@ -14,6 +14,7 @@ import {
   SaveTrainingWeekSchema,
   MoveWorkoutDaySchema,
   ChoosePlaceSchema,
+  AddToDaySchema,
   TodaySessionQueryDto,
   TodaySessionQuerySchema,
   type EditWorkoutDto,
@@ -22,6 +23,7 @@ import {
   type SaveTrainingWeekDto,
   type MoveWorkoutDayDto,
   type ChoosePlaceDto,
+  type AddToDayDto,
 } from './dto/fitness.dto';
 import {
   SupplementBagSchema, type SupplementBagDto,
@@ -126,6 +128,23 @@ export class FitnessController {
   @UsePipes(new ZodValidationPipe(ChoosePlaceSchema))
   choosePlace(@CurrentUser() user: JwtUser, @Body() dto: ChoosePlaceDto) {
     return this.fitness.choosePlace(user.sub, dto);
+  }
+
+  /**
+   * POST /api/fitness/programme/day/:index/add — the citizen puts a movement
+   * on a day of their month (owner, 18 Sep); DELETE …/add/:id takes it off.
+   * Unmetered like the week and the move; both return the rebuilt month.
+   */
+  @Room('/fitness/workout')
+  @Post('programme/day/:index/add')
+  addToDay(@CurrentUser() user: JwtUser, @Param('index') index: string, @Body(new ZodValidationPipe(AddToDaySchema)) dto: AddToDayDto) {
+    return this.fitness.addToDay(user.sub, Number(index), dto);
+  }
+
+  @Room('/fitness/workout')
+  @Delete('programme/day/:index/add/:id')
+  removeFromDay(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.fitness.removeFromDay(user.sub, id);
   }
 
   @Room('/fitness/workout')

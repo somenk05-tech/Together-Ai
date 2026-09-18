@@ -32,7 +32,7 @@ describe('the layout', () => {
   it('keeps every day a door — the same key as before, wearing the card', () => {
     /* The 9 Sep key: a button, toggled, today ringed, done ticked. */
     expect(page).toMatch(/className=\{\['wk-month-key'/);
-    expect(page).toMatch(/aria-pressed=\{d\.index === openDay\}/);
+    expect(page).toMatch(/aria-current=\{d\.index === openDay \? 'true' : undefined\}/);
     expect(page).toMatch(/d\.kind === 'strength' && d\.exercises\[0\]\?\.thumb/);
     expect(page).toMatch(/<img className="wm-pic" src=\{d\.exercises\[0\]\.thumb\} alt="" loading="lazy" \/>/);
     expect(page).toMatch(/`\$\{d\.exercises\.length\} exercises`/);

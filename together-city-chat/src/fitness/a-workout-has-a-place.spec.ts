@@ -42,7 +42,10 @@ describe('a workout has a place, and an entry has an owner', () => {
       // same reply. A 403 for one and a 404 for the other is a membership
       // oracle: it tells anybody with a list of ids which ones exist.
       const both = [...code.matchAll(/if \(count === 0\) throw new NotFoundException\(/g)];
-      expect({ places: both.length }).toEqual({ places: 2 });
+      /* Three since 18 Sep: the two log routes, and removeFromDay — a movement
+         the citizen put on a day, taken off by deleteMany({ id, userId })
+         with the same one answer for a stranger and a fiction. */
+      expect({ places: both.length }).toEqual({ places: 3 });
       expect(code).not.toMatch(/ForbiddenException\('No workout/);
     });
 

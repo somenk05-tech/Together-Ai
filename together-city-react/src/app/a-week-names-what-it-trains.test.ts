@@ -58,7 +58,10 @@ describe('the week names what it trains, and today follows it', () => {
 
   it('carries the day into the session’s explanation', () => {
     expect(api).toMatch(/day: string \| null/);
-    expect(workout).toMatch(/session\.why\.day/);
+    /* The plan came off the Workout page (18 Sep); the day's own page
+       (WorkoutDay.tsx) carries the day, its week and its note instead. */
+    expect(workout).not.toMatch(/session\.why\.day/);
+    expect(read('src/features/fitness/pages/WorkoutDay.tsx')).toMatch(/Day \{day\.index \+ 1\} of \{month\.days\.length\} · week \{day\.week\}/);
   });
 
   it('leaves the Workout page building nothing of its own', () => {

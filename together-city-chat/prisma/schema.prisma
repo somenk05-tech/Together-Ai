@@ -5304,3 +5304,26 @@ model WorkoutPlan {
 
   @@index([userId, updatedAt])
 }
+
+/**
+ * ── A DAY IS A PAGE, AND THE CITIZEN CAN ADD TO IT (owner, 18 Sep) ──────────
+ *
+ * A movement the citizen put on one day of their month themselves. The month
+ * is built fresh on every read (programme-engine.ts), so what they add has to
+ * live on its own row and be merged in: keyed by the cycle and the day index
+ * the month counts in, with their own sets and reps. `exerciseId` is a
+ * catalogue id (exercise-catalog.ts), checked before the write. No foreign
+ * key to User, like WorkoutPlan: the purge plan takes it by userId.
+ */
+model ProgrammeAddition {
+  id         String   @id @default(uuid())
+  userId     String
+  cycle      Int
+  dayIndex   Int
+  exerciseId String
+  sets       Int
+  reps       Int
+  createdAt  DateTime @default(now())
+
+  @@index([userId, cycle, dayIndex])
+}

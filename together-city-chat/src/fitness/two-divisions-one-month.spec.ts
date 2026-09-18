@@ -86,12 +86,15 @@ describe('the two divisions', () => {
   it('still let the citizen\'s own days off win', () => {
     const p = buildProgramme({ ...GYM, restDays: [5, 6] });
     const w = week1(p);
-    expect(w[5].kind).toBe('rest');
+    /* THE SIXTH DAY (owner, 18 Sep): six were asked and two kept, so the
+       light session takes the first kept day — easy, and still a day off
+       in everything but name — and the second kept day is rest. The hard
+       five rotate on the five free days. See a-day-is-a-page.spec.ts. */
+    expect(w[5].kind).toBe('cardio');
+    expect(w[5].title).toBe('Conditioning');
     expect(w[6].kind).toBe('rest');
-    /* Five days left, six sessions: the rotation runs on into week two rather
-       than dropping a session on the floor. */
-    expect(w.filter((d) => d.kind !== 'rest')).toHaveLength(5);
-    expect(p.days[7].title).toBe('Conditioning');
+    expect(w.filter((d) => d.kind !== 'rest')).toHaveLength(6);
+    expect(p.days[7].title).toBe('Chest + Triceps');
   });
 
   it('leave a month built without a division exactly as it was', () => {

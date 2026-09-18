@@ -26,12 +26,14 @@ const code = (p: string) =>
 describe('every day of the month is a door', () => {
   const page = code('features/fitness/pages/Workout.tsx');
 
-  it('makes each tile a button that opens that day', () => {
+  it('makes each tile a link to the day\u2019s own page, and the panel still opens for the day sent back', () => {
+    /* A DAY IS A PAGE (18 Sep): the tile went from a toggle to a door —
+       /fitness/workout/day/:index — and the panel under the month opens
+       when that page sends the citizen back with ?day=. */
     expect(page).toMatch(/className=\{\['wk-month-key'/);
-    expect(page).toMatch(/onClick=\{\(\) => setOpenDay\(\(cur\) => \(cur === d\.index \? null : d\.index\)\)\}/);
-    /* Pressing the open day again shuts it, so the key is a toggle rather
-       than a one-way trip that needs a second control to undo. */
-    expect(page).toMatch(/aria-pressed=\{d\.index === openDay\}/);
+    expect(page).toMatch(/<Link to=\{`\/fitness\/workout\/day\/\$\{d\.index\}`\}/);
+    expect(page).toMatch(/params\.get\('day'\)/);
+    expect(page).toMatch(/setOpenDay\(d\)/);
   });
 
   it('opens on today, and comes back to today tomorrow', () => {

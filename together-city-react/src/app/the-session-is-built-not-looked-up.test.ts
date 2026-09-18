@@ -48,27 +48,29 @@ describe('the workout page draws a session it did not build', () => {
     // Length and place are facts about today. The level, the split, the gender
     // emphasis and the rep scheme were opinions this file held about a citizen
     // whose real answers were saved on the server.
-    expect(page).toMatch(/const \[dur, setDur\] = useState<number \| undefined>\(undefined\)/);
-    expect(page).toMatch(/const \[loc, setLoc\] = useState<Loc \| undefined>\(undefined\)/);
+    /* THE PLAN CAME OFF THE PAGE (owner, 18 Sep: it ends with 'Which days are
+       yours?'). The two overrides are still the only ones, and both are
+       undefined now — the length is the profile's and the place is the
+       Gym / Home choice on the month. Nothing here decides for the citizen. */
+    expect(page).toMatch(/const dur: number \| undefined = undefined;/);
+    expect(page).toMatch(/const loc: Loc \| undefined = undefined;/);
     expect(page).not.toMatch(/setLevel|setFocus/);
-    // …and undefined means "whatever my profile says", not a default chosen here.
-    expect(page).toMatch(/training profile/);
   });
 
   it('shows why the workout looks like this, from named inputs', () => {
-    for (const part of ['session.why.goal', 'session.why.energy', 'session.why.activity', 'session.why.ceiling']) {
-      expect({ part, shown: page.includes(part) }).toEqual({ part, shown: true });
-    }
-    // What it did NOT know, with the way to give it — an input nobody was asked
-    // for is not personalisation anybody can claim.
-    expect(page).toMatch(/session\.why\.missing\.length > 0/);
-    expect(page).toMatch(/Not in this yet/);
+    /* The explanation left with the plan (18 Sep). The server still writes
+       it — the api's shape below is the contract — and the page prints
+       none of it, rather than a copy of its own. */
+    expect(api).toMatch(/why: \{ goal: string; energy: string \| null; activity: string; ceiling: string \| null; day: string \| null; missing: string\[\] \}/);
+    expect(page).not.toMatch(/session\.why\./);
   });
 
   it('never swaps a movement silently', () => {
-    expect(page).toMatch(/session\.substitutions\.length > 0/);
-    expect(page).toMatch(/instead of \{sub\.from\}/);
-    expect(page).toMatch(/session\.cautions/);
+    /* Same: the substitutions and the cautions are the server's, on the
+       session (api below); the page no longer draws the block they sat in. */
+    expect(api).toMatch(/substitutions: \{ from: string; to: string; because: string \}\[\]/);
+    expect(api).toMatch(/cautions: string\[\]/);
+    expect(page).not.toMatch(/session\.substitutions|session\.cautions/);
   });
 
   it('makes the burn follow the session that was actually built', () => {

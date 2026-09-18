@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui';
 import {
   EXERCISE_MEDIA_ATTRIBUTION, OFF_DAY_ACTIVITIES, WEEKDAY_NAMES, WEEKDAY_SHORT,
   useAddWorkout, useMoveWorkoutDay, useProgramme, useSaveTrainingWeek, useTodaySession,
-  type ProgrammeDay, type TodaySession,
+  type ProgrammeDay,
 } from '../api';
 import { BodyGoalPanel } from '../components/BodyGoalPanel';
 import { dateSpan, monthOf, useChoosePlace } from '../division.api';
@@ -101,36 +101,6 @@ interface Step {
 const REP_SECONDS = 3;
 
 /**
- * The server's blocks, flattened into the steps the live timer walks.
- *
- * Sets become repeated steps with a rest between them — that is what makes the
- * timer able to say "set 2 of 3" without the engine knowing a timer exists.
- */
-function stepsFrom(session: TodaySession | undefined, includeWalk: boolean): Step[] {
-  if (!session) return [];
-  const out: Step[] = [];
-  for (const block of session.blocks) {
-    if (block.title === 'Then walk') continue;
-    for (const ex of block.exercises) {
-      const perSet = ex.seconds ?? Math.round(((ex.reps?.[1] ?? 10)) * REP_SECONDS);
-      for (let i = 1; i <= ex.sets; i++) {
-        out.push({
-          name: ex.name, block: block.title, dur: perSet,
-          reps: ex.reps ? ex.reps[1] : null,
-          note: ex.reps ? `${ex.reps[0]}–${ex.reps[1]} reps${ex.unilateral ? ' each side' : ''}` : undefined,
-          ...(ex.sets > 1 ? { round: i } : {}),
-          steps: ex.steps, muscles: ex.muscles, gif: ex.gif, video: ex.video || undefined,
-        });
-        if (i < ex.sets && ex.restSec > 0) out.push({ name: 'Rest', block: block.title, dur: ex.restSec, reps: null, rest: true });
-      }
-    }
-  }
-  // The walk is a block the timer draws itself, so its own instructions have to
-  // be fetched out of the block it replaces rather than written again here.
-  if (includeWalk) out.push(walkStepOf(session.walkMinutes, session.blocks.find((b) => b.title === 'Then walk')?.exercises[0]));
-  return out;
-}
-/**
  * ── ANY DAY OF THE MONTH, NOT ONLY TODAY (owner, 9 Sep: "let user see past
  * and future workouts") ─────────────────────────────────────────────────────
  *
@@ -159,12 +129,6 @@ function stepsFromDay(day: ProgrammeDay): Step[] {
   }
   return out;
 }
-
-const walkStepOf = (minutes: number, from?: { steps?: string[]; muscles?: string[] }): Step => ({
-  name: 'Brisk walk', block: 'Finish', dur: minutes * 60, reps: null, walk: true,
-  note: `${minutes} minutes · brisk enough to be breathing, easy enough to talk`,
-  steps: from?.steps, muscles: from?.muscles,
-});
 
 /** Map the Nutrition food-preference profile onto the fitness body profile. */
 function healthFromPref(
@@ -202,8 +166,6 @@ const STATUS_STYLE: Record<Status, { bg: string; c: string }> = {
   complete: { bg: 'var(--ok-soft)', c: 'var(--ok-ink)' }, workout: { bg: 'var(--accent-soft)', c: 'var(--accent)' }, walk: { bg: 'var(--warn-soft)', c: 'var(--warn-ink)' },
   light: { bg: 'var(--accent-soft)', c: 'var(--accent)' }, none: { bg: 'var(--danger-soft)', c: 'var(--danger-ink)' }, rest: { bg: 'var(--line)', c: 'var(--ink-soft)' },
 };
-const DAYNAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const DOT_COLOR: Record<string, string> = { complete: 'var(--ok-ink)', workout: 'var(--accent)', walk: 'var(--accent-ink)', light: 'var(--info-line)', none: 'var(--danger-ink)', '': 'var(--line)' };
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 interface DayLog { status: Status; kcal: number }
 
@@ -222,8 +184,8 @@ export function Workout() {
    * the gender emphasis and the rep scheme are gone from here entirely: they
    * are the server's, from the profile they saved.
    */
-  const [dur, setDur] = useState<number | undefined>(undefined);
-  const [loc, setLoc] = useState<Loc | undefined>(undefined);
+  const dur: number | undefined = undefined;
+  const loc: Loc | undefined = undefined;
   const [log, setLog] = useState<Record<string, DayLog>>({});
   const todays = useTodaySession(dur, loc);
   const session = todays.data;
@@ -239,6 +201,18 @@ export function Workout() {
      should keep doing so, and a citizen who reads Thursday and comes back
      tomorrow should find their own day again rather than Thursday. */
   const [openDay, setOpenDay] = useState<number | null>(null);
+  /* SENT BACK FROM A DAY'S PAGE (18 Sep): /fitness/workout?day=11 opens that
+     day's panel under the month, and ?start=11 runs it. Either is read
+     once and taken off the address, so a refresh is today again. */
+  const [params, setParams] = useSearchParams();
+  const startAsked = params.has('start') ? Number(params.get('start')) : null;
+  useEffect(() => {
+    const d = Number(params.get('day'));
+    if (params.has('day') && Number.isInteger(d) && d >= 0 && d < 28) {
+      setOpenDay(d);
+      setParams((p) => { p.delete('day'); return p; }, { replace: true });
+    }
+  }, [params, setParams]);
   const shown = month && openDay != null ? month.days[openDay] ?? null : null;
   const saveWeek = useSaveTrainingWeek();
   /**
@@ -294,7 +268,6 @@ export function Workout() {
   const sessionMin = session?.minutes ?? 0, walkMin = session?.walkMinutes ?? 0;
   const burnWorkout = kcalWorkout(sessionMin, WEIGHT), burnWalk = kcalWalk(walkMin, WEIGHT), burnTotal = burnWorkout + burnWalk;
 
-  const workoutSeconds = useMemo(() => stepsFrom(session, false).reduce((a, st) => a + st.dur, 0), [session]);
 
   /* live timer runtime kept in a ref to avoid stale closures */
   const rt = useRef({ seq: [] as Step[], idx: 0, remain: 0, paused: false, running: false, workoutSec: 0, walkSec: 0, mode: 'full' as 'full' | 'walk' });
@@ -328,16 +301,6 @@ export function Workout() {
   };
   const advance = () => goStep(rt.current.idx + 1);
 
-  const start = (mode: 'full' | 'walk') => {
-    const seq = mode === 'walk' ? [walkStepOf(walkMin || 20)] : stepsFrom(session, true);
-    rt.current = { seq, idx: 0, remain: seq[0]?.dur ?? 0, paused: false, running: true, workoutSec: 0, walkSec: 0, mode };
-    force();
-    speak(seq[0] ? seq[0].name : 'Start');
-    // THE WHOLE SCREEN (owner, 6 Sep). Asked for here, inside the tap on
-    // Start, because that is the only place a browser grants it; iOS Safari
-    // has no such call and the overlay already fills the viewport there.
-    void document.documentElement.requestFullscreen?.().catch(() => undefined);
-  };
   /**
    * ── ANY DAY OF THE MONTH, RUN (owner, 9 Sep) ─────────────────────────────
    *
@@ -356,6 +319,14 @@ export function Workout() {
     speak(seq[0].name);
     void document.documentElement.requestFullscreen?.().catch(() => undefined);
   };
+
+  useEffect(() => {
+    if (startAsked == null || !month) return;
+    const day = Number.isInteger(startAsked) ? month.days[startAsked] : undefined;
+    setParams((p) => { p.delete('start'); return p; }, { replace: true });
+    if (day) startDay(day);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startAsked, month]);
 
   const finish = (early: boolean) => {
     const t = rt.current; t.running = false;
@@ -379,7 +350,6 @@ export function Workout() {
     force();
   };
   const skipToWalk = () => { const wi = rt.current.seq.findIndex((s) => s.walk); if (wi >= 0) goStep(wi); else finish(true); };
-  const markSkipAll = () => { if (window.confirm('Skip today? It logs as no activity.')) setLog((l) => ({ ...l, [dayKey()]: { status: 'none', kcal: 0 } })); };
 
   const today = log[dayKey()]; const tStatus: Status = today ? today.status : 'rest';
   const running = rt.current.running; const s = rt.current.seq[rt.current.idx];
@@ -415,28 +385,6 @@ export function Workout() {
     setNeedsTap(false);
     el.play().catch(() => setNeedsTap(true));
   }, [filmSrc, paused, rt.current.idx]);
-
-  const weekCells = useMemo(() => {
-    const out: { day: string; status: string; kcal: string }[] = [];
-    for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); const e = log[dayKey(d)]; out.push({ day: DAYNAMES[d.getDay()], status: e ? e.status : '', kcal: e ? inr(e.kcal) : '—' }); }
-    return out;
-  }, [log]);
-
-  const Seg = ({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) => (
-    <button type="button" onClick={onClick} style={{ border: `1px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'var(--card)', color: on ? 'var(--on-accent)' : 'var(--ink)', borderRadius: 'var(--r-full)', padding: '8px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{children}</button>
-  );
-  const exRow = (i: number, name: string, meta: string, tgt: string, video?: string) => (
-    <div key={`${name}-${i}`} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '9px 4px', borderBottom: '1px solid var(--line)' }}>
-      <span style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--accent-soft)', color: 'var(--accent-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flex: '0 0 auto' }}>{i}</span>
-      <div className="flex-min"><div style={{ fontSize: 13.5, fontWeight: 600 }}>{name}</div><div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{meta}</div></div>
-      {/* THE FILM, AS A LINK (owner, 6 Sep: "next to the workout as a video
-          link"). Only where one has been shot; it opens on its own so the plan
-          stays where it is. */}
-      {video && <a className="wk-film-link" href={video} target="_blank" rel="noopener" aria-label={`Watch ${name}`}>▶ Video</a>}
-      <span style={{ fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--accent-ink)' }}>{tgt}</span>
-    </div>
-  );
-  const blkHead = (txt: string) => <div style={{ fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700, margin: '14px 0 2px' }}>{txt}</div>;
 
   return (
     <div>
@@ -573,9 +521,13 @@ export function Workout() {
                   <ol className="wk-month-grid wm-days" aria-label={`Week ${w.week}, the seven days`}>
                     {month.days.filter((d) => d.week === w.week).map((d) => (
                       <li key={d.index}>
-                        <button type="button" aria-pressed={d.index === openDay}
+                        {/* A DAY IS A PAGE (owner, 18 Sep: "when someone clicks
+                            on the day it should open the day on a new page").
+                            The key is a link now; the panel below still opens
+                            for the day the page was sent back to (?day=). */}
+                        <Link to={`/fitness/workout/day/${d.index}`}
                           aria-label={`Day ${d.index + 1}, ${dayWord(d)}${d.done ? ', done' : ''}`}
-                          onClick={() => setOpenDay((cur) => (cur === d.index ? null : d.index))}
+                          aria-current={d.index === openDay ? 'true' : undefined}
                           className={['wk-month-key', d.index === monthDay.index ? 'is-today' : '', d.done ? 'is-done' : '', d.index < monthDay.index ? 'is-past' : '', `is-${d.kind}`].filter(Boolean).join(' ')}>
                           <span className="n">{WEEKDAY_SHORT[d.index % 7]} {d.index + 1}</span>
                           {d.kind === 'strength' && d.exercises[0]?.thumb
@@ -585,7 +537,7 @@ export function Workout() {
                           <span className="wm-s">{d.kind === 'strength' ? `${d.exercises.length} exercises` : d.parts}</span>
                           <span className="wm-m">{monthOf(month).days[d.index]?.minutes ?? d.cardioMinutes} min</span>
                           {d.done && <span className="d" aria-hidden>✓</span>}
-                        </button>
+                        </Link>
                       </li>
                     ))}
                   </ol>
@@ -659,6 +611,11 @@ export function Workout() {
               </div>
             )}
 
+            <details className="wk-month-why">
+              <summary>Why this month<span className="fold-state" aria-hidden /></summary>
+              <ul>{month.why.map((w) => <li key={w}>{w}</li>)}</ul>
+            </details>
+
             {/* ── THE WEEK IS THE CITIZEN'S (owner, 9 Sep) ────────────────
                 "Let the user decide which two days they want a break — or if
                 they don't want a break, what they can do." Directly under the
@@ -702,143 +659,15 @@ export function Workout() {
               )}
             </div>
 
-            <details className="wk-month-why">
-              <summary>Why this month<span className="fold-state" aria-hidden /></summary>
-              <ul>{month.why.map((w) => <li key={w}>{w}</li>)}</ul>
-            </details>
           </div>
         </section>
       )}
 
-      {/* plan + controls */}
-      <section className="blk">
-        <div className="blk-head">
-          <h2>Today&rsquo;s plan{session ? ` · ${session.headline}` : ''}</h2>
-          <span className="muted" style={{ fontSize: 12 }}>
-            {todays.isLoading ? 'building your session…' : session ? `≈ ${Math.round(workoutSeconds / 60)} min of work${session.eased ? ' · eased on purpose' : ''}` : ''}
-          </span>
-        </div>
-
-        {/* WHY THIS WORKOUT — the owner's first ask, and the reason the engine
-            moved to the server at all: every clause is made of a named input,
-            so "personalised" is a claim the page can back. */}
-        {session && (
-          <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--accent)' }}>
-            <div className="eyebrow">Why this workout</div>
-            {/* WHICH DAY OF THE WEEK THIS IS, FIRST. The plan said "Tuesday —
-                Pull" and this page opened a full-body session; the two engines
-                did not speak until 21 Aug. This line is the join, and it is at
-                the top of the explanation because it is the thing a citizen
-                following a plan checks first. */}
-            {session.why.day && (
-              <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '6px 0 0', fontWeight: 600 }}>{session.why.day}</p>
-            )}
-            <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '6px 0 0' }}>{session.why.goal}</p>
-            {session.why.energy && <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '6px 0 0' }}>{session.why.energy}</p>}
-            <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '6px 0 0' }}>{session.why.activity}</p>
-            {session.why.ceiling && <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '6px 0 0', color: 'var(--accent-ink)', fontWeight: 600 }}>{session.why.ceiling}</p>}
-            {/* WHAT IT DID NOT KNOW. Named, with the way to tell us beside it —
-                an input we never asked for is not personalisation we can claim. */}
-            {session.why.missing.length > 0 && (
-              <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '10px 0 0' }}>
-                Not in this yet: {session.why.missing.join('; ')}.{' '}
-                <Link to="/fitness/profile" style={{ fontWeight: 700 }}>Fill it in →</Link>
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* WHAT WAS SWAPPED, AND WHY. Never silent: a citizen quietly handed an
-            easier movement has been managed rather than trained. */}
-        {session && session.substitutions.length > 0 && (
-          <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--ok-ink)' }}>
-            <div className="eyebrow">Changed for you</div>
-            {session.substitutions.map((sub) => (
-              <p key={`${sub.from}-${sub.to}`} style={{ fontSize: 13, lineHeight: 1.6, margin: '6px 0 0' }}>
-                <b>{sub.to}</b> instead of {sub.from} — you told us about {sub.because === 'jointPain' ? 'joint pain' : sub.because}.
-              </p>
-            ))}
-          </div>
-        )}
-
-        <div className="card">
-          <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', margin: '0 0 6px' }}>How long today?</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {[30, 45, 60, 90].map((m) => <Seg key={m} on={(dur ?? session?.minutes) === m} onClick={() => setDur(m)}>{m} min</Seg>)}
-          </div>
-          <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', margin: '12px 0 6px' }}>Where are you training?</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <Seg on={(loc ?? session?.place) === 'home'} onClick={() => setLoc('home')}>🏠 At home</Seg>
-            <Seg on={(loc ?? session?.place) === 'gym'} onClick={() => setLoc('gym')}>🏋 At the gym</Seg>
-          </div>
-          {/* The level, the split and the rep scheme are NOT here any more. They
-              are the saved training profile's, which is the only copy of them. */}
-          <p className="muted" style={{ fontSize: 11.5, margin: '10px 0 0' }}>
-            Your level, goal and what you train with come from your{' '}
-            <Link to="/fitness/profile" style={{ fontWeight: 700 }}>training profile</Link>. Today&rsquo;s length and place are just for today.
-          </p>
-
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '16px 0 14px' }}>
-            <Button variant="accent" disabled={!session} onClick={() => start('full')}>▶ Start workout + walk</Button>
-            <Button variant="line" onClick={() => start('walk')}>🚶 Just walk ({walkMin || 20} min)</Button>
-            <Button variant="ghost" onClick={markSkipAll}>Skip today</Button>
-          </div>
-          <p className="muted" style={{ fontSize: 11.5, marginBottom: 10 }}>The timer guides you exercise-by-exercise.</p>
-
-          {todays.isLoading && <p className="muted" style={{ fontSize: 12.5 }}>Building today&rsquo;s session from your profile…</p>}
-          {todays.isError && (
-            <p style={{ fontSize: 12.5, color: 'var(--danger-ink)' }}>
-              We couldn&rsquo;t build today&rsquo;s session. This didn&rsquo;t reach us — nothing about your profile has changed. Try again in a moment.
-            </p>
-          )}
-
-          {session?.blocks.map((block) => (
-            <div key={block.title}>
-              {blkHead(block.note ? `${block.title} · ${block.note}` : block.title)}
-              {block.exercises.map((ex, i) => exRow(
-                i + 1,
-                ex.name,
-                ex.insteadOf ? `instead of ${ex.insteadOf.name}` : ex.seconds ? 'hold / go for the time' : `rest ${ex.restSec}s between sets`,
-                ex.seconds ? (ex.sets > 1 ? `${ex.sets} × ${mmss(ex.seconds)}` : mmss(ex.seconds)) : `${ex.sets} × ${ex.reps?.[0]}–${ex.reps?.[1]}${ex.unilateral ? ' /side' : ''}`,
-                ex.video || undefined,
-              ))}
-            </div>
-          ))}
-
-          {/* READ BEFORE YOU START. The citizen's own words first, then the
-              rules that follow from what they have told us. */}
-          {session && session.cautions.length > 0 && (
-            <ul style={{ listStyle: 'none', padding: 0, margin: '16px 0 0', display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {session.cautions.map((c) => (
-                <li key={c} style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--warn-ink)', background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 8, padding: '7px 11px' }}>{c}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
-
-      {/* week */}
-      <section className="blk">
-        <div className="blk-head"><h2>This week</h2><span className="muted" style={{ fontSize: 12 }}>Physical activity log</span></div>
-        <div className="card">
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {weekCells.map((c, i) => (
-              <div key={i} style={{ flex: 1, minWidth: 52, textAlign: 'center', border: '1px solid var(--line)', borderRadius: 'var(--r-1)', padding: '9px 4px' }}>
-                <div style={{ fontSize: 10.5, color: 'var(--muted)' }}>{c.day}</div>
-                <div style={{ width: 14, height: 14, borderRadius: '50%', margin: '6px auto 3px', background: DOT_COLOR[c.status] ?? 'var(--line)' }} />
-                <div style={{ fontSize: 10, color: 'var(--ink-soft)' }}>{c.kcal}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <div className="trust">
-        {/* "Smartwatch Synced" was here too. There is no wearable integration
-            anywhere in this codebase — FE-18.6 said so on the Sleep page and
-            missed this one. */}
-        <span>◈ Nutrition-linked Goals</span><span>◈ Guided Live Timer</span><span>◈ Private by Default</span>
-      </div>
+      {/* THE PAGE ENDS WITH THE WEEK (owner, 18 Sep: "the workout page should
+          end with 'Which days are yours?' and nothing else"). Today's plan,
+          the controls, the week log and the trust line came off here; a day
+          is run from its own page (/fitness/workout/day/:index), which sends
+          ?start= back to the runner below. */}
 
       {/* ── THE RUNNER IS A TELEVISION (owner, 6 Sep: "use the Together City
           TV format for this section", then "no white zone, everything below

@@ -60,7 +60,9 @@ describe('on the runner', () => {
   });
 
   it('asks for the whole screen from the tap on Start, and gives it back at the end', () => {
-    const start = page.slice(page.indexOf('const start = ('), page.indexOf('const finish = ('));
+    /* The plan's own Start left with the plan (18 Sep); a day is started from
+       its page through startDay, which asks for the screen the same way. */
+    const start = page.slice(page.indexOf('const startDay = ('), page.indexOf('const finish = ('));
     expect(start).toMatch(/requestFullscreen\?\.\(\)/);
     const finish = page.slice(page.indexOf('const finish = ('), page.indexOf('const finish = (') + 600);
     expect(finish).toMatch(/exitFullscreen\(\)/);
@@ -73,8 +75,10 @@ describe('on the runner', () => {
 
 describe('on the plan', () => {
   it('lists the film as a link beside the movement, only where one exists', () => {
-    expect(page).toMatch(/\{video && <a className="wk-film-link" href=\{video\} target="_blank" rel="noopener"/);
-    expect(page).toMatch(/ex\.video \|\| undefined,/);
+    /* The plan came off the Workout page (18 Sep), and the link with it; the
+       film still plays in the runner, from the step that carries it. */
+    expect(page).not.toMatch(/wk-film-link/);
+    expect(page).toMatch(/const filmSrc = running && s && !s\.rest \? s\.video : undefined;/);
   });
 });
 

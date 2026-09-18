@@ -37,6 +37,7 @@ import './styles/insights.css';
 import './styles/workout-library.css';
 // The month's rows — two divisions, one month (owner, 18 Sep) — see its head note.
 import './styles/workout-month.css';
+import './styles/workout-day.css';
 
 const container = document.getElementById('root');
 if (!container) throw new Error('#root not found');
