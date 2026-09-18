@@ -4,7 +4,7 @@
 removing a route. It is produced from the same parse the security guards in
 `src/security/` use, so it cannot describe a route that does not exist.
 
-Every path below is prefixed with `/api`. **661 routes** across
+Every path below is prefixed with `/api`. **663 routes** across
 **54 controllers**; **17** are reachable without a token.
 
 ## Conventions
@@ -423,6 +423,8 @@ _fitness/fitness.controller.ts_
 | GET | `/api/fitness/plan` | 🔒 |
 | GET | `/api/fitness/profile` | 🔒 |
 | PUT | `/api/fitness/profile` | 🔒 |
+| DELETE | `/api/fitness/programme/day/:index/add/:id` | 🔒 |
+| POST | `/api/fitness/programme/day/:index/add` | 🔒 |
 | PUT | `/api/fitness/programme/place` | 🔒 |
 | PUT | `/api/fitness/programme/today` | 🔒 |
 | PUT | `/api/fitness/programme/week` | 🔒 |

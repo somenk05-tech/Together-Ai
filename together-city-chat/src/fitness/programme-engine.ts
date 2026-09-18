@@ -295,6 +295,10 @@ export interface ProgrammeExercise {
   steps: string[];
   thumb: string;
   gif: string;
+  /** Set when the citizen put this movement on the day themselves (18 Sep):
+   *  the row's id, so the page can take it off again. The engine never
+   *  writes it; the service merges the citizen's additions after the build. */
+  additionId?: string;
 }
 
 export interface ProgrammeDay {
@@ -606,7 +610,19 @@ export function buildProgramme(input: ProgrammeInput): Programme {
   const goal = GOAL_PRESCRIPTION[input.bodyGoal] ?? GOAL_PRESCRIPTION.athletic;
   const lvl = LEVEL_ADJUST[input.level] ?? LEVEL_ADJUST.intermediate;
   const division = input.division ? DIVISIONS[input.division] : null;
-  const split = division ? division.days : (SPLITS[days] ?? SPLITS[3]);
+  /* THE SIXTH DAY (owner, 18 Sep: "if someone wants to work out for 6 days,
+     add the 6th day workout"). A citizen who asks for six days and keeps
+     two for themselves is not quietly told five. A division's LIGHT
+     sessions — conditioning, yoga, active recovery — are easy by
+     definition, so they take the citizen's days off, as many as were asked
+     for beyond the free days, and the hard sessions rotate on the days
+     that are left. The day off is still easy; it just has a name. */
+  const lightOnRest = new Map<number, SplitDay>();
+  if (division && asked > days && restDays.length) {
+    const lights = division.days.filter((d) => d.light);
+    restDays.slice(0, Math.min(asked - days, lights.length)).forEach((wd, i) => lightOnRest.set(wd, lights[i]));
+  }
+  const split = division ? (lightOnRest.size ? division.days.filter((d) => !d.light) : division.days) : (SPLITS[days] ?? SPLITS[3]);
   /* A division's own week — Thursday off — when the citizen has not said
      and has the six days for it; the citizen's days otherwise, as before. */
   const placement = division && restDays.length === 0 && days === division.placement.length ? division.placement : placeTraining(days, restDays);
@@ -689,6 +705,11 @@ export function buildProgramme(input: ProgrammeInput): Programme {
     const base = { index: i, date, week, phase: phase.key };
 
     if (slotInWeek < 0) {
+      const lightDay = lightOnRest.get(weekday);
+      if (lightDay?.light) {
+        out.push({ ...base, kind: 'cardio', title: lightDay.title, parts: lightDay.parts, muscles: [], exercises: [], cardioMinutes: lightDay.light.minutes, minutes: lightDay.light.minutes, note: lightDay.light.note });
+        continue;
+      }
       /* NOT ALWAYS THE WORD "REST" (owner, 9 Sep). A citizen who said they
          would rather swim on a day off gets a day that says Swim, with the
          trainer's reason for keeping it easy. The KIND stays 'rest' because
@@ -769,6 +790,9 @@ export function buildProgramme(input: ProgrammeInput): Programme {
     advice.push(`You have not said which days are yours, so the month takes ${restLabel} — and on those you ${off.title.toLowerCase()} rather than stop, which is what you asked for. Name the days that actually suit your week and they move.`);
   } else if (!restDays.length) {
     advice.push(`You have not told us which days are yours, so the month takes ${restLabel} off. Say which days suit your week and it moves — a plan that argues with your life is a plan you abandon in week two.`);
+  } else if (trained < asked && lightOnRest.size) {
+    const named = [...lightOnRest.entries()].map(([wd, s]) => `${s.title.toLowerCase()} on ${WEEKDAY_NAMES[wd]}`).join(' and ');
+    advice.push(`You asked for ${asked} days and kept ${restLabel} for yourself, so the ${asked === 6 ? 'sixth' : 'extra'} is ${named} — easy on purpose, and still your day off in everything but name.`);
   } else if (trained < asked) {
     advice.push(`You asked for ${asked} training day${asked === 1 ? '' : 's'} and kept ${restDays.length} of the week for yourself, which leaves ${trained}. The days off win — they are the ones with a reason outside this app — so this is a ${SPLIT_NAMES[trained] ?? SPLIT_NAMES[3]} month rather than a ${SPLIT_NAMES[asked] ?? SPLIT_NAMES[3]} one, and every muscle still gets its turn.`);
   } else {

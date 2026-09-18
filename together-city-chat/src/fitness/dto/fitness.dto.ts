@@ -81,6 +81,16 @@ export type SaveTrainingWeekDto = z.infer<typeof SaveTrainingWeekSchema>;
 export const ChoosePlaceSchema = z.object({ place: z.enum(['home', 'gym']) });
 export type ChoosePlaceDto = z.infer<typeof ChoosePlaceSchema>;
 
+/** A movement the citizen adds to a day of their month (owner, 18 Sep):
+ *  a catalogue id and their own sets and reps. */
+export const ADDITIONS_PER_DAY = 10;
+export const AddToDaySchema = z.object({
+  exerciseId: z.string().regex(/^\d{4}$/),
+  sets: z.number().int().min(1).max(10),
+  reps: z.number().int().min(1).max(100),
+});
+export type AddToDayDto = z.infer<typeof AddToDaySchema>;
+
 export const MoveWorkoutDaySchema = z.object({
   dayIndex: z.number().int().min(0).max(27),
 });

@@ -1,0 +1,33 @@
+/* ── A DAY IS A PAGE (owner, 18 Sep) ───────────────────────────────────────
+   /fitness/workout/day/:index — one day of the month, whole, and the
+   library under it to add from. The rows wear the Workout Library's lids
+   (`.wl-*` in workout-library.css) so a movement reads the same in both
+   rooms; this sheet adds only the day's own head, its actions and the
+   search row. Tokens only. */
+
+.wd-h1 { font-size: var(--fs-9); margin-top: 6px; line-height: 1.15; }
+.wd-parts { font-weight: 500; color: var(--ink-soft); }
+.wd-when { margin: 8px 0 0; font-size: var(--fs-3); }
+.wd-note { margin: 10px 0 0; }
+.wd-acts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 16px; }
+.wd-acts .btn { text-decoration: none; }
+.wd-alert { margin: 10px 0 0; font-size: var(--fs-3); color: var(--danger-ink); font-weight: 600; }
+
+.wd-card { margin-top: 20px; display: grid; gap: 10px; }
+.wd-h2 { font-size: var(--fs-6); font-weight: 700; margin: 0; }
+.wd-line { margin: 0; font-size: var(--fs-3); line-height: 1.55; }
+.wd-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.wd-list > li { border-bottom: 1px solid var(--line); }
+.wd-list .fold-hd { gap: 8px; }
+.wd-tg { flex: none; font-size: var(--fs-2); font-weight: 700; white-space: nowrap; color: var(--accent-ink); }
+.wd-credit { margin: 4px 0 0; font-size: var(--fs-1); }
+
+.wd-search { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+.wd-results { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.wd-result { display: flex; gap: 12px; align-items: center; padding: 8px 2px; border-bottom: 1px solid var(--line); }
+.wd-result .wl-w { flex: 1 1 auto; min-width: 0; }
+
+@media (max-width: 560px) {
+  .wd-h1 { font-size: var(--fs-8); }
+  .wd-result { flex-wrap: wrap; }
+}
