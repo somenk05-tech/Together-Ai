@@ -13,6 +13,10 @@ import type { Programme } from './api';
  * written straight under the month's key so the page redraws from the
  * answer; the session is invalidated because today's work may have grown.
  */
+/** A warm-up or cool-down movement on a day (18 Sep): held or moved for the
+ *  time, never counted. See fitness/warm-up-and-cool-down.ts. */
+export interface MobilityStep { id: string; name: string; works: string; seconds: number; steps: string[]; thumb: string; gif: string; video: string }
+
 export interface AddToDayInput { dayIndex: number; exerciseId: string; sets: number; reps: number }
 
 function settle(qc: ReturnType<typeof useQueryClient>, month: Programme) {

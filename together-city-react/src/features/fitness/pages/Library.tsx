@@ -113,12 +113,15 @@ export function Library() {
   const daysOut = (): PlanDay[] => (draft.kind === 'day'
     ? [{ day: 0, exercises: draft.days[0] ?? [] }]
     : Object.entries(draft.days).map(([k, ex]) => ({ day: Number(k), exercises: ex })).filter((d) => d.exercises.length > 0).sort((a, b) => a.day - b.day));
-  const canSave = draft.name.trim().length > 0 && count(draft) > 0 && !save.isPending;
+  /* A name is not the price of saving (owner, 18 Sep: "your plan save day
+     does not work"): one movement is enough, and a plan without a name is
+     called after its shape. */
+  const canSave = count(draft) > 0 && !save.isPending;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!canSave) return;
-    save.mutate({ id: draft.id, name: draft.name.trim(), kind: draft.kind, days: daysOut() }, {
+    save.mutate({ id: draft.id, name: draft.name.trim() || (draft.kind === 'day' ? 'My day' : 'My week'), kind: draft.kind, days: daysOut() }, {
       onSuccess: (saved) => { setDraft(EMPTY); setOpenPlan(saved.id); },
     });
   };
@@ -226,7 +229,7 @@ export function Library() {
               </div>
             </div>
             <label className="wl-field">
-              <span className="wl-label">Name</span>
+              <span className="wl-label">Name <span className="muted">(optional)</span></span>
               <input type="text" value={draft.name} maxLength={60} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} placeholder={draft.kind === 'day' ? 'Push day' : 'My week'} />
             </label>
             {draft.kind === 'week' && (

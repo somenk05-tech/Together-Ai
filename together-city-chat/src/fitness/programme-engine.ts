@@ -1,4 +1,5 @@
 import { EXERCISE_CATALOG, exerciseGifUrl, exerciseThumbUrl, type CatalogExercise } from './exercise-catalog';
+import { coolDownFor, warmUpFor, type MobilityStep } from './warm-up-and-cool-down';
 import type { Condition, Equipment } from './exercise-library';
 import { GOAL_PRESCRIPTION, LEVEL_ADJUST, type BodyGoalKey, type LevelKey } from './session-engine';
 
@@ -321,6 +322,11 @@ export interface ProgrammeDay {
   /** How long the day is, as the card prints it: the division's length on a
    *  division day, otherwise an estimate from the work. */
   minutes: number;
+  /** THE WAY IN AND THE WAY OUT (owner, 18 Sep) — see warm-up-and-cool-down.ts.
+   *  Empty warm-up on a day off; the cool-down on a day off is the mobility
+   *  routine, the owner's "rest workout". */
+  warmup: MobilityStep[];
+  cooldown: MobilityStep[];
   /** One line from the trainer for the day. */
   note: string;
   /**
@@ -703,11 +709,13 @@ export function buildProgramme(input: ProgrammeInput): Programme {
     const slotInWeek = placement.indexOf(weekday);
     const date = addDays(input.startDate, i);
     const base = { index: i, date, week, phase: phase.key };
+    /* The day's own stretches, seeded like its working sets. */
+    const mob = seeded(`${input.seed}:${input.cycle}:mobility:${i}`);
 
     if (slotInWeek < 0) {
       const lightDay = lightOnRest.get(weekday);
       if (lightDay?.light) {
-        out.push({ ...base, kind: 'cardio', title: lightDay.title, parts: lightDay.parts, muscles: [], exercises: [], cardioMinutes: lightDay.light.minutes, minutes: lightDay.light.minutes, note: lightDay.light.note });
+        out.push({ ...base, kind: 'cardio', title: lightDay.title, parts: lightDay.parts, muscles: [], exercises: [], cardioMinutes: lightDay.light.minutes, minutes: lightDay.light.minutes, warmup: warmUpFor([], 'cardio'), cooldown: coolDownFor([], 'cardio', mob), note: lightDay.light.note });
         continue;
       }
       /* NOT ALWAYS THE WORD "REST" (owner, 9 Sep). A citizen who said they
@@ -716,7 +724,7 @@ export function buildProgramme(input: ProgrammeInput): Programme {
          that is what it is to the programme — a day off the split — and
          every reader of `kind` is asking that question, not what the citizen
          does with the afternoon. */
-      out.push({ ...base, kind: 'rest', title: off.title, parts: off.parts, muscles: [], exercises: [], cardioMinutes: off.minutes, minutes: off.minutes, note: off.note });
+      out.push({ ...base, kind: 'rest', title: off.title, parts: off.parts, muscles: [], exercises: [], cardioMinutes: off.minutes, minutes: off.minutes, warmup: [], cooldown: coolDownFor([], 'rest', mob), note: off.note });
       continue;
     }
     if (slotInWeek >= strengthDays) {
@@ -724,6 +732,7 @@ export function buildProgramme(input: ProgrammeInput): Programme {
         ...base, kind: 'cardio', title: cardioName, parts: 'heart & lungs', muscles: [], exercises: [],
         cardioMinutes: phase.key === 'deload' ? Math.round(cardioMinutes * 0.7) : cardioMinutes,
         minutes: phase.key === 'deload' ? Math.round(cardioMinutes * 0.7) : cardioMinutes,
+        warmup: warmUpFor([], 'cardio'), cooldown: coolDownFor([], 'cardio', mob),
         note: input.mode === 'running'
           ? (input.level === 'basic' || input.level === 'beginner' ? 'Run a minute, walk two, and repeat. Build the running minute each week.' : 'Easy pace for most of it; brisk enough to be breathing, easy enough to talk.')
           : 'Brisk enough to be breathing, easy enough to talk. Hills if you have them.',
@@ -742,7 +751,7 @@ export function buildProgramme(input: ProgrammeInput): Programme {
          Its kind is 'cardio' because that is what it is to every reader of
          `kind` — a day off the weights — and it keeps its slot so a move
          walks it forward with the rest. */
-      out.push({ ...base, kind: 'cardio', slot, title: day.title, parts: day.parts, muscles: [], exercises: [], cardioMinutes: day.light.minutes, minutes: day.light.minutes, note: day.light.note });
+      out.push({ ...base, kind: 'cardio', slot, title: day.title, parts: day.parts, muscles: [], exercises: [], cardioMinutes: day.light.minutes, minutes: day.light.minutes, warmup: warmUpFor([], 'cardio'), cooldown: coolDownFor([], 'cardio', mob), note: day.light.note });
       continue;
     }
     const variant = week % 2 === 1 ? 'a' : 'b';
@@ -752,9 +761,11 @@ export function buildProgramme(input: ProgrammeInput): Programme {
       : phase.reps === 'high' ? [goal.reps[1], goal.reps[1] + 3] : goal.reps;
     const restSec = Math.max(30, goal.restSec + lvl.restSec + phase.restSec);
     const chosen = variants[variant].get(day.key) ?? [];
+    const dayMuscles = [...new Set(day.slots.map((s) => s.muscle))].filter((m) => chosen.some((e) => e.target === m));
     out.push({
       ...base, kind: 'strength', slot, title: day.title, parts: day.parts,
-      muscles: [...new Set(day.slots.map((s) => s.muscle))].filter((m) => chosen.some((e) => e.target === m)),
+      muscles: dayMuscles,
+      warmup: warmUpFor(dayMuscles, 'strength'), cooldown: coolDownFor(dayMuscles, 'strength', mob),
       exercises: chosen.map((e) => ({
         id: e.id, name: e.name, muscle: e.target as Muscle, works: MUSCLE_WORDS[e.target as Muscle],
         equipment: e.equipment, sets, reps, restSec, steps: e.steps, thumb: exerciseThumbUrl(e), gif: exerciseGifUrl(e),
