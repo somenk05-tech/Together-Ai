@@ -87,7 +87,10 @@ describe('a citizen builds a day, not a basket', () => {
   it('lets the server decide which day a dish lands on', () => {
     // The rule is "today until you lock it, then tomorrow". If the page sent a
     // day index, two tabs open at once would each send their own idea of it.
-    expect(api).toMatch(/useAddToOwnPlan = \(\) => useOwnMutation<\{ recipeId: string \}>/);
+    // 18 Sep: the portion travels with the dish (Build Your Day scales a dish
+    // to what is left of the budget), but the DAY is still the server's call.
+    expect(api).toMatch(/useAddToOwnPlan = \(\) => useOwnMutation<\{ recipeId: string; portionPct\?: number \}>/);
+    expect(api).not.toMatch(/useOwnMutation<\{[^}]*\bday\b[^}]*\}>\('\/nutrition\/plan\/own\/add'/);
   });
 
   it('never tops the day up to a target', () => {
@@ -123,11 +126,17 @@ describe('a citizen builds a day, not a basket', () => {
     // down.
     const first = page.indexOf('{buildBar}');
     expect(first).toBeGreaterThan(-1);
-    // Twice: once on the cuisine landing, once inside a cuisine.
+    // Twice: once on the landing, once inside a cuisine or search.
     expect((page.match(/\{buildBar\}/g) ?? []).length).toBe(2);
-    // …and before the tile grid in both places.
-    const grid = page.indexOf('lib.data?.items.map');
-    expect(page.lastIndexOf('{buildBar}')).toBeLessThan(grid);
+    // …and before the tile grid in both places. Since 18 Sep the landing has a
+    // grid of its own (the database, already filtered for the citizen), so the
+    // check is pairwise: each sheet precedes the grid of its own view.
+    const bars = [...page.matchAll(/\{buildBar\}/g)].map((m) => m.index);
+    const grids = [...page.matchAll(/lib\.data\?\.items\.map/g)].map((m) => m.index);
+    expect(grids.length).toBe(2);
+    expect(bars[0]).toBeLessThan(grids[0]);
+    expect(grids[0]).toBeLessThan(bars[1]);
+    expect(bars[1]).toBeLessThan(grids[1]);
   });
 
   it('opens one day and files every other one as a row', () => {

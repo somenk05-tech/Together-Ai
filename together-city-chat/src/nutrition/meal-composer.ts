@@ -447,6 +447,43 @@ interface SelectCtx {
 function cuisineBucket(slot: SlotCode) { return SLOT_BY_CODE[slot].cuisineBucket; }
 
 /** Candidate recipes for a role in a slot, filtered by diet/cuisine/excluded/category. */
+/**
+ * THE HARD GATE, ON ITS OWN, FOR ANY SURFACE THAT SHOWS FOOD.
+ *
+ * candidates() below applies these checks inside the composer, per slot and
+ * per role. Build Your Day shows the citizen a recipe database they browse
+ * themselves, and it must never show a dish the composer would refuse to put
+ * on their plate — so the safety half of candidates() is exposed here as one
+ * function both read. Diet (a vegetarian never sees chicken), the ingredient
+ * screen behind the label (a "vegetarian" row with fish sauce in it), the
+ * allergy / excluded terms, the opt-in meats (beef and pork only when chosen),
+ * and the clinical caps when the profile is clinical. Cuisine, favourites and
+ * cooking time are NOT here: those are preferences, and a preference ranks a
+ * dish, it does not hide it.
+ */
+export function recipeEligible(r: PoolRecipe, prefs: Pick<ComposerPrefs, 'diet' | 'excluded' | 'favourites' | 'clinical' | 'caps'>): boolean {
+  const userDiet = prefs.diet ?? 'vegetarian';
+  if (!dietOk(r.diet, userDiet)) return false;
+  if (!dishAllowed(r, userDiet)) return false;
+  const excluded = prefs.excluded ?? [];
+  if (excluded.length && !excludeOk(r, excluded, excluded.join('|'))) return false;
+  const chosen = (prefs.favourites ?? []).map((f) => f.toLowerCase());
+  const optInDenied = OPT_IN_KEYS.filter((k) => !chosen.some((f) => f.includes(k)));
+  if (!optInOk(r, optInDenied.flatMap((k) => OPT_IN_PROTEINS[k]), optInDenied.join('+'))) return false;
+  if (prefs.clinical) {
+    if (!r.nutrientComplete) return false;
+    const cc = prefs.caps;
+    if (cc) {
+      if (cc.satFatG && r.nutrients.satFatG > cc.satFatG * 0.6) return false;
+      if (cc.sodiumMg && r.nutrients.sodiumMg > cc.sodiumMg * 0.6) return false;
+      if (cc.sugarG && r.nutrients.addedSugarG > cc.sugarG * 0.7) return false;
+      const renal = Boolean(cc.potassiumMg && cc.potassiumMg <= 3000);
+      if (renal && (r.nutrients.potassiumMg > (RENAL_K_CEIL[r.role] ?? 250) || r.nutrients.phosphorusMg > (RENAL_P_CEIL[r.role] ?? 250))) return false;
+    }
+  }
+  return true;
+}
+
 function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
   const { slot, prefs } = ctx;
   const bucket = cuisineBucket(slot);

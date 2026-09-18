@@ -244,9 +244,60 @@ export class NutritionController {
    *  day is decided by the server, not the caller: it is the first unlocked day
    *  from today, and letting a client name it would let two tabs disagree. */
   @Post('plan/own/add')
-  @UsePipes(new ZodValidationPipe(z.object({ recipeId: z.string().min(1).max(120) })))
-  addToOwnPlan(@CurrentUser() user: JwtUser, @Body() dto: { recipeId: string }) {
-    return this.nutrition.addToOwnPlan(user.sub, dto.recipeId);
+  @UsePipes(new ZodValidationPipe(z.object({
+    recipeId: z.string().min(1).max(120),
+    // The portion Build Your Day worked out for what is left of the budget
+    // ("your portion: 145 g"). Whole serving when absent.
+    portionPct: z.number().int().min(40).max(100).optional(),
+  })))
+  addToOwnPlan(@CurrentUser() user: JwtUser, @Body() dto: { recipeId: string; portionPct?: number }) {
+    return this.nutrition.addToOwnPlan(user.sub, dto.recipeId, dto.portionPct);
+  }
+
+  /* ── BUILD YOUR DAY — the closed loop (owner, 18 Sep) ────────────────────
+     The profile decides what is eligible, the day's food decides what is still
+     needed, and what is still needed decides what is recommended next. */
+
+  /** POST /api/nutrition/plan/own/food — anything eaten that is not a city
+   *  recipe: cooked at home, a restaurant plate, a packet, a quick add. The
+   *  numbers are the citizen's (reviewed estimates or typed) and count against
+   *  the day exactly as a recipe does. */
+  @Post('plan/own/food')
+  @UsePipes(new ZodValidationPipe(z.object({
+    name: z.string().min(1).max(80),
+    source: z.enum(['cooked', 'restaurant', 'packaged', 'quick']),
+    qty: z.string().max(40).optional(),
+    grams: z.number().positive().max(5000).optional(),
+    place: z.string().max(80).optional(),
+    slot: z.enum(['b', 'l', 'es', 'd']).optional(),
+    kcal: z.number().min(0).max(5000),
+    protein: z.number().min(0).max(500),
+    carbs: z.number().min(0).max(1000),
+    fat: z.number().min(0).max(500),
+    fiber: z.number().min(0).max(200).optional(),
+  })))
+  addFoodToOwnPlan(@CurrentUser() user: JwtUser, @Body() dto: Parameters<NutritionService['addFoodToOwnPlan']>[1]) {
+    return this.nutrition.addFoodToOwnPlan(user.sub, dto);
+  }
+
+  /** GET /api/nutrition/day?now=HH:MM — the target, the day, what is still
+   *  needed, the next course, three plates to close the gaps, the advice. */
+  @Room('/nutrition/recipes')
+  @Get('day')
+  buildYourDay(@CurrentUser() user: JwtUser, @Query('now') now?: string) {
+    return this.nutrition.buildYourDay(user.sub, now);
+  }
+
+  /** GET /api/nutrition/day/recipes — the database, filtered for this citizen
+   *  before it is shown and ranked by what the day still needs. */
+  @Room('/nutrition/recipes')
+  @Get('day/recipes')
+  dayRecipes(@CurrentUser() user: JwtUser, @Query() q: Record<string, string>) {
+    return this.nutrition.dayRecipes(user.sub, {
+      search: q.search, cuisine: q.cuisine, mealType: q.mealType, now: q.now, sort: q.sort,
+      ingredients: (q.ingredients ?? '').split(',').map((x) => x.trim()).filter(Boolean).slice(0, 8),
+      page: q.page ? parseInt(q.page, 10) : 1, pageSize: q.pageSize ? parseInt(q.pageSize, 10) : 24,
+    });
   }
 
   /** POST /api/nutrition/plan/own/remove — take a dish back off an unsettled day. */
@@ -313,20 +364,11 @@ export class NutritionController {
     return this.nutrition.restoreComposedSkips(user.sub);
   }
 
-  // Recipe Library — searchable/paginated recipe database (Netflix-style).
-  @Room('/nutrition/recipes')
-  @Get('recipes/library')
-  recipeLibrary(@CurrentUser() user: JwtUser, @Query() q: Record<string, string>) {
-    return this.nutrition.recipeLibrary({
-      // The library shows the world corpus plus this citizen's own dishes.
-      userId: user.sub,
-      search: q.search, cuisine: q.cuisine, mealType: q.mealType, diet: q.diet, sort: q.sort,
-      // "I have paneer and spinach" — every named ingredient must be present,
-      // which is a different question from the single free-text search above.
-      ingredients: (q.ingredients ?? '').split(',').map((x) => x.trim()).filter(Boolean).slice(0, 8),
-      page: q.page ? parseInt(q.page, 10) : 1, pageSize: q.pageSize ? parseInt(q.pageSize, 10) : 24,
-    });
-  }
+  // The unfiltered recipe library (GET recipes/library) was retired on 18 Sep:
+  // Build Your Day shows the database already filtered for the citizen and
+  // ranked by what the day still needs — see GET day/recipes above. A page
+  // that loaded every row and asked the citizen to filter it themselves was
+  // the thing the brief said not to build.
 
   @Room('/family/weekly')
   @Patch('meal-settings')

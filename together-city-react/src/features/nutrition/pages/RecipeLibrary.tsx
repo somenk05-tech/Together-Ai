@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Spinner, EmptyState, Button, Chip } from '@/components/ui';
 import { LABELS } from '@/config/labels';
-import { useRecipeLibrary, type RecipeCard } from '../library.api';
-import { useAddToOwnPlan, useLockOwnDay, useOwnPlan, useRemoveFromOwnPlan, useSetOwnPeople, useUnlockOwnDay } from '../composed.api';
+import { useDayRecipes, useBuildYourDay, nowHHMM, type DayRecipe, type ProteinFix } from '../day.api';
+import { useAddFoodToOwnPlan, useAddToOwnPlan, useLockOwnDay, useOwnPlan, useRemoveFromOwnPlan, useSetOwnPeople, useUnlockOwnDay, type OwnFoodInput } from '../composed.api';
 import { OwnDayView } from '../components/OwnDayView';
 import { VegMark } from '../components/VegMark';
+import { AdviceList, DayLines, DayTargetHead, EatNow } from '../components/DayLoop';
+import { AddFoodSheet, type FoodMode } from '../components/AddFoodSheet';
 
 /** Debounce a fast-changing value (e.g. a search box) so it only settles after
  *  the user pauses — keeps the input responsive while throttling query-key churn. */
@@ -18,16 +20,29 @@ function useDebouncedValue<T>(value: T, delay = 350): T {
   return debounced;
 }
 
-const MEAL_TYPES = ['', 'breakfast', 'lunch', 'dinner', 'snack'];
-const DIETS = ['', 'vegetarian', 'vegan', 'eggetarian'];
-const SORTS: Array<[string, string]> = [['recent', 'Recently Added'], ['health', 'AI Health Score'], ['name', 'A–Z']];
-const INGREDIENT_CHIPS = ['Paneer', 'Spinach', 'Chicken', 'Oats', 'Chickpeas', 'Rice', 'Yogurt', 'Mushroom'];
+/** The clock, once a minute — the loop's "now" for today. */
+function useNow(): string {
+  const [now, setNow] = useState(() => nowHHMM());
+  useEffect(() => {
+    const t = setInterval(() => setNow(nowHHMM()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+  return now;
+}
 
-function healthColor(s: number | null) { return s == null ? 'var(--muted)' : s >= 80 ? 'var(--ok-ink)' : s >= 60 ? 'var(--warn-ink)' : 'var(--danger-ink)'; }
+const MEAL_TYPES: Array<[string, string]> = [['', 'Any course'], ['breakfast', 'Breakfast'], ['lunch', 'Lunch'], ['snack', 'Snack'], ['dinner', 'Dinner']];
+const INGREDIENT_CHIPS = ['Eggs', 'Chicken', 'Rice', 'Spinach', 'Paneer', 'Oats', 'Chickpeas', 'Yogurt', 'Mushroom'];
+const FOOD_MODES: Array<{ mode: FoodMode; label: string; sub: string }> = [
+  { mode: 'cooked', label: 'Food I cooked', sub: 'Say what it was — we estimate' },
+  { mode: 'restaurant', label: 'Restaurant / outside food', sub: 'Name the dish and the place' },
+  { mode: 'packaged', label: 'Packaged food', sub: 'The pack and how much' },
+  { mode: 'quick', label: 'Quick add', sub: 'Just the numbers' },
+];
 
-function RecipeTile({ r, picked, onPick }: { r: RecipeCard; picked: boolean; onPick: () => void }) {
+function RecipeTile({ r, picked, onPick, busy }: { r: DayRecipe; picked: boolean; onPick: () => void; busy: boolean }) {
+  const scaled = r.fit.portionPct < 100;
   return (
-    <Card className="lift" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative', outline: picked ? '2px solid var(--accent)' : undefined }}>
+    <Card className="lift byd-tile" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative', outline: picked ? '2px solid var(--accent)' : undefined }}>
       <Link to={`/nutrition/recipes/${r.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
         <div style={{ position: 'relative', aspectRatio: '16 / 9', overflow: 'hidden',
           background: 'linear-gradient(135deg, var(--accent-soft), var(--accent))',
@@ -36,22 +51,21 @@ function RecipeTile({ r, picked, onPick }: { r: RecipeCard; picked: boolean; onP
             ? <img src={r.imageUrl} alt={r.name} loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
             : <span style={{ color: 'var(--on-accent)', fontWeight: 700, fontSize: 14, textAlign: 'center', padding: '0 12px', textShadow: '0 1px 6px rgba(0,0,0,.35)' }}>{r.name}</span>}
           <span style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(255,255,255,.92)', borderRadius: 5, padding: 2, lineHeight: 0, boxShadow: '0 1px 3px rgba(0,0,0,.22)' }}><VegMark diet={r.diet} size={15} /></span>
-          {r.healthScore != null && (
-            <span style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(255,255,255,.92)', color: healthColor(r.healthScore),
-              fontSize: 11, fontWeight: 800, borderRadius: 'var(--r-full)', padding: '3px 8px' }}>{r.healthScore}</span>
+          {!r.fit.fits && (
+            <span className="byd-tile-flag">Over what's left today</span>
           )}
         </div>
-        <div style={{ padding: '12px 14px' }}>
+        <div style={{ padding: '12px 14px 54px' }}>
           <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.25, marginBottom: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{r.name}</div>
-          <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{r.cuisine} · {r.minutes} min · {r.difficulty}</div>
-          <div style={{ display: 'flex', gap: 10, fontSize: 12, marginBottom: 8 }}>
-            <span><strong>{r.kcal}</strong> kcal</span><span className="muted">P {r.protein}g</span><span className="muted">C {r.carbs}g</span><span className="muted">F {r.fat}g</span>
+          <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{r.cuisine} · {r.minutes} min</div>
+          {/* THE PORTION THAT FITS, NOT THE STANDARD SERVING. A database recipe
+              is a serving; what the tile prints is the amount of it that fits
+              what is left of the day, and the numbers are at that amount. */}
+          <div style={{ display: 'flex', gap: 10, fontSize: 12, marginBottom: 4, flexWrap: 'wrap' }}>
+            <span><strong>{r.fit.kcal}</strong> kcal</span><span className="muted">P {r.fit.protein}g</span><span className="muted">Fibre {r.fit.fiber}g</span>
           </div>
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-            {r.badges.vegan ? <Chip tone="green">Vegan</Chip> : r.badges.vegetarian ? <Chip tone="green">Veg</Chip> : null}
-            {r.badges.diabetes && <Chip tone="accent">Diabetes-friendly</Chip>}
-            {r.badges.kidney && <Chip tone="accent">Kidney-friendly</Chip>}
-            {r.badges.heart && <Chip tone="accent">Heart-friendly</Chip>}
+          <div className="byd-tile-portion">
+            Your portion · <b>{r.fit.grams} g</b>{scaled ? <span> · {r.fit.portionPct}% of a serving ({r.kcal} kcal)</span> : null}
           </div>
         </div>
       </Link>
@@ -59,7 +73,8 @@ function RecipeTile({ r, picked, onPick }: { r: RecipeCard; picked: boolean; onP
       <button
         type="button"
         aria-pressed={picked}
-        aria-label={picked ? `Remove ${r.name} from your list` : `Add ${r.name} to your list`}
+        disabled={busy}
+        aria-label={picked ? `Remove ${r.name} from your day` : `Add ${r.name} to your day at ${r.fit.grams} g`}
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPick(); }}
         style={{
           position: 'absolute', left: 8, bottom: 8, minHeight: 44, minWidth: 44, cursor: 'pointer',
@@ -68,57 +83,74 @@ function RecipeTile({ r, picked, onPick }: { r: RecipeCard; picked: boolean; onP
           fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '0 14px',
         }}
       >
-        {picked ? '✓ Added' : '+ Add'}
+        {picked ? '✓ On your day' : '+ Add to today'}
       </button>
     </Card>
   );
 }
 
 /**
- * Recipe Library — the complete recipe database as a browsable, searchable
- * library: pick a cuisine, then every recipe in it with filters, rich cards
- * and pagination (server-side search over the full dataset).
+ * BUILD YOUR DAY — Step 03 of the Private Nutritionist.
+ *
+ * Owner, 18 Sep: the saved Food Preference Profile is the source of truth; the
+ * citizen enters this page and immediately sees a database already filtered
+ * for them; the day's food decides what is still needed; what is still needed
+ * decides what is recommended next. Nothing is asked twice.
+ *
+ * The page, top to bottom: the target (what the day is measured against),
+ * the day being built (the printed sheet, unchanged), the reading and the
+ * advice (what the numbers mean, with fixes computed), what to eat now (three
+ * plates, at the portion that fits), + Add food (anything eaten that is not a
+ * recipe), then the database — searchable, but already filtered and already
+ * ranked by what the day still needs.
  */
 export function RecipeLibrary() {
   const [cuisine, setCuisine] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [mealType, setMealType] = useState('');
-  const [diet, setDiet] = useState('');
-  const [sort, setSort] = useState('recent');
+  const [sort, setSort] = useState('fit');
   const [page, setPage] = useState(1);
   const [ingredients, setIngredients] = useState<string[]>([]);
-  /**
-   * The cuisine index is a page-1 facet, so paginating inside a cuisine returns
-   * an empty list. Holding the last non-empty one keeps the footer index from
-   * disappearing on page 2 — it is a permanent piece of furniture, not a result.
-   */
   const [cuisineList, setCuisineList] = useState<Array<{ name: string; count: number }>>([]);
+  const [food, setFood] = useState<{ mode: FoodMode; prefill?: Partial<Record<'name' | 'qty' | 'kcal' | 'protein' | 'carbs' | 'fat' | 'fiber', string>> } | null>(null);
+  const now = useNow();
+
   const own = useOwnPlan();
+  const read = useBuildYourDay(now);
   const addDish = useAddToOwnPlan();
+  const addFood = useAddFoodToOwnPlan();
   const removeDish = useRemoveFromOwnPlan();
   const lockDay = useLockOwnDay();
   const unlockDay = useUnlockOwnDay();
   const setPeople = useSetOwnPeople();
-  // What is already on the day being built — the tiles read this so "Added" is
-  // the plan's own answer rather than a second list that can drift from it.
+  const busy = removeDish.isPending || lockDay.isPending || unlockDay.isPending || addDish.isPending || setPeople.isPending || addFood.isPending;
+
+  // What is already on the day being built — the tiles read this so "on your
+  // day" is the plan's own answer rather than a second list that can drift.
   const target = own.data?.days.find((d) => d.dayIndex === own.data?.targetDay);
   const picked: Record<string, string> = Object.fromEntries(
     (target?.meals ?? []).flatMap((m) => m.components.map((c) => [c.recipeId, c.name])),
   );
 
-  /**
-   * Add, or take back. There is no local "picked" list any more — the plan on
-   * the server is the state, so a tile reading "Added" and a day that does not
-   * contain the dish cannot happen. The cost is a round trip per tap; the thing
-   * it buys is that the two can never disagree.
-   */
-  const togglePick = (r: RecipeCard) => {
+  const togglePick = (r: DayRecipe) => {
     if (picked[r.id]) {
       if (target) removeDish.mutate({ day: target.dayIndex, recipeId: r.id });
     } else {
-      addDish.mutate({ recipeId: r.id });
+      addDish.mutate({ recipeId: r.id, ...(r.fit.portionPct < 100 ? { portionPct: r.fit.portionPct } : {}) });
     }
   };
+  const addRecommended = useCallback((recipeId: string, portionPct: number) => {
+    addDish.mutate({ recipeId, ...(portionPct < 100 ? { portionPct } : {}) });
+  }, [addDish]);
+  const quickAddFix = useCallback((fix: ProteinFix) => {
+    // A quick fix is a food, added at the amount that closes the gap. The
+    // numbers are the same reference values the advice printed.
+    setFood({ mode: 'quick', prefill: { name: fix.name, qty: fix.amount, kcal: String(fix.kcal), protein: String(fix.proteinG), carbs: '0', fat: '0', fiber: '0' } });
+  }, []);
+  const submitFood = (f: OwnFoodInput) => {
+    addFood.mutate(f, { onSuccess: () => setFood(null) });
+  };
+
   const addIngredient = (raw: string) => {
     const v = raw.trim().toLowerCase();
     if (v && !ingredients.includes(v)) { setIngredients([...ingredients, v]); setPage(1); }
@@ -126,35 +158,23 @@ export function RecipeLibrary() {
   const removeIngredient = (v: string) => { setIngredients(ingredients.filter((x) => x !== v)); setPage(1); };
 
   /**
-   * ONE SEARCH BOX ON THE PAGE.
-   *
-   * There were two, stacked: "Search all recipes…" and, directly beneath it,
-   * "Type an ingredient and press Enter". Two text fields asking what you want
-   * to eat, one above the other, and no way to tell from looking which one
-   * "paneer" belonged in.
-   *
-   * They were never two questions. The library's search already matches a
-   * recipe's NAME **or** its INGREDIENTS — `recipeLibrary()` puts both in the
-   * same OR — so typing paneer here has always found dishes made with paneer,
-   * not merely ones with it in the title. The second box was a second door into
-   * a room you were already standing in.
-   *
-   * What survives of it is the chip row below: naming two ingredients is an
-   * AND ("this is what is in my kitchen"), which is a genuinely different
-   * question from search's OR, and a row of taps is the honest shape for it.
+   * ONE SEARCH BOX ON THE PAGE. It matches a recipe's NAME or its INGREDIENTS,
+   * so typing paneer finds dishes made with paneer. The chip row beneath is a
+   * different question — "this is what is in my kitchen", an AND — and a row
+   * of taps is the honest shape for it.
    */
   const universalSearch = (
     <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+      id="byd-search"
       placeholder="🔍 Search any dish or ingredient — palak paneer, oats, chicken…"
       aria-label="Search recipes by dish or ingredient"
       style={{ width: '100%', padding: '12px 14px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', background: 'var(--card)', boxSizing: 'border-box' }} />
   );
 
-  /** The chips for "what's in my kitchen" — a filter, not a search. Rendered on
-   *  both the landing and inside a cuisine, because the question is the same. */
+  /** The chips for "what do you have" — a filter, not a search. */
   const ingredientPicker = (
     <div className="card" style={{ marginBottom: 16 }}>
-      <div className="eyebrow" style={{ marginBottom: 8 }}>Cook from what you have</div>
+      <div className="eyebrow" style={{ marginBottom: 8 }}>What do you have? · Cook from what you have</div>
       {ingredients.length > 0 && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
           {ingredients.map((ing) => (
@@ -172,7 +192,7 @@ export function RecipeLibrary() {
             <button key={ing} type="button" onClick={() => (on ? removeIngredient(ing.toLowerCase()) : addIngredient(ing))}
               style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 13px', fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
                 border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
-              {ing}
+              + {ing}
             </button>
           );
         })}
@@ -185,20 +205,8 @@ export function RecipeLibrary() {
   );
 
   /**
-   * THE PLAN, AT THE TOP OF THE PAGE THAT BUILDS IT.
-   *
-   * This was a sticky bar counting picks and a button that turned them into a
-   * grocery list — so the page called "Create Your Own Meal Plan" produced
-   * everything except a meal plan. It shows the days instead, in the same four
-   * courses and the same typesetting as the Weekly Meal Planner, because a
-   * citizen reading their Tuesday should not have to learn two layouts
-   * depending on who chose the food.
-   *
-   * IT IS FIRST ON THE PAGE, on both the cuisine landing and inside a cuisine.
-   * It sat under a paginated grid of two hundred recipes, which is the one
-   * place somebody looking for the plan they are building will not scroll to —
-   * and after locking a day, the confirmation that anything happened was three
-   * screens down. What you are making comes before what you might add to it.
+   * THE PLAN, AT THE TOP OF THE PAGE THAT BUILDS IT — the printed day sheet,
+   * first on both views, in the same four courses as the Weekly Meal Planner.
    */
   const buildBar = (
     <OwnDayView
@@ -210,39 +218,58 @@ export function RecipeLibrary() {
       onLock={(day: number) => lockDay.mutate({ day })}
       onUnlock={(day: number) => unlockDay.mutate({ day })}
       onPeople={(n: number) => setPeople.mutate(n)}
-      busy={removeDish.isPending || lockDay.isPending || unlockDay.isPending || addDish.isPending || setPeople.isPending}
+      busy={busy}
     />
   );
 
-  // Debounce only the value that feeds the query key — the input stays fully
-  // controlled/responsive, but we fire one request per typing pause, not per key.
+  /**
+   * THE LOOP, UNDER THE SHEET: the target, the reading, the advice, what to
+   * eat now, and the four doors of + Add food. All from one read.
+   */
+  const loop = read.data ? (
+    <>
+      <DayTargetHead t={read.data.target} />
+      <DayLines lines={read.data.lines} next={read.data.next} priorities={read.data.priorities} />
+      <AdviceList advice={read.data.advice} onQuickAdd={quickAddFix} busy={busy} />
+      <EatNow read={read.data} onAdd={addRecommended} busy={busy} />
+      <section className="byd-addfood" aria-labelledby="byd-add-h">
+        <div className="byd-eyebrow" id="byd-add-h">+ Add food</div>
+        <p className="byd-muted">Anything you actually eat counts — the day cannot balance itself if it only knows about recipes.</p>
+        <div className="byd-doors">
+          <button type="button" className="byd-door" onClick={() => document.getElementById('byd-search')?.focus()}>
+            <b>Recipe from Together City</b><span>Search the database below — already filtered for you</span>
+          </button>
+          {FOOD_MODES.map((m) => (
+            <button type="button" className="byd-door" key={m.mode} onClick={() => setFood({ mode: m.mode })}>
+              <b>{m.label}</b><span>{m.sub}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+    </>
+  ) : read.isError ? (
+    <div className="card" style={{ marginBottom: 22 }}>
+      <h3 style={{ margin: 0, fontSize: 16 }}>We couldn’t read your day</h3>
+      <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 12px' }}>The target and the recommendations come from the same read — try again.</p>
+      <Button variant="line" size="sm" onClick={() => void read.refetch()}>Try again</Button>
+    </div>
+  ) : <Spinner label="Reading your profile…" />;
+
+  // Debounce only the value that feeds the query key.
   const debouncedSearch = useDebouncedValue(search, 350);
-  const q = {
+  const q = useMemo(() => ({
     cuisine: cuisine ?? undefined, search: debouncedSearch || undefined, mealType: mealType || undefined,
-    diet: diet || undefined, sort, page,
+    sort, page, now,
     ingredients: ingredients.length ? ingredients.join(',') : undefined,
-  };
-  const lib = useRecipeLibrary(q, true);
+  }), [cuisine, debouncedSearch, mealType, sort, page, now, ingredients]);
+  const lib = useDayRecipes(q, true);
 
   useEffect(() => {
     const facet = lib.data?.cuisines;
     if (facet && facet.length) setCuisineList(facet);
   }, [lib.data?.cuisines]);
 
-  /**
-   * THE CUISINE INDEX, AT THE FOOT OF THE PAGE.
-   *
-   * This was twenty-two cards in a grid, the first thing under the search box
-   * and the tallest thing on the screen — so the page whose job is "decide what
-   * you are eating" opened by asking which country you were in. Nobody arrives
-   * wanting Norway's one recipe; they arrive wanting dinner, and the search box
-   * above answers that in a keystroke.
-   *
-   * Cuisine is still a real way in, so it keeps a real link — one line of them,
-   * at the bottom, where an index belongs. The counts came off: they made the
-   * line wrap three deep, and the number reappears in the heading of whichever
-   * cuisine you open, which is the only place it changes a decision.
-   */
+  /** The cuisine index, at the foot — over the ELIGIBLE list, so it says what this citizen can open. */
   const cuisineIndex = cuisineList.length > 0 && (
     <div style={{ marginTop: 30, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
       <div className="eyebrow" style={{ marginBottom: 8 }}>Browse by cuisine</div>
@@ -265,61 +292,99 @@ export function RecipeLibrary() {
 
   const errorState = (
     <div style={{ textAlign: 'center' }}>
-      <EmptyState title="Couldn't load recipes" hint="Something went wrong reaching the recipe library. Check your connection and try again." />
+      <EmptyState title="Couldn't load recipes" hint="Something went wrong reaching the recipe database. Check your connection and try again." />
       <Button variant="line" size="sm" onClick={() => void lib.refetch()}>Try again</Button>
     </div>
   );
 
-  // Cuisine grid (landing) — from the page-1 facet. Naming an ingredient is a
-  // search, so it goes straight to results rather than making you pick a
-  // cuisine first.
+  const poolNote = lib.data && (
+    <p className="muted" style={{ fontSize: 12, margin: '0 0 10px' }}>
+      {lib.data.pool.eligible.toLocaleString('en-IN')} recipes fit your profile
+      {lib.data.pool.hidden > 0 ? ` · ${lib.data.pool.hidden.toLocaleString('en-IN')} held back by your allergies, diet and exclusions` : ''}
+      {sort === 'fit' ? ` · ranked for your ${lib.data.slot === 'b' ? 'breakfast' : lib.data.slot === 'l' ? 'lunch' : lib.data.slot === 'es' ? 'evening' : 'dinner'} and what you still need` : ''}
+      {lib.isFetching && !lib.isLoading ? ' · updating…' : ''}
+    </p>
+  );
+
+  const pager = !lib.isError && lib.data && lib.data.pages > 1 && (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 22 }}>
+      <Button variant="line" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>← Prev</Button>
+      <span className="muted" style={{ fontSize: 13 }}>Page {lib.data.page} of {lib.data.pages}</span>
+      <Button variant="line" size="sm" disabled={page >= lib.data.pages} onClick={() => setPage((p) => p + 1)}>Next →</Button>
+    </div>
+  );
+
+  const filters = (
+    <>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+        {MEAL_TYPES.map(([v, label]) => <Chip key={v || 'all'} selected={mealType === v} onClick={() => { setMealType(v); setPage(1); }}>{label}</Chip>)}
+      </div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+        <Chip selected={sort === 'fit'} onClick={() => { setSort('fit'); setPage(1); }}>Best for you now</Chip>
+        <Chip selected={sort === 'name'} onClick={() => { setSort('name'); setPage(1); }}>A–Z</Chip>
+      </div>
+    </>
+  );
+
+  const sheet = (
+    <AddFoodSheet open={food !== null} mode={food?.mode ?? 'quick'} prefill={food?.prefill ?? null}
+      defaultSlot={read.data?.nextSlot.slot ?? 'd'} onClose={() => setFood(null)} onSubmit={submitFood} busy={addFood.isPending} />
+  );
+
+  // Landing: the loop, then the database for you. Naming an ingredient or a
+  // cuisine goes straight to results.
   if (cuisine === null && ingredients.length === 0) {
     return (
-      <div>
-        <div className="eyebrow">Nutrition</div>
+      <div className="byd">
+        <div className="eyebrow">Nutrition · Build your day</div>
         <h1 style={{ fontSize: 26 }}>{LABELS.createYourOwnMealPlan}</h1>
         <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
-          Add dishes to build your day. Lock it — the ingredients go straight to your grocery list.
+          Your saved profile decides what you see; what you eat decides what comes next. Lock the day — the ingredients go to your grocery list.
           Your own dishes live under <Link to="/nutrition/saved">Saved recipes</Link>.
         </p>
 
         {buildBar}
-        <form onSubmit={(e) => { e.preventDefault(); if (search) setCuisine(''); }} style={{ marginBottom: 18 }}>
+        {loop}
+
+        <div className="wall-rule" style={{ marginTop: 26 }}><span>Recipes for you</span><span>{lib.data ? `${lib.data.total.toLocaleString('en-IN')} eligible` : ''}</span></div>
+        <form onSubmit={(e) => { e.preventDefault(); if (search) setCuisine(''); }} style={{ margin: '12px 0 12px' }}>
           {universalSearch}
         </form>
         {ingredientPicker}
-        {lib.isLoading && <Spinner label="Loading recipes…" />}
+        {filters}
+        {poolNote}
+        {lib.isLoading && <Spinner label="Filtering the database for you…" />}
         {lib.isError && !lib.isLoading && errorState}
-        {!lib.isError && lib.isFetching && !lib.isLoading && <p className="muted" style={{ fontSize: 12, margin: '0 0 10px' }}>Updating…</p>}
-
+        {!lib.isError && lib.data && lib.data.items.length === 0 && (
+          <EmptyState title="No recipes match" hint="Try clearing a filter or searching a different term." />
+        )}
+        {!lib.isError && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 14 }}>
+            {lib.data?.items.map((r) => <RecipeTile key={r.id} r={r} picked={Boolean(picked[r.id])} onPick={() => togglePick(r)} busy={busy} />)}
+          </div>
+        )}
+        {pager}
         {cuisineIndex}
+        {sheet}
       </div>
     );
   }
 
-  // Cuisine library view.
+  // Cuisine / search / ingredient view.
   return (
-    <div>
-      <button type="button" onClick={() => { setCuisine(null); setSearch(''); setMealType(''); setDiet(''); setIngredients([]); setPage(1); }}
-        style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '4px 12px', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', marginBottom: 12 }}>← All cuisines</button>
+    <div className="byd">
+      <button type="button" onClick={() => { setCuisine(null); setSearch(''); setMealType(''); setIngredients([]); setPage(1); }}
+        style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '4px 12px', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', marginBottom: 12 }}>← Build your day</button>
       <h1 style={{ fontSize: 24 }}>{cuisine || (ingredients.length ? 'Matching' : 'Search')} Recipes {lib.data && <span className="muted" style={{ fontSize: 14, fontWeight: 400 }}>· {lib.data.total.toLocaleString()}</span>}
         {lib.isFetching && !lib.isLoading && <span className="muted" style={{ fontSize: 12.5, fontWeight: 400, marginLeft: 8 }}>Updating…</span>}</h1>
 
       {buildBar}
+      {read.data && <DayLines lines={read.data.lines} next={read.data.next} priorities={read.data.priorities} />}
 
       <div style={{ margin: '10px 0 12px' }}>{universalSearch}</div>
-
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-        {MEAL_TYPES.map((m) => <Chip key={m || 'all'} selected={mealType === m} onClick={() => { setMealType(m); setPage(1); }}>{m ? m[0].toUpperCase() + m.slice(1) : 'All meals'}</Chip>)}
-      </div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-        {DIETS.map((d) => <Chip key={d || 'any'} selected={diet === d} onClick={() => { setDiet(d); setPage(1); }}>{d ? d[0].toUpperCase() + d.slice(1) : 'Any diet'}</Chip>)}
-      </div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-        {SORTS.map(([v, label]) => <Chip key={v} selected={sort === v} onClick={() => { setSort(v); setPage(1); }}>{label}</Chip>)}
-      </div>
-
+      {filters}
       {ingredientPicker}
+      {poolNote}
 
       {lib.isLoading && <Spinner label="Loading recipes…" />}
       {lib.isError && !lib.isLoading && errorState}
@@ -327,25 +392,18 @@ export function RecipeLibrary() {
         <EmptyState
           title="No recipes match"
           hint={ingredients.length > 1
-            ? 'Nothing uses all of those together — try removing one ingredient.'
-            : 'Try clearing a filter or searching a different term.'}
+            ? 'Nothing that fits your profile uses all of those together — try removing one ingredient.'
+            : 'Nothing that fits your profile matches — try clearing a filter or searching a different term.'}
         />
       )}
       {!lib.isError && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 14 }}>
-          {lib.data?.items.map((r) => <RecipeTile key={r.id} r={r} picked={Boolean(picked[r.id])} onPick={() => togglePick(r)} />)}
+          {lib.data?.items.map((r) => <RecipeTile key={r.id} r={r} picked={Boolean(picked[r.id])} onPick={() => togglePick(r)} busy={busy} />)}
         </div>
       )}
-
-      {!lib.isError && lib.data && lib.data.pages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 22 }}>
-          <Button variant="line" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>← Prev</Button>
-          <span className="muted" style={{ fontSize: 13 }}>Page {lib.data.page} of {lib.data.pages}</span>
-          <Button variant="line" size="sm" disabled={page >= lib.data.pages} onClick={() => setPage((p) => p + 1)}>Next →</Button>
-        </div>
-      )}
-
+      {pager}
       {cuisineIndex}
+      {sheet}
     </div>
   );
 }
