@@ -11,6 +11,7 @@ import { routeIndex } from '../routeIndex';
 import { DevCitizens } from '../Citizens';
 import { DevMedia } from '../Media';
 import { DevContentAnalytics } from '../ContentAnalytics';
+import { DevThreads } from '../ThreadsDesk';
 
 /**
  * THE DEVELOPER PAGE.
@@ -518,7 +519,7 @@ const flagIcon = (key: string): IconName =>
 
 /* ─────────────────────────── the page ─────────────────────────── */
 
-type Tab = 'config' | 'users' | 'flags' | 'social' | 'analytics' | 'routes';
+type Tab = 'config' | 'users' | 'flags' | 'social' | 'threads' | 'analytics' | 'routes';
 
 export function DevPage() {
   const [password, setPassword] = useState<string | null>(null);
@@ -529,6 +530,7 @@ export function DevPage() {
   const [tab, setTab] = useState<Tab>(() => {
     const asked = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
     if (asked?.get('tab') === 'analytics') return 'analytics';
+    if (asked?.get('tab') === 'threads') return 'threads';
     return asked?.get('tab') === 'social' ? 'social' : 'config';
   });
 
@@ -588,6 +590,7 @@ export function DevPage() {
            ['users', 'Users'],
            ['flags', 'Kill switches'],
            ['social', 'Together Social'],
+           ['threads', 'Threads posts'],
            ['analytics', 'Content analytics'],
            ['routes', `Pages (${routes.length})`]] as Array<[Tab, string]>).map(([k, label]) => (
           <button key={k} type="button" onClick={() => setTab(k)} aria-current={tab === k ? 'page' : undefined}
@@ -662,6 +665,10 @@ export function DevPage() {
       {/* ── CONTENT ANALYTICS (owner, 17 Sep) — every upload on every connected
           platform: the combined view, the audit, one page per piece of
           content and the click-through funnel. Public counts only. */}
+      {/* ── THREADS — TEXT POSTS (owner, 18 Sep) — one topic, one line, up to
+          two follow-ups posted as replies. No video on this page. */}
+      {tab === 'threads' && <DevThreads password={password} />}
+
       {tab === 'analytics' && <DevContentAnalytics password={password} />}
 
       {tab === 'flags' && (

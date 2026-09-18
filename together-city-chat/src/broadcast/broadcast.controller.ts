@@ -8,6 +8,7 @@ import { DevPasswordGuard } from '../dev/dev-password.guard';
 import { BroadcastService, type CreateInput } from './broadcast.service';
 import { SocialAccountsService } from './accounts.service';
 import { ContentAnalyticsService, type AnalyticsQuery } from './content-analytics.service';
+import { THREADS_LIMIT, ThreadsDeskService, type ThreadInput } from './threads-desk.service';
 import { RANGE_KEYS } from './content-analytics-math';
 import { CHANNEL_KEYS, PLATFORM_KEYS } from './channels';
 import { TOPIC_KEYS } from './topics';
@@ -38,6 +39,22 @@ const CreateSchema = z.object({
   episode: z.string().trim().max(120).optional(),
   campaign: z.string().trim().max(120).optional(),
 });
+
+/* ── THE THREADS DESK (owner, 18 Sep) — text, one topic at a time. The first
+   post is capped short of the platform's 500 so the tracked hub link, when it
+   is ticked, always fits. */
+const ThreadSchema = z.object({
+  topic: z.enum(TOPIC_KEYS),
+  text: z.string().trim().min(1).max(THREADS_LIMIT - 60),
+  followUps: z.array(z.string().trim().min(1).max(THREADS_LIMIT)).max(2).default([]),
+  hubLink: z.boolean().default(false),
+  note: z.string().trim().max(500).optional(),
+});
+const ThreadSuggestSchema = z.object({
+  topic: z.enum(TOPIC_KEYS),
+  note: z.string().trim().max(500).default(''),
+});
+type ThreadSuggestDto = z.infer<typeof ThreadSuggestSchema>;
 
 /* The analytics filters. A value outside the lists is refused, not ignored,
    so a typo in an address cannot quietly show everything. */
@@ -83,6 +100,7 @@ export class BroadcastController {
     private readonly desk: BroadcastService,
     private readonly accounts: SocialAccountsService,
     private readonly analytics: ContentAnalyticsService,
+    private readonly threads: ThreadsDeskService,
   ) {}
 
   /** Every destination, every topic, every account slot. */
@@ -113,6 +131,20 @@ export class BroadcastController {
   @Delete('accounts/:platform/:topic')
   disconnect(@CurrentUser() user: JwtUser, @Param('platform') platform: string, @Param('topic') topic: string, @Req() req: { ip?: string }) {
     return this.accounts.disconnect(user.sub, platform, topic, req.ip ?? null);
+  }
+
+  @Post('threads/suggest')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @UsePipes(new ZodValidationPipe(ThreadSuggestSchema))
+  threadSuggest(@CurrentUser() user: JwtUser, @Body() dto: ThreadSuggestDto) {
+    return this.threads.suggest(user.sub, dto.topic, dto.note);
+  }
+
+  @Post('threads')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @UsePipes(new ZodValidationPipe(ThreadSchema))
+  threadPost(@CurrentUser() user: JwtUser, @Body() dto: ThreadInput, @Req() req: { ip?: string }) {
+    return this.threads.post(user.sub, dto, req.ip ?? null);
   }
 
   /* ── THE CONTENT ANALYTICS (owner, 17 Sep) — reads only; Refresh asks the

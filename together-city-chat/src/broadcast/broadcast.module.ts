@@ -9,6 +9,7 @@ import { HubVideosController } from './hub-videos.controller';
 import { BroadcastService } from './broadcast.service';
 import { SocialAccountsService } from './accounts.service';
 import { ContentAnalyticsService } from './content-analytics.service';
+import { ThreadsDeskService } from './threads-desk.service';
 
 /**
  * The media desk. Its own module rather than more methods on DevService,
@@ -19,6 +20,6 @@ import { ContentAnalyticsService } from './content-analytics.service';
 @Module({
   imports: [PrismaModule, AdminConsoleModule, MediaModule, SocialModule],
   controllers: [BroadcastController, HubVideosController],
-  providers: [BroadcastService, SocialAccountsService, ContentAnalyticsService, DevPasswordGuard],
+  providers: [BroadcastService, SocialAccountsService, ContentAnalyticsService, ThreadsDeskService, DevPasswordGuard],
 })
 export class BroadcastModule {}
